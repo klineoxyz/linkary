@@ -1,6 +1,5 @@
-"use client";
-import LinkaryApp from "@/figma/app/App";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <LinkaryApp />;
+export default function AppRoute() {
+  redirect("/");
 }

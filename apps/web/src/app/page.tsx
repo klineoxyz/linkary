@@ -1,5 +1,6 @@
-import { redirect } from "next/navigation";
+"use client";
+import LinkaryApp from "@/figma/app/App";
 
 export default function Home() {
-  redirect("/app");
+  return <LinkaryApp />;
 }

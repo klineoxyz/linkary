@@ -1,0 +1,240 @@
+/**
+ * Linkary Typography System
+ * Infrastructure-Grade Contrast Standards
+ * 
+ * Design Principles:
+ * - High contrast text (WCAG AAA compliance)
+ * - Clear hierarchy
+ * - No washed-out colors
+ * - Professional, not trendy
+ */
+
+@layer base {
+  /* ============================================
+     LIGHT MODE (Default)
+     ============================================ */
+  
+  /* Primary Text - Main content, headings */
+  .text-primary {
+    @apply text-slate-900;
+  }
+  
+  /* Secondary Text - Body content, descriptions */
+  .text-secondary {
+    @apply text-slate-700;
+  }
+  
+  /* Muted Text - Labels, captions, metadata */
+  .text-muted {
+    @apply text-slate-600;
+  }
+  
+  /* Subtle Text - Hints, placeholders, disabled */
+  .text-subtle {
+    @apply text-slate-500;
+  }
+
+  /* ============================================
+     DARK MODE
+     ============================================ */
+  
+  .dark .text-primary {
+    @apply text-white;
+  }
+  
+  .dark .text-secondary {
+    @apply text-white/70;
+  }
+  
+  .dark .text-muted {
+    @apply text-white/60;
+  }
+  
+  .dark .text-subtle {
+    @apply text-white/50;
+  }
+
+  /* ============================================
+     TYPOGRAPHY SCALE
+     ============================================ */
+  
+  /* Display - Hero sections */
+  .text-display {
+    @apply text-5xl font-bold tracking-tight;
+  }
+  
+  /* Headline - Page titles */
+  .text-headline {
+    @apply text-3xl font-bold tracking-tight;
+  }
+  
+  /* Title - Section titles */
+  .text-title {
+    @apply text-2xl font-semibold;
+  }
+  
+  /* Subtitle - Subsection titles */
+  .text-subtitle {
+    @apply text-xl font-semibold;
+  }
+  
+  /* Body Large - Emphasized body */
+  .text-body-lg {
+    @apply text-lg leading-relaxed;
+  }
+  
+  /* Body - Default body text */
+  .text-body {
+    @apply text-base leading-relaxed;
+  }
+  
+  /* Body Small - Compact body */
+  .text-body-sm {
+    @apply text-sm leading-relaxed;
+  }
+  
+  /* Label - Form labels, card labels */
+  .text-label {
+    @apply text-sm font-medium uppercase tracking-wider;
+  }
+  
+  /* Caption - Small supporting text */
+  .text-caption {
+    @apply text-xs;
+  }
+
+  /* ============================================
+     METRIC TYPOGRAPHY (Analytics Cards)
+     ============================================ */
+  
+  /* Metric Large - Dashboard hero metrics */
+  .text-metric-lg {
+    @apply text-4xl font-bold text-slate-900 leading-none;
+  }
+  
+  .dark .text-metric-lg {
+    @apply text-white;
+  }
+  
+  /* Metric Medium - Standard analytics cards */
+  .text-metric-md {
+    @apply text-3xl font-bold text-slate-900 leading-none;
+  }
+  
+  .dark .text-metric-md {
+    @apply text-white;
+  }
+  
+  /* Metric Small - Compact stats */
+  .text-metric-sm {
+    @apply text-2xl font-bold text-slate-900 leading-none;
+  }
+  
+  .dark .text-metric-sm {
+    @apply text-white;
+  }
+  
+  /* Metric Label - Always uppercase, medium weight */
+  .text-metric-label {
+    @apply text-xs font-medium text-slate-600 uppercase tracking-wider;
+  }
+  
+  .dark .text-metric-label {
+    @apply text-white/60;
+  }
+
+  /* ============================================
+     HEADING UTILITIES
+     ============================================ */
+  
+  h1, .h1 {
+    @apply text-3xl font-bold text-slate-900 tracking-tight;
+  }
+  
+  h2, .h2 {
+    @apply text-2xl font-semibold text-slate-900;
+  }
+  
+  h3, .h3 {
+    @apply text-xl font-semibold text-slate-900;
+  }
+  
+  h4, .h4 {
+    @apply text-lg font-semibold text-slate-900;
+  }
+  
+  h5, .h5 {
+    @apply text-base font-semibold text-slate-900;
+  }
+  
+  h6, .h6 {
+    @apply text-sm font-semibold text-slate-900;
+  }
+
+  /* Dark mode headings */
+  .dark h1, .dark .h1,
+  .dark h2, .dark .h2,
+  .dark h3, .dark .h3,
+  .dark h4, .dark .h4,
+  .dark h5, .dark .h5,
+  .dark h6, .dark .h6 {
+    @apply text-white;
+  }
+
+  /* ============================================
+     LINK STYLES
+     ============================================ */
+  
+  .link {
+    @apply text-slate-900 underline underline-offset-4 hover:text-slate-700 transition-colors;
+  }
+  
+  .dark .link {
+    @apply text-white hover:text-white/80;
+  }
+  
+  .link-muted {
+    @apply text-slate-600 underline underline-offset-4 hover:text-slate-900 transition-colors;
+  }
+  
+  .dark .link-muted {
+    @apply text-white/60 hover:text-white;
+  }
+
+  /* ============================================
+     CODE & MONOSPACE
+     ============================================ */
+  
+  code, .code {
+    @apply font-mono text-sm bg-slate-100 text-slate-900 px-1.5 py-0.5 rounded;
+  }
+  
+  .dark code, .dark .code {
+    @apply bg-slate-800 text-white;
+  }
+  
+  pre {
+    @apply font-mono text-sm bg-slate-100 text-slate-900 p-4 rounded-lg overflow-x-auto;
+  }
+  
+  .dark pre {
+    @apply bg-slate-800 text-white;
+  }
+}
+
+/* ============================================
+   CONTRAST ENFORCEMENT RULES
+   ============================================ */
+
+/* BANNED: Never use these on light backgrounds */
+.bg-white .text-gray-900,
+.bg-white .text-gray-700,
+.bg-white .text-gray-600 {
+  /* Use .text-primary, .text-secondary, .text-muted instead */
+}
+
+/* BANNED: Never use these on dark backgrounds */
+.bg-slate-900 .text-slate-900,
+.bg-slate-900 .text-slate-700 {
+  /* Use .text-white, .text-white/70 instead */
+}

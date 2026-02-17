@@ -59,11 +59,11 @@ export default function WalletsSection({ profileId }: WalletsSectionProps) {
     try {
       if (evmInput.trim()) {
         const r = await upsertWallet(session.user.id, "evm", evmInput.trim());
-        if (!r.ok) errors.push(r.error);
+        if (!r.ok) errors.push((r as { ok: false; error: string }).error);
       }
       if (solanaInput.trim()) {
         const r = await upsertWallet(session.user.id, "solana", solanaInput.trim());
-        if (!r.ok) errors.push(r.error);
+        if (!r.ok) errors.push((r as { ok: false; error: string }).error);
       }
       if (errors.length > 0) {
         setMessage({ type: "error", text: errors.join(" ") });

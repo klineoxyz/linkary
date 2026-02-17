@@ -1,0 +1,14 @@
+# Explicit Nixpacks config so Railway builds apps/api reliably.
+# Set Railway service Root Directory to: apps/api
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start"

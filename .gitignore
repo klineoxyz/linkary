@@ -1,3 +1,4 @@
 # env files - never commit secrets
 .env.local
 .env*
+apps/api/.env

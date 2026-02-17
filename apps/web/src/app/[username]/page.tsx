@@ -15,12 +15,23 @@ const RESERVED_USERNAMES = new Set([
   "app",
 ]);
 
+const USERNAME_MAX_LEN = 64;
+const USERNAME_REGEX = /^[a-zA-Z0-9_-]+$/;
+
 type PageProps = {
   params: Promise<{ username: string }>;
 };
 
 export default async function UsernamePage({ params }: PageProps) {
   const { username } = await params;
+
+  if (
+    typeof username !== "string" ||
+    username.length > USERNAME_MAX_LEN ||
+    !USERNAME_REGEX.test(username)
+  ) {
+    notFound();
+  }
 
   if (RESERVED_USERNAMES.has(username.toLowerCase())) {
     notFound();

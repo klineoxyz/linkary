@@ -1,3 +1,8 @@
+/**
+ * Public profile at /[username].
+ * Local test: npm run dev, then open http://localhost:3000/muazxinthi
+ * If 404: ensure public.profiles has a row with username = 'muazxinthi' (Supabase Table Editor).
+ */
 import { notFound } from "next/navigation";
 import { getProfileByUsername, getWalletsByUserId } from "@/lib/db";
 

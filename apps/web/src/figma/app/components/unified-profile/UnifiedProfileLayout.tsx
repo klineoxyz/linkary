@@ -14,6 +14,7 @@ import {
   Button,
 } from "./ProfileComponents";
 import { Plus } from "lucide-react";
+import WalletsSection from "./WalletsSection";
 
 /**
  * Unified Profile Layout
@@ -27,7 +28,9 @@ import { Plus } from "lucide-react";
 interface UnifiedProfileLayoutProps {
   data: ProfileData;
   viewMode: ViewMode;
-  
+  /** Supabase profile id (auth.users.id). When set, wallets are loaded and owner can edit. */
+  profileId?: string;
+
   // Edit callbacks (only used in editor mode)
   onEditHero?: () => void;
   onEditLinks?: () => void;
@@ -166,6 +169,7 @@ function getSectionsForEntityType(entityType: string, data: ProfileData) {
 export default function UnifiedProfileLayout({
   data,
   viewMode,
+  profileId,
   onEditHero,
   onEditLinks,
   onAddLink,
@@ -209,6 +213,9 @@ export default function UnifiedProfileLayout({
         
         {/* Reputation Scores */}
         <ReputationBlock data={data} viewMode={viewMode} />
+
+        {/* Wallets (manual for now; owner can add/edit when profileId matches session) */}
+        <WalletsSection profileId={profileId} />
         
         {/* Entity-Specific Sections */}
         

@@ -1,11 +1,15 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import UnifiedProfileLayout from "./unified-profile/UnifiedProfileLayout";
 import { ProfileData } from "./unified-profile/ProfileComponents";
+import { supabase } from "@/lib/supabase";
 
 /**
  * Public Profile Page (Individual Entity Type)
  * Uses the unified profile layout system
  * This is the main profile that users see at linkary.xyz/username
+ * When the viewer is logged in, profileId is set so they can manage wallets on their profile.
  */
 
 // Demo data matching the original ProfilePage (demo.me)
@@ -151,14 +155,21 @@ export default function PublicProfilePage({
   setRoute?: (route: any) => void;
   data?: ProfileData | Record<string, unknown>;
 }) {
-  // Public profile view mode
   const viewMode = "public";
   const resolvedData = (data ?? demoPublicProfileData) as ProfileData;
-  
+  const [profileId, setProfileId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setProfileId(session?.user?.id ?? undefined);
+    });
+  }, []);
+
   return (
     <UnifiedProfileLayout
       data={resolvedData}
       viewMode={viewMode}
+      profileId={profileId}
     />
   );
 }

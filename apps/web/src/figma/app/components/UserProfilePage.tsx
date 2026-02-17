@@ -218,8 +218,7 @@ export default function UserProfilePage({ setRoute }: { setRoute?: (route: any) 
   return (
     <div className="space-y-6">
       <SectionTitle
-        title={`linkary.xyz/${u.handle}`}
-        subtitle="User Profile — Your public profile page"
+        title={u.name}
         right={
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" className="flex items-center gap-2">

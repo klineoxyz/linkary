@@ -36,6 +36,13 @@ export default async function UsernamePage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-8">
       <div className="max-w-xl mx-auto space-y-6">
+        {profile.avatar_url && (
+          <img
+            src={profile.avatar_url}
+            alt={profile.display_name ?? profile.username ?? "Avatar"}
+            className="w-20 h-20 rounded-full object-cover bg-zinc-800"
+          />
+        )}
         <h1 className="text-2xl font-semibold">
           {profile.display_name ?? profile.username ?? profile.id}
         </h1>
@@ -44,6 +51,16 @@ export default async function UsernamePage({ params }: PageProps) {
         )}
         {profile.bio && (
           <p className="text-zinc-300 whitespace-pre-wrap">{profile.bio}</p>
+        )}
+        {profile.website && (
+          <a
+            href={profile.website.startsWith("http") ? profile.website : `https://${profile.website}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cyan-400 hover:underline text-sm"
+          >
+            {profile.website}
+          </a>
         )}
 
         <section>

@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function TestSupabasePage() {
+  if (process.env.NODE_ENV !== "development") {
+    notFound();
+  }
+
   const [status, setStatus] = useState<"loading" | "connected" | "failed">("loading");
   const [error, setError] = useState<string | null>(null);
 

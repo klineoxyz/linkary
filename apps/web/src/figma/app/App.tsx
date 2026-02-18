@@ -125,7 +125,7 @@ import {
   Calendar,
   Mic,
   Receipt,
-  Link,
+  Link as LinkIcon,
   ArrowRight,
   Check,
   X as XIcon,

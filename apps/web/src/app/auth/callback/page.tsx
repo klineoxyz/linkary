@@ -72,7 +72,7 @@ export default function AuthCallbackPage() {
         }
         setMessage("Updating profile…");
         await ensureProfileForSession(user.id);
-        const identity = extractTwitterIdentity(user as Parameters<typeof extractTwitterIdentity>[0]);
+        const identity = extractTwitterIdentity(user as unknown as Parameters<typeof extractTwitterIdentity>[0]);
         if (identity) {
           const { error: saveErr } = await saveTwitterIdentityFromOAuth(user.id, identity);
           if (saveErr && !cancelled) setMessage(saveErr);
@@ -87,7 +87,7 @@ export default function AuthCallbackPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (cancelled) return;
       if (session?.user) {
-        const user = session.user as Parameters<typeof extractTwitterIdentity>[0];
+        const user = session.user as unknown as Parameters<typeof extractTwitterIdentity>[0];
         await ensureProfileForSession(session.user.id);
         const identity = extractTwitterIdentity(user);
         if (identity) {

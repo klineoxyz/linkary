@@ -1,10 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { updateMyProfile } from "@/lib/profiles";
 
 const INTENTS = ["Creator", "Brand", "Both"] as const;
+
+const LOCATION_REGIONS = [
+  "",
+  "Remote",
+  "Europe",
+  "Arabian Gulf",
+  "North America",
+  "South America",
+  "Asia Pacific",
+  "China",
+  "Africa",
+  "Other",
+] as const;
 
 export default function OnboardingPage({
   userId,
@@ -22,10 +35,31 @@ export default function OnboardingPage({
   const [website, setWebsite] = useState("");
   const [location, setLocation] = useState("");
   const [published, setPublished] = useState(false);
-  const [followersTotal, setFollowersTotal] = useState<string>("");
-  const [avgEngagementRate, setAvgEngagementRate] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [handleStatus, setHandleStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+
+  const normalizedHandle = handle.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-");
+
+  const checkHandle = useCallback(async () => {
+    if (!normalizedHandle) {
+      setHandleStatus("idle");
+      return;
+    }
+    setHandleStatus("checking");
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("id")
+      .ilike("username", normalizedHandle)
+      .neq("id", userId)
+      .maybeSingle();
+    setHandleStatus(existing ? "taken" : "available");
+  }, [normalizedHandle, userId]);
+
+  useEffect(() => {
+    const t = setTimeout(checkHandle, 400);
+    return () => clearTimeout(t);
+  }, [checkHandle]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,8 +86,6 @@ export default function OnboardingPage({
     }
 
     const intentsArray = intent === "Both" ? ["Creator", "Brand"] : [intent];
-    const engagement = avgEngagementRate.trim() ? parseFloat(avgEngagementRate) : 0;
-    const engNormalized = engagement > 1 ? engagement / 100 : engagement;
 
     const { error: updateErr } = await updateMyProfile(userId, {
       username: handleTrim,
@@ -64,8 +96,6 @@ export default function OnboardingPage({
       intents: intentsArray,
       published,
       onboarding_completed_at: new Date().toISOString(),
-      followers_total: followersTotal.trim() ? parseInt(followersTotal, 10) || 0 : undefined,
-      avg_engagement_rate: Number.isFinite(engNormalized) ? engNormalized : undefined,
     });
 
     setLoading(false);
@@ -110,9 +140,15 @@ export default function OnboardingPage({
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
               placeholder="alice"
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+              className={`w-full px-3 py-2 rounded-lg border bg-white text-zinc-900 ${
+                handleStatus === "taken" ? "border-red-400" : handleStatus === "available" ? "border-emerald-500" : "border-zinc-300"
+              }`}
             />
-            <p className="text-xs text-zinc-500 mt-0.5">linkary.xyz/{handle.trim() || "…"}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">linkary.xyz/{normalizedHandle || "…"}</p>
+            {handleStatus === "checking" && <p className="text-xs text-zinc-500 mt-0.5">Checking availability…</p>}
+            {handleStatus === "available" && normalizedHandle && <p className="text-xs text-emerald-600 mt-0.5">✓ Available</p>}
+            {handleStatus === "taken" && <p className="text-xs text-red-600 mt-0.5">✗ This handle is taken</p>}
+            <p className="text-xs text-zinc-500 mt-1">We recommend using your X (Twitter) handle so people can find you.</p>
           </div>
 
           <div>
@@ -149,14 +185,16 @@ export default function OnboardingPage({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Location</label>
-            <input
-              type="text"
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Location (region)</label>
+            <select
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="City or Remote"
               className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-            />
+            >
+              {LOCATION_REGIONS.map((r) => (
+                <option key={r || "empty"} value={r}>{r || "Select region…"}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex items-center gap-2">
@@ -170,31 +208,10 @@ export default function OnboardingPage({
             <label htmlFor="published" className="text-sm text-zinc-700">Make my profile public</label>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Followers total (optional)</label>
-              <input
-                type="number"
-                min={0}
-                value={followersTotal}
-                onChange={(e) => setFollowersTotal(e.target.value)}
-                placeholder="0"
-                className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Avg engagement (0–1 or 0–100%)</label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={0.01}
-                value={avgEngagementRate}
-                onChange={(e) => setAvgEngagementRate(e.target.value)}
-                placeholder="0"
-                className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-              />
-            </div>
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
+            <p className="text-sm text-zinc-600">
+              <strong>Followers &amp; engagement</strong> will be updated when you connect your socials (X, YouTube, TikTok, etc.) in your profile.
+            </p>
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}

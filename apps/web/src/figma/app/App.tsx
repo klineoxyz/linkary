@@ -90,6 +90,7 @@ import {
   HelpCircle,
   Home,
   LayoutDashboard,
+  LogIn,
   LogOut,
   Menu,
   MessageSquare,
@@ -805,8 +806,9 @@ function routeFromPathname(pathname: string | null): { name: string; data?: any;
   return { name: "userProfile", data: { username: decodeURIComponent(path) }, handle: decodeURIComponent(path) };
 }
 
-function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
+function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSignOut }) {
   const isActive = (name) => route?.name === name;
+  const isLoggedIn = !!authUserId;
 
   const Link = ({ name, icon: Icon, label, badge, onClick }) => (
     <button
@@ -930,13 +932,29 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
           >
             <HelpCircle className="h-4 w-4 stroke-[1.75]" /> Support
           </button>
-          <button
-            type="button"
-            onClick={() => setRoute({ name: "signOut" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
-          >
-            <LogOut className="h-4 w-4 stroke-[1.75]" /> Sign Out
-          </button>
+          {isLoggedIn ? (
+            <button
+              type="button"
+              onClick={() => {
+                onSignOut?.();
+                setMobileOpen(false);
+              }}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
+            >
+              <LogOut className="h-4 w-4 stroke-[1.75]" /> Log out
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setRoute({ name: "login" });
+                setMobileOpen(false);
+              }}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
+            >
+              <LogIn className="h-4 w-4 stroke-[1.75]" /> Login
+            </button>
+          )}
         </div>
 
         <div className="mt-auto hidden lg:block">
@@ -2552,6 +2570,14 @@ export default function LinkaryApp() {
     setAuthBootstrapped(true);
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setAuthUserId(null);
+    setMe(null);
+    setRoute({ name: "login" });
+    setAuthBootstrapped(true);
+  };
+
   useEffect(() => {
     if (authBootstrapped) return;
     runAuthGate();
@@ -2890,6 +2916,8 @@ export default function LinkaryApp() {
             setRoute={setRoute}
             mobileOpen={mobileOpen}
             setMobileOpen={setMobileOpen}
+            authUserId={authUserId}
+            onSignOut={handleSignOut}
           />
         )}
 

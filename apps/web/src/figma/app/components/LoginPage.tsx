@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
 import { ensureProfileForSession } from "@/lib/profiles";
 import { upsertWallet } from "@/lib/wallets";
+import { useCdpAppId } from "@/app/CdpAppIdProvider";
 
 // Load CDP AuthButton on client so Coinbase login option shows reliably
 const AuthButton = dynamic(
@@ -26,8 +27,7 @@ export default function LoginPage({
   onLoggedIn: () => void;
   setRoute: (r: { name: string }) => void;
 }) {
-  const cdpAppId =
-    (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CDP_APP_ID) || "";
+  const cdpAppId = useCdpAppId();
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">

@@ -2,10 +2,10 @@
 
 import { CDPReactProvider } from "@coinbase/cdp-react";
 import LinkaryApp from "@/figma/app/App";
-
-const cdpProjectId = process.env.NEXT_PUBLIC_CDP_APP_ID ?? "";
+import { useCdpAppId } from "@/app/CdpAppIdProvider";
 
 export default function AppWithProviders() {
+  const cdpProjectId = useCdpAppId();
   return cdpProjectId ? (
     <CDPReactProvider
       config={{

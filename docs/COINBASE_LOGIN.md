@@ -42,6 +42,13 @@ Linkary uses **Coinbase Developer Platform (CDP) Embedded Wallets** for sign-in.
    - From repo root: `cd apps/web && pnpm install && pnpm dev`.
    - Open the login route; you should see **Continue with Coinbase**. After CDP sign-in and the bridge step, you get a Supabase session and are redirected to onboarding or explore.
 
+## Production (Vercel)
+
+- In **Vercel** → Project → **Settings** → **Environment Variables**, add:
+  - `NEXT_PUBLIC_CDP_APP_ID` = your CDP Project ID (same as local).
+- The app reads this at **request time** from the server, so the Coinbase login option will show on https://www.linkary.xyz/login as soon as the variable is set (redeploy once if you add it after the first deploy).
+- Under **CDP Portal → Embedded Wallets → Domains**, add your production domain (e.g. `https://www.linkary.xyz`).
+
 ## Security
 
 - **Signature verification**: The Edge Function verifies EIP-191 `personal_sign` so only the owner of the wallet can get a session for that address.

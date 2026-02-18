@@ -147,8 +147,24 @@ export default function OnboardingPage({
             <p className="text-xs text-zinc-500 mt-0.5">linkary.xyz/{normalizedHandle || "…"}</p>
             {handleStatus === "checking" && <p className="text-xs text-zinc-500 mt-0.5">Checking availability…</p>}
             {handleStatus === "available" && normalizedHandle && <p className="text-xs text-emerald-600 mt-0.5">✓ Available</p>}
-            {handleStatus === "taken" && <p className="text-xs text-red-600 mt-0.5">✗ This handle is taken</p>}
-            <p className="text-xs text-zinc-500 mt-1">We recommend using your X (Twitter) handle so people can find you.</p>
+            {handleStatus === "taken" && (
+              <p className="text-xs text-red-600 mt-0.5">✗ This handle is taken. Sign in with X and verify to claim it if it’s yours.</p>
+            )}
+            <p className="text-xs text-zinc-500 mt-1">
+              Use your X (Twitter) handle. To <strong>confirm</strong> this handle you must sign in with X and verify—no handle is confirmed until then.
+            </p>
+            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+              <p className="text-xs text-amber-800">
+                Not signed in with X? Confirm your handle by signing in with X and verifying in Verification Center.
+              </p>
+              <button
+                type="button"
+                onClick={() => setRoute({ name: "verification" })}
+                className="mt-1.5 text-xs font-medium text-amber-700 hover:text-amber-800"
+              >
+                Confirm with X →
+              </button>
+            </div>
           </div>
 
           <div>

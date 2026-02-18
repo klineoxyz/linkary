@@ -12,6 +12,9 @@ export type Profile = {
   avatar_url: string | null;
   website: string | null;
   twitter_username: string | null;
+  twitter_user_id?: string | null;
+  twitter_connected_at?: string | null;
+  twitter_username_candidate?: string | null;
   onboarding_completed_at: string | null;
   published: boolean;
   location: string | null;
@@ -20,6 +23,19 @@ export type Profile = {
   avg_engagement_rate: number;
   created_at: string;
   updated_at: string;
+};
+
+/** Identity shape from Supabase auth (user.identities or provider raw_user_meta) */
+export type TwitterIdentity = {
+  provider: string;
+  id?: string;
+  sub?: string;
+  user_name?: string;
+  preferred_username?: string;
+  username?: string;
+  avatar_url?: string;
+  picture?: string;
+  profile_image_url?: string;
 };
 
 const PROFILES = "profiles";
@@ -99,5 +115,61 @@ export async function updateMyProfile(
     updates.intents = updates.intents;
   }
   const { error } = await supabase.from(PROFILES).update(updates).eq("id", userId);
+  return { error: error?.message ?? null };
+}
+
+/**
+ * Save X (Twitter) identity from OAuth into profiles.
+ * Guardrail: do NOT overwrite profiles.twitter_username if already non-empty;
+ * if different, store in twitter_username_candidate.
+ */
+export async function saveTwitterIdentityFromOAuth(
+  userId: string,
+  identity: TwitterIdentity
+): Promise<{ error: string | null }> {
+  const twitterUserId = identity.id ?? identity.sub ?? null;
+  const handle =
+    identity.user_name ??
+    identity.preferred_username ??
+    identity.username ??
+    null;
+  const avatar =
+    identity.avatar_url ??
+    identity.picture ??
+    identity.profile_image_url ??
+    null;
+
+  const { data: row } = await supabase
+    .from(PROFILES)
+    .select("twitter_username")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const existingHandle = (row?.twitter_username ?? "").trim();
+  const updates: Record<string, unknown> = {
+    twitter_user_id: twitterUserId,
+    twitter_connected_at: new Date().toISOString(),
+  };
+  if (avatar) updates.avatar_url = avatar;
+
+  if (existingHandle && handle && existingHandle.toLowerCase() !== (handle ?? "").toLowerCase()) {
+    updates.twitter_username_candidate = handle;
+  } else if (handle) {
+    updates.twitter_username = handle;
+  }
+
+  const { error } = await supabase.from(PROFILES).update(updates).eq("id", userId);
+  return { error: error?.message ?? null };
+}
+
+/** Disconnect X: clear twitter_connected_at and twitter_user_id (UI-level only). */
+export async function disconnectTwitter(userId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from(PROFILES)
+    .update({
+      twitter_connected_at: null,
+      twitter_user_id: null,
+    })
+    .eq("id", userId);
   return { error: error?.message ?? null };
 }

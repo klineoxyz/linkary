@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "db:push": "npx supabase db push",
+    "deploy:auth": "npx supabase functions deploy auth-cdp-login",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter linkary-api dev",
     "build": "pnpm -r run build",

@@ -1,7 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { ensureProfileForSession } from "@/lib/profiles";
+import { upsertWallet } from "@/lib/wallets";
+
+const LINKARY_LOGIN_PREFIX = "Linkary login: ";
+
+function getFunctionsUrl(): string {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  return base ? `${base.replace(/\/$/, "")}/functions/v1/auth-cdp-login` : "";
+}
 
 export default function LoginPage({
   onLoggedIn,
@@ -10,116 +19,27 @@ export default function LoginPage({
   onLoggedIn: () => void;
   setRoute: (r: { name: string }) => void;
 }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [useMagicLink, setUseMagicLink] = useState(false);
-
-  const handleEmailPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setLoading(false);
-    if (err) {
-      setError(err.message);
-      return;
-    }
-    onLoggedIn();
-  };
-
-  const handleMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: typeof window !== "undefined" ? window.location.origin + "/" : undefined },
-    });
-    setLoading(false);
-    if (err) {
-      setError(err.message);
-      return;
-    }
-    setMagicLinkSent(true);
-  };
-
-  if (magicLinkSent) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-md w-full rounded-2xl border border-zinc-200 bg-white p-8 shadow-lg">
-          <h1 className="text-xl font-semibold text-zinc-900 mb-2">Check your email</h1>
-          <p className="text-zinc-600 text-sm mb-6">
-            We sent a sign-in link to <strong>{email}</strong>. Click it to sign in.
-          </p>
-          <button
-            type="button"
-            onClick={() => { setMagicLinkSent(false); setError(null); }}
-            className="text-sm text-indigo-600 hover:text-indigo-700"
-          >
-            Use a different email
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const cdpAppId =
+    (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CDP_APP_ID) || "";
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="max-w-md w-full rounded-2xl border border-zinc-200 bg-white p-8 shadow-lg">
         <h1 className="text-2xl font-bold text-zinc-900 mb-2">Sign in to Linkary</h1>
-        <p className="text-zinc-600 text-sm mb-6">Use email + password or magic link.</p>
+        <p className="text-zinc-600 text-sm mb-6">
+          Use your Coinbase wallet to sign in. No email or password.
+        </p>
 
-        <form
-          onSubmit={useMagicLink ? handleMagicLink : handleEmailPassword}
-          className="space-y-4"
-        >
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="you@example.com"
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-            />
-          </div>
-          {!useMagicLink && (
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required={!useMagicLink}
-                placeholder="••••••••"
-                className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-              />
-            </div>
-          )}
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={loading || !email.trim()}
-              className="flex-1 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {loading ? "Signing in…" : useMagicLink ? "Send magic link" : "Sign in"}
-            </button>
-          </div>
-        </form>
+        {cdpAppId ? (
+          <CoinbaseLoginFlow onLoggedIn={onLoggedIn} />
+        ) : (
+          <p className="text-zinc-500 text-sm">
+            Set <code className="bg-zinc-100 px-1 rounded">NEXT_PUBLIC_CDP_APP_ID</code> and
+            restart the app to enable Coinbase login.
+          </p>
+        )}
 
-        <div className="mt-4 flex items-center justify-between text-sm">
-          <button
-            type="button"
-            onClick={() => { setUseMagicLink(!useMagicLink); setError(null); }}
-            className="text-zinc-500 hover:text-zinc-700"
-          >
-            {useMagicLink ? "Use password instead" : "Use magic link instead"}
-          </button>
+        <div className="mt-4 flex justify-end text-sm">
           <button
             type="button"
             onClick={() => setRoute({ name: "landing" })}
@@ -131,4 +51,142 @@ export default function LoginPage({
       </div>
     </div>
   );
+}
+
+function CoinbaseLoginFlow({ onLoggedIn }: { onLoggedIn: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [bridgeStep, setBridgeStep] = useState<"idle" | "signing" | "exchanging">("idle");
+
+  const { isSignedIn, evmAddress, signEvmMessage, AuthButton } = useCdpHooks();
+
+  const runBridge = useCallback(async () => {
+    if (!evmAddress || !signEvmMessage) {
+      setError("Wallet not ready");
+      return;
+    }
+    setError(null);
+    setBridgeStep("signing");
+    setLoading(true);
+    const message = `${LINKARY_LOGIN_PREFIX}${Date.now()}`;
+    try {
+      const { signature } = await signEvmMessage({ evmAccount: evmAddress, message });
+      setBridgeStep("exchanging");
+      const url = getFunctionsUrl();
+      if (!url) {
+        setError("Missing Supabase URL");
+        setLoading(false);
+        setBridgeStep("idle");
+        return;
+      }
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: evmAddress, message, signature }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error ?? "Login failed");
+        setLoading(false);
+        setBridgeStep("idle");
+        return;
+      }
+      const { token_hash: tokenHash } = data;
+      if (!tokenHash) {
+        setError("No token received");
+        setLoading(false);
+        setBridgeStep("idle");
+        return;
+      }
+      const { data: sessionData, error: verifyErr } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: "magiclink",
+      });
+      if (verifyErr) {
+        setError(verifyErr.message);
+        setLoading(false);
+        setBridgeStep("idle");
+        return;
+      }
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) {
+        setError("Session missing");
+        setLoading(false);
+        setBridgeStep("idle");
+        return;
+      }
+      await ensureProfileForSession(userId);
+      await upsertWallet(userId, "evm", evmAddress);
+      setLoading(false);
+      setBridgeStep("idle");
+      onLoggedIn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+      setLoading(false);
+      setBridgeStep("idle");
+    }
+  }, [evmAddress, signEvmMessage, onLoggedIn]);
+
+  if (!AuthButton) {
+    return <p className="text-zinc-500 text-sm">Loading Coinbase…</p>;
+  }
+
+  if (!isSignedIn) {
+    return (
+      <div className="space-y-4">
+        <AuthButton />
+        {error && <p className="text-sm text-red-600">{error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {evmAddress && (
+        <p className="text-xs text-zinc-500 truncate" title={evmAddress}>
+          {evmAddress.slice(0, 6)}…{evmAddress.slice(-4)}
+        </p>
+      )}
+      <button
+        type="button"
+        disabled={loading}
+        onClick={runBridge}
+        className="w-full py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
+      >
+        {loading
+          ? bridgeStep === "signing"
+            ? "Sign message…"
+            : "Signing in…"
+          : "Continue with Coinbase"}
+      </button>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+function useCdpHooks(): {
+  isSignedIn: boolean;
+  evmAddress: string | null;
+  signEvmMessage: ((args: { evmAccount: string; message: string }) => Promise<{ signature: string }>) | null;
+  AuthButton: React.ComponentType<{ onSuccess?: () => void }> | null;
+} {
+  const [AuthButton, setAuthButton] = useState<React.ComponentType<{ onSuccess?: () => void }> | null>(null);
+
+  React.useEffect(() => {
+    import("@coinbase/cdp-react/components/AuthButton")
+      .then((m) => setAuthButton(() => m.AuthButton))
+      .catch(() => setAuthButton(null));
+  }, []);
+
+  const { useIsSignedIn, useEvmAddress, useSignEvmMessage } = require("@coinbase/cdp-hooks");
+  const signedIn = useIsSignedIn();
+  const evm = useEvmAddress();
+  const signMsg = useSignEvmMessage();
+
+  return {
+    isSignedIn: !!signedIn?.isSignedIn,
+    evmAddress: evm?.evmAddress ?? null,
+    signEvmMessage: signMsg?.signEvmMessage ?? null,
+    AuthButton,
+  };
 }

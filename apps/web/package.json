@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@coinbase/cdp-core": "^0.0.85",
+    "@coinbase/cdp-hooks": "^0.0.85",
+    "@coinbase/cdp-react": "^0.0.85",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",

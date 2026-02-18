@@ -1,4 +1,24 @@
 # env files - never commit secrets
 .env.local
 .env*
+!.env.example
 apps/api/.env
+
+# dependencies
+node_modules/
+**/node_modules/
+.pnpm-store/
+
+# build / cache
+.next/
+out/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# IDE / OS
+.idea/
+.vscode/
+*.log
+.DS_Store
+Thumbs.db

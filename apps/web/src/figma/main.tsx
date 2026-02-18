@@ -1,7 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { CDPReactProvider } from '@coinbase/cdp-react';
 import App from './app/App';
 import './styles/index.css';
+
+const cdpProjectId = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_CDP_APP_ID) ?? '';
 
 // ⚡ TRIPLE-LAYER SUPPRESSION (Backup Layer 3)
 (function() {
@@ -36,6 +39,18 @@ import './styles/index.css';
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 root.render(
   <React.StrictMode>
-    <App />
+    {cdpProjectId ? (
+      <CDPReactProvider
+        config={{
+          projectId: cdpProjectId,
+          ethereum: { createOnLogin: 'eoa' },
+          appName: 'Linkary',
+        }}
+      >
+        <App />
+      </CDPReactProvider>
+    ) : (
+      <App />
+    )}
   </React.StrictMode>
 );

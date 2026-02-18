@@ -151,6 +151,7 @@ import PublicProfilePage from "./components/PublicProfilePage";
 import PublicStandalonePage from "./components/PublicStandalonePage";
 import { SOCIAL_ICONS, ICON_SIZES, ICON_COLORS, ICON_STROKE, ICON_HOVER_GLOW } from "./components/IconSystem";
 import FlipCard from "./components/FlipCard";
+import { ProfileAvatar } from "./components/SharedComponents";
 
 // Import Circles system components
 import CirclesOverviewPage from "./components/circles/CirclesOverviewPage";
@@ -1902,7 +1903,7 @@ function ProfilePage({ setRoute }) {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <div className="flex items-start gap-3 mb-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-cyan-400" />
+            <ProfileAvatar handle={u.handle} alt={u.name} fallbackGradient="from-indigo-500 via-fuchsia-500 to-cyan-400" />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold truncate" style={{ color: '#000000' }}>{u.name}</span>

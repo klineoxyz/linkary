@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Star, TrendingUp, TrendingDown, CheckCircle2, ExternalLink, X as XIcon, Linkedin, Youtube, Twitch, Instagram, Globe, Copy, Check, MapPin, Languages, Briefcase, Award, Calendar, Clock, Download, FileText, Target, TrendingUpIcon, Link2, MousePointer, Eye, Plus, GripVertical, X, Edit2, Image, Play, Zap, ArrowRight, MessageSquare, Sparkles, Shield, LayoutGrid, BadgeCheck, AlertTriangle, XCircle } from "lucide-react";
 
 /**
@@ -32,6 +32,33 @@ export const scaleIn = {
   initial: { opacity: 0, scale: 0.95, filter: "blur(10px)" },
   animate: { opacity: 1, scale: 1, filter: "blur(0px)" },
 };
+
+/** Profile avatar from X (Twitter) profile image, with gradient fallback */
+export function ProfileAvatar({
+  handle,
+  alt,
+  className = "h-14 w-14 rounded-2xl object-cover shrink-0",
+  fallbackGradient = "from-indigo-500 via-fuchsia-500 to-cyan-400",
+}: {
+  handle: string;
+  alt?: string;
+  className?: string;
+  fallbackGradient?: string;
+}) {
+  const [errored, setErrored] = useState(false);
+  const xHandle = handle.replace(/^@/, "");
+  if (errored || !xHandle) {
+    return <div className={`h-14 w-14 rounded-2xl shrink-0 bg-gradient-to-br ${fallbackGradient}`} aria-hidden />;
+  }
+  return (
+    <img
+      src={`https://unavatar.io/twitter/${encodeURIComponent(xHandle)}`}
+      alt={alt || `@${xHandle}`}
+      className={className}
+      onError={() => setErrored(true)}
+    />
+  );
+}
 
 // Glass Card Component
 export function GlassCard({

@@ -1,5 +1,6 @@
 import React from "react";
 import { BadgeCheck, ExternalLink, Users, Eye, TrendingUp, Briefcase } from "lucide-react";
+import { ProfileAvatar } from "./SharedComponents";
 
 /**
  * Brand Profile Page (Brand/Project Entity Type)
@@ -245,7 +246,7 @@ export default function BrandProfilePage({
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <div className="flex items-start gap-3 mb-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-cyan-500 via-blue-500 to-indigo-500" />
+            <ProfileAvatar handle={u.slug} alt={u.name} fallbackGradient="from-cyan-500 via-blue-500 to-indigo-500" />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold truncate" style={{ color: "#000000" }}>

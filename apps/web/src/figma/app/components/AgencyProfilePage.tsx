@@ -1,4 +1,5 @@
 import React from "react";
+import { ProfileAvatar } from "./SharedComponents";
 import { BadgeCheck, ExternalLink, Users, Eye, TrendingUp, Briefcase, Award } from "lucide-react";
 
 /**
@@ -240,7 +241,7 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <div className="flex items-start gap-3 mb-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-500 via-fuchsia-500 to-pink-400" />
+            <ProfileAvatar handle={u.handle} alt={u.name} fallbackGradient="from-purple-500 via-fuchsia-500 to-pink-400" />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold truncate" style={{ color: "#000000" }}>

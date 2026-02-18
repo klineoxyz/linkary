@@ -74,9 +74,9 @@
 
 import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-// Next.js cannot resolve "figma:asset" - use public URLs (placeholders until assets are added)
-const linkaryIconWhite = "/assets/linkary-icon-white.png";
-const linkaryLogoGradient = "/assets/linkary-logo-gradient.png";
+// Linkary brand assets - icons in public/icons/, full logos in public/logos/
+const linkaryIconWhite = "/icons/icon-white.svg";
+const linkaryIconColor = "/icons/icon-color.svg";
 import {
   BadgeCheck,
   Bell,
@@ -794,8 +794,8 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
           }}
           className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-white"
         >
-          {/* Placeholder: add linkary-icon-white.png to public/assets/ to restore logo */}
-          <span className="h-6 flex items-center text-white font-semibold text-sm">Linkary</span>
+          <img src={linkaryIconWhite} alt="" className="h-6 w-auto" aria-hidden />
+          <span className="font-semibold text-sm">Linkary</span>
           <span className="hidden lg:inline font-normal tracking-tight">Linkary</span>
         </button>
 

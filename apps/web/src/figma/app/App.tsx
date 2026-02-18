@@ -146,10 +146,7 @@ import VerificationCenterPage from "./components/VerificationCenterPage";
 import VerificationInboxPage from "./components/VerificationInboxPage";
 import PrivacyDataPage from "./components/PrivacyDataPage";
 import PublicProfileDemo from "./components/PublicProfileDemo";
-import PublicProfilePage from "./components/PublicProfilePage";
 import PublicStandalonePage from "./components/PublicStandalonePage";
-import { SOCIAL_ICONS, ICON_SIZES, ICON_COLORS, ICON_STROKE, ICON_HOVER_GLOW } from "./components/IconSystem";
-import FlipCard from "./components/FlipCard";
 import { ProfileAvatar } from "./components/SharedComponents";
 
 // Import Circles system components
@@ -161,7 +158,6 @@ import CapitalPartnersPage from "./components/circles/CapitalPartnersPage";
 
 // Import Monetization system components
 import PlansAndBillingPage from "./components/monetization/PlansAndBillingPage";
-import PricingPageRefined from "./components/monetization/PricingPageRefined";
 import CalendarRefined from "./components/monetization/CalendarRefined";
 import EnhancedCalendarPage from "./components/monetization/EnhancedCalendarPage";
 import HostDashboard from "./components/monetization/HostDashboard";
@@ -1019,8 +1015,9 @@ function routeToLabel(name) {
   return labels[name] || name;
 }
 function ComingSoonModal({ onClose, previousRoute, setRoute }) {
+  const safePrevious = previousRoute?.name ? previousRoute : { name: "overview" };
   const goBack = () => {
-    if (previousRoute?.name) setRoute(previousRoute);
+    setRoute(safePrevious);
     onClose();
   };
   return (
@@ -1030,7 +1027,7 @@ function ComingSoonModal({ onClose, previousRoute, setRoute }) {
         <p className="text-zinc-600 text-sm mb-6">This feature is on the roadmap.</p>
         <div className="flex gap-2">
           <Button variant="outline" onClick={goBack} className="flex-1">
-            Back to {previousRoute?.name ? routeToLabel(previousRoute.name) : "Overview"}
+            Back to {routeToLabel(safePrevious.name)}
           </Button>
           <Button variant="outline" onClick={onClose}>
             Close
@@ -1344,6 +1341,7 @@ function OverviewPage({ setRoute }) {
 function ExplorePage({ setRoute }) {
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("blog");
+  const [showFiltersPanel, setShowFiltersPanel] = useState(false);
   const [filters, setFilters] = useState({
     roles: [],
     minEthos: 0,
@@ -1394,12 +1392,16 @@ function ExplorePage({ setRoute }) {
         }
       />
 
-      <div className="flex gap-3">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex gap-3 flex-wrap">
+        <div className="relative flex-1 max-w-md min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search..." className="pl-10" />
         </div>
-        <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
+        <Button
+          variant="outline"
+          className="flex items-center gap-2"
+          onClick={() => setShowFiltersPanel((v) => !v)}
+        >
           <Filter className="h-4 w-4 stroke-[1.75]" /> Filters
         </Button>
         {tab === "blog" && (
@@ -1408,6 +1410,36 @@ function ExplorePage({ setRoute }) {
           </Button>
         )}
       </div>
+
+      {showFiltersPanel && (
+        <div className="rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 backdrop-blur-xl p-4 flex flex-wrap items-end gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-zinc-500">Min ETHOS</label>
+            <Input
+              type="number"
+              min={0}
+              max={1000}
+              value={filters.minEthos}
+              onChange={(e) => setFilters((f) => ({ ...f, minEthos: Number(e.target.value) || 0 }))}
+              className="w-24 h-9"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-zinc-500">Min XScore</label>
+            <Input
+              type="number"
+              min={0}
+              max={1000}
+              value={filters.minXscore}
+              onChange={(e) => setFilters((f) => ({ ...f, minXscore: Number(e.target.value) || 0 }))}
+              className="w-24 h-9"
+            />
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowFiltersPanel(false)}>
+            Close
+          </Button>
+        </div>
+      )}
 
       {tab === "blog" && (
         <div className="space-y-6">

@@ -9,60 +9,60 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const LINKARY_LOGIN_PREFIX = "Linkary login: ";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Max-Age": "86400",
+};
+
 function normalizeAddress(a: string): string {
   return a.startsWith("0x") ? a.toLowerCase() : "0x" + a.toLowerCase();
 }
 
+function jsonResponse(body: object, status: number) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+  });
+}
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
   let body: { address?: string; message?: string; signature?: string };
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Invalid JSON body" }, 400);
   }
 
   const { address: rawAddress, message, signature } = body;
   if (!rawAddress || !message || !signature) {
-    return new Response(
-      JSON.stringify({ error: "Missing address, message, or signature" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ error: "Missing address, message, or signature" }, 400);
   }
 
   if (!message.startsWith(LINKARY_LOGIN_PREFIX)) {
-    return new Response(
-      JSON.stringify({ error: "Invalid message format" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ error: "Invalid message format" }, 400);
   }
 
   let recovered: string;
   try {
     recovered = verifyMessage(message, signature);
   } catch {
-    return new Response(
-      JSON.stringify({ error: "Invalid signature" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ error: "Invalid signature" }, 400);
   }
 
   const address = normalizeAddress(rawAddress);
   const recoveredNorm = normalizeAddress(recovered);
   if (recoveredNorm !== address) {
-    return new Response(
-      JSON.stringify({ error: "Signature does not match address" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ error: "Signature does not match address" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -87,9 +87,9 @@ Deno.serve(async (req) => {
     });
     if (createErr || !newUser?.user?.id) {
       console.error("createUser error:", createErr);
-      return new Response(
-        JSON.stringify({ error: "Failed to create user: " + (createErr?.message ?? "unknown") }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+      return jsonResponse(
+        { error: "Failed to create user: " + (createErr?.message ?? "unknown") },
+        500
       );
     }
     userId = newUser.user.id;
@@ -99,10 +99,7 @@ Deno.serve(async (req) => {
     });
     if (insertErr) {
       console.error("wallet_identities insert error:", insertErr);
-      return new Response(
-        JSON.stringify({ error: "Failed to link wallet" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "Failed to link wallet" }, 500);
     }
   }
 
@@ -113,17 +110,14 @@ Deno.serve(async (req) => {
 
   if (linkErr || !linkData?.properties?.hashed_token) {
     console.error("generateLink error:", linkErr);
-    return new Response(
-      JSON.stringify({ error: "Failed to generate login link" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ error: "Failed to generate login link" }, 500);
   }
 
-  return new Response(
-    JSON.stringify({
+  return jsonResponse(
+    {
       token_hash: linkData.properties.hashed_token,
       user_id: userId,
-    }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
+    },
+    200
   );
 });

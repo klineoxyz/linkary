@@ -73,6 +73,7 @@
 })();
 
 import React, { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 // Linkary brand assets - icons in public/icons/, full logos in public/logos/
@@ -880,15 +881,14 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
       )}
     >
       <div className="flex items-center justify-between w-full">
-        <button
-          onClick={() => {
-            setRoute({ name: "landing" });
-            setMobileOpen(false);
-          }}
+        <Link
+          href="/"
+          onClick={() => setMobileOpen(false)}
           className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-white"
+          aria-label="Linkary Home"
         >
           <img src="/logos/logo-white.png" alt="Linkary" className="h-6 w-auto" />
-        </button>
+        </Link>
 
         <button className="lg:hidden" onClick={() => setMobileOpen((v) => !v)}>
           <Menu className="h-6 w-6 text-zinc-400" />
@@ -896,13 +896,13 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
       </div>
 
       <nav className={cn("flex-col gap-2 w-full flex-1", mobileOpen ? "flex" : "hidden lg:flex")}>
-        <button
-          type="button"
-          onClick={() => setRoute({ name: "landing" })}
+        <Link
+          href="/"
+          onClick={() => setMobileOpen(false)}
           className="uppercase text-xs font-medium text-zinc-500 mt-4 lg:mt-0 tracking-wide text-left w-full hover:text-zinc-400 transition-colors"
         >
           Home
-        </button>
+        </Link>
         <div className="flex flex-col gap-2">
           <Link name="overview" icon={Home} label="Overview" />
         </div>
@@ -2575,9 +2575,10 @@ export default function LinkaryApp() {
     setPreviousRoute(route);
     setRouteState(r);
     const path = pathFromRoute(r);
-    const currentPath = pathname ?? "/";
-    if (typeof window !== "undefined" && path && path !== currentPath) {
-      router.push(path);
+    const currentPath = (pathname ?? "/").replace(/\/$/, "") || "/";
+    const nextPath = (path ?? "/").replace(/\/$/, "") || "/";
+    if (typeof window !== "undefined" && nextPath !== currentPath) {
+      router.push(path || "/");
     }
   }, [route, router, pathname]);
 

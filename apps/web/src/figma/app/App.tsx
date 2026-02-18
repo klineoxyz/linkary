@@ -884,7 +884,10 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
       <div className="flex items-center justify-between w-full">
         <Link
           href="/"
-          onClick={() => setMobileOpen(false)}
+          onClick={() => {
+            setRoute({ name: "landing" });
+            setMobileOpen(false);
+          }}
           className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-white"
           aria-label="Linkary Home"
         >
@@ -899,7 +902,10 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
       <nav className={cn("flex-col gap-2 w-full flex-1", mobileOpen ? "flex" : "hidden lg:flex")}>
         <Link
           href="/"
-          onClick={() => setMobileOpen(false)}
+          onClick={() => {
+            setRoute({ name: "landing" });
+            setMobileOpen(false);
+          }}
           className="uppercase text-xs font-medium text-zinc-500 mt-4 lg:mt-0 tracking-wide text-left w-full hover:text-zinc-400 transition-colors"
         >
           Home

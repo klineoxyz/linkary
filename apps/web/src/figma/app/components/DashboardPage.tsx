@@ -1,5 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { supabase } from "@/lib/supabase";
+import { listOrgsForUser, type Org } from "@/lib/orgs";
+import CreateOrgModal from "./CreateOrgModal";
 import {
   TrendingUp,
   TrendingDown,
@@ -527,11 +530,36 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
   const [view, setView] = useState<"personal" | "brands">("personal");
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [showCreateBrand, setShowCreateBrand] = useState(false);
+  const [showCreateOrg, setShowCreateOrg] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
-  
+  const [userId, setUserId] = useState<string | null>(null);
+  const [myOrgs, setMyOrgs] = useState<Org[]>([]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const uid = session?.user?.id ?? null;
+      setUserId(uid);
+      if (uid) listOrgsForUser(uid).then(setMyOrgs);
+      else setMyOrgs([]);
+    });
+  }, []);
+
+  const handleOrgCreated = (_orgId: string, _slug?: string) => {
+    if (userId) listOrgsForUser(userId).then(setMyOrgs);
+    setShowCreateOrg(false);
+    if (setRoute) setRoute({ name: "orgDetail", data: { orgId: _orgId } });
+  };
+
   return (
     <div className="space-y-10 pb-12">
+      {showCreateOrg && userId && (
+        <CreateOrgModal
+          userId={userId}
+          onClose={() => setShowCreateOrg(false)}
+          onSuccess={handleOrgCreated}
+        />
+      )}
       {/* Universal Search Bar */}
       <GlassCard>
         <div className="p-6">
@@ -641,6 +669,56 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
+      </GlassCard>
+
+      {/* My Orgs (from Supabase) + Create Org */}
+      <GlassCard>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-indigo-400 stroke-[1.75]" />
+              My Orgs
+            </h3>
+            {userId ? (
+              <button
+                onClick={() => setShowCreateOrg(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"
+              >
+                <Plus className="w-4 h-4 stroke-[1.75]" />
+                Create Org
+              </button>
+            ) : (
+              <p className="text-sm text-gray-500">Sign in to create and manage orgs</p>
+            )}
+          </div>
+          {myOrgs.length === 0 && (
+            <p className="text-sm text-gray-600">No orgs yet. Create a company, brand, project, or agency above.</p>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+            {myOrgs.map((org) => (
+              <div
+                key={org.id}
+                onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id } })}
+                className="p-4 rounded-xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 hover:border-indigo-500/40 cursor-pointer transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  {org.logo_url ? (
+                    <img src={org.logo_url} alt={org.name} className="w-10 h-10 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                      <Building2 className="w-5 h-5 text-indigo-400" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900 truncate">{org.name}</p>
+                    <p className="text-xs text-gray-500 truncate">@{org.slug} · {org.org_type}</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-gray-400 shrink-0" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </GlassCard>
       

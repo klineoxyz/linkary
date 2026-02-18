@@ -140,6 +140,8 @@ import AgencyProfilePage from "./components/AgencyProfilePage";
 import ComponentShowcase from "./components/ComponentShowcase";
 import CalendarPage from "./components/CalendarPage";
 import DashboardPage from "./components/DashboardPage";
+import OrgDetailPage from "./components/OrgDetailPage";
+import AffiliationAmbassadorSection from "./components/AffiliationAmbassadorSection";
 import LandingPage from "./components/LandingPage";
 import AnalyticsPage from "./components/AnalyticsPage";
 import VerificationCenterPage from "./components/VerificationCenterPage";
@@ -2085,6 +2087,7 @@ function ProfilePage({ setRoute }) {
         </Card>
 
         <div className="lg:col-span-2 space-y-6">
+          <AffiliationAmbassadorSection />
           {/* Featured Work */}
           {u.featuredWork && u.featuredWork.length > 0 && (
             <Card>
@@ -2725,6 +2728,7 @@ export default function LinkaryApp() {
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}
                 {route.name === "agencyProfile" && <AgencyProfilePage />}
                 {route.name === "dashboard" && <DashboardPage setRoute={setRoute} />}
+                {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "discovery" && <ExplorePage setRoute={setRoute} />}
                 {route.name === "analytics" && <AnalyticsPage />}
                 {route.name === "verification" && <VerificationCenterPage />}

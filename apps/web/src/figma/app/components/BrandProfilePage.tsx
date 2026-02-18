@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { BadgeCheck, ExternalLink, Users, Eye, TrendingUp, Briefcase } from "lucide-react";
 import { ProfileAvatar } from "./SharedComponents";
+import { getOrgById, getOrgBySlug, type Org } from "@/lib/orgs";
 
 /**
  * Brand Profile Page (Brand/Project Entity Type)
@@ -224,7 +225,37 @@ export default function BrandProfilePage({
   setRoute?: (route: any) => void;
   brandData?: any;
 }) {
-  const u = brandData || demoBrandData;
+  const [dbOrg, setDbOrg] = useState<Org | null>(null);
+
+  useEffect(() => {
+    const id = brandData?.orgId ?? brandData?.slug;
+    if (!id || typeof id !== "string") return;
+    if (brandData?.name && brandData?.slug && !brandData?.orgId) return;
+    (async () => {
+      const o = brandData?.orgId
+        ? await getOrgById(brandData.orgId)
+        : await getOrgBySlug(id);
+      setDbOrg(o ?? null);
+    })();
+  }, [brandData?.orgId, brandData?.slug]);
+
+  const u = dbOrg
+    ? {
+        name: dbOrg.name,
+        slug: dbOrg.slug,
+        tagline: dbOrg.tagline ?? undefined,
+        bio: dbOrg.tagline ?? "",
+        verified: false,
+        ethos: 0,
+        xscore: 0,
+        reputationIndex: 0,
+        socialPower: 0,
+        volume: { total: 0 },
+        reviews: { avg: 0, count: 0 },
+        industry: [] as string[],
+        team: [] as any[],
+      }
+    : (brandData || demoBrandData);
 
   return (
     <div className="space-y-6">

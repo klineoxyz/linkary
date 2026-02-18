@@ -846,7 +846,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
   const isActive = (name) => route?.name === name;
   const isLoggedIn = !!authUserId;
 
-  const Link = ({ name, icon: Icon, label, badge, onClick }) => (
+  const NavLink = ({ name, icon: Icon, label, badge, onClick }) => (
     <button
       onClick={() => {
         onClick?.();
@@ -905,50 +905,50 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           Home
         </Link>
         <div className="flex flex-col gap-2">
-          <Link name="overview" icon={Home} label="Overview" />
+          <NavLink name="overview" icon={Home} label="Overview" />
         </div>
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Profile</span>
         <div className="flex flex-col gap-2">
-          <Link name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
-          <Link name="profile" icon={Users} label="My Profile" />
-          <Link name="creatorProfile" icon={Users} label="Creator Demo" />
-          <Link name="brandProfile" icon={Building2} label="Project Demo" />
+          <NavLink name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
+          <NavLink name="profile" icon={Users} label="My Profile" />
+          <NavLink name="creatorProfile" icon={Users} label="Creator Demo" />
+          <NavLink name="brandProfile" icon={Building2} label="Project Demo" />
         </div>
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Discover</span>
         <div className="flex flex-col gap-2">
-          <Link name="explore" icon={Globe} label="Explore" />
-          <Link name="leaderboards" icon={Trophy} label="Leaderboards" />
+          <NavLink name="explore" icon={Globe} label="Explore" />
+          <NavLink name="leaderboards" icon={Trophy} label="Leaderboards" />
         </div>
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Work</span>
         <div className="flex flex-col gap-2">
-          <Link name="market" icon={Briefcase} label="Jobs & Sprints" badge="3" />
-          <Link name="messages" icon={MessageSquare} label="Messages" badge="2" />
+          <NavLink name="market" icon={Briefcase} label="Jobs & Sprints" badge="3" />
+          <NavLink name="messages" icon={MessageSquare} label="Messages" badge="2" />
         </div>
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Circles & Networks</span>
         <div className="flex flex-col gap-2">
-          <Link name="circles" icon={Target} label="Circles" />
-          <Link name="kolLists" icon={Users} label="KOL Lists" />
-          <Link name="capitalPartners" icon={Briefcase} label="Capital Partners" />
+          <NavLink name="circles" icon={Target} label="Circles" />
+          <NavLink name="kolLists" icon={Users} label="KOL Lists" />
+          <NavLink name="capitalPartners" icon={Briefcase} label="Capital Partners" />
         </div>
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Analytics & Verification</span>
         <div className="flex flex-col gap-2">
-          <Link name="analytics" icon={BarChart3} label="Analytics" />
-          <Link name="verification" icon={FileCheck} label="Verification Center" />
-          <Link name="privacy" icon={Shield} label="Privacy & Data" />
+          <NavLink name="analytics" icon={BarChart3} label="Analytics" />
+          <NavLink name="verification" icon={FileCheck} label="Verification Center" />
+          <NavLink name="privacy" icon={Shield} label="Privacy & Data" />
         </div>
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Monetization</span>
         <div className="flex flex-col gap-2">
-          <Link name="monetizationFlowShowcase" icon={Sparkles} label="Flow Showcase" />
-          <Link name="monetizationShowcase" icon={Sparkles} label="Monetization Hub" />
-          <Link name="plansBilling" icon={DollarSign} label="Plans & Billing" />
-          <Link name="hostDashboard" icon={Mic} label="X Spaces Hub" />
-          <Link name="availability" icon={Users} label="Availability" />
+          <NavLink name="monetizationFlowShowcase" icon={Sparkles} label="Flow Showcase" />
+          <NavLink name="monetizationShowcase" icon={Sparkles} label="Monetization Hub" />
+          <NavLink name="plansBilling" icon={DollarSign} label="Plans & Billing" />
+          <NavLink name="hostDashboard" icon={Mic} label="X Spaces Hub" />
+          <NavLink name="availability" icon={Users} label="Availability" />
         </div>
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Account</span>

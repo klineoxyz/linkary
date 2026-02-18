@@ -980,15 +980,18 @@ function Topbar({ setMobileOpen, route, setRoute }) {
           <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-blue-500 rounded-full" />
         </button>
 
-        <div 
+        <div
+          role="button"
+          tabIndex={0}
           className="flex items-center gap-3 pl-3 border-l border-zinc-300 cursor-pointer hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10 rounded-lg pr-3 py-2 transition-colors"
-          onClick={() => setRoute({ name: "userProfile", handle: demo.me.handle })}
-          title="View Public Profile"
+          onClick={() => setRoute({ name: "profile" })}
+          onKeyDown={(e) => e.key === "Enter" && setRoute({ name: "profile" })}
+          title="My Profile"
         >
-          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-cyan-400" />
-          <div className="hidden md:block">
-            <p className="text-sm font-medium leading-none text-zinc-900">{demo.me.name}</p>
-            <span className="text-xs text-zinc-600">{demo.me.handle}@linkary.xyz</span>
+          <ProfileAvatar handle={demo.me.handle} alt={demo.me.name} className="h-9 w-9 rounded-full shrink-0" fallbackGradient="from-indigo-500 via-fuchsia-500 to-cyan-400" />
+          <div className="hidden md:block min-w-0">
+            <p className="text-sm font-medium leading-none text-zinc-900 truncate">{demo.me.name}</p>
+            <span className="text-xs text-zinc-600 truncate block">{demo.me.handle}@linkary.xyz</span>
           </div>
         </div>
       </div>
@@ -2717,7 +2720,7 @@ export default function LinkaryApp() {
                 {route.name === "messages" && <MessagesPage />}
                 {route.name === "landing" && <LandingPage setRoute={setRoute} />}
                 {route.name === "profile" && <ProfilePage setRoute={setRoute} />}
-                {route.name === "userProfile" && <UserProfilePage />}
+                {route.name === "userProfile" && <UserProfilePage setRoute={setRoute} />}
                 {route.name === "creatorProfile" && <CreatorProfilePage setRoute={setRoute} />}
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}
                 {route.name === "agencyProfile" && <AgencyProfilePage />}

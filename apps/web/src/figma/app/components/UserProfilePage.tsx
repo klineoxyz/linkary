@@ -1,6 +1,6 @@
 import React from "react";
 import { ProfileAvatar } from "./SharedComponents";
-import { BadgeCheck, ExternalLink, Users, Eye, TrendingUp, User, Award, Code } from "lucide-react";
+import { BadgeCheck, ExternalLink, Users, Eye, TrendingUp, User, Award, Code, Building2 } from "lucide-react";
 
 /**
  * User Profile Page (General User Entity Type)
@@ -222,11 +222,14 @@ export default function UserProfilePage({ setRoute }: { setRoute?: (route: any) 
         title={u.name}
         right={
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute?.({ name: "comingSoon" })}>
               <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Share
             </Button>
-            <Button className="flex items-center gap-2">
+            <Button className="flex items-center gap-2" onClick={() => setRoute?.({ name: "profile" })}>
               <User className="h-4 w-4" /> Edit Profile
+            </Button>
+            <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute?.({ name: "dashboard" })}>
+              <Building2 className="h-4 w-4" /> Create brand
             </Button>
           </div>
         }

@@ -655,6 +655,21 @@ export function EmptyState(
   );
 }
 
+// Status badge: Live | Beta | Coming soon — use for consistent launch polish
+export function StatusBadge({ status }: { status: "live" | "beta" | "coming-soon" }) {
+  const config = {
+    live: { label: "Live", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+    beta: { label: "Beta", className: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+    "coming-soon": { label: "Coming soon", className: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+  };
+  const { label, className } = config[status];
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${className}`}>
+      {label}
+    </span>
+  );
+}
+
 // Verification Badge Component
 export function VerificationBadge({
   type = "verified",

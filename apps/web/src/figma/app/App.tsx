@@ -161,7 +161,6 @@ import KOLListsPage from "./components/circles/KOLListsPage";
 import CapitalPartnersPage from "./components/circles/CapitalPartnersPage";
 
 // Import Monetization system components
-import PricingPage from "./components/monetization/PricingPage";
 import PricingPageRefined from "./components/monetization/PricingPageRefined";
 import CalendarRefined from "./components/monetization/CalendarRefined";
 import BillingPage from "./components/monetization/BillingPage";
@@ -869,13 +868,25 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Account</span>
         <div className="flex flex-col gap-2">
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors">
+          <button
+            type="button"
+            onClick={() => setRoute({ name: "preferences" })}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
+          >
             <Sliders className="h-4 w-4 stroke-[1.75]" /> Preferences
           </button>
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors">
+          <button
+            type="button"
+            onClick={() => setRoute({ name: "support" })}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
+          >
             <HelpCircle className="h-4 w-4 stroke-[1.75]" /> Support
           </button>
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors">
+          <button
+            type="button"
+            onClick={() => setRoute({ name: "signOut" })}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
+          >
             <LogOut className="h-4 w-4 stroke-[1.75]" /> Sign Out
           </button>
         </div>
@@ -892,7 +903,11 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
               <span className="font-medium">Upgrade to Pro</span>
             </div>
             <p className="text-xs mb-4 text-yellow-100">Apply as speaker, advanced analytics, priority AI matching.</p>
-            <button className="w-full text-xs font-medium rounded-lg px-4 py-2 bg-white text-yellow-700">
+            <button
+              type="button"
+              onClick={() => setRoute({ name: "pricingRefined" })}
+              className="w-full text-xs font-medium rounded-lg px-4 py-2 bg-white text-yellow-700 hover:bg-yellow-50 transition-colors"
+            >
               Upgrade Now
             </button>
           </div>
@@ -965,7 +980,11 @@ function Topbar({ setMobileOpen, route, setRoute }) {
           <MessageSquare className="h-5 w-5 text-zinc-600 stroke-[1.75]" />
           <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-indigo-500 rounded-full" />
         </button>
-        <button className="relative p-2 rounded-lg transition-colors hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10">
+        <button
+          type="button"
+          onClick={() => setRoute({ name: "notifications" })}
+          className="relative p-2 rounded-lg transition-colors hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10"
+        >
           <Bell className="h-5 w-5 text-zinc-600" />
           <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-blue-500 rounded-full" />
         </button>
@@ -982,6 +1001,19 @@ function Topbar({ setMobileOpen, route, setRoute }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Stub page for launch polish: routes that have no real UI yet
+function StubPage({ setRoute, title, message, backTo = "overview" }) {
+  return (
+    <div className="max-w-md mx-auto py-12 px-6 text-center space-y-4">
+      <h1 className="text-2xl font-semibold text-zinc-900">{title}</h1>
+      <p className="text-zinc-600">{message}</p>
+      <Button variant="outline" onClick={() => setRoute({ name: backTo })}>
+        Back to {backTo === "landing" ? "Home" : backTo === "overview" ? "Overview" : backTo}
+      </Button>
     </div>
   );
 }
@@ -2639,13 +2671,16 @@ export default function LinkaryApp() {
                 {route.name === "capitalPartners" && <CapitalPartnersPage setRoute={setRoute} />}
                 {route.name === "monetizationShowcase" && <MonetizationShowcase setRoute={setRoute} />}
                 {route.name === "monetizationFlowShowcase" && <MonetizationFlowShowcase setRoute={setRoute} />}
-                {route.name === "pricing" && <PricingPage setRoute={setRoute} />}
-                {route.name === "pricingRefined" && <PricingPageRefined setRoute={setRoute} />}
+                {(route.name === "pricing" || route.name === "pricingRefined") && <PricingPageRefined setRoute={setRoute} />}
                 {route.name === "calendarRefined" && <CalendarRefined userPlan="free" />}
                 {route.name === "billing" && <BillingPage setRoute={setRoute} />}
                 {route.name === "enhancedCalendar" && <EnhancedCalendarPage setRoute={setRoute} userPlan="free" />}
                 {route.name === "hostDashboard" && <HostDashboard setRoute={setRoute} />}
                 {route.name === "availability" && <AvailabilitySettings />}
+                {route.name === "preferences" && <StubPage setRoute={setRoute} title="Preferences" message="Account preferences and display settings are on the roadmap." />}
+                {route.name === "support" && <StubPage setRoute={setRoute} title="Support" message="Help center and contact support are coming soon." />}
+                {route.name === "notifications" && <StubPage setRoute={setRoute} title="Notifications" message="No notifications yet. Activity and alerts will appear here." />}
+                {route.name === "signOut" && <StubPage setRoute={setRoute} title="Sign out" message="Sign out will be available when auth is connected." backTo="landing" />}
               </motion.div>
             </AnimatePresence>
           </div>

@@ -13,6 +13,7 @@ import {
   Lock,
   Unlock,
 } from "lucide-react";
+import { StatusBadge } from "./SharedComponents";
 
 /**
  * Privacy & Data Controls Page
@@ -242,9 +243,7 @@ export default function PrivacyDataPage() {
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
                       YouTube
-                      <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-medium border border-amber-500/30">
-                        Coming Soon
-                      </span>
+                      <StatusBadge status="coming-soon" />
                     </h3>
                     <p className="text-sm text-gray-600">
                       Track video performance and subscriber growth
@@ -272,9 +271,7 @@ export default function PrivacyDataPage() {
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
                       TikTok
-                      <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-medium border border-amber-500/30">
-                        Coming Soon
-                      </span>
+                      <StatusBadge status="coming-soon" />
                     </h3>
                     <p className="text-sm text-gray-600">
                       Monitor viral content and audience engagement

@@ -62,7 +62,7 @@ function Button({ children, variant = "primary", size = "md", className = "", ..
   };
   const variants = {
     primary: "bg-purple-600 hover:bg-purple-700 text-white",
-    outline: "border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10 hover:border-purple-500/40 backdrop-blur-xl text-zinc-300",
+    outline: "border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10 hover:border-purple-500/40 backdrop-blur-xl text-zinc-700",
   };
   return (
     <button
@@ -92,8 +92,8 @@ function SectionTitle({ title, subtitle, right }: any) {
     <div className="mb-8 relative z-[10]">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-white">{title}</h1>
-          {subtitle && <p className="mt-2 text-zinc-300">{subtitle}</p>}
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">{title}</h1>
+          {subtitle && <p className="mt-2 text-zinc-600">{subtitle}</p>}
         </div>
         {right && <div className="flex items-center gap-2">{right}</div>}
       </div>

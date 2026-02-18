@@ -945,13 +945,13 @@ function Topbar({ setMobileOpen, route, setRoute }) {
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 relative z-[35]">
       <div className="flex items-center gap-3 flex-1 max-w-md">
         <button className="lg:hidden" onClick={() => setMobileOpen(true)}>
-          <Menu className="h-6 w-6 text-zinc-300" />
+          <Menu className="h-6 w-6 text-zinc-600" />
         </button>
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
           <Input placeholder="Search creators, projects, gigs..." className="pl-10 pr-20" />
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <span className="hidden md:inline text-xs font-medium text-zinc-500 rounded px-2 py-1 bg-zinc-700">⌘K</span>
+            <span className="hidden md:inline text-xs font-medium text-zinc-600 rounded px-2 py-1 bg-zinc-200">⌘K</span>
           </div>
         </div>
       </div>
@@ -961,23 +961,23 @@ function Topbar({ setMobileOpen, route, setRoute }) {
           className="relative p-2 rounded-lg transition-colors hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10"
           onClick={() => setRoute({ name: "messages" })}
         >
-          <MessageSquare className="h-5 w-5 text-zinc-400 stroke-[1.75]" />
+          <MessageSquare className="h-5 w-5 text-zinc-600 stroke-[1.75]" />
           <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-indigo-500 rounded-full" />
         </button>
         <button className="relative p-2 rounded-lg transition-colors hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10">
-          <Bell className="h-5 w-5 text-zinc-400" />
+          <Bell className="h-5 w-5 text-zinc-600" />
           <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-blue-500 rounded-full" />
         </button>
 
         <div 
-          className="flex items-center gap-3 pl-3 border-l border-zinc-700 cursor-pointer hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10 rounded-lg pr-3 py-2 transition-colors"
+          className="flex items-center gap-3 pl-3 border-l border-zinc-300 cursor-pointer hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10 rounded-lg pr-3 py-2 transition-colors"
           onClick={() => setRoute({ name: "userProfile", handle: demo.me.handle })}
           title="View Public Profile"
         >
           <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-cyan-400" />
           <div className="hidden md:block">
-            <p className="text-sm font-medium leading-none text-zinc-100">{demo.me.name}</p>
-            <span className="text-xs text-zinc-400">{demo.me.handle}@linkary.xyz</span>
+            <p className="text-sm font-medium leading-none text-zinc-900">{demo.me.name}</p>
+            <span className="text-xs text-zinc-600">{demo.me.handle}@linkary.xyz</span>
           </div>
         </div>
       </div>

@@ -628,7 +628,7 @@ function ScorePills({ ethos, xscore, reputationIndex, socialPower }) {
   );
 }
 
-function StatusBadge({ status }) {
+function JobStatusBadge({ status }) {
   const styles = {
     Open: "border-blue-500/30 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-300 backdrop-blur-xl",
     Accepted: "border-yellow-500/30 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 text-yellow-300 backdrop-blur-xl",
@@ -817,15 +817,14 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Profile</span>
         <div className="flex flex-col gap-2">
           <Link name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
-          <Link name="profile" icon={Users} label="Public Profile" />
-          <Link name="creatorProfile" icon={Users} label="Creator Profile" />
-          <Link name="brandProfile" icon={Building2} label="Brand Profile" />
+          <Link name="profile" icon={Users} label="My Profile" />
+          <Link name="creatorProfile" icon={Users} label="Creator Demo" />
+          <Link name="brandProfile" icon={Building2} label="Project Demo" />
         </div>
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Discover</span>
         <div className="flex flex-col gap-2">
           <Link name="explore" icon={Globe} label="Explore" />
-          <Link name="discovery" icon={Search} label="Discovery" />
           <Link name="leaderboards" icon={Trophy} label="Leaderboards" />
         </div>
 
@@ -857,13 +856,6 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
           <Link name="billing" icon={Receipt} label="Billing" />
           <Link name="hostDashboard" icon={Mic} label="X Spaces Hub" />
           <Link name="availability" icon={Users} label="Availability" />
-        </div>
-
-        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Public Pages</span>
-        <div className="flex flex-col gap-2">
-          <Link name="publicCreator" icon={Users} label="Creator Link Page" />
-          <Link name="publicProject" icon={Briefcase} label="Project Link Page" />
-          <Link name="publicCompany" icon={Building2} label="Company Link Page" />
         </div>
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Account</span>
@@ -965,7 +957,12 @@ function Topbar({ setMobileOpen, route, setRoute }) {
         </button>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
-          <Input placeholder="Search creators, projects, gigs..." className="pl-10 pr-20" />
+          <Input
+            placeholder="Search creators, projects, gigs..."
+            className="pl-10 pr-20"
+            onFocus={() => setRoute({ name: "explore" })}
+            onKeyDown={(e) => { if (e.key === "Enter") setRoute({ name: "explore" }); }}
+          />
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             <span className="hidden md:inline text-xs font-medium text-zinc-600 rounded px-2 py-1 bg-zinc-200">⌘K</span>
           </div>
@@ -1038,7 +1035,7 @@ function OverviewPage({ setRoute }) {
             >
               <Users className="h-4 w-4 stroke-[1.75]" /> View Public Profile
             </Button>
-            <Button className="flex items-center gap-2">
+            <Button className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
               <Plus className="h-4 w-4 stroke-[1.75]" /> New Sprint
             </Button>
             <Button variant="outline" onClick={() => setRoute({ name: "market" })}>
@@ -1149,7 +1146,7 @@ function OverviewPage({ setRoute }) {
               <p className="font-semibold line-clamp-2 mb-2" style={{ color: '#000000' }}>{e.title}</p>
               <div className="flex items-center justify-between">
                 <p className="text-xs" style={{ color: '#000000' }}>Host: {e.host}</p>
-                <Button size="sm" variant="outline" className="h-7 text-xs bg-black/20 border-black/30 hover:bg-black/30" style={{ color: '#000000' }}>Join</Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs bg-black/20 border-black/30 hover:bg-black/30" style={{ color: '#000000' }} onClick={() => setRoute({ name: "comingSoon" })}>Join</Button>
               </div>
               </div>
             </div>
@@ -1376,11 +1373,11 @@ function ExplorePage({ setRoute }) {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search..." className="pl-10" />
         </div>
-        <Button variant="outline" className="flex items-center gap-2">
+        <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
           <Filter className="h-4 w-4 stroke-[1.75]" /> Filters
         </Button>
         {tab === "blog" && (
-          <Button className="flex items-center gap-2">
+          <Button className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
             <Plus className="h-4 w-4 stroke-[1.75]" /> Write Article
           </Button>
         )}
@@ -1449,7 +1446,7 @@ function ExplorePage({ setRoute }) {
               <FileText className="h-12 w-12 text-white mx-auto mb-4 stroke-[1.75]" />
               <h3 className="text-2xl font-bold text-white mb-2">Share Your Knowledge</h3>
               <p className="text-white/90 mb-6">Selected contributors can publish rich articles with images and reach thousands in the Web3 community</p>
-              <Button className="bg-white text-indigo-600 hover:bg-white/90">
+              <Button className="bg-white text-indigo-600 hover:bg-white/90" onClick={() => setRoute({ name: "comingSoon" })}>
                 Apply to Write
               </Button>
             </div>
@@ -1498,7 +1495,7 @@ function ExplorePage({ setRoute }) {
                   <Stars value={c.reviews?.avg || 5} />
                   <span className="text-xs" style={{ color: '#404040' }}>({c.reviews?.count || 0})</span>
                 </div>
-                <Button size="sm" variant="outline">Connect</Button>
+                <Button size="sm" variant="outline" onClick={() => setRoute({ name: "comingSoon" })}>Connect</Button>
               </div>
             </Card>
           ))}
@@ -1617,12 +1614,12 @@ function MarketplacePage() {
                             {j.aiMatch}% match
                           </span>
                         )}
-                        <StatusBadge status={j.status} />
+                        <JobStatusBadge status={j.status} />
                       </div>
                       <p className="text-xs text-white/80">{j.org} · {j.budget} · {j.type}</p>
                       <p className="mt-2 text-xs text-white/70">{j.applicants} applicants</p>
                     </div>
-                    <Button size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30">Apply</Button>
+                    <Button size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => setRoute({ name: "comingSoon" })}>Apply</Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {j.tags.map((t) => (
@@ -1683,12 +1680,12 @@ function MarketplacePage() {
                             {s.aiMatch}% match
                           </span>
                         )}
-                        <StatusBadge status={s.status} />
+                        <JobStatusBadge status={s.status} />
                       </div>
                       <p className="text-xs text-white/80">{s.org} · {s.budget} · {s.duration}</p>
                       <p className="mt-2 text-xs text-white/70">{s.applicants} applicants</p>
                     </div>
-                    <Button size="sm" variant="outline" className="bg-white/20 border-white/30 text-white hover:bg-white/30">Apply</Button>
+                    <Button size="sm" variant="outline" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => setRoute({ name: "comingSoon" })}>Apply</Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {s.tags.map((t) => (
@@ -1885,7 +1882,7 @@ function MessagesPage() {
                 <p className="text-xs" style={{ color: '#404040' }}>Active now</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" style={{ color: '#000000' }}>View Profile</Button>
+            <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "brandProfile" })}>View Profile</Button>
           </div>
 
           <div className="space-y-4 mb-4 min-h-[300px]">
@@ -1902,7 +1899,7 @@ function MessagesPage() {
 
           <div className="flex gap-2">
             <Input placeholder="Type a message..." />
-            <Button>
+            <Button onClick={() => setRoute({ name: "comingSoon" })}>
               <Send className="h-4 w-4 stroke-[1.75]" />
             </Button>
           </div>
@@ -1922,10 +1919,10 @@ function ProfilePage({ setRoute }) {
         subtitle="Public profile — This is how others see you"
         right={
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
               <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Share
             </Button>
-            <Button className="flex items-center gap-2">
+            <Button className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
               <UserPlus className="h-4 w-4" /> Connect
             </Button>
           </div>
@@ -2032,7 +2029,7 @@ function ProfilePage({ setRoute }) {
             <Card>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold" style={{ color: '#000000' }}>Featured Work</h3>
-                <Button variant="outline" size="sm" style={{ color: '#000000' }}>Add</Button>
+                <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "comingSoon" })}>Add</Button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {u.featuredWork.map((work, idx) => (
@@ -2083,7 +2080,7 @@ function ProfilePage({ setRoute }) {
           <Card>
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-semibold" style={{ color: '#000000' }}>Case Studies</h3>
-              <Button variant="outline" size="sm" style={{ color: '#000000' }}>Add New</Button>
+              <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "comingSoon" })}>Add New</Button>
             </div>
             <div className="space-y-3">
               {u.caseStudies.map((cs) => (
@@ -2096,7 +2093,7 @@ function ProfilePage({ setRoute }) {
                       </div>
                       <p className="mt-1 text-xs" style={{ color: '#404040' }}>{cs.role} · {cs.duration}</p>
                     </div>
-                    <Button size="sm" variant="outline">View</Button>
+                    <Button size="sm" variant="outline" onClick={() => setRoute({ name: "comingSoon" })}>View</Button>
                   </div>
                   
                   <div className="rounded-lg border border-emerald-700 bg-emerald-950/30 p-3">
@@ -2127,7 +2124,7 @@ function ProfilePage({ setRoute }) {
                   Received: {u.reviews.count} · Given: {u.reviews.given}
                 </p>
               </div>
-              <Button variant="outline" size="sm" style={{ color: '#000000' }}>Leave Review</Button>
+              <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "comingSoon" })}>Leave Review</Button>
             </div>
             <div className="space-y-3">
               {u.reviews.items.map((r, idx) => (
@@ -2656,7 +2653,7 @@ export default function LinkaryApp() {
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}
                 {route.name === "agencyProfile" && <AgencyProfilePage />}
                 {route.name === "dashboard" && <DashboardPage setRoute={setRoute} />}
-                {route.name === "discovery" && <DiscoveryPage setRoute={setRoute} />}
+                {route.name === "discovery" && <ExplorePage setRoute={setRoute} />}
                 {route.name === "analytics" && <AnalyticsPage />}
                 {route.name === "verification" && <VerificationCenterPage />}
                 {route.name === "verificationInbox" && <VerificationInboxPage />}
@@ -2681,6 +2678,7 @@ export default function LinkaryApp() {
                 {route.name === "support" && <StubPage setRoute={setRoute} title="Support" message="Help center and contact support are coming soon." />}
                 {route.name === "notifications" && <StubPage setRoute={setRoute} title="Notifications" message="No notifications yet. Activity and alerts will appear here." />}
                 {route.name === "signOut" && <StubPage setRoute={setRoute} title="Sign out" message="Sign out will be available when auth is connected." backTo="landing" />}
+                {route.name === "comingSoon" && <StubPage setRoute={setRoute} title="Coming soon" message="This feature is on the roadmap." backTo="overview" />}
               </motion.div>
             </AnimatePresence>
           </div>

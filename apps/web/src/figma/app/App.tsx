@@ -155,6 +155,8 @@ import AnalyticsPage from "./components/AnalyticsPage";
 import VerificationCenterPage from "./components/VerificationCenterPage";
 import VerificationInboxPage from "./components/VerificationInboxPage";
 import PrivacyDataPage from "./components/PrivacyDataPage";
+import TermsOfServicePage from "./components/TermsOfServicePage";
+import PrivacyPolicyPage from "./components/PrivacyPolicyPage";
 import PublicProfileDemo from "./components/PublicProfileDemo";
 import PublicStandalonePage from "./components/PublicStandalonePage";
 import { ProfileAvatar } from "./components/SharedComponents";
@@ -2986,6 +2988,8 @@ export default function LinkaryApp() {
                 {route.name === "verification" && <VerificationCenterPage />}
                 {route.name === "verificationInbox" && <VerificationInboxPage />}
                 {route.name === "privacy" && <PrivacyDataPage />}
+                {route.name === "terms" && <TermsOfServicePage setRoute={setRoute} />}
+                {route.name === "privacyPolicy" && <PrivacyPolicyPage setRoute={setRoute} />}
                 {route.name === "showcase" && <ComponentShowcase />}
                 {route.name === "publicCreator" && <PublicStandalonePage profileType="individual" />}
                 {route.name === "publicProject" && <PublicStandalonePage profileType="project" />}

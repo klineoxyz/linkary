@@ -738,7 +738,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               <img src="/logos/logo-black.png" alt="Linkary" className="h-20 sm:h-24 w-auto -my-2 sm:-my-3 object-center" />
             </div>
 
-            <div className="flex items-center gap-8">
+            <div className="flex items-center gap-8 flex-wrap justify-center">
               <button
                 onClick={() => setRoute({ name: "explore" })}
                 className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
@@ -752,10 +752,22 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 Dashboard
               </button>
               <button
+                onClick={() => setRoute({ name: "terms" })}
+                className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Terms of Service
+              </button>
+              <button
+                onClick={() => setRoute({ name: "privacyPolicy" })}
+                className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Privacy Policy
+              </button>
+              <button
                 onClick={() => setRoute({ name: "privacy" })}
                 className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
               >
-                Privacy
+                Privacy & Data
               </button>
             </div>
 

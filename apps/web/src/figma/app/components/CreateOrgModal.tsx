@@ -58,8 +58,8 @@ export default function CreateOrgModal({
   const labelClass = "block text-sm font-medium text-zinc-700 mb-1.5";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-zinc-900/40 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl w-full max-w-2xl my-auto min-h-[min(560px,85vh)] max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-zinc-900/40 backdrop-blur-sm overflow-y-auto min-h-screen">
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl w-full max-w-2xl xl:max-w-3xl 2xl:max-w-4xl my-8 min-h-[min(520px,75vh)] max-h-[calc(100vh-4rem)] flex flex-col">
         <div className="p-6 flex items-start justify-between border-b border-zinc-200 shrink-0">
           <div>
             <h2 className="text-xl font-bold text-zinc-900">Create org</h2>

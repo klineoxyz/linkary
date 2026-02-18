@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { CreditCard, Download, Calendar, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 
-export default function BillingPage({ setRoute }: any) {
+export default function BillingPage({ setRoute, onUpgradePlan }: any) {
   const [showAddPayment, setShowAddPayment] = useState(false);
 
   // Placeholder current plan data
@@ -111,7 +111,7 @@ export default function BillingPage({ setRoute }: any) {
 
           <div className="flex gap-3">
             <button
-              onClick={() => setRoute({ name: "pricing" })}
+              onClick={() => (onUpgradePlan ? onUpgradePlan() : setRoute?.({ name: "pricingRefined" }))}
               className="h-10 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors flex items-center gap-2"
             >
               Upgrade Plan

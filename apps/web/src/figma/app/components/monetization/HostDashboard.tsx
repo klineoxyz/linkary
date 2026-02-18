@@ -280,6 +280,14 @@ export default function HostDashboard({ setRoute, eventId }: any) {
               Browse Events
             </button>
             <button
+              onClick={() => setRoute?.({ name: "calendar" })}
+              className="h-10 px-4 rounded-lg text-sm font-medium transition-colors whitespace-nowrap text-zinc-700 hover:bg-zinc-100 flex items-center gap-2"
+              title="Open calendar view"
+            >
+              <Calendar className="h-4 w-4" />
+              Calendar
+            </button>
+            <button
               onClick={() => setMainTab("createEvent")}
               className={`h-10 px-4 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 mainTab === "createEvent"

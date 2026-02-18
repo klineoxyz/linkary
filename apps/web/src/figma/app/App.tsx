@@ -160,9 +160,9 @@ import KOLListsPage from "./components/circles/KOLListsPage";
 import CapitalPartnersPage from "./components/circles/CapitalPartnersPage";
 
 // Import Monetization system components
+import PlansAndBillingPage from "./components/monetization/PlansAndBillingPage";
 import PricingPageRefined from "./components/monetization/PricingPageRefined";
 import CalendarRefined from "./components/monetization/CalendarRefined";
-import BillingPage from "./components/monetization/BillingPage";
 import EnhancedCalendarPage from "./components/monetization/EnhancedCalendarPage";
 import HostDashboard from "./components/monetization/HostDashboard";
 import AvailabilitySettings from "./components/monetization/AvailabilitySettings";
@@ -851,8 +851,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
         <div className="flex flex-col gap-2">
           <Link name="monetizationFlowShowcase" icon={Sparkles} label="Flow Showcase" />
           <Link name="monetizationShowcase" icon={Sparkles} label="Monetization Hub" />
-          <Link name="pricingRefined" icon={DollarSign} label="Pricing" />
-          <Link name="billing" icon={Receipt} label="Billing" />
+          <Link name="plansBilling" icon={DollarSign} label="Plans & Billing" />
           <Link name="hostDashboard" icon={Mic} label="X Spaces Hub" />
           <Link name="availability" icon={Users} label="Availability" />
         </div>
@@ -896,7 +895,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
             <p className="text-xs mb-4 text-yellow-100">Apply as speaker, advanced analytics, priority AI matching.</p>
             <button
               type="button"
-              onClick={() => setRoute({ name: "pricingRefined" })}
+              onClick={() => setRoute({ name: "plansBilling" })}
               className="w-full text-xs font-medium rounded-lg px-4 py-2 bg-white text-yellow-700 hover:bg-yellow-50 transition-colors"
             >
               Upgrade Now
@@ -1016,7 +1015,7 @@ function StubPage({ setRoute, title, message, backTo = "overview" }) {
 
 // Lightweight overlay for "Coming soon" — back button returns to previous route
 function routeToLabel(name) {
-  const labels = { overview: "Overview", landing: "Home", explore: "Explore", market: "Jobs & Sprints", profile: "My Profile", dashboard: "My Dashboard", calendar: "Calendar", leaderboards: "Leaderboards", messages: "Messages", circles: "Circles", analytics: "Analytics", verification: "Verification", privacy: "Privacy & Data", pricingRefined: "Pricing", billing: "Billing", hostDashboard: "X Spaces Hub", availability: "Availability" };
+  const labels = { overview: "Overview", landing: "Home", explore: "Explore", market: "Jobs & Sprints", profile: "My Profile", dashboard: "My Dashboard", calendar: "Calendar", leaderboards: "Leaderboards", messages: "Messages", circles: "Circles", analytics: "Analytics", verification: "Verification", privacy: "Privacy & Data", plansBilling: "Plans & Billing", hostDashboard: "X Spaces Hub", availability: "Availability" };
   return labels[name] || name;
 }
 function ComingSoonModal({ onClose, previousRoute, setRoute }) {
@@ -2706,9 +2705,10 @@ export default function LinkaryApp() {
                 {route.name === "capitalPartners" && <CapitalPartnersPage setRoute={setRoute} />}
                 {route.name === "monetizationShowcase" && <MonetizationShowcase setRoute={setRoute} />}
                 {route.name === "monetizationFlowShowcase" && <MonetizationFlowShowcase setRoute={setRoute} />}
-                {(route.name === "pricing" || route.name === "pricingRefined") && <PricingPageRefined setRoute={setRoute} />}
+                {(route.name === "pricing" || route.name === "pricingRefined" || route.name === "billing" || route.name === "plansBilling") && (
+                <PlansAndBillingPage setRoute={setRoute} initialTab={route.name === "billing" ? "billing" : "plans"} />
+              )}
                 {route.name === "calendarRefined" && <CalendarRefined userPlan="free" />}
-                {route.name === "billing" && <BillingPage setRoute={setRoute} />}
                 {route.name === "enhancedCalendar" && <EnhancedCalendarPage setRoute={setRoute} userPlan="free" />}
                 {route.name === "hostDashboard" && <HostDashboard setRoute={setRoute} />}
                 {route.name === "availability" && <AvailabilitySettings />}

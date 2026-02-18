@@ -762,7 +762,7 @@ function SectionTitle({ title, subtitle, right, background = "dark" }) {
 const RESERVED_PATHS = new Set([
   "dashboard", "explore", "terms", "privacy-policy", "privacy", "login", "onboarding",
   "profile", "overview", "market", "messages", "circles", "analytics", "verification",
-  "pricing", "billing", "plans", "app", "api", "settings", "test-supabase",
+  "pricing", "billing", "plans", "app", "api", "settings", "test-supabase", "home",
   "leaderboards", "creator", "brand", "agency", "calendar", "host", "availability",
   "monetization", "monetization-flow", "kol-lists", "capital-partners",
   "preferences", "support", "notifications", "verification-inbox", "showcase",
@@ -828,6 +828,7 @@ function routeFromPathname(pathname: string | null): { name: string; data?: any;
       overview: "overview", market: "market", messages: "messages", circles: "circles",
       analytics: "analytics", verification: "verification",
       plans: "plansBilling", billing: "billing", pricing: "pricing",
+      home: "landing",
       leaderboards: "leaderboards", creator: "creatorProfile", brand: "brandProfile",
       agency: "agencyProfile", calendar: "calendar", host: "hostDashboard",
       availability: "availability", monetization: "monetizationShowcase",

@@ -786,6 +786,10 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     circles: "/circles",
     analytics: "/analytics",
     verification: "/verification",
+    plansBilling: "/plans",
+    pricing: "/pricing",
+    billing: "/billing",
+    pricingRefined: "/pricing",
   };
   return map[route.name] ?? "/";
 }
@@ -800,6 +804,7 @@ function routeFromPathname(pathname: string | null): { name: string; data?: any;
       privacy: "privacy", login: "login", onboarding: "onboarding", profile: "profile",
       overview: "overview", market: "market", messages: "messages", circles: "circles",
       analytics: "analytics", verification: "verification",
+      plans: "plansBilling", billing: "billing", pricing: "pricing",
     };
     return { name: nameMap[segment] ?? "landing" };
   }

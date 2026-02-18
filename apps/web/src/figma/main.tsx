@@ -45,6 +45,7 @@ root.render(
           projectId: cdpProjectId,
           ethereum: { createOnLogin: 'eoa' },
           appName: 'Linkary',
+          authMethods: ['oauth:x'],
         }}
       >
         <App />

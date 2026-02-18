@@ -12,6 +12,7 @@ export default function AppWithProviders() {
         projectId: cdpProjectId,
         ethereum: { createOnLogin: "eoa" },
         appName: "Linkary",
+        authMethods: ["oauth:x"],
       }}
     >
       <LinkaryApp />

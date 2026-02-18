@@ -58,9 +58,9 @@ export default function CreateOrgModal({
   const labelClass = "block text-sm font-medium text-zinc-700 mb-1.5";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-zinc-900/40 backdrop-blur-sm overflow-y-auto min-h-screen">
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl w-full max-w-4xl xl:max-w-5xl 2xl:max-w-6xl my-6 min-h-[min(580px,82vh)] max-h-[calc(100vh-2rem)] flex flex-col">
-        <div className="px-8 py-6 flex items-start justify-between border-b border-zinc-200 shrink-0">
+    <div className="fixed inset-0 z-[100] h-screen w-screen flex items-center justify-center p-4 sm:p-6 bg-zinc-900/40 backdrop-blur-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl w-full max-w-xl lg:max-w-2xl flex flex-col max-h-[calc(100vh-2rem)] min-h-0 overflow-hidden">
+        <div className="px-6 sm:px-8 py-5 flex items-start justify-between border-b border-zinc-200 shrink-0">
           <div>
             <h2 className="text-xl font-bold text-zinc-900">Create org</h2>
             <p className="text-sm text-zinc-500 mt-0.5">Add a company, brand, project, or agency.</p>
@@ -74,15 +74,15 @@ export default function CreateOrgModal({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="px-8 py-6 lg:py-8 flex flex-col flex-1 min-h-0 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="px-6 sm:px-8 py-5 lg:py-6 flex flex-col flex-1 min-h-0 overflow-y-auto">
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm shrink-0">
               {error}
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 flex-1">
-            <div className="space-y-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 flex-1 min-h-0">
+            <div className="space-y-4">
               <div>
                 <label className={labelClass}>Type</label>
                 <div className="flex gap-2 flex-wrap">
@@ -135,7 +135,7 @@ export default function CreateOrgModal({
                 />
               </div>
             </div>
-            <div className="space-y-5">
+            <div className="space-y-4">
               <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Links</p>
               <div>
                 <label className={labelClass}>Website</label>
@@ -170,7 +170,7 @@ export default function CreateOrgModal({
             </div>
           </div>
 
-          <div className="flex gap-3 mt-8 pt-6 border-t border-zinc-200 shrink-0">
+          <div className="flex gap-3 mt-5 pt-5 border-t border-zinc-200 shrink-0">
             <button
               type="button"
               onClick={onClose}

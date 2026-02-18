@@ -132,12 +132,11 @@ import {
   Lock,
 } from "lucide-react";
 
-// Import the new UserProfilePage, BrandProfilePage, CreatorProfilePage, AgencyProfilePage, DiscoveryPage, and ComponentShowcase components
+// Import UserProfilePage, BrandProfilePage, CreatorProfilePage, AgencyProfilePage, ComponentShowcase
 import UserProfilePage from "./components/UserProfilePage";
 import BrandProfilePage from "./components/BrandProfilePage";
 import CreatorProfilePage from "./components/CreatorProfilePage";
 import AgencyProfilePage from "./components/AgencyProfilePage";
-import DiscoveryPage from "./components/DiscoveryPage";
 import ComponentShowcase from "./components/ComponentShowcase";
 import CalendarPage from "./components/CalendarPage";
 import DashboardPage from "./components/DashboardPage";
@@ -1011,6 +1010,21 @@ function StubPage({ setRoute, title, message, backTo = "overview" }) {
       <Button variant="outline" onClick={() => setRoute({ name: backTo })}>
         Back to {backTo === "landing" ? "Home" : backTo === "overview" ? "Overview" : backTo}
       </Button>
+    </div>
+  );
+}
+
+// Lightweight overlay for "Coming soon" — keeps user on current page
+function ComingSoonModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="relative rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 backdrop-blur-xl p-8 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-xl font-semibold text-zinc-900 mb-2">Coming soon</h2>
+        <p className="text-zinc-600 text-sm mb-6">This feature is on the roadmap.</p>
+        <Button variant="outline" onClick={onClose} className="w-full">
+          Close
+        </Button>
+      </div>
     </div>
   );
 }
@@ -2173,9 +2187,18 @@ function ProfilePage({ setRoute }) {
 // App shell
 // -----------------------------
 export default function LinkaryApp() {
-  const [route, setRoute] = useState({ name: "landing" });
+  const [route, setRouteState] = useState({ name: "landing" });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreateCircle, setShowCreateCircle] = useState(false);
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
+
+  const setRoute = (r) => {
+    if (r.name === "comingSoon") {
+      setComingSoonOpen(true);
+      return;
+    }
+    setRouteState(r);
+  };
 
   useInViewAnimations(".animate-fade-in");
 
@@ -2678,7 +2701,6 @@ export default function LinkaryApp() {
                 {route.name === "support" && <StubPage setRoute={setRoute} title="Support" message="Help center and contact support are coming soon." />}
                 {route.name === "notifications" && <StubPage setRoute={setRoute} title="Notifications" message="No notifications yet. Activity and alerts will appear here." />}
                 {route.name === "signOut" && <StubPage setRoute={setRoute} title="Sign out" message="Sign out will be available when auth is connected." backTo="landing" />}
-                {route.name === "comingSoon" && <StubPage setRoute={setRoute} title="Coming soon" message="This feature is on the roadmap." backTo="overview" />}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -2689,6 +2711,9 @@ export default function LinkaryApp() {
       {route.name === "createCircle" && (
         <CreateCircleFlow onClose={() => setRoute({ name: "circles" })} setRoute={setRoute} />
       )}
+
+      {/* Coming soon overlay — does not change route */}
+      {comingSoonOpen && <ComingSoonModal onClose={() => setComingSoonOpen(false)} />}
     </div>
   );
 }

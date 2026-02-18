@@ -734,10 +734,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-600 to-indigo-600 flex items-center justify-center">
-                <span className="text-white font-bold text-lg">L</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900">Linkary</span>
+              <img src="/logos/logo-black.png" alt="Linkary" className="h-8 w-auto" />
             </div>
 
             <div className="flex items-center gap-8">

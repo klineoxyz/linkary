@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 32" fill="none">
+  <!-- Icon: 3 horizontal bars (short, medium, long) left-aligned -->
+  <rect x="0" y="4" width="12" height="2" rx="0.5" fill="black"/>
+  <rect x="0" y="12" width="18" height="2" rx="0.5" fill="black"/>
+  <rect x="0" y="20" width="24" height="2" rx="0.5" fill="black"/>
+  <!-- Wordmark: Linkary -->
+  <text x="32" y="22" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="black">Linkary</text>
+</svg>

@@ -794,9 +794,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
           }}
           className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-white"
         >
-          <img src={linkaryIconWhite} alt="" className="h-6 w-auto" aria-hidden />
-          <span className="font-semibold text-sm">Linkary</span>
-          <span className="hidden lg:inline font-normal tracking-tight">Linkary</span>
+          <img src="/logos/logo-white.png" alt="Linkary" className="h-6 w-auto" />
         </button>
 
         <button className="lg:hidden" onClick={() => setMobileOpen((v) => !v)}>
@@ -805,20 +803,31 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
       </div>
 
       <nav className={cn("flex-col gap-2 w-full flex-1", mobileOpen ? "flex" : "hidden lg:flex")}>
-        <span className="uppercase text-xs font-medium text-zinc-500 mt-4 lg:mt-0 tracking-wide">Workspace</span>
+        <span className="uppercase text-xs font-medium text-zinc-500 mt-4 lg:mt-0 tracking-wide">Home</span>
         <div className="flex flex-col gap-2">
-          <Link name="landing" icon={Home} label="Landing Page" />
           <Link name="overview" icon={Home} label="Overview" />
-          <Link name="explore" icon={Globe} label="Explore" />
-          <Link name="market" icon={Briefcase} label="Jobs & Sprints" badge="3" />
-          <Link name="hostDashboard" icon={Mic} label="X Spaces Hub" />
-          <Link name="discovery" icon={Search} label="Discovery" />
-          <Link name="leaderboards" icon={Trophy} label="Leaderboards" />
-          <Link name="messages" icon={MessageSquare} label="Messages" badge="2" />
+          <Link name="landing" icon={Globe} label="Landing Page" />
+        </div>
+
+        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Profile</span>
+        <div className="flex flex-col gap-2">
           <Link name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
           <Link name="profile" icon={Users} label="Public Profile" />
           <Link name="creatorProfile" icon={Users} label="Creator Profile" />
           <Link name="brandProfile" icon={Building2} label="Brand Profile" />
+        </div>
+
+        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Discover</span>
+        <div className="flex flex-col gap-2">
+          <Link name="explore" icon={Globe} label="Explore" />
+          <Link name="discovery" icon={Search} label="Discovery" />
+          <Link name="leaderboards" icon={Trophy} label="Leaderboards" />
+        </div>
+
+        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Work</span>
+        <div className="flex flex-col gap-2">
+          <Link name="market" icon={Briefcase} label="Jobs & Sprints" badge="3" />
+          <Link name="messages" icon={MessageSquare} label="Messages" badge="2" />
         </div>
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Circles & Networks</span>
@@ -835,22 +844,21 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
           <Link name="privacy" icon={Shield} label="Privacy & Data" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Public Profiles (NEW)</span>
+        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Monetization</span>
+        <div className="flex flex-col gap-2">
+          <Link name="monetizationFlowShowcase" icon={Sparkles} label="Flow Showcase" />
+          <Link name="monetizationShowcase" icon={Sparkles} label="Monetization Hub" />
+          <Link name="pricingRefined" icon={DollarSign} label="Pricing" />
+          <Link name="billing" icon={Receipt} label="Billing" />
+          <Link name="hostDashboard" icon={Mic} label="X Spaces Hub" />
+          <Link name="availability" icon={Users} label="Availability" />
+        </div>
+
+        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Public Pages</span>
         <div className="flex flex-col gap-2">
           <Link name="publicCreator" icon={Users} label="Creator Link Page" />
           <Link name="publicProject" icon={Briefcase} label="Project Link Page" />
           <Link name="publicCompany" icon={Building2} label="Company Link Page" />
-        </div>
-
-        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Monetization</span>
-        <div className="flex flex-col gap-2">
-          <Link name="monetizationFlowShowcase" icon={Sparkles} label="✨ Flow Showcase (NEW)" />
-          <Link name="monetizationShowcase" icon={Sparkles} label="Monetization Hub" />
-          <Link name="pricingRefined" icon={DollarSign} label="Pricing (Refined)" />
-          <Link name="pricing" icon={DollarSign} label="Pricing (Original)" />
-          <Link name="hostDashboard" icon={Mic} label="X Spaces Hub" />
-          <Link name="billing" icon={Receipt} label="Billing" />
-          <Link name="availability" icon={Users} label="Availability" />
         </div>
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Account</span>

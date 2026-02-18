@@ -2618,8 +2618,9 @@ export default function LinkaryApp() {
       setRoute({ name: "onboarding" });
     } else {
       const p = pathname ?? "/";
-      setRouteState((prev) => (prev.name === "landing" || prev.name === "login" ? { name: "explore" } : prev));
-      if (p === "/" || p === "/login") router.push("/explore");
+      // Only redirect to Explore when coming from /login (post-login). Do NOT redirect when on "/" so Home stays on landing.
+      setRouteState((prev) => (prev.name === "login" ? { name: "explore" } : prev));
+      if (p === "/login") router.push("/explore");
     }
     setAuthBootstrapped(true);
   };

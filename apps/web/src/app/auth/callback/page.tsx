@@ -27,7 +27,7 @@ function extractTwitterIdentity(user: { identities?: Array<Record<string, unknow
     };
   }
   const meta = user.user_metadata ?? {};
-  if (meta.provider === "twitter" || meta.iss?.includes("twitter")) {
+  if (meta.provider === "twitter" || (typeof meta.iss === "string" && meta.iss.includes("twitter"))) {
     return {
       provider: "twitter",
       sub: meta.sub as string | undefined,

@@ -1,9 +1,16 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
 import { ensureProfileForSession } from "@/lib/profiles";
 import { upsertWallet } from "@/lib/wallets";
+
+// Load CDP AuthButton on client so Coinbase login option shows reliably
+const AuthButton = dynamic(
+  () => import("@coinbase/cdp-react/components/AuthButton").then((m) => m.AuthButton as React.ComponentType<Record<string, unknown>>),
+  { ssr: false, loading: () => <div className="h-10 rounded-lg bg-zinc-100 animate-pulse" aria-hidden /> }
+);
 
 const LINKARY_LOGIN_PREFIX = "Linkary login: ";
 
@@ -58,7 +65,7 @@ function CoinbaseLoginFlow({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [bridgeStep, setBridgeStep] = useState<"idle" | "signing" | "exchanging">("idle");
 
-  const { isSignedIn, evmAddress, signEvmMessage, AuthButton } = useCdpHooks();
+  const { isSignedIn, evmAddress, signEvmMessage } = useCdpHooks();
 
   const runBridge = useCallback(async () => {
     if (!evmAddress || !signEvmMessage) {
@@ -132,10 +139,6 @@ function CoinbaseLoginFlow({ onLoggedIn }: { onLoggedIn: () => void }) {
     }
   }, [evmAddress, signEvmMessage, onLoggedIn]);
 
-  if (!AuthButton) {
-    return <p className="text-zinc-500 text-sm">Loading Coinbase…</p>;
-  }
-
   if (!isSignedIn) {
     return (
       <div className="space-y-4">
@@ -173,16 +176,7 @@ function useCdpHooks(): {
   isSignedIn: boolean;
   evmAddress: string | null;
   signEvmMessage: ((args: { evmAccount: string; message: string }) => Promise<{ signature: string }>) | null;
-  AuthButton: React.ComponentType<Record<string, unknown>> | null;
 } {
-  const [AuthButton, setAuthButton] = useState<React.ComponentType<Record<string, unknown>> | null>(null);
-
-  React.useEffect(() => {
-    void import("@coinbase/cdp-react/components/AuthButton")
-      .then((m) => setAuthButton(() => m.AuthButton as React.ComponentType<Record<string, unknown>>))
-      .catch(() => setAuthButton(null));
-  }, []);
-
   const { useIsSignedIn, useEvmAddress, useSignEvmMessage } = require("@coinbase/cdp-hooks");
   const signedIn = useIsSignedIn();
   const evm = useEvmAddress();
@@ -192,6 +186,5 @@ function useCdpHooks(): {
     isSignedIn: !!signedIn?.isSignedIn,
     evmAddress: evm?.evmAddress ?? null,
     signEvmMessage: signMsg?.signEvmMessage ?? null,
-    AuthButton,
   };
 }

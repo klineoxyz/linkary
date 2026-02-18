@@ -173,13 +173,13 @@ function useCdpHooks(): {
   isSignedIn: boolean;
   evmAddress: string | null;
   signEvmMessage: ((args: { evmAccount: string; message: string }) => Promise<{ signature: string }>) | null;
-  AuthButton: React.ComponentType<{ onSuccess?: () => void }> | null;
+  AuthButton: React.ComponentType<Record<string, unknown>> | null;
 } {
-  const [AuthButton, setAuthButton] = useState<React.ComponentType<{ onSuccess?: () => void }> | null>(null);
+  const [AuthButton, setAuthButton] = useState<React.ComponentType<Record<string, unknown>> | null>(null);
 
   React.useEffect(() => {
-    import("@coinbase/cdp-react/components/AuthButton")
-      .then((m) => setAuthButton(() => m.AuthButton))
+    void import("@coinbase/cdp-react/components/AuthButton")
+      .then((m) => setAuthButton(() => m.AuthButton as React.ComponentType<Record<string, unknown>>))
       .catch(() => setAuthButton(null));
   }, []);
 

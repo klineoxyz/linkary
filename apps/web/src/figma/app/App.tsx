@@ -789,7 +789,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
       <div className="flex items-center justify-between w-full">
         <button
           onClick={() => {
-            setRoute({ name: "overview" });
+            setRoute({ name: "landing" });
             setMobileOpen(false);
           }}
           className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-white"
@@ -803,10 +803,15 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
       </div>
 
       <nav className={cn("flex-col gap-2 w-full flex-1", mobileOpen ? "flex" : "hidden lg:flex")}>
-        <span className="uppercase text-xs font-medium text-zinc-500 mt-4 lg:mt-0 tracking-wide">Home</span>
+        <button
+          type="button"
+          onClick={() => setRoute({ name: "landing" })}
+          className="uppercase text-xs font-medium text-zinc-500 mt-4 lg:mt-0 tracking-wide text-left w-full hover:text-zinc-400 transition-colors"
+        >
+          Home
+        </button>
         <div className="flex flex-col gap-2">
           <Link name="overview" icon={Home} label="Overview" />
-          <Link name="landing" icon={Globe} label="Landing Page" />
         </div>
 
         <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Profile</span>

@@ -142,6 +142,14 @@ import CalendarPage from "./components/CalendarPage";
 import DashboardPage from "./components/DashboardPage";
 import OrgDetailPage from "./components/OrgDetailPage";
 import AffiliationAmbassadorSection from "./components/AffiliationAmbassadorSection";
+import LoginPage from "./components/LoginPage";
+import OnboardingPage from "./components/OnboardingPage";
+import { supabase } from "@/lib/supabase";
+import { ensureProfileForSession, getMyProfile } from "@/lib/profiles";
+import { listJobs, applyToJobAsProfile, applyToJobAsOrg, type JobWithOrg } from "@/lib/jobs";
+import { getOrCreateConversation, listConversationsForUser, listMessages, sendMessageAsProfile, sendMessageAsOrg } from "@/lib/messages";
+import { listMyOrgs } from "@/lib/orgs";
+import { listCaseStudiesForProfile, createCaseStudyForProfile } from "@/lib/caseStudies";
 import LandingPage from "./components/LandingPage";
 import AnalyticsPage from "./components/AnalyticsPage";
 import VerificationCenterPage from "./components/VerificationCenterPage";
@@ -1612,12 +1620,63 @@ function ExplorePage({ setRoute }) {
   );
 }
 
-function MarketplacePage() {
+function MarketplacePage({ setRoute }) {
   const [q, setQ] = useState("");
   const [view, setView] = useState("all");
-  
-  const jobs = demo.marketplace.jobs.filter((x) => (x.title + x.org).toLowerCase().includes(q.toLowerCase()));
-  const sprints = demo.marketplace.sprints.filter((x) => (x.title + x.org).toLowerCase().includes(q.toLowerCase()));
+  const [dbJobs, setDbJobs] = useState<JobWithOrg[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [myOrgs, setMyOrgs] = useState<{ id: string; name: string; org_type: string }[]>([]);
+  const [applyJob, setApplyJob] = useState<JobWithOrg | null>(null);
+  const [applyMessage, setApplyMessage] = useState("");
+  const [applyAsOrgId, setApplyAsOrgId] = useState<string | null>(null);
+  const [applyLoading, setApplyLoading] = useState(false);
+
+  useEffect(() => {
+    listJobs().then(setDbJobs);
+  }, []);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const uid = session?.user?.id ?? null;
+      setUserId(uid);
+      if (uid) {
+        getMyProfile(uid).then((p) => setProfileId(p?.id ?? null));
+        listMyOrgs(uid).then((orgs) => setMyOrgs(orgs.map((o) => ({ id: o.id, name: o.name, org_type: o.org_type }))));
+      } else setMyOrgs([]);
+    });
+  }, []);
+
+  const agencyOrgs = myOrgs.filter((o) => o.org_type === "agency");
+  const jobs = dbJobs.length > 0
+    ? dbJobs.filter((j) => j.type === "job" && (j.title + (j.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()))
+    : demo.marketplace.jobs.filter((x) => (x.title + x.org).toLowerCase().includes(q.toLowerCase()));
+  const sprints = dbJobs.length > 0
+    ? dbJobs.filter((j) => j.type === "sprint" && (j.title + (j.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()))
+    : demo.marketplace.sprints.filter((x) => (x.title + x.org).toLowerCase().includes(q.toLowerCase()));
+
+  const handleApplySubmit = async () => {
+    if (!applyJob || !userId || !profileId) return;
+    setApplyLoading(true);
+    const isOrg = !!applyAsOrgId;
+    const { data: appData, error: appErr } = isOrg
+      ? await applyToJobAsOrg(applyJob.id, applyAsOrgId!, applyMessage.trim() || undefined)
+      : await applyToJobAsProfile(applyJob.id, profileId, applyMessage.trim() || undefined);
+    if (appErr) { setApplyLoading(false); return; }
+    const participants = isOrg
+      ? [{ type: "org" as const, id: applyAsOrgId! }, { type: "org" as const, id: applyJob.org_id }]
+      : [{ type: "profile" as const, id: profileId }, { type: "org" as const, id: applyJob.org_id }];
+    const { data: conv, error: convErr } = await getOrCreateConversation(participants);
+    if (convErr || !conv) { setApplyLoading(false); setApplyJob(null); return; }
+    if (applyMessage.trim() && conv) {
+      if (isOrg) await sendMessageAsOrg(conv.id, applyAsOrgId!, applyMessage.trim());
+      else await sendMessageAsProfile(conv.id, profileId, applyMessage.trim());
+    }
+    setApplyJob(null);
+    setApplyMessage("");
+    setApplyAsOrgId(null);
+    setApplyLoading(false);
+    setRoute({ name: "messages", data: { conversationId: conv.id } });
+  };
 
   return (
     <div className="space-y-6">
@@ -1679,13 +1738,13 @@ function MarketplacePage() {
                         )}
                         <JobStatusBadge status={j.status} />
                       </div>
-                      <p className="text-xs text-white/80">{j.org} · {j.budget} · {j.type}</p>
-                      <p className="mt-2 text-xs text-white/70">{j.applicants} applicants</p>
+                      <p className="text-xs text-white/80">{(j.org?.name ?? j.org)} · {j.budget ?? ""} · {j.type ?? "job"}</p>
+                      <p className="mt-2 text-xs text-white/70">{j.applicants != null ? j.applicants + " applicants" : ""}</p>
                     </div>
-                    <Button size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => setRoute({ name: "comingSoon" })}>Apply</Button>
+                    <Button size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => (j.org_id ? setApplyJob(j) : setRoute({ name: "comingSoon" }))}>Apply</Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {j.tags.map((t) => (
+                    {(Array.isArray(j.tags) ? j.tags : []).map((t) => (
                       <span key={t} className="rounded-full border border-white/30 bg-white/10 backdrop-blur-sm px-2.5 py-1 text-xs text-white">
                         {t}
                       </span>
@@ -1745,13 +1804,13 @@ function MarketplacePage() {
                         )}
                         <JobStatusBadge status={s.status} />
                       </div>
-                      <p className="text-xs text-white/80">{s.org} · {s.budget} · {s.duration}</p>
-                      <p className="mt-2 text-xs text-white/70">{s.applicants} applicants</p>
+                      <p className="text-xs text-white/80">{(s.org?.name ?? s.org)} · {s.budget ?? ""} · {s.duration ?? ""}</p>
+                      <p className="mt-2 text-xs text-white/70">{s.applicants != null ? s.applicants + " applicants" : ""}</p>
                     </div>
-                    <Button size="sm" variant="outline" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => setRoute({ name: "comingSoon" })}>Apply</Button>
+                    <Button size="sm" variant="outline" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => (s.org_id ? setApplyJob(s) : setRoute({ name: "comingSoon" }))}>Apply</Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {s.tags.map((t) => (
+                    {(Array.isArray(s.tags) ? s.tags : []).map((t) => (
                       <span key={t} className="rounded-full border border-white/30 bg-white/10 backdrop-blur-sm px-2.5 py-1 text-xs text-white">
                         {t}
                       </span>
@@ -1765,6 +1824,41 @@ function MarketplacePage() {
           </Card>
         )}
       </div>
+
+      {applyJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Apply to {applyJob.title}</h3>
+            <p className="text-sm text-zinc-500 mb-4">{(applyJob.org?.name ?? applyJob.org_id)}</p>
+            <textarea
+              placeholder="Message (optional)"
+              value={applyMessage}
+              onChange={(e) => setApplyMessage(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+            />
+            {agencyOrgs.length > 0 && (
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Apply as</label>
+                <select
+                  value={applyAsOrgId ?? ""}
+                  onChange={(e) => setApplyAsOrgId(e.target.value || null)}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                >
+                  <option value="">Myself (profile)</option>
+                  {agencyOrgs.map((o) => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => { setApplyJob(null); setApplyMessage(""); setApplyAsOrgId(null); }} className="flex-1 py-2 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
+              <button type="button" disabled={applyLoading || !userId || !profileId} onClick={handleApplySubmit} className="flex-1 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">{applyLoading ? "Applying…" : "Apply"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1897,12 +1991,62 @@ function LeaderboardsPage({ setRoute }) {
   );
 }
 
-function MessagesPage() {
-  const conversations = [
-    { id: 1, name: "MatrixPay", last: "Great! Let's finalize the deliverables", time: "2m ago", unread: 1 },
-    { id: 2, name: "Gemini Labs", last: "When can you start?", time: "1h ago", unread: 1 },
-    { id: 3, name: "Sarah Chen", last: "Thanks for the quick turnaround!", time: "2h ago", unread: 0 },
+function MessagesPage({ setRoute, initialConversationId }) {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(initialConversationId ?? null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput] = useState("");
+  const [sendAsOrgId, setSendAsOrgId] = useState<string | null>(null);
+  const [myOrgs, setMyOrgs] = useState<{ id: string; name: string }[]>([]);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const uid = session?.user?.id ?? null;
+      setUserId(uid);
+      if (uid) {
+        getMyProfile(uid).then((p) => setProfileId(p?.id ?? null));
+        listMyOrgs(uid).then((orgs) => setMyOrgs(orgs.map((o) => ({ id: o.id, name: o.name }))));
+      }
+    });
+  }, []);
+  useEffect(() => {
+    if (!userId) return;
+    listConversationsForUser(userId).then((list) => {
+      setConversations(list);
+      if (initialConversationId && list.some((c) => c.id === initialConversationId)) setSelectedId(initialConversationId);
+      else if (list.length > 0 && !selectedId) setSelectedId(list[0].id);
+    });
+  }, [userId, initialConversationId]);
+  useEffect(() => {
+    if (!selectedId) { setMessages([]); return; }
+    listMessages(selectedId).then(setMessages);
+  }, [selectedId]);
+
+  const selectedConv = conversations.find((c) => c.id === selectedId);
+  const sendAsOptions = myOrgs.filter((o) => selectedConv?.participants?.some((p) => p.type === "org" && p.id === o.id));
+
+  const handleSend = async () => {
+    if (!selectedId || !input.trim() || !profileId) return;
+    setSending(true);
+    const body = input.trim();
+    setInput("");
+    if (sendAsOrgId) {
+      await sendMessageAsOrg(selectedId, sendAsOrgId, body);
+    } else {
+      await sendMessageAsProfile(selectedId, profileId, body);
+    }
+    listMessages(selectedId).then(setMessages);
+    setSending(false);
+  };
+
+  const fallbackConvs = [
+    { id: "1", name: "MatrixPay", last: "Great! Let's finalize the deliverables", time: "2m ago", unread: 1 },
+    { id: "2", name: "Gemini Labs", last: "When can you start?", time: "1h ago", unread: 0 },
   ];
+  const list = conversations.length > 0 ? conversations : fallbackConvs;
 
   return (
     <div className="space-y-6">
@@ -1912,23 +2056,20 @@ function MessagesPage() {
         <Card>
           <h3 className="font-semibold mb-4" style={{ color: '#000000' }}>Conversations</h3>
           <div className="space-y-2">
-            {conversations.map((conv, idx) => {
-              const bgImages = ['1557683316-973673baf926', '1579546929518-9e396f3cc809', '1557683311-eac922347aa1', '1559827260-dc66d52bef19'];
-              const gradients = ['from-indigo-600/90 to-purple-600/90', 'from-teal-600/90 to-cyan-600/90', 'from-fuchsia-600/90 to-pink-600/90', 'from-amber-600/90 to-orange-600/90'];
+            {list.map((conv, idx) => {
+              const bgImages = ['1557683316-973673baf926', '1579546929518-9e396f3cc809', '1557683311-eac922347aa1'];
+              const gradients = ['from-indigo-600/90 to-purple-600/90', 'from-teal-600/90 to-cyan-600/90', 'from-fuchsia-600/90 to-pink-600/90'];
+              const name = conv.name ?? (conv.participants?.length ? conv.participants.map((p) => p.type + ":" + p.id).join(", ") : conv.id);
+              const isSelected = conv.id === selectedId;
               return (
-              <div key={conv.id} className="relative overflow-hidden rounded-lg border-0 p-3 cursor-pointer hover:shadow-lg transition-all bg-cover bg-center" style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx % 4]}?w=800&q=80)` }}>
-                <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx % 4]}`} />
+              <div key={conv.id} onClick={() => setSelectedId(conv.id)} className={`relative overflow-hidden rounded-lg border-0 p-3 cursor-pointer hover:shadow-lg transition-all bg-cover bg-center ${isSelected ? "ring-2 ring-indigo-500" : ""}`} style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx % 3]}?w=800&q=80)` }}>
+                <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx % 3]}`} />
                 <div className="relative z-10">
-                <div className="flex items-start justify-between mb-1">
-                  <span className="font-medium text-white">{conv.name}</span>
-                  <span className="text-xs text-white/70">{conv.time}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-white/80 truncate">{conv.last}</p>
-                  {conv.unread > 0 && (
-                    <span className="rounded-full bg-white/30 backdrop-blur-sm px-2 py-0.5 text-xs text-white">{conv.unread}</span>
-                  )}
-                </div>
+                  <div className="flex items-start justify-between mb-1">
+                    <span className="font-medium text-white">{name}</span>
+                    <span className="text-xs text-white/70">{conv.time ?? ""}</span>
+                  </div>
+                  <p className="text-sm text-white/80 truncate">{conv.last ?? "No messages yet"}</p>
                 </div>
               </div>
               );
@@ -1937,44 +2078,86 @@ function MessagesPage() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <div className="flex items-center justify-between pb-4 border-b border-zinc-700 mb-4">
+          <div className="flex items-center justify-between pb-4 border-b border-zinc-200 dark:border-zinc-700 mb-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600" />
               <div>
-                <p className="font-semibold" style={{ color: '#000000' }}>MatrixPay</p>
-                <p className="text-xs" style={{ color: '#404040' }}>Active now</p>
+                <p className="font-semibold" style={{ color: '#000000' }}>{selectedConv ? (selectedConv.name ?? selectedConv.id) : "Select a conversation"}</p>
+                <p className="text-xs" style={{ color: '#404040' }}>{messages.length} messages</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "brandProfile" })}>View Profile</Button>
+            {selectedConv?.participants?.some((p) => p.type === "org") && (
+              <button type="button" onClick={() => setRoute({ name: "brandProfile", data: { orgId: selectedConv.participants.find((p) => p.type === "org")?.id } })} className="text-sm text-indigo-600">View Profile</button>
+            )}
           </div>
 
           <div className="space-y-4 mb-4 min-h-[300px]">
-            <div className="flex gap-3">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600" />
-              <div className="flex-1">
-                <div className="rounded-lg border border-indigo-500/30 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 backdrop-blur-xl p-3">
-                  <p className="text-sm" style={{ color: '#000000' }}>Great! Let's finalize the deliverables</p>
+            {messages.map((m) => (
+              <div key={m.id} className="flex gap-3">
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shrink-0" />
+                <div className="flex-1">
+                  <div className="rounded-lg border border-indigo-500/30 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 backdrop-blur-xl p-3">
+                    <p className="text-sm" style={{ color: '#000000' }}>{m.body}</p>
+                  </div>
+                  <span className="text-xs" style={{ color: '#666666' }}>{m.sender_type}{" · "}{new Date(m.created_at).toLocaleString()}</span>
                 </div>
-                <span className="text-xs" style={{ color: '#666666' }}>2m ago</span>
               </div>
-            </div>
+            ))}
           </div>
 
-          <div className="flex gap-2">
-            <Input placeholder="Type a message..." />
-            <Button onClick={() => setRoute({ name: "comingSoon" })}>
-              <Send className="h-4 w-4 stroke-[1.75]" />
-            </Button>
-          </div>
+          {selectedId && (
+            <>
+              {sendAsOptions.length > 0 && (
+                <div className="mb-2">
+                  <label className="text-xs text-zinc-500">Send as: </label>
+                  <select value={sendAsOrgId ?? ""} onChange={(e) => setSendAsOrgId(e.target.value || null)} className="text-sm border border-zinc-300 rounded px-2 py-1">
+                    <option value="">My profile</option>
+                    {sendAsOptions.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Input placeholder="Type a message..." value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()} />
+                <Button onClick={handleSend} disabled={sending || !input.trim()}>
+                  <Send className="h-4 w-4 stroke-[1.75]" />
+                </Button>
+              </div>
+            </>
+          )}
         </Card>
       </div>
     </div>
   );
 }
 
-function ProfilePage({ setRoute }) {
+function ProfilePage({ setRoute, me }) {
   const u = demo.me;
-  
+  const [caseStudies, setCaseStudies] = useState<any[]>([]);
+  const [showCaseStudyModal, setShowCaseStudyModal] = useState(false);
+  const [csTitle, setCsTitle] = useState("");
+  const [csDescription, setCsDescription] = useState("");
+  const [csProofUrl, setCsProofUrl] = useState("");
+  const [csSubmitting, setCsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (me?.id) listCaseStudiesForProfile(me.id).then(setCaseStudies);
+  }, [me?.id]);
+
+  const handleCreateCaseStudy = async () => {
+    if (!me?.id) return;
+    setCsSubmitting(true);
+    const { error } = await createCaseStudyForProfile(me.id, { title: csTitle, description: csDescription, proof_url: csProofUrl || undefined });
+    setCsSubmitting(false);
+    if (!error) {
+      setShowCaseStudyModal(false);
+      setCsTitle(""); setCsDescription(""); setCsProofUrl("");
+      listCaseStudiesForProfile(me.id).then(setCaseStudies);
+    }
+  };
+
+  const displayCaseStudies = caseStudies.length > 0 ? caseStudies : (u.caseStudies ?? []);
+  const isMyProfile = !!me?.id;
+
   return (
     <div className="space-y-6">
       <SectionTitle
@@ -2144,31 +2327,39 @@ function ProfilePage({ setRoute }) {
           <Card>
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-semibold" style={{ color: '#000000' }}>Case Studies</h3>
-              <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "comingSoon" })}>Add New</Button>
+              {isMyProfile && (
+                <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setShowCaseStudyModal(true)}>Add New</Button>
+              )}
+              {!isMyProfile && caseStudies.length === 0 && u.caseStudies?.length === 0 && (
+                <span className="text-xs text-zinc-500">No case studies yet</span>
+              )}
             </div>
             <div className="space-y-3">
-              {u.caseStudies.map((cs) => (
+              {displayCaseStudies.map((cs) => (
                 <div key={cs.id} className="rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 backdrop-blur-xl p-4 hover:border-emerald-500/40 transition-all duration-300">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold" style={{ color: '#000000' }}>{cs.projectName}</span>
+                        <span className="font-semibold" style={{ color: '#000000' }}>{cs.title ?? cs.projectName}</span>
                         {cs.verified && <BadgeCheck className="h-4 w-4 text-emerald-400 stroke-[1.75]" />}
                       </div>
-                      <p className="mt-1 text-xs" style={{ color: '#404040' }}>{cs.role} · {cs.duration}</p>
+                      {cs.role != null && <p className="mt-1 text-xs" style={{ color: '#404040' }}>{cs.role}{cs.duration ? ` · ${cs.duration}` : ""}</p>}
+                      {cs.description && <p className="mt-1 text-sm" style={{ color: '#404040' }}>{cs.description}</p>}
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => setRoute({ name: "comingSoon" })}>View</Button>
+                    {cs.proof_url && (
+                      <a href={cs.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-500">Proof</a>
+                    )}
                   </div>
-                  
-                  <div className="rounded-lg border border-emerald-700 bg-emerald-950/30 p-3">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-emerald-400 stroke-[1.75]" />
-                      <span className="text-sm font-semibold" style={{ color: '#000000' }}>
-                        {cs.results.metric}: <span className="text-emerald-400">{cs.results.value}</span>
-                      </span>
+                  {cs.results && (
+                    <div className="rounded-lg border border-emerald-700 bg-emerald-950/30 p-3">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-emerald-400 stroke-[1.75]" />
+                        <span className="text-sm font-semibold" style={{ color: '#000000' }}>
+                          {cs.results.metric}: <span className="text-emerald-400">{cs.results.value}</span>
+                        </span>
+                      </div>
                     </div>
-                  </div>
-
+                  )}
                   {cs.testimonial && (
                     <div className="mt-3 border-l-2 border-indigo-500 pl-3 text-sm italic text-zinc-400">
                       "{cs.testimonial}"
@@ -2178,6 +2369,21 @@ function ProfilePage({ setRoute }) {
               ))}
             </div>
           </Card>
+
+          {showCaseStudyModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6 max-w-md w-full">
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Add Case Study</h3>
+                <input placeholder="Title" value={csTitle} onChange={(e) => setCsTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3" />
+                <textarea placeholder="Description" value={csDescription} onChange={(e) => setCsDescription(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3" />
+                <input placeholder="Proof URL (optional)" value={csProofUrl} onChange={(e) => setCsProofUrl(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-4" />
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setShowCaseStudyModal(false); setCsTitle(""); setCsDescription(""); setCsProofUrl(""); }} className="flex-1 py-2 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
+                  <button type="button" disabled={csSubmitting || !csTitle.trim()} onClick={handleCreateCaseStudy} className="flex-1 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">{csSubmitting ? "Saving…" : "Save"}</button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Reviews */}
           <Card>
@@ -2242,6 +2448,9 @@ export default function LinkaryApp() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreateCircle, setShowCreateCircle] = useState(false);
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
+  const [authBootstrapped, setAuthBootstrapped] = useState(false);
+  const [me, setMe] = useState(null);
+  const [authUserId, setAuthUserId] = useState(null);
 
   const setRoute = (r) => {
     if (r.name === "comingSoon") {
@@ -2251,6 +2460,32 @@ export default function LinkaryApp() {
     setPreviousRoute(route);
     setRouteState(r);
   };
+
+  const runAuthGate = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      setRouteState({ name: "login" });
+      setAuthBootstrapped(true);
+      setAuthUserId(null);
+      setMe(null);
+      return;
+    }
+    setAuthUserId(session.user.id);
+    await ensureProfileForSession(session.user.id);
+    const profile = await getMyProfile(session.user.id);
+    setMe(profile ?? null);
+    if (!profile?.onboarding_completed_at) {
+      setRouteState({ name: "onboarding" });
+    } else {
+      setRouteState((prev) => (prev.name === "landing" || prev.name === "login" ? { name: "explore" } : prev));
+    }
+    setAuthBootstrapped(true);
+  };
+
+  useEffect(() => {
+    if (authBootstrapped) return;
+    runAuthGate();
+  }, [authBootstrapped]);
 
   useInViewAnimations(".animate-fade-in");
 
@@ -2571,7 +2806,7 @@ export default function LinkaryApp() {
 
       <div className="min-h-screen flex flex-col lg:flex-row relative z-[20]">
         {/* Mobile Sidebar Backdrop */}
-        {mobileOpen && !["publicCreator", "publicProject", "publicCompany"].includes(route.name) && (
+        {mobileOpen && !["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && (
           <div 
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] lg:hidden"
             onClick={() => setMobileOpen(false)}
@@ -2579,7 +2814,7 @@ export default function LinkaryApp() {
         )}
         
         {/* Hide sidebar for public profile pages */}
-        {!["publicCreator", "publicProject", "publicCompany"].includes(route.name) && (
+        {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && (
           <Sidebar
             route={route}
             setRoute={setRoute}
@@ -2588,9 +2823,9 @@ export default function LinkaryApp() {
           />
         )}
 
-        <main className={`flex-1 ${["publicCreator", "publicProject", "publicCompany"].includes(route.name) ? "" : "p-6 lg:p-10"} overflow-y-auto relative min-h-screen`}>
+        <main className={`flex-1 ${["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) ? "" : "p-6 lg:p-10"} overflow-y-auto relative min-h-screen`}>
           {/* Animated Mesh Gradient Background - Hidden for public profiles */}
-          {!["publicCreator", "publicProject", "publicCompany"].includes(route.name) && (
+          {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && (
           <>
             <div className="fixed inset-0 pointer-events-none z-[2]">
               <motion.div
@@ -2702,7 +2937,7 @@ export default function LinkaryApp() {
           {/* Content with elevated z-index */}
           <div className="relative z-[30]">
             {/* Hide topbar for public profile pages */}
-            {!["publicCreator", "publicProject", "publicCompany"].includes(route.name) && (
+            {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && (
               <Topbar setMobileOpen={setMobileOpen} route={route} setRoute={setRoute} />
             )}
 
@@ -2717,12 +2952,29 @@ export default function LinkaryApp() {
               >
                 {route.name === "overview" && <OverviewPage setRoute={setRoute} />}
                 {route.name === "explore" && <ExplorePage setRoute={setRoute} />}
-                {route.name === "market" && <MarketplacePage />}
+                {route.name === "market" && <MarketplacePage setRoute={setRoute} />}
                 {route.name === "calendar" && <CalendarPage events={demo.events} />}
                 {route.name === "leaderboards" && <LeaderboardsPage setRoute={setRoute} />}
-                {route.name === "messages" && <MessagesPage />}
+                {route.name === "messages" && <MessagesPage setRoute={setRoute} initialConversationId={route.data?.conversationId} />}
+                {route.name === "login" && (
+                  <LoginPage
+                    setRoute={setRoute}
+                    onLoggedIn={runAuthGate}
+                  />
+                )}
+                {route.name === "onboarding" && authUserId && (
+                  <OnboardingPage
+                    userId={authUserId}
+                    setRoute={setRoute}
+                    onComplete={async () => {
+                      const p = await getMyProfile(authUserId);
+                      setMe(p ?? null);
+                      setRoute({ name: "explore" });
+                    }}
+                  />
+                )}
                 {route.name === "landing" && <LandingPage setRoute={setRoute} />}
-                {route.name === "profile" && <ProfilePage setRoute={setRoute} />}
+                {route.name === "profile" && <ProfilePage setRoute={setRoute} me={me} />}
                 {route.name === "userProfile" && <UserProfilePage setRoute={setRoute} />}
                 {route.name === "creatorProfile" && <CreatorProfilePage setRoute={setRoute} />}
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}

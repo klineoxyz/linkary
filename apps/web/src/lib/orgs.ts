@@ -106,6 +106,23 @@ export async function createOrg(
   return { data: org as Org, error: null };
 }
 
+/** Ensure user is owner of org (bootstrap after create). Idempotent. */
+export async function ensureOrgOwnerMembership(orgId: string, userId: string): Promise<{ error: string | null }> {
+  const { data: existing } = await supabase
+    .from(ORG_MEMBERS)
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (existing) return { error: null };
+  const { error } = await supabase.from(ORG_MEMBERS).insert({
+    org_id: orgId,
+    user_id: userId,
+    role: "owner",
+  });
+  return { error: error?.message ?? null };
+}
+
 /** List orgs where the user is a member. */
 export async function listOrgsForUser(userId: string): Promise<Org[]> {
   const { data: members, error: me } = await supabase
@@ -123,6 +140,9 @@ export async function listOrgsForUser(userId: string): Promise<Org[]> {
   if (error) return [];
   return (orgs ?? []) as Org[];
 }
+
+/** Alias for listOrgsForUser. */
+export const listMyOrgs = listOrgsForUser;
 
 /** Get org by id. */
 export async function getOrgById(orgId: string): Promise<Org | null> {
@@ -166,30 +186,23 @@ export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
   return (data ?? []) as OrgMember[];
 }
 
-/** Invite affiliate: insert org_affiliations with status=invited. Profile lookup by username. */
+/** Invite affiliate by profile id. Insert org_affiliations status=invited. */
 export async function inviteAffiliate(
   orgId: string,
-  invitedByUserId: string,
-  profileHandle: string
+  profileId: string,
+  invitedByUserId: string
 ): Promise<{ error: string | null }> {
-  const { data: profile } = await supabase
-    .from(PROFILES)
-    .select("id")
-    .ilike("username", profileHandle.replace(/^@/, "").trim().toLowerCase())
-    .maybeSingle();
-  if (!profile) return { error: "Profile not found for that handle" };
-
   const { error } = await supabase.from(ORG_AFFILIATIONS).insert({
     org_id: orgId,
-    profile_id: (profile as { id: string }).id,
+    profile_id: profileId,
     status: "invited",
     invited_by: invitedByUserId,
   });
   return { error: error?.message ?? null };
 }
 
-/** Invite ambassador: insert org_ambassadors with status=invited. */
-export async function inviteAmbassador(
+/** Invite affiliate by handle (lookup profile by username). */
+export async function inviteAffiliateByHandle(
   orgId: string,
   invitedByUserId: string,
   profileHandle: string
@@ -200,13 +213,54 @@ export async function inviteAmbassador(
     .ilike("username", profileHandle.replace(/^@/, "").trim().toLowerCase())
     .maybeSingle();
   if (!profile) return { error: "Profile not found for that handle" };
+  return inviteAffiliate(orgId, (profile as { id: string }).id, invitedByUserId);
+}
 
+/** Set affiliation status (invited | active | removed). */
+export async function setAffiliateStatus(
+  affiliationId: string,
+  status: "invited" | "active" | "removed"
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from(ORG_AFFILIATIONS).update({ status }).eq("id", affiliationId);
+  return { error: error?.message ?? null };
+}
+
+/** Invite ambassador by profile id. */
+export async function inviteAmbassador(
+  orgId: string,
+  profileId: string,
+  invitedByUserId: string
+): Promise<{ error: string | null }> {
   const { error } = await supabase.from(ORG_AMBASSADORS).insert({
     org_id: orgId,
-    profile_id: (profile as { id: string }).id,
+    profile_id: profileId,
     status: "invited",
     invited_by: invitedByUserId,
   });
+  return { error: error?.message ?? null };
+}
+
+/** Invite ambassador by handle (lookup profile by username). */
+export async function inviteAmbassadorByHandle(
+  orgId: string,
+  invitedByUserId: string,
+  profileHandle: string
+): Promise<{ error: string | null }> {
+  const { data: profile } = await supabase
+    .from(PROFILES)
+    .select("id")
+    .ilike("username", profileHandle.replace(/^@/, "").trim().toLowerCase())
+    .maybeSingle();
+  if (!profile) return { error: "Profile not found for that handle" };
+  return inviteAmbassador(orgId, (profile as { id: string }).id, invitedByUserId);
+}
+
+/** Set ambassador status (invited | active | removed). */
+export async function setAmbassadorStatus(
+  ambassadorId: string,
+  status: "invited" | "active" | "removed"
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from(ORG_AMBASSADORS).update({ status }).eq("id", ambassadorId);
   return { error: error?.message ?? null };
 }
 
@@ -295,57 +349,47 @@ export async function getOrgMetrics(orgId: string): Promise<OrgMetrics | null> {
   return data as OrgMetrics | null;
 }
 
-/** Call DB function to recompute org_metrics (company includes subsidiaries). Use this when migration 20260218100000 is applied. */
-export async function recomputeOrgMetricsRpc(orgId: string): Promise<{ error: string | null }> {
+/** Recompute org_metrics via DB RPC (company includes subsidiaries). */
+export async function recomputeOrgMetrics(orgId: string): Promise<{ error: string | null }> {
   const { error } = await supabase.rpc("recompute_org_metrics", { p_org_id: orgId });
   return { error: error?.message ?? null };
 }
 
-/** Recompute org_metrics from affiliates + ambassadors (followers_total, avg_engagement_rate). Client-side fallback when RPC is not available. */
-export async function recomputeOrgMetrics(orgId: string): Promise<{ error: string | null }> {
+/** @deprecated Use recomputeOrgMetrics */
+export const recomputeOrgMetricsRpc = recomputeOrgMetrics;
+
+/** Client-side fallback recompute (when RPC not available). */
+export async function recomputeOrgMetricsClient(orgId: string): Promise<{ error: string | null }> {
   const [affiliations, ambassadors] = await Promise.all([
     listOrgAffiliations(orgId, "active"),
     listOrgAmbassadors(orgId, "active"),
   ]);
-  const profileIds = [
-    ...affiliations.map((a) => a.profile_id),
-    ...ambassadors.map((a) => a.profile_id),
-  ];
+  const profileIds = [...affiliations.map((a) => a.profile_id), ...ambassadors.map((a) => a.profile_id)];
   const uniqueIds = [...new Set(profileIds)];
   if (uniqueIds.length === 0) {
     const { error } = await supabase.from(ORG_METRICS).upsert(
-      {
-        org_id: orgId,
-        combined_followers: 0,
-        avg_engagement_rate: 0,
-        potential_reach: 0,
-        updated_at: new Date().toISOString(),
-      },
+      { org_id: orgId, combined_followers: 0, avg_engagement_rate: 0, potential_reach: 0, updated_at: new Date().toISOString() },
       { onConflict: "org_id" }
     );
     return { error: error?.message ?? null };
   }
-
   const { data: profiles, error: profError } = await supabase
     .from(PROFILES)
     .select("id, followers_total, avg_engagement_rate")
     .in("id", uniqueIds);
   if (profError) return { error: profError.message };
-
-  const rows = (profiles ?? []) as { id: string; followers_total: number; avg_engagement_rate: number }[];
+  const rows = (profiles ?? []) as { followers_total: number; avg_engagement_rate: number }[];
   const totalFollowers = rows.reduce((s, p) => s + Number(p.followers_total ?? 0), 0);
   const weightedEng =
     totalFollowers > 0
       ? rows.reduce((s, p) => s + Number(p.followers_total ?? 0) * Number(p.avg_engagement_rate ?? 0), 0) / totalFollowers
       : 0;
-  const potentialReach = Math.round(totalFollowers * (Number(weightedEng) || 0));
-
   const { error: upsertError } = await supabase.from(ORG_METRICS).upsert(
     {
       org_id: orgId,
       combined_followers: totalFollowers,
       avg_engagement_rate: weightedEng,
-      potential_reach: potentialReach,
+      potential_reach: Math.round(totalFollowers * (Number(weightedEng) || 0)),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "org_id" }

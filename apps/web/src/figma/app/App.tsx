@@ -762,6 +762,9 @@ const RESERVED_PATHS = new Set([
   "dashboard", "explore", "terms", "privacy-policy", "privacy", "login", "onboarding",
   "profile", "overview", "market", "messages", "circles", "analytics", "verification",
   "pricing", "billing", "plans", "app", "api", "settings", "test-supabase",
+  "leaderboards", "creator", "brand", "agency", "calendar", "host", "availability",
+  "monetization", "monetization-flow", "kol-lists", "capital-partners",
+  "preferences", "support", "notifications", "verification-inbox", "showcase",
 ]);
 
 function pathFromRoute(route: { name: string; data?: any; handle?: string }): string {
@@ -775,6 +778,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     overview: "/overview",
     dashboard: "/dashboard",
     explore: "/explore",
+    discovery: "/explore",
     terms: "/terms",
     privacyPolicy: "/privacy-policy",
     privacy: "/privacy",
@@ -786,10 +790,28 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     circles: "/circles",
     analytics: "/analytics",
     verification: "/verification",
+    verificationInbox: "/verification-inbox",
     plansBilling: "/plans",
     pricing: "/pricing",
     billing: "/billing",
     pricingRefined: "/pricing",
+    leaderboards: "/leaderboards",
+    creatorProfile: "/creator",
+    brandProfile: "/brand",
+    agencyProfile: "/agency",
+    calendar: "/calendar",
+    calendarRefined: "/calendar",
+    enhancedCalendar: "/calendar",
+    hostDashboard: "/host",
+    availability: "/availability",
+    monetizationShowcase: "/monetization",
+    monetizationFlowShowcase: "/monetization-flow",
+    kolLists: "/kol-lists",
+    capitalPartners: "/capital-partners",
+    preferences: "/preferences",
+    support: "/support",
+    notifications: "/notifications",
+    showcase: "/showcase",
   };
   return map[route.name] ?? "/";
 }
@@ -805,6 +827,13 @@ function routeFromPathname(pathname: string | null): { name: string; data?: any;
       overview: "overview", market: "market", messages: "messages", circles: "circles",
       analytics: "analytics", verification: "verification",
       plans: "plansBilling", billing: "billing", pricing: "pricing",
+      leaderboards: "leaderboards", creator: "creatorProfile", brand: "brandProfile",
+      agency: "agencyProfile", calendar: "calendar", host: "hostDashboard",
+      availability: "availability", monetization: "monetizationShowcase",
+      "monetization-flow": "monetizationFlowShowcase", "kol-lists": "kolLists",
+      "capital-partners": "capitalPartners", preferences: "preferences",
+      support: "support", notifications: "notifications",
+      "verification-inbox": "verificationInbox", showcase: "showcase",
     };
     return { name: nameMap[segment] ?? "landing" };
   }

@@ -28,7 +28,7 @@ import {
   X,
   Heart,
 } from "lucide-react";
-import { StatusBadge } from "./SharedComponents";
+import { FeatureStatusBadge } from "./SharedComponents";
 
 /**
  * Linkary Landing Page - Verifiable Reputation for Web3 Work
@@ -633,7 +633,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
             )}
             {activeTab === "youtube" && (
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">YouTube Analytics <StatusBadge status="coming-soon" /></h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">YouTube Analytics <FeatureStatusBadge status="coming-soon" /></h3>
                 <p className="text-gray-600 mb-4">Track video performance and subscriber growth</p>
                 <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
                   <p className="text-sm text-amber-800">
@@ -644,7 +644,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
             )}
             {activeTab === "tiktok" && (
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">TikTok Analytics <StatusBadge status="coming-soon" /></h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">TikTok Analytics <FeatureStatusBadge status="coming-soon" /></h3>
                 <p className="text-gray-600 mb-4">Monitor viral content and audience engagement</p>
                 <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
                   <p className="text-sm text-amber-800">

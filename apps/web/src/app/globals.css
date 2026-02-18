@@ -25,7 +25,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Next.js dev overlay portal (dev only). Kept 0x0 at 0,0 so it doesn’t affect layout.
+/* Next.js dev overlay portal (dev only). Force 0,0 and 0x0 so it doesn’t affect layout.
    data-cursor-element-id is added by Cursor when inspecting the DOM. */
 nextjs-portal {
   position: fixed !important;
@@ -35,9 +35,11 @@ nextjs-portal {
   width: 0 !important;
   height: 0 !important;
   margin: 0 !important;
+  padding: 0 !important;
+  transform: translate(0, 0) !important;
   overflow: visible !important;
   pointer-events: none;
-  z-index: 9999; /* overlay content above app; container itself is 0x0 */
+  z-index: 9999;
 }
 nextjs-portal > * {
   pointer-events: auto;

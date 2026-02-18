@@ -25,7 +25,7 @@ import {
   Target,
 } from "lucide-react";
 import FlipCard from "./FlipCard";
-import { StatusBadge } from "./SharedComponents";
+import { FeatureStatusBadge } from "./SharedComponents";
 
 /**
  * Linkary Analytics Page - Signals-First Dashboard
@@ -904,7 +904,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           >
             <Zap className="w-12 h-12 text-amber-400 mx-auto mb-4 stroke-[1.75]" />
             <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center gap-2">
-              {activePlatform === "youtube" ? "YouTube" : "TikTok"} Analytics <StatusBadge status="coming-soon" />
+              {activePlatform === "youtube" ? "YouTube" : "TikTok"} Analytics <FeatureStatusBadge status="coming-soon" />
             </h3>
             <p className="text-gray-600 max-w-md mx-auto">
               We're building {activePlatform === "youtube" ? "YouTube" : "TikTok"} integration with the same

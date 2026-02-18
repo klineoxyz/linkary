@@ -655,8 +655,8 @@ export function EmptyState(
   );
 }
 
-// Status badge: Live | Beta | Coming soon — use for consistent launch polish
-export function StatusBadge({ status }: { status: "live" | "beta" | "coming-soon" }) {
+// Feature status badge: Live | Beta | Coming soon — use for launch polish (no conflict with StatusBadge for events/circles)
+export function FeatureStatusBadge({ status }: { status: "live" | "beta" | "coming-soon" }) {
   const config = {
     live: { label: "Live", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
     beta: { label: "Beta", className: "bg-amber-500/20 text-amber-300 border-amber-500/30" },

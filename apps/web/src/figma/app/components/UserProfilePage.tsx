@@ -213,8 +213,16 @@ const demoUserData = {
   ],
 };
 
-export default function UserProfilePage({ setRoute }: { setRoute?: (route: any) => void }) {
-  const u = demoUserData;
+export default function UserProfilePage({
+  setRoute,
+  username,
+}: {
+  setRoute?: (route: any) => void;
+  username?: string;
+}) {
+  const u = username
+    ? { ...demoUserData, handle: username, name: username.charAt(0).toUpperCase() + username.slice(1).toLowerCase() }
+    : demoUserData;
 
   return (
     <div className="space-y-6">

@@ -72,7 +72,8 @@
   };
 })();
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 // Linkary brand assets - icons in public/icons/, full logos in public/logos/
 const linkaryIconWhite = "/icons/icon-white.svg";
@@ -753,6 +754,55 @@ function SectionTitle({ title, subtitle, right, background = "dark" }) {
       </div>
     </div>
   );
+}
+
+// URL ↔ route sync: pathnames that are app pages (not usernames)
+const RESERVED_PATHS = new Set([
+  "dashboard", "explore", "terms", "privacy-policy", "privacy", "login", "onboarding",
+  "profile", "overview", "market", "messages", "circles", "analytics", "verification",
+  "pricing", "billing", "plans", "app", "api", "settings", "test-supabase",
+]);
+
+function pathFromRoute(route: { name: string; data?: any; handle?: string }): string {
+  if (!route?.name) return "/";
+  if (route.name === "userProfile" && (route.handle ?? route.data?.username)) {
+    const slug = route.handle ?? route.data?.username ?? "";
+    return slug ? `/${encodeURIComponent(slug)}` : "/explore";
+  }
+  const map: Record<string, string> = {
+    landing: "/",
+    overview: "/overview",
+    dashboard: "/dashboard",
+    explore: "/explore",
+    terms: "/terms",
+    privacyPolicy: "/privacy-policy",
+    privacy: "/privacy",
+    login: "/login",
+    onboarding: "/onboarding",
+    profile: "/profile",
+    market: "/market",
+    messages: "/messages",
+    circles: "/circles",
+    analytics: "/analytics",
+    verification: "/verification",
+  };
+  return map[route.name] ?? "/";
+}
+
+function routeFromPathname(pathname: string | null): { name: string; data?: any; handle?: string } {
+  const path = (pathname ?? "/").replace(/^\//, "").split("/")[0] || "";
+  if (!path) return { name: "landing" };
+  const segment = path.toLowerCase();
+  if (RESERVED_PATHS.has(segment)) {
+    const nameMap: Record<string, string> = {
+      dashboard: "dashboard", explore: "explore", terms: "terms", "privacy-policy": "privacyPolicy",
+      privacy: "privacy", login: "login", onboarding: "onboarding", profile: "profile",
+      overview: "overview", market: "market", messages: "messages", circles: "circles",
+      analytics: "analytics", verification: "verification",
+    };
+    return { name: nameMap[segment] ?? "landing" };
+  }
+  return { name: "userProfile", data: { username: decodeURIComponent(path) }, handle: decodeURIComponent(path) };
 }
 
 function Sidebar({ route, setRoute, mobileOpen, setMobileOpen }) {
@@ -2445,7 +2495,9 @@ function ProfilePage({ setRoute, me }) {
 // App shell
 // -----------------------------
 export default function LinkaryApp() {
-  const [route, setRouteState] = useState({ name: "landing" });
+  const pathname = usePathname();
+  const router = useRouter();
+  const [route, setRouteState] = useState(() => routeFromPathname(pathname ?? "/"));
   const [previousRoute, setPreviousRoute] = useState({ name: "overview" });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreateCircle, setShowCreateCircle] = useState(false);
@@ -2454,19 +2506,33 @@ export default function LinkaryApp() {
   const [me, setMe] = useState(null);
   const [authUserId, setAuthUserId] = useState(null);
 
-  const setRoute = (r) => {
+  useEffect(() => {
+    const fromPath = routeFromPathname(pathname ?? "/");
+    setRouteState((prev) =>
+      prev.name !== fromPath.name || prev.handle !== fromPath.handle
+        ? fromPath
+        : prev
+    );
+  }, [pathname]);
+
+  const setRoute = useCallback((r: { name: string; data?: any; handle?: string }) => {
     if (r.name === "comingSoon") {
       setComingSoonOpen(true);
       return;
     }
     setPreviousRoute(route);
     setRouteState(r);
-  };
+    const path = pathFromRoute(r);
+    const currentPath = pathname ?? "/";
+    if (typeof window !== "undefined" && path && path !== currentPath) {
+      router.push(path);
+    }
+  }, [route, router, pathname]);
 
   const runAuthGate = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user?.id) {
-      setRouteState({ name: "login" });
+      setRoute({ name: "login" });
       setAuthBootstrapped(true);
       setAuthUserId(null);
       setMe(null);
@@ -2477,9 +2543,11 @@ export default function LinkaryApp() {
     const profile = await getMyProfile(session.user.id);
     setMe(profile ?? null);
     if (!profile?.onboarding_completed_at) {
-      setRouteState({ name: "onboarding" });
+      setRoute({ name: "onboarding" });
     } else {
+      const p = pathname ?? "/";
       setRouteState((prev) => (prev.name === "landing" || prev.name === "login" ? { name: "explore" } : prev));
+      if (p === "/" || p === "/login") router.push("/explore");
     }
     setAuthBootstrapped(true);
   };
@@ -2977,7 +3045,12 @@ export default function LinkaryApp() {
                 )}
                 {route.name === "landing" && <LandingPage setRoute={setRoute} />}
                 {route.name === "profile" && <ProfilePage setRoute={setRoute} me={me} />}
-                {route.name === "userProfile" && <UserProfilePage setRoute={setRoute} />}
+                {route.name === "userProfile" && (
+                  <UserProfilePage
+                    setRoute={setRoute}
+                    username={route.handle ?? route.data?.username ?? undefined}
+                  />
+                )}
                 {route.name === "creatorProfile" && <CreatorProfilePage setRoute={setRoute} />}
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}
                 {route.name === "agencyProfile" && <AgencyProfilePage />}

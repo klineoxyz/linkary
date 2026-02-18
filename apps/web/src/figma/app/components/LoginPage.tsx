@@ -79,9 +79,13 @@ function CoinbaseLoginFlow({ onLoggedIn }: { onLoggedIn: () => void }) {
         setBridgeStep("idle");
         return;
       }
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(anonKey && { Authorization: `Bearer ${anonKey}` }),
+        },
         body: JSON.stringify({ address: evmAddress, message, signature }),
       });
       const data = await res.json().catch(() => ({}));

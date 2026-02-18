@@ -1014,16 +1014,29 @@ function StubPage({ setRoute, title, message, backTo = "overview" }) {
   );
 }
 
-// Lightweight overlay for "Coming soon" — keeps user on current page
-function ComingSoonModal({ onClose }: { onClose: () => void }) {
+// Lightweight overlay for "Coming soon" — back button returns to previous route
+function routeToLabel(name) {
+  const labels = { overview: "Overview", landing: "Home", explore: "Explore", market: "Jobs & Sprints", profile: "My Profile", dashboard: "My Dashboard", calendar: "Calendar", leaderboards: "Leaderboards", messages: "Messages", circles: "Circles", analytics: "Analytics", verification: "Verification", privacy: "Privacy & Data", pricingRefined: "Pricing", billing: "Billing", hostDashboard: "X Spaces Hub", availability: "Availability" };
+  return labels[name] || name;
+}
+function ComingSoonModal({ onClose, previousRoute, setRoute }) {
+  const goBack = () => {
+    if (previousRoute?.name) setRoute(previousRoute);
+    onClose();
+  };
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div className="relative rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 backdrop-blur-xl p-8 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-xl font-semibold text-zinc-900 mb-2">Coming soon</h2>
         <p className="text-zinc-600 text-sm mb-6">This feature is on the roadmap.</p>
-        <Button variant="outline" onClick={onClose} className="w-full">
-          Close
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={goBack} className="flex-1">
+            Back to {previousRoute?.name ? routeToLabel(previousRoute.name) : "Overview"}
+          </Button>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -2188,6 +2201,7 @@ function ProfilePage({ setRoute }) {
 // -----------------------------
 export default function LinkaryApp() {
   const [route, setRouteState] = useState({ name: "landing" });
+  const [previousRoute, setPreviousRoute] = useState({ name: "overview" });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreateCircle, setShowCreateCircle] = useState(false);
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
@@ -2197,6 +2211,7 @@ export default function LinkaryApp() {
       setComingSoonOpen(true);
       return;
     }
+    setPreviousRoute(route);
     setRouteState(r);
   };
 
@@ -2712,8 +2727,14 @@ export default function LinkaryApp() {
         <CreateCircleFlow onClose={() => setRoute({ name: "circles" })} setRoute={setRoute} />
       )}
 
-      {/* Coming soon overlay — does not change route */}
-      {comingSoonOpen && <ComingSoonModal onClose={() => setComingSoonOpen(false)} />}
+      {/* Coming soon overlay — Back returns to previous route */}
+      {comingSoonOpen && (
+        <ComingSoonModal
+          onClose={() => setComingSoonOpen(false)}
+          previousRoute={previousRoute}
+          setRoute={(r) => { setRouteState(r); setComingSoonOpen(false); }}
+        />
+      )}
     </div>
   );
 }

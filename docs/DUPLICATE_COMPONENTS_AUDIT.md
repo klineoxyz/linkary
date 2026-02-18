@@ -27,7 +27,7 @@
 |------|--------|----------------|-----------|------------------|
 | 4 | **CalendarPage, CalendarRefined, EnhancedCalendarPage** | Three calendar UIs. Only CalendarPage is in sidebar. | **CalendarPage** | **Safe:** Leave as-is for launch. CalendarRefined and EnhancedCalendarPage are not in nav; can delete later or alias to CalendarPage. **Files:** `CalendarPage.tsx`, `monetization/CalendarRefined.tsx`, `monetization/EnhancedCalendarPage.tsx`. |
 | 5 | **DiscoveryPage** | Discovery route now renders ExplorePage; DiscoveryPage is no longer imported in App. | **ExplorePage** (already canonical) | **Safe:** Remove unused import already done. **File:** `DiscoveryPage.tsx` — can delete or keep for future “Discovery” tab; no references in App. |
-| 6 | **ProjectProfilePage** | Not imported anywhere in the repo. | N/A (dead) | **Delete:** `apps/web/src/figma/app/components/ProjectProfilePage.tsx` — remove to avoid clutter. |
+| 6 | **ProjectProfilePage** | Not imported anywhere in the repo. | N/A (dead) | **Done:** Deleted `ProjectProfilePage.tsx`. |
 
 ---
 
@@ -45,12 +45,10 @@
 
 ## 3) Exact file paths — delete or alias (launch-safe, minimal)
 
-- **Safe to delete (unused):**
-  - `apps/web/src/figma/app/components/ProjectProfilePage.tsx` — not referenced anywhere.
-
-- **Safe to alias/remove from bundle (optional):**
-  - `apps/web/src/figma/app/components/monetization/PricingPage.tsx` — either delete or re-export PricingPageRefined; App already uses only PricingPageRefined.
-  - `apps/web/src/figma/app/components/DiscoveryPage.tsx` — keep for now or delete; App no longer imports it (discovery → ExplorePage).
+- **Done:**
+  - `ProjectProfilePage.tsx` — deleted (was not referenced).
+  - `monetization/PricingPage.tsx` — replaced with re-export of PricingPageRefined (MonetizationShowcase still imports it).
+  - `DiscoveryPage.tsx` — deleted (App no longer imports it; discovery → ExplorePage).
 
 - **Do not delete (used):**
   - All four *ProfilePage (User, Creator, Brand, Agency) — refactor in a follow-up, do not delete before merging.
@@ -58,4 +56,4 @@
 
 ---
 
-**Audit complete.** For launch: delete `ProjectProfilePage.tsx` and optionally `PricingPage.tsx` or `DiscoveryPage.tsx` as above. Larger merges (profile demos, public profile system) recommended as a post-launch refactor.
+**Audit complete.** Launch cleanup done: ProjectProfilePage deleted, PricingPage is re-export alias, DiscoveryPage deleted. Larger merges (profile demos, public profile system) recommended as post-launch refactor.

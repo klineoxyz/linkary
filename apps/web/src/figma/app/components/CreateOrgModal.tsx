@@ -53,111 +53,128 @@ export default function CreateOrgModal({
     onClose();
   };
 
+  const inputClass =
+    "w-full px-3 py-2.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500";
+  const labelClass = "block text-sm font-medium text-zinc-700 mb-1.5";
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 flex items-center justify-between border-b border-zinc-200">
-          <h2 className="text-xl font-bold text-zinc-900">Create org</h2>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-zinc-900/40 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl w-full max-w-2xl my-auto min-h-[min(560px,85vh)] max-h-[90vh] flex flex-col">
+        <div className="p-6 flex items-start justify-between border-b border-zinc-200 shrink-0">
+          <div>
+            <h2 className="text-xl font-bold text-zinc-900">Create org</h2>
+            <p className="text-sm text-zinc-500 mt-0.5">Add a company, brand, project, or agency.</p>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-600"
+            className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-500 shrink-0"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col flex-1 min-h-0 overflow-y-auto">
           {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
+            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm shrink-0">
               {error}
             </div>
           )}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Type</label>
-            <div className="flex gap-2 flex-wrap">
-              {ORG_TYPES.map((t) => (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => setOrgType(t.value)}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium ${
-                    org_type === t.value
-                      ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                      : "border-zinc-300 text-zinc-600 hover:bg-zinc-50"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 flex-1">
+            <div className="space-y-4">
+              <div>
+                <label className={labelClass}>Type</label>
+                <div className="flex gap-2 flex-wrap">
+                  {ORG_TYPES.map((t) => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setOrgType(t.value)}
+                      className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                        org_type === t.value
+                          ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                          : "border-zinc-300 text-zinc-600 hover:bg-zinc-50"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>Name *</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  placeholder="Acme Inc"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Slug</label>
+                <input
+                  type="text"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  placeholder="acme-inc"
+                  className={inputClass}
+                />
+                <p className="text-xs text-zinc-500 mt-1">URL-friendly, unique. Leave blank to use name.</p>
+              </div>
+              <div>
+                <label className={labelClass}>Tagline</label>
+                <input
+                  type="text"
+                  value={tagline}
+                  onChange={(e) => setTagline(e.target.value)}
+                  placeholder="One line that describes your org"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Links</p>
+              <div>
+                <label className={labelClass}>Website</label>
+                <input
+                  type="url"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  placeholder="https://..."
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>X (Twitter)</label>
+                <input
+                  type="text"
+                  value={twitter_username}
+                  onChange={(e) => setTwitterUsername(e.target.value)}
+                  placeholder="@handle"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Logo URL <span className="text-zinc-400 font-normal">(optional)</span></label>
+                <input
+                  type="url"
+                  value={logo_url}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  placeholder="https://..."
+                  className={inputClass}
+                />
+              </div>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Slug (URL-friendly, unique)</label>
-            <input
-              type="text"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder="my-org"
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Name *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              placeholder="Org name"
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Tagline</label>
-            <input
-              type="text"
-              value={tagline}
-              onChange={(e) => setTagline(e.target.value)}
-              placeholder="Short tagline"
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Website</label>
-            <input
-              type="url"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              placeholder="https://..."
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">X (Twitter) handle</label>
-            <input
-              type="text"
-              value={twitter_username}
-              onChange={(e) => setTwitterUsername(e.target.value)}
-              placeholder="@handle or handle"
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Logo URL (optional)</label>
-            <input
-              type="url"
-              value={logo_url}
-              onChange={(e) => setLogoUrl(e.target.value)}
-              placeholder="https://..."
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-            />
-          </div>
-          <div className="flex gap-3 pt-2">
+
+          <div className="flex gap-3 mt-6 pt-6 border-t border-zinc-200 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
+              className="flex-1 px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50"
             >
               Cancel
             </button>

@@ -22,3 +22,7 @@ port = 54323
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"
+
+# auth-cdp-login: allow unauthenticated invoke (security = wallet signature inside the function)
+[functions.auth-cdp-login]
+verify_jwt = false

@@ -84,7 +84,8 @@ function CoinbaseLoginFlow({ onLoggedIn }: { onLoggedIn: () => void }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(anonKey && { Authorization: `Bearer ${anonKey}` }),
+          Authorization: `Bearer ${anonKey}`,
+          apikey: anonKey,
         },
         body: JSON.stringify({ address: evmAddress, message, signature }),
       });

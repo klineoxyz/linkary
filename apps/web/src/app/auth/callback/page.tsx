@@ -95,17 +95,17 @@ export default function AuthCallbackPage() {
         const identity = extractTwitterIdentity(user as unknown as Parameters<typeof extractTwitterIdentity>[0]);
         if (identity) {
           const { error: saveErr } = await saveTwitterIdentityFromOAuth(user.id, identity);
-          if (saveErr && !cancelled) setMessage(saveErr);
-          // When returning to onboarding, update handle and bio from X so the form is pre-filled
+          if (saveErr && !cancelled) {
+            setMessage(saveErr === "USERNAME_TAKEN_VERIFIED" ? "That handle is already taken by a verified account. Try another or contact support." : saveErr);
+            setStatus("error");
+            return;
+          }
+          // When returning to onboarding, pre-fill bio and display_name (username already claimed by saveTwitterIdentityFromOAuth)
           if (next === "/onboarding" || next?.includes("onboarding")) {
-            const handle =
-              identity.user_name ?? identity.preferred_username ?? identity.username ?? null;
-            const normalizedHandle = handle?.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-") ?? null;
             const bio = identity.description?.trim() || null;
             const displayName = identity.name?.trim() || null;
-            if (normalizedHandle || bio || displayName) {
+            if (bio !== undefined || displayName) {
               await updateMyProfile(user.id, {
-                ...(normalizedHandle ? { username: normalizedHandle } : {}),
                 ...(bio !== undefined ? { bio } : {}),
                 ...(displayName ? { display_name: displayName } : {}),
               });
@@ -126,19 +126,17 @@ export default function AuthCallbackPage() {
         await ensureProfileForSession(session.user.id);
         const identity = extractTwitterIdentity(user);
         if (identity) {
-          await saveTwitterIdentityFromOAuth(session.user.id, identity);
+          const { error: saveErr } = await saveTwitterIdentityFromOAuth(session.user.id, identity);
+          if (saveErr) {
+            setMessage(saveErr === "USERNAME_TAKEN_VERIFIED" ? "That handle is already taken by a verified account." : saveErr);
+            setStatus("error");
+            return;
+          }
           if (next === "/onboarding" || next?.includes("onboarding")) {
-            const handle =
-              identity.user_name ?? identity.preferred_username ?? identity.username ?? null;
-            const normalizedHandle = handle?.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-") ?? null;
             const bio = identity.description?.trim() || null;
             const displayName = identity.name?.trim() || null;
-            if (normalizedHandle || bio || displayName) {
-              await updateMyProfile(session.user.id, {
-                ...(normalizedHandle ? { username: normalizedHandle } : {}),
-                ...(bio !== undefined ? { bio } : {}),
-                ...(displayName ? { display_name: displayName } : {}),
-              });
+            if (bio !== undefined || displayName) {
+              await updateMyProfile(session.user.id, { ...(bio !== undefined ? { bio } : {}), ...(displayName ? { display_name: displayName } : {}) });
             }
           }
         }

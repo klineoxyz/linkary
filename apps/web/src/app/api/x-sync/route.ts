@@ -112,15 +112,14 @@ async function handleSync(request: NextRequest) {
       : 0;
 
   const apiUserName = (data.userName || userName).replace(/\s+/g, "-");
+  const normalizedUsername = apiUserName.toLowerCase().trim().replace(/^@/, "").replace(/\s+/g, "-");
   const existingHandle = (profile.twitter_username || "").trim();
-  // Never overwrite non-empty twitter_username unless it matches
   const twitterUsername =
     existingHandle && existingHandle.toLowerCase() !== apiUserName.toLowerCase()
       ? existingHandle
       : apiUserName;
 
   const updates: Record<string, unknown> = {
-    username: (data.userName || userName).toLowerCase().replace(/\s+/g, "-"),
     display_name: (data.name || "").trim() || null,
     bio: (data.description || "").trim() || null,
     avatar_url: (data.profilePicture || "").trim() || null,
@@ -140,7 +139,27 @@ async function handleSync(request: NextRequest) {
     .eq("id", user.id);
 
   if (updateError) {
+    const msg = updateError.message ?? "";
+    if (msg.includes("unique") || msg.includes("duplicate") || updateError.code === "23505") {
+      return NextResponse.json({ error: "USERNAME_TAKEN_VERIFIED" }, { status: 409 });
+    }
     return NextResponse.json({ error: updateError.message }, { status: 500 });
+  }
+
+  if (normalizedUsername && normalizedUsername.length >= 2) {
+    const { error: claimError } = await supabase.rpc("claim_username_for_profile", {
+      desired_username: normalizedUsername,
+    });
+    if (claimError) {
+      const msg = claimError.message ?? "";
+      if (msg.includes("USERNAME_TAKEN_VERIFIED")) {
+        return NextResponse.json({ error: "USERNAME_TAKEN_VERIFIED" }, { status: 409 });
+      }
+      return NextResponse.json(
+        { error: msg.includes("USERNAME_TAKEN") ? "USERNAME_TAKEN_VERIFIED" : msg },
+        { status: 409 }
+      );
+    }
   }
 
   const today = new Date().toISOString().slice(0, 10);

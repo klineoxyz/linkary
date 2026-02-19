@@ -160,7 +160,10 @@ export default function IntegrationsPage({
                     const res = await syncProfileFromX();
                     setSyncing(false);
                     if (res.ok) await refreshProfile();
-                    else setError(res.ok === false ? (res as { error: string }).error : "Sync failed");
+                    else {
+                      const err = res.ok === false ? (res as { error: string }).error : "Sync failed";
+                      setError(err === "USERNAME_TAKEN_VERIFIED" ? "That X handle is already taken by a verified account. Your profile was updated; you can keep a different handle or contact support." : err);
+                    }
                   }}
                   disabled={syncing}
                   className="px-4 py-2 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50"

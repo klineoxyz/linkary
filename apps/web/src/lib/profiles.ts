@@ -128,9 +128,24 @@ export async function updateMyProfile(
 }
 
 /**
+ * Claim username via RPC (proof-based; unverified placeholders are reassigned).
+ * Returns error code USERNAME_TAKEN_VERIFIED or message.
+ */
+export async function claimUsernameForProfile(desiredUsername: string): Promise<{ error: string | null }> {
+  const normalized = desiredUsername.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-");
+  if (!normalized || normalized.length < 2) return { error: "Invalid username" };
+  const { error } = await supabase.rpc("claim_username_for_profile", {
+    desired_username: normalized,
+  });
+  if (!error) return { error: null };
+  const msg = error.message ?? "";
+  if (msg.includes("USERNAME_TAKEN_VERIFIED")) return { error: "USERNAME_TAKEN_VERIFIED" };
+  return { error: msg || "Claim failed" };
+}
+
+/**
  * Save X (Twitter) identity from OAuth into profiles.
- * Guardrail: do NOT overwrite profiles.twitter_username if already non-empty;
- * if different, store in twitter_username_candidate.
+ * Does NOT set profiles.username directly; calls claim_username_for_profile RPC.
  */
 export async function saveTwitterIdentityFromOAuth(
   userId: string,
@@ -148,34 +163,25 @@ export async function saveTwitterIdentityFromOAuth(
     identity.profile_image_url ??
     null;
 
-  const { data: row } = await supabase
-    .from(PROFILES)
-    .select("twitter_username")
-    .eq("id", userId)
-    .maybeSingle();
-
   const normalizedHandle = handle?.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-") ?? null;
-  const existingHandle = (row?.twitter_username ?? "").trim();
   const updates: Record<string, unknown> = {
     twitter_user_id: twitterUserId,
     twitter_connected_at: new Date().toISOString(),
   };
   if (avatar) updates.avatar_url = avatar;
-  if (normalizedHandle) {
-    updates.username = normalizedHandle;
-    if (existingHandle && existingHandle.toLowerCase() !== normalizedHandle.toLowerCase()) {
-      updates.twitter_username_candidate = handle?.replace(/^@/, "").trim() ?? normalizedHandle;
-    } else {
-      updates.twitter_username = normalizedHandle;
-    }
-  } else if (existingHandle && handle && existingHandle.toLowerCase() !== (handle ?? "").toLowerCase()) {
-    updates.twitter_username_candidate = handle;
-  } else if (handle) {
+  if (handle) {
     updates.twitter_username = handle?.trim().replace(/^@/, "").replace(/\s+/g, "-") || null;
+    if (normalizedHandle) updates.twitter_username = normalizedHandle;
   }
 
-  const { error } = await supabase.from(PROFILES).update(updates).eq("id", userId);
-  return { error: error?.message ?? null };
+  const { error: updateError } = await supabase.from(PROFILES).update(updates).eq("id", userId);
+  if (updateError) return { error: updateError.message };
+
+  if (normalizedHandle) {
+    const claim = await claimUsernameForProfile(normalizedHandle);
+    if (claim.error) return claim;
+  }
+  return { error: null };
 }
 
 /** Disconnect X: clear twitter_connected_at and twitter_user_id (UI-level only). */

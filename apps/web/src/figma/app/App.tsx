@@ -889,81 +889,81 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
       className={cn(
         "border-r border-sidebar-border bg-sidebar",
         "lg:w-64 w-full lg:h-screen lg:sticky lg:top-0",
-        "flex lg:flex-col items-center lg:items-stretch",
-        "px-6 py-4 lg:py-6 gap-6",
-        "lg:overflow-y-auto",
+        "flex flex-col items-stretch",
+        "px-4 py-3 lg:px-6 lg:py-6 gap-3 lg:gap-6",
+        "overflow-y-auto",
         mobileOpen ? "fixed inset-0 z-[100] lg:relative lg:z-[25]" : "hidden lg:flex lg:z-[25]"
       )}
     >
-      <div className="flex items-center justify-between w-full">
+      <div className="flex items-center justify-between w-full flex-shrink-0 py-1 lg:py-0">
         <Link
           href="/"
           onClick={() => {
             setRoute({ name: "landing" });
             setMobileOpen(false);
           }}
-          className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-sidebar-foreground"
+          className="flex items-center gap-2 text-sidebar-foreground"
           aria-label="Linkary Home"
         >
-          <img src="/icons/linkary-icon.png" alt="Linkary" className="h-6 w-auto" />
+          <img src="/icons/linkary-icon.png" alt="Linkary" className="h-5 w-auto lg:h-6" />
         </Link>
 
-        <button className="lg:hidden" onClick={() => setMobileOpen((v) => !v)}>
-          <Menu className="h-6 w-6 text-sidebar-foreground" />
+        <button className="lg:hidden p-1" onClick={() => setMobileOpen((v) => !v)} aria-label="Close menu">
+          <Menu className="h-5 w-5 text-sidebar-foreground lg:h-6" />
         </button>
       </div>
 
-      <nav className={cn("flex-col gap-2 w-full flex-1", mobileOpen ? "flex" : "hidden lg:flex")}>
+      <nav className={cn("flex flex-col gap-1.5 lg:gap-2 w-full flex-1 min-h-0 overflow-y-auto", mobileOpen ? "flex" : "hidden lg:flex")}>
         <Link
           href="/"
           onClick={() => {
             setRoute({ name: "landing" });
             setMobileOpen(false);
           }}
-          className="uppercase text-xs font-medium text-muted-foreground mt-4 lg:mt-0 tracking-wide text-left w-full hover:text-sidebar-foreground transition-colors"
+          className="uppercase text-xs font-medium text-muted-foreground mt-2 lg:mt-0 tracking-wide text-left w-full hover:text-sidebar-foreground transition-colors"
         >
           Home
         </Link>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="overview" icon={Home} label="Overview" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Profile</span>
-        <div className="flex flex-col gap-2">
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Profile</span>
+        <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
           <NavLink name="profile" icon={Users} label="My Profile" />
           <NavLink name="creatorProfile" icon={Users} label="Creator Demo" />
           <NavLink name="brandProfile" icon={Building2} label="Project Demo" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Discover</span>
-        <div className="flex flex-col gap-2">
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Discover</span>
+        <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="explore" icon={Globe} label="Explore" />
           <NavLink name="leaderboards" icon={Trophy} label="Leaderboards" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Work</span>
-        <div className="flex flex-col gap-2">
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Work</span>
+        <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="market" icon={Briefcase} label="Jobs & Sprints" badge="3" />
           <NavLink name="messages" icon={MessageSquare} label="Messages" badge="2" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Circles & Networks</span>
-        <div className="flex flex-col gap-2">
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Circles & Networks</span>
+        <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="circles" icon={Target} label="Circles" />
           <NavLink name="kolLists" icon={Users} label="KOL Lists" />
           <NavLink name="capitalPartners" icon={Briefcase} label="Capital Partners" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Analytics & Verification</span>
-        <div className="flex flex-col gap-2">
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Analytics & Verification</span>
+        <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="analytics" icon={BarChart3} label="Analytics" />
           <NavLink name="verification" icon={FileCheck} label="Verification Center" />
           <NavLink name="privacy" icon={Shield} label="Privacy & Data" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Monetization</span>
-        <div className="flex flex-col gap-2">
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Monetization</span>
+        <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="monetizationFlowShowcase" icon={Sparkles} label="Flow Showcase" />
           <NavLink name="monetizationShowcase" icon={Sparkles} label="Monetization Hub" />
           <NavLink name="plansBilling" icon={DollarSign} label="Plans & Billing" />
@@ -971,8 +971,8 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="availability" icon={Users} label="Availability" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Account</span>
-        <div className="flex flex-col gap-2">
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Account</span>
+        <div className="flex flex-col gap-1.5 lg:gap-2">
           <button
             type="button"
             onClick={() => setRoute({ name: "preferences" })}
@@ -2337,13 +2337,13 @@ function ProfilePage({ setRoute, me }) {
               <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "profileEdit" })}>
                 Edit profile
               </Button>
-              {me?.username ? (
-                <Button variant="outline" className="flex items-center gap-2" onClick={() => router.push("/" + encodeURIComponent(me.username))}>
+              {(me?.username || me?.twitter_username) ? (
+                <Button variant="outline" className="flex items-center gap-2" onClick={() => router.push("/" + encodeURIComponent((me.username || me.twitter_username || "").replace(/^@/, "")))}>
                   <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Public View
                 </Button>
               ) : (
-                <Button variant="outline" className="flex items-center gap-2" disabled title="Set username to enable">
-                  Public View (set username to enable)
+                <Button variant="outline" className="flex items-center gap-2" disabled title="Set username or connect X to enable">
+                  Public View (set username or connect X)
                 </Button>
               )}
             </>

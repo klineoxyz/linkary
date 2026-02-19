@@ -20,9 +20,13 @@ export async function getProfileProfessions(profileId: string): Promise<{
 
   if (error) return { data: [], error: error.message };
 
-  const list = (data ?? [])
-    .map((row: { professions: Profession | null }) => row.professions)
-    .filter(Boolean) as Profession[];
+  type Row = { profession_id: string; professions: Profession | Profession[] | null };
+  const list: Profession[] = [];
+  for (const row of data ?? []) {
+    const r = row as Row;
+    const p = Array.isArray(r.professions) ? r.professions[0] : r.professions;
+    if (p && typeof p === "object" && "id" in p) list.push(p as Profession);
+  }
   return { data: list, error: null };
 }
 

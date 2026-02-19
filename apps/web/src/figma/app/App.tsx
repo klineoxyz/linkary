@@ -1086,7 +1086,9 @@ function Timer() {
   );
 }
 
-function Topbar({ setMobileOpen, route, setRoute }) {
+function Topbar({ setMobileOpen, route, setRoute, me }) {
+  const displayName = me?.display_name?.trim() || demo.me.name;
+  const handle = me?.username?.trim() || demo.me.handle;
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 relative z-[35]">
       <div className="flex items-center gap-3 flex-1 max-w-md">
@@ -1132,10 +1134,10 @@ function Topbar({ setMobileOpen, route, setRoute }) {
           onKeyDown={(e) => e.key === "Enter" && setRoute({ name: "profile" })}
           title="My Profile"
         >
-          <ProfileAvatar handle={demo.me.handle} alt={demo.me.name} className="h-9 w-9 rounded-full shrink-0" fallbackGradient="from-indigo-500 via-fuchsia-500 to-cyan-400" />
+          <ProfileAvatar handle={me?.twitter_username || handle} alt={displayName} className="h-9 w-9 rounded-full shrink-0" fallbackGradient="from-indigo-500 via-fuchsia-500 to-cyan-400" avatarUrl={me?.avatar_url} />
           <div className="hidden md:block min-w-0">
-            <p className="text-sm font-medium leading-none text-zinc-900 truncate">{demo.me.name}</p>
-            <span className="text-xs text-zinc-600 truncate block">{demo.me.handle}@linkary.xyz</span>
+            <p className="text-sm font-medium leading-none text-zinc-900 truncate">{displayName}</p>
+            <span className="text-xs text-zinc-600 truncate block">{handle ? `${handle}@linkary.xyz` : "linkary.xyz"}</span>
           </div>
         </div>
       </div>
@@ -3102,7 +3104,7 @@ export default function LinkaryApp() {
           <div className="relative z-[30]">
             {/* Hide topbar for public profile pages */}
             {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && (
-              <Topbar setMobileOpen={setMobileOpen} route={route} setRoute={setRoute} />
+              <Topbar setMobileOpen={setMobileOpen} route={route} setRoute={setRoute} me={me} />
             )}
 
             <AnimatePresence mode="wait">

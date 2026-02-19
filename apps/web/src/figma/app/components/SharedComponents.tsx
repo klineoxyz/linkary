@@ -33,27 +33,30 @@ export const scaleIn = {
   animate: { opacity: 1, scale: 1, filter: "blur(0px)" },
 };
 
-/** Profile avatar from X (Twitter) profile image, with gradient fallback */
+/** Profile avatar: optional avatarUrl (e.g. from profile), else X (Twitter) via unavatar.io, with gradient fallback */
 export function ProfileAvatar({
   handle,
   alt,
   className = "h-14 w-14 rounded-2xl object-cover shrink-0",
   fallbackGradient = "from-indigo-500 via-fuchsia-500 to-cyan-400",
+  avatarUrl,
 }: {
   handle: string;
   alt?: string;
   className?: string;
   fallbackGradient?: string;
+  avatarUrl?: string | null;
 }) {
   const [errored, setErrored] = useState(false);
-  const xHandle = handle.replace(/^@/, "");
-  if (errored || !xHandle) {
-    return <div className={`h-14 w-14 rounded-2xl shrink-0 bg-gradient-to-br ${fallbackGradient}`} aria-hidden />;
+  const xHandle = (handle || "").replace(/^@/, "");
+  const src = avatarUrl?.trim() || (xHandle ? `https://unavatar.io/twitter/${encodeURIComponent(xHandle)}` : null);
+  if (errored || !src) {
+    return <div className={`${className} shrink-0 bg-gradient-to-br ${fallbackGradient}`} aria-hidden />;
   }
   return (
     <img
-      src={`https://unavatar.io/twitter/${encodeURIComponent(xHandle)}`}
-      alt={alt || `@${xHandle}`}
+      src={src}
+      alt={alt || (xHandle ? `@${xHandle}` : "Profile")}
       className={className}
       onError={() => setErrored(true)}
     />

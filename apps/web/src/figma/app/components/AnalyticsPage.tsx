@@ -12,7 +12,6 @@ import {
   Eye,
   Shield,
   Clock,
-  Twitter,
   Youtube,
   Video,
   ChevronRight,
@@ -24,6 +23,7 @@ import {
   Calendar,
   Zap,
   Target,
+  Search,
 } from "lucide-react";
 import FlipCard from "./FlipCard";
 import { FeatureStatusBadge } from "./SharedComponents";
@@ -276,7 +276,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   };
 
   const platforms = [
-    { id: "x" as PlatformType, label: "X", icon: Twitter, active: true },
+    { id: "x" as PlatformType, label: "X", icon: null, active: true },
     { id: "youtube" as PlatformType, label: "YouTube", icon: Youtube, active: false },
     { id: "tiktok" as PlatformType, label: "TikTok", icon: Video, active: false },
   ];
@@ -361,7 +361,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 </div>
               </div>
 
-              {/* Right: Platform Tabs */}
+              {/* Right: Platform Tabs (X = new logo; YouTube/TikTok = coming soon) */}
               <div className="flex items-center gap-2">
                 {platforms.map((platform) => (
                   <button
@@ -376,7 +376,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                         : "text-gray-500 border border-white/5 cursor-not-allowed"
                     }`}
                   >
-                    <platform.icon className="w-4 h-4 stroke-[1.75]" />
+                    {platform.id === "x" ? (
+                      <span className="text-base font-bold text-gray-900" aria-label="X">𝕏</span>
+                    ) : (
+                      platform.icon && <platform.icon className="w-4 h-4 stroke-[1.75]" />
+                    )}
                     {platform.label}
                     {!platform.active && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-gray-500">Soon</span>
@@ -384,6 +388,24 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Row 1.5: Search (brands: public profiles or approved/applicants) */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-white/10">
+              <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 focus-within:border-white/20 transition-colors">
+                <Search className="w-4 h-4 text-gray-500 stroke-[1.75]" />
+                <input
+                  type="search"
+                  placeholder={entityType === "creator" ? "Search your analytics…" : "Search public profiles or approved applicants…"}
+                  className="flex-1 min-w-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
+                  aria-label="Search profiles"
+                />
+              </div>
+              {entityType !== "creator" && (
+                <p className="text-xs text-gray-500">
+                  Brands can search all public profiles or limit to users who approved access or applied to your project.
+                </p>
+              )}
             </div>
 
             {/* Row 2: Global Time Period Selector */}

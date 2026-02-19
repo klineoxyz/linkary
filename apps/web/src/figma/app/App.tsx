@@ -2315,24 +2315,21 @@ function ProfilePage({ setRoute, me }) {
 
   return (
     <div className="space-y-6">
-      <SectionTitle
-        title={`linkary.xyz/${u.handle}`}
-        right={
-          <div className="flex flex-wrap gap-3">
-            {isMyProfile && (
-              <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "profileEdit" })}>
-                Edit profile
-              </Button>
-            )}
-            <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
-              <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Share
+      <div className="mb-8 relative z-[10] flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
+        <div className="flex flex-wrap gap-3">
+          {isMyProfile && (
+            <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "profileEdit" })}>
+              Edit profile
             </Button>
-            <Button className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
-              <UserPlus className="h-4 w-4" /> Connect
-            </Button>
-          </div>
-        }
-      />
+          )}
+          <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
+            <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Share
+          </Button>
+          <Button className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
+            <UserPlus className="h-4 w-4" /> Connect
+          </Button>
+        </div>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">

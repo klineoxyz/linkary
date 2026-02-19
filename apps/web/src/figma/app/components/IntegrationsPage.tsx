@@ -120,14 +120,16 @@ export default function IntegrationsPage({
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-zinc-200 p-6">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center text-xl">
-              𝕏
-            </div>
-            <div>
-              <h2 className="font-semibold text-zinc-900">X (Twitter)</h2>
+      <div className="space-y-6">
+        {/* X (Twitter) - live */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center text-xl font-bold text-zinc-900">
+                𝕏
+              </div>
+              <div>
+                <h2 className="font-semibold text-zinc-900">X</h2>
               <p className="text-sm text-zinc-500">
                 {isConnected
                   ? handle
@@ -189,6 +191,46 @@ export default function IntegrationsPage({
                 {connecting ? "Connecting…" : "Connect X"}
               </button>
             )}
+          </div>
+        </div>
+
+        {/* YouTube - coming soon */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-6 opacity-90">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="font-semibold text-zinc-900 flex items-center gap-2">YouTube <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Soon</span></h2>
+                <p className="text-sm text-zinc-500">Connect for video analytics. API integration coming next.</p>
+              </div>
+            </div>
+            <button type="button" disabled className="px-4 py-2 rounded-lg border border-zinc-200 text-zinc-400 font-medium cursor-not-allowed">
+              Connect YouTube
+            </button>
+          </div>
+        </div>
+
+        {/* TikTok - coming soon */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-6 opacity-90">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center">
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="font-semibold text-zinc-900 flex items-center gap-2">TikTok <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Soon</span></h2>
+                <p className="text-sm text-zinc-500">Connect for short-form video analytics. API integration coming next.</p>
+              </div>
+            </div>
+            <button type="button" disabled className="px-4 py-2 rounded-lg border border-zinc-200 text-zinc-400 font-medium cursor-not-allowed">
+              Connect TikTok
+            </button>
           </div>
         </div>
       </div>

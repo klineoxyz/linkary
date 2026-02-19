@@ -116,21 +116,21 @@ export default function ComponentShowcase() {
                 icon={Shield}
                 label="ETHOS Score"
                 value={892}
-                color="emerald"
+                color="primary"
                 description="Identity & reputation"
               />
               <ReputationBadge
                 icon={Activity}
                 label="XScore"
                 value={856}
-                color="blue"
+                color="accent"
                 description="Social proof & reach"
               />
               <ReputationBadge
                 icon={Award}
                 label="Reputation Index"
                 value={94}
-                color="purple"
+                color="chart"
                 description="Composite trust score"
               />
             </div>
@@ -149,24 +149,24 @@ export default function ComponentShowcase() {
               <div className="flex flex-wrap gap-2">
                 <RoleChip
                   label="Fullstack"
-                  gradient="from-indigo-500/20 to-purple-500/20"
-                  borderColor="border-indigo-500/30"
+                  gradient="from-primary/20 to-primary/10"
+                  borderColor="border-border"
                 />
                 <RoleChip
                   label="UI/UX"
-                  gradient="from-pink-500/20 to-rose-500/20"
-                  borderColor="border-pink-500/30"
+                  gradient="from-primary/20 to-primary/10"
+                  borderColor="border-border"
                   icon={Sparkles}
                 />
                 <RoleChip
                   label="Founder"
-                  gradient="from-amber-500/20 to-orange-500/20"
-                  borderColor="border-amber-500/30"
+                  gradient="from-primary/20 to-primary/10"
+                  borderColor="border-border"
                 />
                 <RoleChip
                   label="Marketing"
-                  gradient="from-emerald-500/20 to-cyan-500/20"
-                  borderColor="border-emerald-500/30"
+                  gradient="from-primary/20 to-primary/10"
+                  borderColor="border-border"
                 />
               </div>
             </div>
@@ -187,21 +187,21 @@ export default function ComponentShowcase() {
                 label="Twitter"
                 value="@linkary"
                 url="https://twitter.com/linkary"
-                hoverColor="hover:bg-blue-500/10 hover:border-blue-500/20"
+                hoverColor="hover:bg-accent hover:border-border"
               />
               <SocialCard
                 icon={Github}
                 label="GitHub"
                 value="linkary"
                 url="https://github.com/linkary"
-                hoverColor="hover:bg-purple-500/10 hover:border-purple-500/20"
+                hoverColor="hover:bg-accent hover:border-border"
               />
               <SocialCard
                 icon={Globe}
                 label="Website"
                 value="linkary.xyz"
                 url="https://linkary.xyz"
-                hoverColor="hover:bg-emerald-500/10 hover:border-emerald-500/20"
+                hoverColor="hover:bg-accent hover:border-border"
               />
             </div>
           </GlassCard>
@@ -313,15 +313,15 @@ export default function ComponentShowcase() {
                 icon={Award}
                 title="Top Rated Project 2025"
                 description="Recognized as #1 DeFi project in reputation category"
-                color="from-amber-500/10 to-orange-500/10"
-                borderColor="border-amber-500/20"
+                color="from-primary/10 to-primary/5"
+                borderColor="border-border"
               />
               <AchievementCard
                 icon={Shield}
                 title="Security Certified"
                 description="Passed comprehensive security audit by CertiK"
-                color="from-emerald-500/10 to-cyan-500/10"
-                borderColor="border-emerald-500/20"
+                color="from-primary/10 to-primary/5"
+                borderColor="border-border"
               />
             </div>
           </GlassCard>
@@ -341,8 +341,8 @@ export default function ComponentShowcase() {
               description="Leading decentralized exchange"
               logo="https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=100&q=80"
               status="Integrated"
-              gradient="from-pink-500/10 to-rose-500/10"
-              borderColor="border-pink-500/20"
+              gradient="from-primary/10 to-primary/5"
+              borderColor="border-border"
               url="https://uniswap.org"
             />
             <EcosystemCard
@@ -351,8 +351,8 @@ export default function ComponentShowcase() {
               description="Decentralized oracle network"
               logo="https://images.unsplash.com/photo-1639322537504-6427a16b0a28?w=100&q=80"
               status="Partner"
-              gradient="from-blue-500/10 to-cyan-500/10"
-              borderColor="border-blue-500/20"
+              gradient="from-primary/10 to-primary/5"
+              borderColor="border-border"
               url="https://chain.link"
             />
           </div>
@@ -404,7 +404,7 @@ export default function ComponentShowcase() {
               title="No results found"
               description="Try adjusting your filters or search query to find what you're looking for."
               action={
-                <button className="px-6 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-medium hover:from-indigo-600 hover:to-purple-600 transition-all">
+                <button className="px-6 py-2 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 transition-all">
                   Clear Filters
                 </button>
               }
@@ -423,29 +423,29 @@ export default function ComponentShowcase() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <div className="h-20 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-500" />
+                  <div className="h-20 rounded-2xl bg-gradient-to-r from-primary to-primary/80" />
                   <p className="text-sm text-white font-medium">Primary</p>
-                  <p className="text-xs text-neutral-400">from-indigo-500 to-purple-500</p>
+                  <p className="text-xs text-muted-foreground">from-primary to-primary/80</p>
                 </div>
                 <div className="space-y-2">
-                  <div className="h-20 rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500" />
+                  <div className="h-20 rounded-2xl bg-gradient-to-r from-primary to-primary/80" />
                   <p className="text-sm text-white font-medium">Success</p>
-                  <p className="text-xs text-neutral-400">from-emerald-500 to-cyan-500</p>
+                  <p className="text-xs text-muted-foreground">primary</p>
                 </div>
                 <div className="space-y-2">
-                  <div className="h-20 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500" />
+                  <div className="h-20 rounded-2xl bg-accent" />
                   <p className="text-sm text-white font-medium">Warning</p>
-                  <p className="text-xs text-neutral-400">from-amber-500 to-orange-500</p>
+                  <p className="text-xs text-muted-foreground">accent</p>
                 </div>
                 <div className="space-y-2">
-                  <div className="h-20 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500" />
+                  <div className="h-20 rounded-2xl bg-muted" />
                   <p className="text-sm text-white font-medium">Accent</p>
-                  <p className="text-xs text-neutral-400">from-pink-500 to-rose-500</p>
+                  <p className="text-xs text-muted-foreground">muted</p>
                 </div>
                 <div className="space-y-2">
-                  <div className="h-20 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500" />
+                  <div className="h-20 rounded-2xl bg-primary" />
                   <p className="text-sm text-white font-medium">Info</p>
-                  <p className="text-xs text-neutral-400">from-blue-500 to-cyan-500</p>
+                  <p className="text-xs text-muted-foreground">primary</p>
                 </div>
                 <div className="space-y-2">
                   <div className="h-20 rounded-2xl bg-white/5 border border-white/10" />

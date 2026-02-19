@@ -58,13 +58,13 @@ export function SpotlightLink({
       rel="noopener noreferrer"
       className={`group relative p-4 rounded-2xl border transition-all duration-300 hover:scale-105 block ${
         featured
-          ? "bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border-indigo-500/40 hover:border-indigo-500/60"
+          ? "bg-gradient-to-r bg-accent border-border hover:border-border"
           : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
       }`}
     >
       <div className="flex items-center gap-3">
-        <div className={`p-2.5 rounded-xl ${featured ? "bg-indigo-500/30 border-2 border-indigo-400/50" : "bg-white/10 border border-white/20"} group-hover:scale-110 transition-transform`}>
-          <Icon className={`w-5 h-5 ${featured ? "text-indigo-300" : "text-neutral-300"}`} />
+        <div className={`p-2.5 rounded-xl ${featured ? "bg-accent border-2 border-border" : "bg-white/10 border border-white/20"} group-hover:scale-110 transition-transform`}>
+          <Icon className={`w-5 h-5 ${featured ? "text-primary" : "text-neutral-300"}`} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
@@ -72,7 +72,7 @@ export function SpotlightLink({
               {label}
             </span>
             {featured && (
-              <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full bg-indigo-500/30 text-indigo-300 border border-indigo-500/40">
+              <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full bg-accent text-primary border border-border">
                 Featured
               </span>
             )}
@@ -87,7 +87,7 @@ export function SpotlightLink({
             </div>
           )}
         </div>
-        <ExternalLink className={`w-4 h-4 ${featured ? "text-indigo-300" : "text-neutral-400"} group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform flex-shrink-0`} />
+        <ExternalLink className={`w-4 h-4 ${featured ? "text-primary" : "text-neutral-400"} group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform flex-shrink-0`} />
       </div>
 
       {isOwner && (
@@ -106,9 +106,9 @@ export function SpotlightLink({
               e.preventDefault();
               onDelete?.();
             }}
-            className="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 transition-colors"
+            className="p-1.5 rounded-lg bg-muted hover:bg-accent transition-colors"
           >
-            <X className="w-3 h-3 text-rose-400" />
+            <X className="w-3 h-3 text-muted-foreground" />
           </button>
         </div>
       )}
@@ -138,13 +138,13 @@ export function SpotlightLinksCard({
     <div className="p-6 rounded-3xl backdrop-blur-3xl border border-white/10 shadow-2xl bg-gradient-to-br from-white/5 to-white/[0.02]">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Link2 className="w-5 h-5 text-indigo-400" />
+          <Link2 className="w-5 h-5 text-primary" />
           <h3 className="font-bold text-white">Spotlight Links</h3>
         </div>
         {isOwner && (
           <button
             onClick={onAddLink}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/30 transition-all text-sm font-medium"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent border border-border text-primary hover:bg-accent transition-all text-sm font-medium"
           >
             <Plus className="w-3.5 h-3.5" />
             Add
@@ -160,7 +160,7 @@ export function SpotlightLinksCard({
           <p className="text-sm text-neutral-400 mb-3">No links yet</p>
           <button
             onClick={onAddLink}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-medium hover:scale-105 transition-all text-sm"
+            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium hover:scale-105 transition-all text-sm"
           >
             Add your first link
           </button>
@@ -195,7 +195,7 @@ export function LinkHubHeader({
             onClick={() => onSectionClick(section.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
               activeSection === section.id
-                ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg"
+                ? "bg-primary text-primary-foreground shadow-lg"
                 : "bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10 hover:text-white"
             }`}
           >
@@ -224,9 +224,9 @@ export function StickyActionBar({
       <div className="flex items-center gap-2 max-w-7xl mx-auto">
         {actions.map((action, idx) => {
           const variants = {
-            primary: "bg-gradient-to-r from-indigo-500 to-purple-500 text-white",
+            primary: "bg-primary text-primary-foreground",
             secondary: "bg-white/10 border border-white/20 text-white",
-            danger: "bg-rose-500/20 border border-rose-500/30 text-rose-400",
+            danger: "bg-rose-500/20 border border-border text-muted-foreground",
           };
           const variant = action.variant || "secondary";
 
@@ -269,7 +269,7 @@ export function CaseStudyShowcaseCard({
   return (
     <div
       onClick={onClick}
-      className="p-5 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 hover:border-indigo-500/40 hover:scale-105 transition-all duration-300 cursor-pointer group"
+      className="p-5 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 hover:border-border hover:scale-105 transition-all duration-300 cursor-pointer group"
     >
       <div className="flex items-start gap-3 mb-4">
         <img
@@ -280,7 +280,7 @@ export function CaseStudyShowcaseCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h4 className="font-bold text-white truncate">{project}</h4>
-            {verified && <CheckCircle2 className="w-4 h-4 text-cyan-400 flex-shrink-0" />}
+            {verified && <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />}
           </div>
           <p className="text-xs text-neutral-400">{role} • {duration}</p>
         </div>
@@ -290,20 +290,20 @@ export function CaseStudyShowcaseCard({
         {deliverables.map((deliverable, idx) => (
           <span
             key={idx}
-            className="text-[10px] px-2 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-medium"
+            className="text-[10px] px-2 py-1 rounded-full bg-accent text-primary border border-border font-medium"
           >
             {deliverable}
           </span>
         ))}
       </div>
 
-      <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20">
-        <div className="text-xs text-emerald-400 mb-1">{resultHighlight.label}</div>
+      <div className="p-3 rounded-xl bg-gradient-to-r bg-accent border border-border">
+        <div className="text-xs text-primary mb-1">{resultHighlight.label}</div>
         <div className="text-lg font-bold text-white">{resultHighlight.value}</div>
       </div>
 
       <div className="mt-4 flex items-center justify-between text-sm">
-        <span className="text-indigo-400 font-medium flex items-center gap-1">
+        <span className="text-primary font-medium flex items-center gap-1">
           View Case Study
           <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
         </span>
@@ -361,7 +361,7 @@ export function CaseStudyDetailModal({
               <div className="flex items-center gap-2 mb-2">
                 <h2 className="text-2xl font-bold text-white">{caseStudy.project}</h2>
                 {caseStudy.verified && (
-                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center gap-1">
+                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-accent text-primary border border-border flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" />
                     Verified Deal
                   </span>
@@ -383,7 +383,7 @@ export function CaseStudyDetailModal({
             <ul className="space-y-2">
               {caseStudy.goals.map((goal, idx) => (
                 <li key={idx} className="flex items-start gap-2 text-neutral-300">
-                  <Target className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
+                  <Target className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                   <span className="text-sm">{goal}</span>
                 </li>
               ))}
@@ -397,7 +397,7 @@ export function CaseStudyDetailModal({
               {caseStudy.deliverables.map((item, idx) => (
                 <span
                   key={idx}
-                  className="px-3 py-1.5 text-sm rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-medium"
+                  className="px-3 py-1.5 text-sm rounded-full bg-accent text-primary border border-border font-medium"
                 >
                   {item}
                 </span>
@@ -450,9 +450,9 @@ export function CaseStudyDetailModal({
               {caseStudy.outcomes.map((outcome, idx) => (
                 <div
                   key={idx}
-                  className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20"
+                  className="p-4 rounded-xl bg-gradient-to-br bg-accent border border-border"
                 >
-                  <div className="text-xs text-emerald-400 mb-1">{outcome.label}</div>
+                  <div className="text-xs text-primary mb-1">{outcome.label}</div>
                   <div className="text-xl font-bold text-white">{outcome.value}</div>
                 </div>
               ))}
@@ -461,10 +461,10 @@ export function CaseStudyDetailModal({
 
           {/* Testimonial */}
           {caseStudy.testimonial && (
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+            <div className="p-5 rounded-2xl bg-gradient-to-br bg-muted border border-border">
               <div className="flex items-center gap-2 mb-3">
-                <Award className="w-5 h-5 text-amber-400" />
-                <span className="text-sm font-bold text-amber-400 uppercase tracking-wide">Client Testimonial</span>
+                <Award className="w-5 h-5 text-primary" />
+                <span className="text-sm font-bold text-primary uppercase tracking-wide">Client Testimonial</span>
               </div>
               <p className="text-neutral-200 italic mb-3">"{caseStudy.testimonial.quote}"</p>
               <div className="text-sm">

@@ -80,11 +80,11 @@ export default function DailyDropBanner() {
   const getTypeColor = (type: ProfileCard["type"]) => {
     switch (type) {
       case "creator":
-        return "from-cyan-500/20 to-cyan-500/10 border-cyan-500/30 text-cyan-300";
+        return "from-primary/20 to-primary/10 border-border text-foreground";
       case "project":
-        return "from-indigo-500/20 to-indigo-500/10 border-indigo-500/30 text-indigo-300";
+        return "from-primary/20 to-primary/10 border-border text-foreground";
       case "agency":
-        return "from-purple-500/20 to-purple-500/10 border-purple-500/30 text-purple-300";
+        return "from-primary/20 to-primary/10 border-border text-foreground";
     }
   };
 
@@ -100,9 +100,9 @@ export default function DailyDropBanner() {
       {/* Header */}
       <div className="max-w-7xl mx-auto px-6 mb-4">
         <div className="flex items-center gap-3">
-          <Sparkles className="w-5 h-5 text-amber-400 stroke-[1.75]" />
+          <Sparkles className="w-5 h-5 text-primary stroke-[1.75]" />
           <h2 className="text-xl font-bold text-white">New Verified Profiles Today</h2>
-          <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-sm font-medium border border-cyan-500/30">
+          <span className="px-3 py-1 rounded-full bg-accent text-foreground text-sm font-medium border border-border">
             {mockProfiles.length}
           </span>
         </div>
@@ -134,10 +134,10 @@ export default function DailyDropBanner() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               whileHover={{ y: -8, scale: 1.02 }}
-              className="relative flex-shrink-0 w-[280px] rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-5 hover:border-cyan-500/30 transition-all cursor-pointer group"
+              className="relative flex-shrink-0 w-[280px] rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-5 hover:border-border transition-all cursor-pointer group"
             >
               {/* Hover Glow */}
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/10 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl pointer-events-none" />
+              <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl pointer-events-none" />
 
               <div className="relative z-10 flex items-center gap-4">
                 {/* Avatar */}
@@ -145,10 +145,10 @@ export default function DailyDropBanner() {
                   <img
                     src={profile.avatar}
                     alt={profile.name}
-                    className="w-16 h-16 rounded-xl border-2 border-white/10 group-hover:border-cyan-500/30 transition-all"
+                    className="w-16 h-16 rounded-xl border-2 border-white/10 group-hover:border-border transition-all"
                   />
                   {profile.verified && (
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-cyan-400 rounded-full flex items-center justify-center border-2 border-[#0D0F1A]">
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center border-2 border-[#0D0F1A]">
                       <BadgeCheck className="w-3 h-3 text-[#0D0F1A] stroke-[2.5]" />
                     </div>
                   )}
@@ -172,11 +172,11 @@ export default function DailyDropBanner() {
                   <div className="flex items-center gap-3 text-xs">
                     <div className="flex items-center gap-1">
                       <span className="text-neutral-400">ETHOS</span>
-                      <span className="text-emerald-400 font-semibold">{profile.ethos}</span>
+                      <span className="text-primary font-semibold">{profile.ethos}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-neutral-400">XScore</span>
-                      <span className="text-indigo-400 font-semibold">{profile.xscore}</span>
+                      <span className="text-primary font-semibold">{profile.xscore}</span>
                     </div>
                   </div>
                 </div>

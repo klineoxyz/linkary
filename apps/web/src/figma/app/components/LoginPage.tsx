@@ -143,7 +143,7 @@ function CoinbaseLoginFlow({ onLoggedIn }: { onLoggedIn: () => void }) {
     return (
       <div className="space-y-4">
         <AuthButton />
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
     );
   }
@@ -159,7 +159,7 @@ function CoinbaseLoginFlow({ onLoggedIn }: { onLoggedIn: () => void }) {
         type="button"
         disabled={loading}
         onClick={runBridge}
-        className="w-full py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
+        className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
       >
         {loading
           ? bridgeStep === "signing"
@@ -167,7 +167,7 @@ function CoinbaseLoginFlow({ onLoggedIn }: { onLoggedIn: () => void }) {
             : "Signing in…"
           : "Continue with Coinbase"}
       </button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }

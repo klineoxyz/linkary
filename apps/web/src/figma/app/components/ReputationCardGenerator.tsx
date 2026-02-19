@@ -123,7 +123,7 @@ export function ReputationCardGenerator({
                   onClick={() => setTheme("dark")}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                     theme === "dark"
-                      ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10"
                   }`}
                 >
@@ -133,7 +133,7 @@ export function ReputationCardGenerator({
                   onClick={() => setTheme("neon")}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                     theme === "neon"
-                      ? "bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10"
                   }`}
                 >
@@ -143,7 +143,7 @@ export function ReputationCardGenerator({
                   onClick={() => setTheme("institutional")}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                     theme === "institutional"
-                      ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10"
                   }`}
                 >
@@ -178,7 +178,7 @@ export function ReputationCardGenerator({
               <button
                 onClick={handleDownload}
                 disabled={downloading}
-                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-medium hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100"
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:scale-100"
               >
                 <Download className="w-4 h-4" />
                 {downloading ? "Generating..." : "Download PNG"}
@@ -191,8 +191,8 @@ export function ReputationCardGenerator({
               >
                 {copied ? (
                   <>
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span className="text-emerald-400">Copied!</span>
+                    <Check className="w-4 h-4 text-primary" />
+                    <span className="text-primary">Copied!</span>
                   </>
                 ) : (
                   <>
@@ -205,7 +205,7 @@ export function ReputationCardGenerator({
               {/* Share on Twitter */}
               <button
                 onClick={handleShareTwitter}
-                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 font-medium hover:bg-blue-500/30 transition-all"
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent border border-border text-primary font-medium hover:bg-accent/80 transition-all"
               >
                 <Share2 className="w-4 h-4" />
                 Share on X
@@ -214,7 +214,7 @@ export function ReputationCardGenerator({
               {/* Share on LinkedIn */}
               <button
                 onClick={handleShareLinkedIn}
-                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 font-medium hover:bg-cyan-500/30 transition-all"
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent border border-border text-foreground font-medium hover:bg-muted transition-all"
               >
                 <Share2 className="w-4 h-4" />
                 Share on LinkedIn
@@ -230,11 +230,11 @@ export function ReputationCardGenerator({
             </div>
 
             {/* Info Box */}
-            <div className="mt-6 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+            <div className="mt-6 p-4 rounded-xl bg-accent border border-border">
               <div className="flex items-start gap-3">
-                <Share2 className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                <Share2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-sm font-semibold text-indigo-400 mb-1">Pro Tip: Social Sharing</h4>
+                  <h4 className="text-sm font-semibold text-primary mb-1">Pro Tip: Social Sharing</h4>
                   <p className="text-xs text-neutral-300 leading-relaxed">
                     When you share your card on X or LinkedIn, it will auto-embed with a preview image. 
                     This increases engagement by 3-5x and helps build your Web3 reputation network faster.
@@ -254,7 +254,7 @@ export function GenerateCardButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-medium hover:scale-105 transition-all shadow-lg group"
+      className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 transition-all shadow-lg group"
     >
       <Share2 className="w-4 h-4 group-hover:rotate-12 transition-transform" />
       Generate Reputation Card

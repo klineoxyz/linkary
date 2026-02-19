@@ -101,13 +101,13 @@ export default function ProfessionSelect({
         {selectedProfessions.map((p) => (
           <span
             key={p.id}
-            className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-sm text-indigo-800"
+            className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-sm text-foreground"
           >
             {p.name}
             <button
               type="button"
               onClick={() => removeSelected(p.id)}
-              className="ml-0.5 rounded-full p-0.5 hover:bg-indigo-200 text-indigo-600"
+              className="ml-0.5 rounded-full p-0.5 hover:bg-accent/80 text-primary"
               aria-label={`Remove ${p.name}`}
             >
               ×
@@ -151,7 +151,7 @@ export default function ProfessionSelect({
                   type="button"
                   onClick={handleCreateAndAdd}
                   disabled={creating}
-                  className="w-full px-3 py-2 text-left text-sm text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
+                  className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-accent disabled:opacity-50"
                 >
                   {creating ? "Adding…" : `Add "${query.trim()}"`}
                 </button>

@@ -60,7 +60,7 @@ export default function MonetizationShowcase({ setRoute }: any) {
       {/* Header */}
       <div className="border-b border-zinc-200 bg-white">
         <div className="max-w-[1400px] mx-auto px-8 py-12 text-center">
-          <div className="inline-flex items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 text-sm font-medium text-indigo-700 mb-4">
+          <div className="inline-flex items-center justify-center rounded-full border border-border bg-accent px-4 py-1.5 text-sm font-medium text-foreground mb-4">
             <Zap className="h-4 w-4 mr-2" />
             Monetization System
           </div>
@@ -69,15 +69,15 @@ export default function MonetizationShowcase({ setRoute }: any) {
             Professional SaaS monetization with 5-tier pricing, plan gating, and event hosting
           </p>
           <div className="flex items-center justify-center gap-4">
-            <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
+            <span className="inline-flex items-center rounded-full border border-border bg-accent px-3 py-1 text-sm font-medium text-foreground">
               <Check className="h-4 w-4 mr-1" />
               7 Components
             </span>
-            <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-sm font-medium text-purple-700">
+            <span className="inline-flex items-center rounded-full border border-border bg-accent px-3 py-1 text-sm font-medium text-primary">
               <Check className="h-4 w-4 mr-1" />
               ~1,870 Lines
             </span>
-            <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700">
+            <span className="inline-flex items-center rounded-full border border-border bg-accent px-3 py-1 text-sm font-medium text-foreground">
               <Check className="h-4 w-4 mr-1" />
               Design Complete
             </span>
@@ -99,7 +99,7 @@ export default function MonetizationShowcase({ setRoute }: any) {
               <div className="space-y-2 mb-6">
                 {component.features.map((feature, idx) => (
                   <div key={idx} className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                     <span className="text-sm text-zinc-700">{feature}</span>
                   </div>
                 ))}
@@ -107,7 +107,7 @@ export default function MonetizationShowcase({ setRoute }: any) {
 
               <button
                 onClick={() => setActiveComponent(component.id)}
-                className="w-full h-11 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors flex items-center justify-center gap-2"
+                className="w-full h-11 rounded-lg bg-primary hover:opacity-90 text-primary-foreground font-medium transition-colors flex items-center justify-center gap-2"
               >
                 View Component
                 <ArrowRight className="h-4 w-4" />
@@ -124,22 +124,22 @@ export default function MonetizationShowcase({ setRoute }: any) {
 
             <div className="space-y-2 mb-6">
               <div className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                 <span className="text-sm text-zinc-700">Plan-specific colors</span>
               </div>
               <div className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                 <span className="text-sm text-zinc-700">Feature list display</span>
               </div>
               <div className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                 <span className="text-sm text-zinc-700">Upgrade CTA</span>
               </div>
             </div>
 
             <button
               onClick={() => setShowLockedModal(true)}
-              className="w-full h-11 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-lg bg-primary hover:opacity-90 text-primary-foreground font-medium transition-colors flex items-center justify-center gap-2"
             >
               Demo Modal
               <ArrowRight className="h-4 w-4" />
@@ -172,8 +172,8 @@ export default function MonetizationShowcase({ setRoute }: any) {
               </div>
             </div>
 
-            <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
-              <p className="text-xs text-indigo-900">Reusable component for user tier display</p>
+            <div className="rounded-lg border border-border bg-accent p-3">
+              <p className="text-xs text-foreground">Reusable component for user tier display</p>
             </div>
           </div>
         </div>
@@ -252,12 +252,12 @@ export default function MonetizationShowcase({ setRoute }: any) {
         </div>
 
         {/* Note */}
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
-          <h3 className="text-lg font-semibold text-amber-900 mb-2">Design Only - Backend Required</h3>
-          <p className="text-sm text-amber-900 mb-4">
+        <div className="rounded-lg border border-border bg-muted p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-2">Design Only - Backend Required</h3>
+          <p className="text-sm text-foreground mb-4">
             This is a complete UI design system. All functionality is placeholder and requires backend integration:
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-amber-800">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-muted-foreground">
             <div>• Payment processor (Stripe/Paddle)</div>
             <div>• Subscription management API</div>
             <div>• Access control middleware</div>

@@ -216,7 +216,7 @@ export function CreatorProfileDemo({ setRoute }: { setRoute?: (route: any) => vo
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-400">ETHOS Score</span>
-                    <span className="text-sm font-bold text-emerald-400">892</span>
+                    <span className="text-sm font-bold text-primary">892</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-400">Projects</span>
@@ -252,8 +252,8 @@ export function CreatorProfileDemo({ setRoute }: { setRoute?: (route: any) => vo
                 >
                   {copied ? (
                     <>
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span className="text-emerald-400">Copied!</span>
+                      <CheckCircle2 className="w-4 h-4 text-primary" />
+                      <span className="text-primary">Copied!</span>
                     </>
                   ) : (
                     <>
@@ -269,8 +269,8 @@ export function CreatorProfileDemo({ setRoute }: { setRoute?: (route: any) => vo
             <GlassCard id="case-studies">
               <div className="p-8">
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-purple-500/20 border border-purple-500/30">
-                    <Briefcase className="w-5 h-5 text-purple-400" />
+                  <div className="p-2 rounded-xl bg-accent border border-border">
+                    <Briefcase className="w-5 h-5 text-primary" />
                   </div>
                   Case Studies
                 </h3>
@@ -297,8 +297,8 @@ export function CreatorProfileDemo({ setRoute }: { setRoute?: (route: any) => vo
             <GlassCard id="reviews">
               <div className="p-8">
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-amber-500/20 border border-amber-500/30">
-                    <Star className="w-5 h-5 text-amber-400" />
+                  <div className="p-2 rounded-xl bg-accent border border-border">
+                    <Star className="w-5 h-5 text-primary" />
                   </div>
                   Reviews (47)
                 </h3>
@@ -310,8 +310,8 @@ export function CreatorProfileDemo({ setRoute }: { setRoute?: (route: any) => vo
             <GlassCard id="opportunities">
               <div className="p-8">
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
-                    <Target className="w-5 h-5 text-emerald-400" />
+                  <div className="p-2 rounded-xl bg-accent border border-border">
+                    <Target className="w-5 h-5 text-primary" />
                   </div>
                   Open to Opportunities
                 </h3>

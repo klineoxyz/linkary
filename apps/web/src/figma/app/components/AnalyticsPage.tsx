@@ -297,23 +297,23 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     switch (signal) {
       case "good":
         return {
-          bg: "from-emerald-500/10 to-emerald-500/5",
-          border: "border-emerald-500/30",
-          text: "text-emerald-400",
+          bg: "from-primary/10 to-primary/5",
+          border: "border-primary/30",
+          text: "text-primary",
           icon: CheckCircle2,
         };
       case "watch":
         return {
-          bg: "from-amber-500/10 to-amber-500/5",
-          border: "border-amber-500/30",
-          text: "text-amber-400",
+          bg: "from-muted to-muted/80",
+          border: "border-border",
+          text: "text-muted-foreground",
           icon: Eye,
         };
       case "risk":
         return {
-          bg: "from-red-500/10 to-red-500/5",
-          border: "border-red-500/30",
-          text: "text-red-400",
+          bg: "from-muted to-muted/80",
+          border: "border-border",
+          text: "text-muted-foreground",
           icon: AlertTriangle,
         };
     }
@@ -322,11 +322,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const getPostTypeColor = (type: TopDriver["postType"]) => {
     switch (type) {
       case "thread":
-        return "bg-purple-500/20 text-purple-300 border-purple-500/30";
+        return "bg-chart-3/20 text-foreground border-border";
       case "media":
-        return "bg-cyan-500/20 text-cyan-300 border-cyan-500/30";
+        return "bg-chart-2/20 text-foreground border-border";
       case "text":
-        return "bg-indigo-500/20 text-indigo-300 border-indigo-500/30";
+        return "bg-chart-1/20 text-foreground border-border";
     }
   };
 
@@ -371,13 +371,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               {/* Left: Context */}
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30">
-                  <BarChart3 className="w-6 h-6 text-indigo-400 stroke-[1.75]" />
+                <div className="p-3 rounded-xl bg-accent border border-border">
+                  <BarChart3 className="w-6 h-6 text-primary stroke-[1.75]" />
                 </div>
                 <div>
                   <div className="flex items-center gap-3">
                     <h1 className="text-2xl font-bold text-gray-900">{viewingEntity}</h1>
-                    <span className="px-3 py-1 rounded-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-300 text-xs font-medium border border-indigo-500/30">
+                    <span className="px-3 py-1 rounded-full bg-accent text-foreground text-xs font-medium border border-border">
                       {entityType.charAt(0).toUpperCase() + entityType.slice(1)}
                     </span>
                   </div>
@@ -409,7 +409,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                           : "Last synced: — (sync from Settings → Integrations)"}
                       </span>
                       {(profile.x_last_profile_sync_at || profile.x_last_tweets_sync_at) && (
-                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                       )}
                     </div>
                   </div>
@@ -425,7 +425,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     disabled={!platform.active}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                       activePlatform === platform.id && platform.active
-                        ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-white border border-cyan-500/30"
+                        ? "bg-primary text-primary-foreground border border-border"
                         : platform.active
                         ? "text-gray-600 hover:text-gray-900 border border-white/10 hover:border-white/20"
                         : "text-gray-500 border border-white/5 cursor-not-allowed"
@@ -475,7 +475,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     onClick={() => setTimePeriod(period)}
                     className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                       timePeriod === period
-                        ? "bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-lg shadow-cyan-500/30"
+                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
                         : "bg-white/5 border border-white/10 text-gray-600 hover:text-gray-900 hover:border-white/20"
                     }`}
                   >
@@ -486,7 +486,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               
               {/* Period Summary */}
               <div className="ml-auto flex items-center gap-2 text-xs">
-                <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium">
+                <div className="px-3 py-1.5 rounded-lg bg-accent border border-border text-primary font-medium">
                   {timePeriod === "7D" ? "7 days" : timePeriod === "30D" ? "30 days" : "90 days"} of data
                 </div>
               </div>
@@ -526,11 +526,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   <h3 className="text-4xl font-bold text-gray-900">{kpi.value}</h3>
                   <div className="flex items-center gap-1 mb-2">
                     {isPositive ? (
-                      <TrendingUp className="w-4 h-4 text-emerald-400 stroke-[1.75]" />
+                      <TrendingUp className="w-4 h-4 text-primary stroke-[1.75]" />
                     ) : (
-                      <TrendingDown className="w-4 h-4 text-red-400 stroke-[1.75]" />
+                      <TrendingDown className="w-4 h-4 text-muted-foreground stroke-[1.75]" />
                     )}
-                    <span className={`text-sm font-semibold ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
+                    <span className={`text-sm font-semibold ${isPositive ? "text-primary" : "text-muted-foreground"}`}>
                       {isPositive ? "+" : ""}{delta}%
                     </span>
                   </div>
@@ -579,7 +579,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                       return (
                         <div
                           key={idx}
-                          className="flex-1 rounded-t-sm bg-gradient-to-t from-indigo-500/40 to-indigo-500/20 border-t border-indigo-500/50 transition-all duration-300 hover:from-indigo-500/60 hover:to-indigo-500/40"
+                          className="flex-1 rounded-t-sm bg-gradient-to-t from-chart-1/80 to-chart-1/40 border-t border-chart-1/50 transition-all duration-300 hover:from-chart-1 hover:to-chart-1/60"
                           style={{ height: `${height}%` }}
                         />
                       );
@@ -590,7 +590,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 {/* Insight */}
                 <p className="text-xs text-gray-600 leading-relaxed">{kpi.insight}</p>
                 {kpi.sinceJoining && (
-                  <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2 font-medium">{kpi.sinceJoining}</p>
+                  <p className="text-xs text-primary mt-2 font-medium">{kpi.sinceJoining}</p>
                 )}
               </motion.div>
             );
@@ -605,7 +605,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-8"
         >
           <div className="flex items-center gap-3 mb-6">
-            <Sparkles className="w-6 h-6 text-amber-400 stroke-[1.75]" />
+            <Sparkles className="w-6 h-6 text-primary stroke-[1.75]" />
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Signals</h2>
               <p className="text-sm text-gray-600 mt-1">
@@ -657,7 +657,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         >
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <Target className="w-6 h-6 text-cyan-400 stroke-[1.75]" />
+              <Target className="w-6 h-6 text-primary stroke-[1.75]" />
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Top Drivers (30D)</h2>
                 <p className="text-sm text-gray-600 mt-1">
@@ -712,26 +712,26 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     </td>
                     <td className="py-4 text-right text-sm text-gray-700">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Heart className="w-3.5 h-3.5 text-pink-400 stroke-[1.75]" />
+                        <Heart className="w-3.5 h-3.5 text-primary stroke-[1.75]" />
                         {driver.likes.toLocaleString()}
                       </div>
                     </td>
                     <td className="py-4 text-right text-sm text-gray-700">
                       <div className="flex items-center justify-end gap-1.5">
-                        <MessageSquare className="w-3.5 h-3.5 text-blue-400 stroke-[1.75]" />
+                        <MessageSquare className="w-3.5 h-3.5 text-primary stroke-[1.75]" />
                         {driver.replies}
                       </div>
                     </td>
                     <td className="py-4 text-right text-sm text-gray-700">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Repeat className="w-3.5 h-3.5 text-emerald-400 stroke-[1.75]" />
+                        <Repeat className="w-3.5 h-3.5 text-primary stroke-[1.75]" />
                         {driver.reposts}
                       </div>
                     </td>
-                    <td className="py-4 text-right text-sm font-semibold text-cyan-400">
+                    <td className="py-4 text-right text-sm font-semibold text-primary">
                       {driver.engagementRate}%
                     </td>
-                    <td className="py-4 text-right text-sm font-semibold text-emerald-400">
+                    <td className="py-4 text-right text-sm font-semibold text-primary">
                       {driver.growthContribution}
                     </td>
                   </motion.tr>
@@ -752,7 +752,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-emerald-400 stroke-[1.75]" />
+                <TrendingUp className="w-5 h-5 text-primary stroke-[1.75]" />
                 Follower Growth
               </h3>
               <div className="flex gap-2">
@@ -761,7 +761,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     key={range}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       range === "30D"
-                        ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-cyan-400 border border-cyan-500/30"
+                        ? "bg-accent text-primary border border-border"
                         : "text-gray-600 hover:text-gray-900 border border-white/10"
                     }`}
                   >
@@ -800,13 +800,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     return (
                       <motion.div
                         key={i}
-                        className="flex-1 rounded-t-md bg-gradient-to-t from-emerald-500/40 to-emerald-500/20 border-t border-emerald-500/50 relative group"
+                        className="flex-1 rounded-t-md bg-gradient-to-t from-chart-1/80 to-chart-1/40 border-t border-chart-1/50 relative group"
                         initial={{ height: 0 }}
                         animate={{ height: `${height}%` }}
                         transition={{ duration: 0.6, delay: i * 0.02 }}
                       >
                         {/* Tooltip on hover */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 border border-emerald-500/30 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                           Day {i + 1}: {Math.round(20000 + (height / 100) * 10000).toLocaleString()}
                         </div>
                       </motion.div>
@@ -835,7 +835,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-cyan-400 stroke-[1.75]" />
+                <Activity className="w-5 h-5 text-primary stroke-[1.75]" />
                 Engagement Rate
               </h3>
               <div className="flex gap-2">
@@ -844,7 +844,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     key={range}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       range === "30D"
-                        ? "bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-400 border border-indigo-500/30"
+                        ? "bg-accent text-primary border border-border"
                         : "text-gray-600 hover:text-gray-900 border border-white/10"
                     }`}
                   >
@@ -883,13 +883,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     return (
                       <motion.div
                         key={i}
-                        className="flex-1 rounded-t-md bg-gradient-to-t from-indigo-500/40 to-indigo-500/20 border-t border-indigo-500/50 relative group"
+                        className="flex-1 rounded-t-md bg-gradient-to-t from-chart-2 to-chart-2/70 border-t border-chart-1/50 relative group"
                         initial={{ height: 0 }}
                         animate={{ height: `${height}%` }}
                         transition={{ duration: 0.6, delay: i * 0.02 }}
                       >
                         {/* Tooltip on hover */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 border border-indigo-500/30 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                           Day {i + 1}: {(1.0 + (height / 100) * 4.0).toFixed(1)}%
                         </div>
                       </motion.div>
@@ -918,7 +918,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-purple-400 stroke-[1.75]" />
+                <Calendar className="w-5 h-5 text-primary stroke-[1.75]" />
                 Posting Cadence (30D)
               </h3>
             </div>
@@ -956,15 +956,15 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                         key={i}
                         className={`flex-1 rounded-t-md bg-gradient-to-t border-t relative group ${
                           isWeekend
-                            ? "from-purple-500/20 to-purple-500/10 border-purple-500/30"
-                            : "from-purple-500/40 to-purple-500/20 border-purple-500/50"
+                            ? "from-chart-3 to-chart-3/80 border-border"
+                            : "from-chart-4 to-chart-4/80 border-border"
                         }`}
                         initial={{ height: 0 }}
                         animate={{ height: `${height}%` }}
                         transition={{ duration: 0.6, delay: i * 0.02 }}
                       >
                         {/* Tooltip on hover */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 border border-purple-500/30 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                           Day {i + 1}: {posts} posts {isWeekend ? "(Weekend)" : ""}
                         </div>
                       </motion.div>
@@ -985,11 +985,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
 
             <div className="flex items-center gap-4 mt-4 text-xs text-gray-600">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-purple-500/40 border border-purple-500/50" />
+                <div className="w-3 h-3 rounded bg-chart-1/40 border border-chart-1/50" />
                 Weekday
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-purple-500/20 border border-purple-500/30" />
+                <div className="w-3 h-3 rounded bg-chart-2/30 border border-border" />
                 Weekend
               </div>
             </div>
@@ -1001,9 +1001,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-amber-500/5 backdrop-blur-xl p-8 text-center"
+            className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-accent to-muted backdrop-blur-xl p-8 text-center"
           >
-            <Zap className="w-12 h-12 text-amber-400 mx-auto mb-4 stroke-[1.75]" />
+            <Zap className="w-12 h-12 text-primary mx-auto mb-4 stroke-[1.75]" />
             <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center gap-2">
               {activePlatform === "youtube" ? "YouTube" : "TikTok"} Analytics <FeatureStatusBadge status="coming-soon" />
             </h3>

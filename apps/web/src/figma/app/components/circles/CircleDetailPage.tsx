@@ -28,10 +28,10 @@ import {
 function Button({ children, variant = "primary", className = "", icon: Icon, ...props }: any) {
   const base = "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none";
   const variants = {
-    primary: "bg-indigo-600 hover:bg-indigo-700 text-white h-10 px-4 text-sm",
-    outline: "border border-indigo-200 bg-white hover:bg-indigo-50 text-indigo-600 h-10 px-4 text-sm",
+    primary: "bg-primary hover:opacity-90 text-primary-foreground h-10 px-4 text-sm",
+    outline: "border border-border bg-card hover:bg-accent text-foreground h-10 px-4 text-sm",
     ghost: "hover:bg-zinc-100 text-zinc-700 h-10 px-4 text-sm",
-    danger: "border border-red-200 bg-white hover:bg-red-50 text-red-600 h-10 px-4 text-sm",
+    danger: "border border-border bg-card hover:bg-muted text-muted-foreground h-10 px-4 text-sm",
   };
   return (
     <button className={`${base} ${variants[variant]} ${className}`} {...props}>
@@ -171,35 +171,35 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
 
       {/* Stats Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-indigo-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-zinc-600">Total Members</span>
-            <Users className="h-5 w-5 text-indigo-600" />
+            <Users className="h-5 w-5 text-primary" />
           </div>
           <div className="text-3xl font-bold text-zinc-900">{circle.membersCount}</div>
           <div className="text-xs text-zinc-500 mt-1">{circle.verifiedCount} verified</div>
         </div>
 
-        <div className="rounded-xl border border-emerald-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-zinc-600">Power Score</span>
-            <TrendingUp className="h-5 w-5 text-emerald-600" />
+            <TrendingUp className="h-5 w-5 text-primary" />
           </div>
           <div className="text-3xl font-bold text-zinc-900">{circle.powerScore}</div>
         </div>
 
-        <div className="rounded-xl border border-purple-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-zinc-600">Total Reach</span>
-            <TrendingUp className="h-5 w-5 text-purple-600" />
+            <TrendingUp className="h-5 w-5 text-primary" />
           </div>
           <div className="text-3xl font-bold text-zinc-900">{(circle.potentialReach / 1000000).toFixed(1)}M</div>
         </div>
 
-        <div className="rounded-xl border border-cyan-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-zinc-600">Weighted Reach</span>
-            <TrendingUp className="h-5 w-5 text-cyan-600" />
+            <TrendingUp className="h-5 w-5 text-primary" />
           </div>
           <div className="text-3xl font-bold text-zinc-900">{(circle.weightedReach / 1000000).toFixed(1)}M</div>
         </div>
@@ -218,7 +218,7 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
             onClick={() => setActiveTab(tab.id as any)}
             className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
               activeTab === tab.id
-                ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50"
+                ? "text-primary border-b-2 border-primary bg-accent"
                 : "text-zinc-600 hover:text-zinc-900"
             }`}
           >
@@ -246,7 +246,7 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
                 )}
               </div>
               <div className="flex gap-2">
-                <select className="h-9 px-3 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-700 focus:outline-none focus:border-indigo-500">
+                <select className="h-9 px-3 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-700 focus:outline-none focus:border-ring">
                   <option>All Status</option>
                   <option>Verified</option>
                   <option>Accepted</option>
@@ -256,7 +256,7 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
                 <input
                   type="text"
                   placeholder="Search members..."
-                  className="h-9 px-3 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500"
+                  className="h-9 px-3 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-ring"
                 />
               </div>
             </div>
@@ -286,14 +286,14 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
               geoBreakdown={geoBreakdown}
             />
 
-            <div className="rounded-xl border border-indigo-200 bg-white p-6 shadow-sm">
+            <div className="rounded-xl border border-border bg-white p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-zinc-900 mb-4">Geographic Distribution</h3>
               <div className="space-y-4">
                 {geoBreakdown.map((geo) => (
                   <div key={geo.country}>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-indigo-600" />
+                        <MapPin className="h-4 w-4 text-primary" />
                         <span className="text-sm font-medium text-zinc-900">{geo.country}</span>
                       </div>
                       <div className="text-right">
@@ -303,7 +303,7 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
                     </div>
                     <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                        className="h-full bg-primary rounded-full"
                         style={{ width: `${geo.percentage}%` }}
                       />
                     </div>
@@ -312,7 +312,7 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
               </div>
             </div>
 
-            <div className="rounded-xl border border-purple-200 bg-white p-6 shadow-sm">
+            <div className="rounded-xl border border-border bg-white p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-zinc-900 mb-4">Role Distribution</h3>
               <div className="space-y-3">
                 {[
@@ -330,7 +330,7 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
               </div>
             </div>
 
-            <div className="rounded-xl border border-cyan-200 bg-white p-6 shadow-sm">
+            <div className="rounded-xl border border-border bg-white p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-zinc-900 mb-4">Reach Tiers</h3>
               <div className="space-y-3">
                 {[
@@ -357,7 +357,7 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-zinc-600">Recent activity</span>
-              <select className="h-9 px-3 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-700 focus:outline-none focus:border-indigo-500">
+              <select className="h-9 px-3 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-700 focus:outline-none focus:border-ring">
                 <option>All Activity</option>
                 <option>Invitations</option>
                 <option>Campaigns</option>
@@ -376,28 +376,28 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         {activity.type === "invited" && (
-                          <span className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                            <UserPlus className="h-4 w-4 text-blue-600" />
+                          <span className="h-8 w-8 rounded-full bg-accent flex items-center justify-center">
+                            <UserPlus className="h-4 w-4 text-primary" />
                           </span>
                         )}
                         {activity.type === "verified" && (
-                          <span className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center">
-                            <Users className="h-4 w-4 text-emerald-600" />
+                          <span className="h-8 w-8 rounded-full bg-accent flex items-center justify-center">
+                            <Users className="h-4 w-4 text-primary" />
                           </span>
                         )}
                         {activity.type === "campaign" && (
-                          <span className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-                            <TrendingUp className="h-4 w-4 text-purple-600" />
+                          <span className="h-8 w-8 rounded-full bg-accent flex items-center justify-center">
+                            <TrendingUp className="h-4 w-4 text-primary" />
                           </span>
                         )}
                         {activity.type === "joined" && (
-                          <span className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <Users className="h-4 w-4 text-indigo-600" />
+                          <span className="h-8 w-8 rounded-full bg-accent flex items-center justify-center">
+                            <Users className="h-4 w-4 text-primary" />
                           </span>
                         )}
                         {activity.type === "gig" && (
-                          <span className="h-8 w-8 rounded-full bg-cyan-100 flex items-center justify-center">
-                            <Activity className="h-4 w-4 text-cyan-600" />
+                          <span className="h-8 w-8 rounded-full bg-accent flex items-center justify-center">
+                            <Activity className="h-4 w-4 text-primary" />
                           </span>
                         )}
                         <div>
@@ -421,7 +421,7 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
         {/* Settings Tab */}
         {activeTab === "settings" && (
           <div className="space-y-6 max-w-2xl">
-            <div className="rounded-xl border border-indigo-200 bg-white p-6 shadow-sm">
+            <div className="rounded-xl border border-border bg-white p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-zinc-900 mb-4">Circle Details</h3>
               <div className="space-y-4">
                 <div>
@@ -429,7 +429,7 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
                   <input
                     type="text"
                     defaultValue={circle.name}
-                    className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:border-indigo-500 focus:outline-none"
+                    className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:border-ring focus:outline-none"
                   />
                 </div>
                 <div>
@@ -437,12 +437,12 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
                   <textarea
                     defaultValue={circle.description}
                     rows={3}
-                    className="w-full px-4 py-3 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:border-indigo-500 focus:outline-none resize-none"
+                    className="w-full px-4 py-3 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:border-ring focus:outline-none resize-none"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-2">Visibility</label>
-                  <select className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:border-indigo-500 focus:outline-none">
+                  <select className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:border-ring focus:outline-none">
                     <option value="private">Private</option>
                     <option value="shareable">Shareable by Link</option>
                     <option value="invite-only">Invite Only</option>
@@ -460,14 +460,14 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
                     <div className="text-sm font-medium text-zinc-900">Allow member requests</div>
                     <div className="text-xs text-zinc-600">Members can request to join this circle</div>
                   </div>
-                  <input type="checkbox" className="h-5 w-5 rounded border-zinc-300 text-indigo-600" />
+                  <input type="checkbox" className="h-5 w-5 rounded border-zinc-300 text-primary" />
                 </label>
                 <label className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-medium text-zinc-900">Auto-verify known creators</div>
                     <div className="text-xs text-zinc-600">Automatically verify creators with reputation score 80+</div>
                   </div>
-                  <input type="checkbox" className="h-5 w-5 rounded border-zinc-300 text-indigo-600" />
+                  <input type="checkbox" className="h-5 w-5 rounded border-zinc-300 text-primary" />
                 </label>
               </div>
             </div>

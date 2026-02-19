@@ -10,9 +10,9 @@ import { CircleTypeBadge, GeoChip, MemberRowCard } from "./CircleComponents";
 function Button({ children, variant = "primary", className = "", icon: Icon, ...props }: any) {
   const base = "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none";
   const variants = {
-    primary: "bg-indigo-600 hover:bg-indigo-700 text-white h-10 px-4 text-sm",
-    outline: "border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 h-10 px-4 text-sm",
-    ghost: "hover:bg-indigo-500/10 text-zinc-300 h-10 px-4 text-sm",
+    primary: "bg-primary hover:opacity-90 text-primary-foreground h-10 px-4 text-sm",
+    outline: "border border-border bg-accent hover:bg-accent text-foreground h-10 px-4 text-sm",
+    ghost: "hover:bg-accent text-zinc-300 h-10 px-4 text-sm",
   };
   return (
     <button className={`${base} ${variants[variant]} ${className}`} {...props}>
@@ -112,9 +112,9 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-zinc-900 to-black border border-indigo-500/30 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-gradient-to-br from-zinc-900 to-black border border-border rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-indigo-500/20">
+        <div className="flex items-center justify-between p-6 border-b border-border">
           <div>
             <h2 className="text-2xl font-semibold text-white">Create Circle</h2>
             <p className="text-sm text-zinc-400 mt-1">
@@ -133,7 +133,7 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
               <div
                 key={s}
                 className={`h-1 flex-1 rounded-full transition-colors ${
-                  s <= step ? "bg-indigo-500" : "bg-zinc-700"
+                  s <= step ? "bg-primary" : "bg-zinc-700"
                 }`}
               />
             ))}
@@ -152,7 +152,7 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Core Creator Network"
-                  className="w-full h-11 px-4 rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-white placeholder:text-zinc-500 focus:border-indigo-500 focus:outline-none"
+                  className="w-full h-11 px-4 rounded-lg border border-border bg-primary/10 text-white placeholder:text-zinc-500 focus:border-ring focus:outline-none"
                 />
               </div>
 
@@ -163,8 +163,8 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
                     onClick={() => setFormData({ ...formData, type: "personal" })}
                     className={`p-4 rounded-lg border transition-all ${
                       formData.type === "personal"
-                        ? "border-purple-500 bg-purple-500/20"
-                        : "border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10"
+                        ? "border-primary bg-accent"
+                        : "border-border bg-muted hover:bg-accent"
                     }`}
                   >
                     <div className="text-left">
@@ -176,8 +176,8 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
                     onClick={() => setFormData({ ...formData, type: "organization" })}
                     className={`p-4 rounded-lg border transition-all ${
                       formData.type === "organization"
-                        ? "border-cyan-500 bg-cyan-500/20"
-                        : "border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10"
+                        ? "border-primary bg-accent"
+                        : "border-border bg-muted hover:bg-accent"
                     }`}
                   >
                     <div className="text-left">
@@ -195,7 +195,7 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Describe the purpose of this circle..."
                   rows={4}
-                  className="w-full px-4 py-3 rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-white placeholder:text-zinc-500 focus:border-indigo-500 focus:outline-none resize-none"
+                  className="w-full px-4 py-3 rounded-lg border border-border bg-primary/10 text-white placeholder:text-zinc-500 focus:border-ring focus:outline-none resize-none"
                 />
               </div>
 
@@ -212,8 +212,8 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
                       onClick={() => setFormData({ ...formData, visibility: option.value as any })}
                       className={`w-full p-3 rounded-lg border text-left transition-all ${
                         formData.visibility === option.value
-                          ? "border-indigo-500 bg-indigo-500/20"
-                          : "border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10"
+                          ? "border-primary bg-accent"
+                          : "border-border bg-muted hover:bg-accent"
                       }`}
                     >
                       <div className="font-medium text-white text-sm">{option.label}</div>
@@ -233,14 +233,14 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
                 <input
                   type="text"
                   placeholder="Search by name or @handle..."
-                  className="w-full h-11 px-4 rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-white placeholder:text-zinc-500 focus:border-indigo-500 focus:outline-none"
+                  className="w-full h-11 px-4 rounded-lg border border-border bg-primary/10 text-white placeholder:text-zinc-500 focus:border-ring focus:outline-none"
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm text-zinc-400">Available Creators</span>
-                  <span className="text-sm text-indigo-400">{selectedMembers.length} selected</span>
+                  <span className="text-sm text-primary">{selectedMembers.length} selected</span>
                 </div>
                 <div className="space-y-3">
                   {demoMembers.map((member) => (
@@ -261,20 +261,20 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
           {/* Step 3: Power Preview */}
           {step === 3 && (
             <div className="space-y-6">
-              <div className="rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-6">
+              <div className="rounded-xl border border-border bg-accent p-6">
                 <h3 className="text-lg font-semibold text-white mb-4">Circle Power Preview</h3>
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-4">
+                  <div className="rounded-lg border border-border bg-primary/5 p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <TrendingUp className="h-4 w-4 text-indigo-400" />
+                      <TrendingUp className="h-4 w-4 text-primary" />
                       <span className="text-xs text-zinc-400">Total Reach</span>
                     </div>
                     <div className="text-2xl font-bold text-white">{totalReach.toLocaleString()}</div>
                   </div>
-                  <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-4">
+                  <div className="rounded-lg border border-border bg-muted p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <Shield className="h-4 w-4 text-purple-400" />
+                      <Shield className="h-4 w-4 text-primary" />
                       <span className="text-xs text-zinc-400">Weighted Reach</span>
                     </div>
                     <div className="text-2xl font-bold text-white">{weightedReach.toLocaleString()}</div>
@@ -283,7 +283,7 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
 
                 <div className="mb-6">
                   <div className="flex items-center gap-2 mb-3">
-                    <MapPin className="h-4 w-4 text-indigo-400" />
+                    <MapPin className="h-4 w-4 text-primary" />
                     <span className="text-sm font-medium text-zinc-300">Geographic Breakdown</span>
                   </div>
                   <div className="space-y-2">
@@ -298,32 +298,32 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
 
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <Users className="h-4 w-4 text-emerald-400" />
+                    <Users className="h-4 w-4 text-primary" />
                     <span className="text-sm font-medium text-zinc-300">Role Mix</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <span className="px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/20 text-xs text-purple-300">
+                    <span className="px-3 py-1 rounded-full border border-border bg-accent text-xs text-foreground">
                       KOL (3)
                     </span>
-                    <span className="px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/20 text-xs text-cyan-300">
+                    <span className="px-3 py-1 rounded-full border border-border bg-accent text-xs text-foreground">
                       Designer (2)
                     </span>
-                    <span className="px-3 py-1 rounded-full border border-indigo-500/30 bg-indigo-500/20 text-xs text-indigo-300">
+                    <span className="px-3 py-1 rounded-full border border-border bg-accent text-xs text-foreground">
                       Founder (1)
                     </span>
-                    <span className="px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/20 text-xs text-emerald-300">
+                    <span className="px-3 py-1 rounded-full border border-border bg-accent text-xs text-foreground">
                       Content (1)
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+              <div className="rounded-lg border border-border bg-muted p-4">
                 <div className="flex gap-3">
-                  <div className="text-amber-400">ℹ️</div>
+                  <div className="text-foreground">ℹ️</div>
                   <div>
-                    <div className="text-sm font-medium text-amber-200 mb-1">Weighted Reach Calculation</div>
-                    <div className="text-xs text-amber-300/80">
+                    <div className="text-sm font-medium text-foreground mb-1">Weighted Reach Calculation</div>
+                    <div className="text-xs text-muted-foreground">
                       We adjust raw follower counts based on engagement, authenticity, and audience quality to give you a more
                       accurate reach estimate.
                     </div>
@@ -336,9 +336,9 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
           {/* Step 4: Confirm */}
           {step === 4 && (
             <div className="space-y-6">
-              <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 p-6">
+              <div className="rounded-xl border border-border bg-accent p-6">
                 <div className="flex items-start gap-4 mb-6">
-                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                  <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center flex-shrink-0">
                     <Users className="h-8 w-8 text-white" />
                   </div>
                   <div className="flex-1">
@@ -350,7 +350,7 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 pt-4 border-t border-indigo-500/20">
+                <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
                   <div>
                     <div className="text-xs text-zinc-400 mb-1">Members</div>
                     <div className="text-lg font-semibold text-white">{selectedMembers.length}</div>
@@ -375,12 +375,12 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
                 </div>
               </div>
 
-              <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4">
+              <div className="rounded-lg border border-border bg-accent p-4">
                 <div className="flex gap-3">
-                  <div className="text-blue-400">✓</div>
+                  <div className="text-primary">✓</div>
                   <div>
-                    <div className="text-sm font-medium text-blue-200 mb-1">Ready to Create</div>
-                    <div className="text-xs text-blue-300/80">
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Ready to Create</div>
+                    <div className="text-xs text-muted-foreground">
                       Your circle will be created and invitations will be sent to all selected members. You can manage
                       invitations and members from the circle dashboard.
                     </div>
@@ -392,7 +392,7 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-indigo-500/20">
+        <div className="flex items-center justify-between p-6 border-t border-border">
           <Button variant="ghost" onClick={step === 1 ? onClose : handleBack} icon={step === 1 ? X : ChevronLeft}>
             {step === 1 ? "Cancel" : "Back"}
           </Button>

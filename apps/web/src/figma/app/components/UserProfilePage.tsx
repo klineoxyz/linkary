@@ -22,7 +22,7 @@ function Stars({ value = 5 }: { value: number }) {
           key={i}
           className={cn(
             "h-4 w-4",
-            i < full ? "fill-current text-yellow-400" : "text-zinc-600"
+            i < full ? "fill-current text-primary" : "text-zinc-600"
           )}
           viewBox="0 0 24 24"
         >
@@ -36,17 +36,17 @@ function Stars({ value = 5 }: { value: number }) {
 function ScorePills({ ethos, xscore, reputationIndex, socialPower }: any) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-800 bg-emerald-950 px-2.5 py-1 text-xs text-emerald-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
         🛡️ ETHOS {ethos}
       </span>
-      <span className="inline-flex items-center gap-1 rounded-full border border-purple-800 bg-purple-950 px-2.5 py-1 text-xs text-purple-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
         ⚡ XScore {xscore}
       </span>
-      <span className="inline-flex items-center gap-1 rounded-full border border-indigo-800 bg-indigo-950 px-2.5 py-1 text-xs text-indigo-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
         ✓ Index {reputationIndex}
       </span>
       {socialPower && (
-        <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-800 bg-fuchsia-950 px-2.5 py-1 text-xs text-fuchsia-300">
+        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
           ✨ Power {socialPower}
         </span>
       )}
@@ -56,14 +56,14 @@ function ScorePills({ ethos, xscore, reputationIndex, socialPower }: any) {
 
 function Button({ children, variant = "primary", size = "md", className = "", ...props }: any) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none relative z-[10]";
+    "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none relative z-[10]";
   const sizes = {
     sm: "h-8 px-3 text-xs",
     md: "h-10 px-4 text-sm",
   };
   const variants = {
-    primary: "bg-amber-600 hover:bg-amber-700 text-white",
-    outline: "border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-500/10 hover:border-amber-500/40 backdrop-blur-xl text-zinc-700",
+    primary: "bg-primary hover:opacity-90 text-primary-foreground",
+    outline: "border border-border bg-secondary hover:bg-accent backdrop-blur-xl text-foreground",
   };
   return (
     <button
@@ -79,7 +79,7 @@ function Card({ className = "", children }: any) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-500/10 backdrop-blur-xl p-6 hover:border-amber-500/40 transition-all duration-300 relative z-[10]",
+        "rounded-xl border border-border bg-card backdrop-blur-xl p-6 hover:border-border transition-all duration-300 relative z-[10]",
         className
       )}
     >
@@ -246,13 +246,13 @@ export default function UserProfilePage({
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <div className="flex items-start gap-3 mb-4">
-            <ProfileAvatar handle={u.handle} alt={u.name} fallbackGradient="from-amber-500 via-orange-500 to-red-400" />
+            <ProfileAvatar handle={u.handle} alt={u.name} fallbackGradient="from-primary to-primary/80" />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold truncate" style={{ color: "#000000" }}>
                   {u.name}
                 </span>
-                {u.verified && <BadgeCheck className="h-5 w-5 text-emerald-400 stroke-[1.75]" />}
+                {u.verified && <BadgeCheck className="h-5 w-5 text-primary stroke-[1.75]" />}
               </div>
               <p className="text-sm truncate" style={{ color: "#404040" }}>
                 @{u.handle} · {u.location}
@@ -292,7 +292,7 @@ export default function UserProfilePage({
               {u.interests.map((interest) => (
                 <span
                   key={interest}
-                  className="rounded-full border border-amber-500/30 bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-2.5 py-1 text-xs backdrop-blur-xl"
+                  className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl"
                   style={{ color: "#1a1a1a" }}
                 >
                   {interest}
@@ -310,7 +310,7 @@ export default function UserProfilePage({
               {u.skills.map((skill) => (
                 <span
                   key={skill}
-                  className="rounded-full border border-orange-500/30 bg-gradient-to-r from-orange-500/20 to-red-500/20 px-2.5 py-1 text-xs backdrop-blur-xl"
+                  className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl"
                   style={{ color: "#1a1a1a" }}
                 >
                   {skill}
@@ -329,10 +329,10 @@ export default function UserProfilePage({
                 {u.projectsInvolved.slice(0, 3).map((project: any) => (
                   <div
                     key={project.name}
-                    className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10 px-3 py-2"
+                    className="flex items-center justify-between rounded-lg border border-border bg-accent px-3 py-2"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-400" />
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/80" />
                       <div>
                         <p className="text-sm font-medium" style={{ color: "#000000" }}>
                           {project.name}
@@ -342,11 +342,11 @@ export default function UserProfilePage({
                         </p>
                       </div>
                     </div>
-                    {project.verified && <BadgeCheck className="h-4 w-4 text-emerald-400 stroke-[1.75]" />}
+                    {project.verified && <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />}
                   </div>
                 ))}
                 {u.projectsInvolved.length > 3 && (
-                  <button className="w-full text-xs text-amber-400 hover:text-amber-300 transition-colors">
+                  <button className="w-full text-xs text-primary hover:opacity-90 transition-colors">
                     View all {u.projectsInvolved.length} projects →
                   </button>
                 )}
@@ -370,7 +370,7 @@ export default function UserProfilePage({
                         "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)",
                     }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-600/90 to-orange-600/90" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70" />
                     <div className="relative z-10 flex items-center gap-2">
                       <Award className="h-4 w-4 text-white stroke-[1.75]" />
                       <div>
@@ -389,7 +389,7 @@ export default function UserProfilePage({
             {u.links.map((l) => (
               <div
                 key={l.label}
-                className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/20 to-orange-500/20 backdrop-blur-xl px-4 py-3 hover:border-amber-500/40 transition-all duration-300"
+                className="flex items-center justify-between rounded-lg border border-border bg-accent backdrop-blur-xl px-4 py-3 hover:border-border transition-all duration-300"
               >
                 <div className="flex min-w-0 items-center gap-2">
                   <ExternalLink className="h-4 w-4 text-orange-400 stroke-[1.75]" />
@@ -418,7 +418,7 @@ export default function UserProfilePage({
                 {u.activityMetrics.map((metric: any) => (
                   <div
                     key={metric.label}
-                    className="rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-500/10 backdrop-blur-xl p-4"
+                    className="rounded-lg border border-border bg-card backdrop-blur-xl p-4"
                   >
                     <div className="text-xs font-medium mb-1" style={{ color: "#666666" }}>
                       {metric.label}
@@ -430,7 +430,7 @@ export default function UserProfilePage({
                       <span
                         className={cn(
                           "text-xs font-medium",
-                          metric.change.startsWith("+") ? "text-emerald-400" : "text-zinc-400"
+                          metric.change.startsWith("+") ? "text-primary" : "text-zinc-400"
                         )}
                       >
                         {metric.change}
@@ -457,7 +457,7 @@ export default function UserProfilePage({
                 {u.recentActivity.map((activity, idx) => (
                   <div
                     key={idx}
-                    className="rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/20 to-orange-500/20 backdrop-blur-xl p-4"
+                    className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4"
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -492,7 +492,7 @@ export default function UserProfilePage({
               {u.contributions.map((cont) => (
                 <div
                   key={cont.id}
-                  className="rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 backdrop-blur-xl p-4 hover:border-emerald-500/40 transition-all duration-300"
+                  className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300"
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
@@ -500,7 +500,7 @@ export default function UserProfilePage({
                         <span className="font-semibold" style={{ color: "#000000" }}>
                           {cont.projectName}
                         </span>
-                        {cont.verified && <BadgeCheck className="h-4 w-4 text-emerald-400 stroke-[1.75]" />}
+                        {cont.verified && <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />}
                       </div>
                       <p className="mt-1 text-xs" style={{ color: "#404040" }}>
                         {cont.role} · {cont.duration}
@@ -511,11 +511,11 @@ export default function UserProfilePage({
                     </Button>
                   </div>
 
-                  <div className="rounded-lg border border-emerald-700 bg-emerald-950/30 p-3">
+                  <div className="rounded-lg border border-border bg-muted p-3">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-emerald-400 stroke-[1.75]" />
+                      <TrendingUp className="h-4 w-4 text-primary stroke-[1.75]" />
                       <span className="text-sm font-semibold" style={{ color: "#000000" }}>
-                        {cont.results.metric}: <span className="text-emerald-400">{cont.results.value}</span>
+                        {cont.results.metric}: <span className="text-primary">{cont.results.value}</span>
                       </span>
                     </div>
                   </div>
@@ -533,7 +533,7 @@ export default function UserProfilePage({
                         {cont.deliverables.map((d, i) => (
                           <span
                             key={i}
-                            className="rounded-full border border-cyan-500/30 bg-cyan-500/20 px-2.5 py-1 text-xs text-cyan-300"
+                            className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs text-foreground"
                           >
                             {d}
                           </span>
@@ -562,7 +562,7 @@ export default function UserProfilePage({
               {u.reviewItems.map((review, idx) => (
                 <div
                   key={idx}
-                  className="rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-500/10 backdrop-blur-xl p-4"
+                  className="rounded-lg border border-border bg-card backdrop-blur-xl p-4"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
@@ -570,11 +570,11 @@ export default function UserProfilePage({
                         <span className="font-semibold" style={{ color: "#000000" }}>
                           {review.by}
                         </span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-foreground">
                           {review.byType}
                         </span>
                         {review.verifiedDeal && (
-                          <BadgeCheck className="h-4 w-4 text-emerald-400 stroke-[1.75]" />
+                          <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />
                         )}
                       </div>
                       <Stars value={review.rating} />
@@ -594,7 +594,7 @@ export default function UserProfilePage({
                       {review.tags.map((tag, i) => (
                         <span
                           key={i}
-                          className="text-xs px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/20 text-emerald-300"
+                          className="text-xs px-2.5 py-1 rounded-full border border-border bg-accent text-primary"
                         >
                           {tag}
                         </span>

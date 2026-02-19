@@ -53,7 +53,7 @@ export default function PrivacyDataPage() {
       <div className="border-b border-white/10 bg-gradient-to-b from-white/5 to-transparent backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center gap-3 mb-2">
-            <Shield className="w-6 h-6 text-indigo-400 stroke-[1.75]" />
+            <Shield className="w-6 h-6 text-primary stroke-[1.75]" />
             <h1 className="text-3xl font-bold text-gray-900">Privacy & Data Controls</h1>
           </div>
           <p className="text-gray-600">Manage your analytics visibility and data integrations</p>
@@ -69,8 +69,8 @@ export default function PrivacyDataPage() {
           className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-8"
         >
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-xl bg-indigo-500/20 border border-indigo-500/30">
-              <Eye className="w-6 h-6 text-indigo-400 stroke-[1.75]" />
+            <div className="p-3 rounded-xl bg-accent border border-border">
+              <Eye className="w-6 h-6 text-primary stroke-[1.75]" />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Analytics Visibility</h2>
@@ -87,7 +87,7 @@ export default function PrivacyDataPage() {
                 <div className="flex items-center gap-2 mb-2">
                   <h3 className="font-semibold text-gray-900">Allow analytics to be visible publicly</h3>
                   {!analyticsVisibility.publicVisible && (
-                    <Lock className="w-4 h-4 text-amber-400 stroke-[1.75]" />
+                    <Lock className="w-4 h-4 text-primary stroke-[1.75]" />
                   )}
                 </div>
                 <p className="text-sm text-gray-600">
@@ -98,7 +98,7 @@ export default function PrivacyDataPage() {
                 onClick={() => toggleAnalyticsSetting("publicVisible")}
                 className={`relative w-14 h-7 rounded-full transition-all duration-300 ${
                   analyticsVisibility.publicVisible
-                    ? "bg-gradient-to-r from-emerald-500 to-cyan-500"
+                    ? "bg-primary"
                     : "bg-white/20"
                 }`}
               >
@@ -118,7 +118,7 @@ export default function PrivacyDataPage() {
                     Share analytics when applying to opportunities
                   </h3>
                   {analyticsVisibility.shareOnApplications && (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 stroke-[1.75]" />
+                    <CheckCircle2 className="w-4 h-4 text-primary stroke-[1.75]" />
                   )}
                 </div>
                 <p className="text-sm text-gray-600">
@@ -129,7 +129,7 @@ export default function PrivacyDataPage() {
                 onClick={() => toggleAnalyticsSetting("shareOnApplications")}
                 className={`relative w-14 h-7 rounded-full transition-all duration-300 ${
                   analyticsVisibility.shareOnApplications
-                    ? "bg-gradient-to-r from-emerald-500 to-cyan-500"
+                    ? "bg-primary"
                     : "bg-white/20"
                 }`}
               >
@@ -149,7 +149,7 @@ export default function PrivacyDataPage() {
                     Allow verified case study analytics to be displayed
                   </h3>
                   {analyticsVisibility.caseStudyAnalytics && (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 stroke-[1.75]" />
+                    <CheckCircle2 className="w-4 h-4 text-primary stroke-[1.75]" />
                   )}
                 </div>
                 <p className="text-sm text-gray-600">
@@ -160,7 +160,7 @@ export default function PrivacyDataPage() {
                 onClick={() => toggleAnalyticsSetting("caseStudyAnalytics")}
                 className={`relative w-14 h-7 rounded-full transition-all duration-300 ${
                   analyticsVisibility.caseStudyAnalytics
-                    ? "bg-gradient-to-r from-emerald-500 to-cyan-500"
+                    ? "bg-primary"
                     : "bg-white/20"
                 }`}
               >
@@ -182,8 +182,8 @@ export default function PrivacyDataPage() {
           className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-8"
         >
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-xl bg-cyan-500/20 border border-cyan-500/30">
-              <ExternalLink className="w-6 h-6 text-cyan-400 stroke-[1.75]" />
+            <div className="p-3 rounded-xl bg-accent border border-border">
+              <ExternalLink className="w-6 h-6 text-primary stroke-[1.75]" />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Data Integrations</h2>
@@ -195,13 +195,13 @@ export default function PrivacyDataPage() {
 
           <div className="space-y-4">
             {/* Twitter Integration */}
-            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-cyan-500/30 transition-all group">
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/5 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-border transition-all group">
+              <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
               <div className="relative z-10 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-black/40 border border-white/10">
-                    <Twitter className="w-6 h-6 text-cyan-400 stroke-[1.75]" />
+                    <Twitter className="w-6 h-6 text-primary stroke-[1.75]" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">X (Twitter)</h3>
@@ -216,7 +216,7 @@ export default function PrivacyDataPage() {
                 {connectedAccounts.twitter ? (
                   <button
                     onClick={() => toggleAccountConnection("twitter")}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 text-emerald-300 font-medium hover:from-emerald-500/30 hover:to-emerald-500/20 transition-all"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border bg-accent text-foreground font-medium hover:bg-muted transition-all"
                   >
                     <CheckCircle2 className="w-4 h-4 stroke-[1.75]" />
                     Connected
@@ -224,7 +224,7 @@ export default function PrivacyDataPage() {
                 ) : (
                   <button
                     onClick={() => toggleAccountConnection("twitter")}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 bg-white/5 text-gray-900 font-medium hover:bg-white/10 hover:border-cyan-500/30 transition-all"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 bg-white/5 text-gray-900 font-medium hover:bg-white/10 hover:border-border transition-all"
                   >
                     <ExternalLink className="w-4 h-4 stroke-[1.75]" />
                     Connect
@@ -238,7 +238,7 @@ export default function PrivacyDataPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-black/40 border border-white/10">
-                    <Youtube className="w-6 h-6 text-red-400 stroke-[1.75]" />
+                    <Youtube className="w-6 h-6 text-primary stroke-[1.75]" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
@@ -266,7 +266,7 @@ export default function PrivacyDataPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-black/40 border border-white/10">
-                    <Radio className="w-6 h-6 text-pink-400 stroke-[1.75]" />
+                    <Radio className="w-6 h-6 text-primary stroke-[1.75]" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
@@ -296,10 +296,10 @@ export default function PrivacyDataPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 p-6"
+          className="rounded-2xl border border-border bg-muted p-6"
         >
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-indigo-400 mt-1 stroke-[1.75]" />
+            <AlertCircle className="w-5 h-5 text-primary mt-1 stroke-[1.75]" />
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">Data Security</h3>
               <p className="text-sm text-gray-700 leading-relaxed">

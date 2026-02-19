@@ -79,19 +79,19 @@ export default function FlipCard({
         >
           <div className="relative h-full p-6 flex flex-col">
             {/* Gradient accent bar */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-500" />
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-primary/80" />
             
             {/* Header */}
             <div className="mb-4">
               <h4 className="text-lg font-bold text-white mb-2">{backTitle}</h4>
-              <div className="w-16 h-1 bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-full shadow-lg shadow-cyan-500/50" />
+              <div className="w-16 h-1 bg-gradient-to-r from-primary to-primary/80 rounded-full shadow-lg" />
             </div>
 
             {/* Insights */}
             <div className="flex-1 space-y-3 mb-4">
               {backInsights.map((insight, idx) => (
                 <div key={idx} className="flex items-start gap-3 group">
-                  <div className="w-2 h-2 rounded-full bg-gradient-to-r from-cyan-500 to-indigo-500 mt-2 flex-shrink-0 shadow-lg shadow-cyan-500/50 group-hover:scale-125 transition-transform" />
+                  <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0 shadow-lg group-hover:scale-125 transition-transform" />
                   <p className="text-sm text-white/90 leading-relaxed font-medium">{insight}</p>
                 </div>
               ))}
@@ -104,22 +104,22 @@ export default function FlipCard({
                   e.stopPropagation();
                   onPremiumClick();
                 }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 text-white font-semibold hover:shadow-xl hover:shadow-cyan-500/30 transition-all hover:scale-[1.02] border border-cyan-500/30"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all hover:scale-[1.02] border border-border"
               >
                 {premiumCTA}
                 <ArrowRight className="w-4 h-4 stroke-[2]" />
               </button>
             ) : (
-              <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/20 via-orange-500/15 to-amber-500/10 border border-amber-500/30 backdrop-blur-xl">
+              <div className="p-4 rounded-xl bg-muted border border-border backdrop-blur-xl">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500/30 to-orange-500/30 border border-amber-400/40 shadow-lg">
-                    <Lock className="w-4 h-4 text-amber-300 stroke-[1.75]" />
+                  <div className="p-2 rounded-lg bg-accent border border-border shadow-lg">
+                    <Lock className="w-4 h-4 text-foreground stroke-[1.75]" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-semibold text-amber-200 mb-1.5">
+                    <p className="text-xs font-semibold text-foreground mb-1.5">
                       Unlock with {planLabels[requiresPlan]}
                     </p>
-                    <p className="text-xs text-amber-100/80 leading-relaxed">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
                       Upgrade to access detailed analytics and insights
                     </p>
                   </div>

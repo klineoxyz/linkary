@@ -87,7 +87,7 @@ export default function ProfileEditPage({
         <button
           type="button"
           onClick={() => setRoute({ name: "login" })}
-          className="mt-4 px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium"
+          className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium"
         >
           Sign in
         </button>
@@ -108,7 +108,7 @@ export default function ProfileEditPage({
       <p className="text-zinc-600 text-sm mb-6">Update how you appear on linkary.xyz/{me.username || "you"}.</p>
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
           {error}
         </div>
       )}
@@ -173,7 +173,7 @@ export default function ProfileEditPage({
           <button
             type="submit"
             disabled={saving}
-            className="flex-1 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
+            className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save"}
           </button>

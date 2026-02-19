@@ -21,7 +21,7 @@ function Stars({ value = 5 }: { value: number }) {
           key={i}
           className={cn(
             "h-4 w-4",
-            i < full ? "fill-current text-yellow-400" : "text-zinc-600"
+            i < full ? "fill-current text-primary" : "text-muted-foreground"
           )}
           viewBox="0 0 24 24"
         >
@@ -35,17 +35,17 @@ function Stars({ value = 5 }: { value: number }) {
 function ScorePills({ ethos, xscore, reputationIndex, socialPower }: any) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-800 bg-emerald-950 px-2.5 py-1 text-xs text-emerald-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-accent px-2.5 py-1 text-xs text-foreground">
         🛡️ ETHOS {ethos}
       </span>
-      <span className="inline-flex items-center gap-1 rounded-full border border-purple-800 bg-purple-950 px-2.5 py-1 text-xs text-purple-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-accent px-2.5 py-1 text-xs text-foreground">
         ⚡ XScore {xscore}
       </span>
-      <span className="inline-flex items-center gap-1 rounded-full border border-indigo-800 bg-indigo-950 px-2.5 py-1 text-xs text-indigo-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-accent px-2.5 py-1 text-xs text-foreground">
         ✓ Index {reputationIndex}
       </span>
       {socialPower && (
-        <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-800 bg-fuchsia-950 px-2.5 py-1 text-xs text-fuchsia-300">
+        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-accent px-2.5 py-1 text-xs text-foreground">
           ✨ Power {socialPower}
         </span>
       )}
@@ -55,14 +55,14 @@ function ScorePills({ ethos, xscore, reputationIndex, socialPower }: any) {
 
 function Button({ children, variant = "primary", size = "md", className = "", ...props }: any) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none relative z-[10]";
+    "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none relative z-[10]";
   const sizes = {
     sm: "h-8 px-3 text-xs",
     md: "h-10 px-4 text-sm",
   };
   const variants = {
-    primary: "bg-indigo-600 hover:bg-indigo-700 text-white",
-    outline: "border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 hover:border-indigo-500/40 backdrop-blur-xl text-zinc-700",
+    primary: "bg-primary hover:opacity-90 text-primary-foreground",
+    outline: "border border-border bg-accent hover:bg-muted backdrop-blur-xl text-foreground",
   };
   return (
     <button
@@ -78,7 +78,7 @@ function Card({ className = "", children }: any) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 backdrop-blur-xl p-6 hover:border-indigo-500/40 transition-all duration-300 relative z-[10]",
+        "rounded-xl border border-border bg-card backdrop-blur-xl p-6 hover:border-border transition-all duration-300 relative z-[10]",
         className
       )}
     >
@@ -220,13 +220,13 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <div className="flex items-start gap-3 mb-4">
-            <ProfileAvatar handle={u.handle} alt={u.name} fallbackGradient="from-indigo-500 via-fuchsia-500 to-cyan-400" />
+            <ProfileAvatar handle={u.handle} alt={u.name} fallbackGradient="from-primary to-primary/80" />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold truncate" style={{ color: "#000000" }}>
                   {u.name}
                 </span>
-                {u.verified && <BadgeCheck className="h-5 w-5 text-emerald-400 stroke-[1.75]" />}
+                {u.verified && <BadgeCheck className="h-5 w-5 text-primary stroke-[1.75]" />}
               </div>
               <p className="text-sm truncate" style={{ color: "#404040" }}>
                 @{u.handle} · {u.location}
@@ -266,7 +266,7 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
               {u.roleTags.map((role) => (
                 <span
                   key={role}
-                  className="rounded-full border border-indigo-500/30 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 px-2.5 py-1 text-xs backdrop-blur-xl"
+                  className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl"
                   style={{ color: "#1a1a1a" }}
                 >
                   {role}
@@ -285,7 +285,7 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
                 {u.ambassadorOf.map((proj) => (
                   <span
                     key={proj}
-                    className="rounded-full border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500/20 to-pink-500/20 px-2.5 py-1 text-xs backdrop-blur-xl"
+                    className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl"
                     style={{ color: "#1a1a1a" }}
                   >
                     {proj}
@@ -311,7 +311,7 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
                         "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)",
                     }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/90 to-purple-600/90" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary/80" />
                     <div className="relative z-10 flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-white">{p.name}</p>
@@ -330,10 +330,10 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
             {u.links.map((l) => (
               <div
                 key={l.label}
-                className="flex items-center justify-between rounded-lg border border-blue-500/30 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-xl px-4 py-3 hover:border-blue-500/40 transition-all duration-300"
+                className="flex items-center justify-between rounded-lg border border-border bg-accent backdrop-blur-xl px-4 py-3 hover:border-border transition-all duration-300"
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <ExternalLink className="h-4 w-4 text-cyan-400 stroke-[1.75]" />
+                  <ExternalLink className="h-4 w-4 text-primary stroke-[1.75]" />
                   <span className="truncate font-medium" style={{ color: "#000000" }}>
                     {l.label}
                   </span>
@@ -362,7 +362,7 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
                 {u.featuredWork.map((work, idx) => (
                   <div
                     key={idx}
-                    className="rounded-lg border border-blue-500/30 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-xl p-4 hover:border-blue-500/40 transition-all duration-300"
+                    className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300"
                   >
                     <p className="font-semibold" style={{ color: "#000000" }}>
                       {work.title}
@@ -391,7 +391,7 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
               {u.caseStudies.map((cs) => (
                 <div
                   key={cs.id}
-                  className="rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 backdrop-blur-xl p-4 hover:border-emerald-500/40 transition-all duration-300"
+                  className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300"
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
@@ -399,7 +399,7 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
                         <span className="font-semibold" style={{ color: "#000000" }}>
                           {cs.projectName}
                         </span>
-                        {cs.verified && <BadgeCheck className="h-4 w-4 text-emerald-400 stroke-[1.75]" />}
+                        {cs.verified && <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />}
                       </div>
                       <p className="mt-1 text-xs" style={{ color: "#404040" }}>
                         {cs.role} · {cs.duration}
@@ -410,17 +410,17 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
                     </Button>
                   </div>
 
-                  <div className="rounded-lg border border-emerald-700 bg-emerald-950/30 p-3">
+                  <div className="rounded-lg border border-border bg-muted p-3">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-emerald-400 stroke-[1.75]" />
+                      <TrendingUp className="h-4 w-4 text-primary stroke-[1.75]" />
                       <span className="text-sm font-semibold" style={{ color: "#000000" }}>
-                        {cs.results.metric}: <span className="text-emerald-400">{cs.results.value}</span>
+                        {cs.results.metric}: <span className="text-primary">{cs.results.value}</span>
                       </span>
                     </div>
                   </div>
 
                   {cs.testimonial && (
-                    <div className="mt-3 border-l-2 border-indigo-500 pl-3 text-sm italic text-zinc-400">
+                    <div className="mt-3 border-l-2 border-border pl-3 text-sm italic text-zinc-400">
                       "{cs.testimonial}"
                     </div>
                   )}
@@ -432,7 +432,7 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
                         {cs.deliverables.map((d, i) => (
                           <span
                             key={i}
-                            className="rounded-full border border-cyan-500/30 bg-cyan-500/20 px-2.5 py-1 text-xs text-cyan-300"
+                            className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs text-foreground"
                           >
                             {d}
                           </span>
@@ -461,7 +461,7 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
               {u.reviewItems.map((review, idx) => (
                 <div
                   key={idx}
-                  className="rounded-lg border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 backdrop-blur-xl p-4"
+                  className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
@@ -469,11 +469,11 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
                         <span className="font-semibold" style={{ color: "#000000" }}>
                           {review.by}
                         </span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-foreground">
                           {review.byType}
                         </span>
                         {review.verifiedDeal && (
-                          <BadgeCheck className="h-4 w-4 text-emerald-400 stroke-[1.75]" />
+                          <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />
                         )}
                       </div>
                       <Stars value={review.rating} />
@@ -493,7 +493,7 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
                       {review.tags.map((tag, i) => (
                         <span
                           key={i}
-                          className="text-xs px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/20 text-emerald-300"
+                          className="text-xs px-2.5 py-1 rounded-full border border-border bg-accent text-foreground"
                         >
                           {tag}
                         </span>

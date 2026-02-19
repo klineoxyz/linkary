@@ -169,13 +169,13 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
       <div className="border-b border-gray-200 bg-white/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-3">
           <div className="flex items-center justify-center gap-3">
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 border border-cyan-500/20 text-sm font-medium text-gray-900">
-              <Sparkles className="w-4 h-4 text-cyan-500 stroke-[1.75]" />
-              Daily drop: New verified profiles today: <span className="text-cyan-600 font-bold">24</span>
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-primary/10 to-primary/10 border border-border text-sm font-medium text-gray-900">
+              <Sparkles className="w-4 h-4 text-primary stroke-[1.75]" />
+              Daily drop: New verified profiles today: <span className="text-primary font-bold">24</span>
             </span>
             <button
               onClick={() => setRoute({ name: "explore" })}
-              className="text-sm text-cyan-600 hover:text-cyan-700 font-medium flex items-center gap-1 transition-colors"
+              className="text-sm text-primary hover:opacity-90 font-medium flex items-center gap-1 transition-colors"
             >
               See today
               <ChevronRight className="w-4 h-4 stroke-[1.75]" />
@@ -197,7 +197,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6">
                 Verifiable reputation
                 <br />
-                <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-violet-600 bg-clip-text text-transparent">
+                <span className="text-primary">
                   for Web3 work
                 </span>
               </h1>
@@ -206,12 +206,12 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               </p>
               <p className="text-sm text-gray-500 mb-8 flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1">
-                  <Shield className="w-4 h-4 text-emerald-500 stroke-[1.75]" />
+                  <Shield className="w-4 h-4 text-primary stroke-[1.75]" />
                   Powered by ETHOS + Wallchain XScore
                 </span>
                 <span className="text-gray-400">•</span>
                 <span className="inline-flex items-center gap-1">
-                  <BadgeCheck className="w-4 h-4 text-cyan-500 stroke-[1.75]" />
+                  <BadgeCheck className="w-4 h-4 text-primary stroke-[1.75]" />
                   Verified by real counterparties
                 </span>
               </p>
@@ -219,7 +219,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={() => setRoute({ name: "profile" })}
-                  className="group flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 text-white font-semibold text-lg hover:shadow-xl hover:shadow-cyan-500/30 transition-all hover:scale-105"
+                  className="group flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-lg hover:opacity-90 hover:shadow-xl transition-all hover:scale-105"
                 >
                   Claim your username
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform stroke-[2]" />
@@ -248,16 +248,16 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 z-20"
               >
-                <div className="relative overflow-hidden rounded-3xl border-2 border-cyan-500/30 bg-white shadow-2xl shadow-cyan-500/20 p-6">
+                <div className="relative overflow-hidden rounded-3xl border-2 border-border bg-white shadow-2xl p-6">
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-cyan-500/20">
+                    <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-border">
                       <img src={MOCK_PROFILES[0].avatar} alt={MOCK_PROFILES[0].name} className="w-full h-full" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-bold text-gray-900">{MOCK_PROFILES[0].name}</h3>
                         {MOCK_PROFILES[0].verified && (
-                          <BadgeCheck className="w-4 h-4 text-cyan-500 stroke-[1.75]" />
+                          <BadgeCheck className="w-4 h-4 text-primary stroke-[1.75]" />
                         )}
                       </div>
                       <p className="text-sm text-gray-600">{MOCK_PROFILES[0].handle}</p>
@@ -265,12 +265,12 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                      <p className="text-xs text-emerald-600 font-medium mb-1">ETHOS</p>
+                    <div className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
+                      <p className="text-xs text-primary font-medium mb-1">ETHOS</p>
                       <p className="text-lg font-bold text-gray-900">{MOCK_PROFILES[0].ethos}</p>
                     </div>
-                    <div className="px-3 py-2 rounded-lg bg-violet-500/10 border border-violet-500/20">
-                      <p className="text-xs text-violet-600 font-medium mb-1">XScore</p>
+                    <div className="px-3 py-2 rounded-lg bg-accent border border-border">
+                      <p className="text-xs text-foreground font-medium mb-1">XScore</p>
                       <p className="text-lg font-bold text-gray-900">{MOCK_PROFILES[0].xscore}</p>
                     </div>
                   </div>
@@ -285,7 +285,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 className="absolute top-20 left-4 z-30"
               >
                 <div className="px-4 py-2 rounded-full bg-white border border-gray-200 shadow-lg flex items-center gap-2">
-                  <Heart className="w-4 h-4 text-rose-500 stroke-[1.75]" />
+                  <Heart className="w-4 h-4 text-primary stroke-[1.75]" />
                   <span className="text-sm font-semibold text-gray-900">Avg likes 153</span>
                 </div>
               </motion.div>
@@ -297,7 +297,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 className="absolute top-32 right-8 z-30"
               >
                 <div className="px-4 py-2 rounded-full bg-white border border-gray-200 shadow-lg flex items-center gap-2">
-                  <Users className="w-4 h-4 text-cyan-500 stroke-[1.75]" />
+                  <Users className="w-4 h-4 text-primary stroke-[1.75]" />
                   <span className="text-sm font-semibold text-gray-900">Referrals 56</span>
                 </div>
               </motion.div>
@@ -309,7 +309,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 className="absolute bottom-32 left-12 z-30"
               >
                 <div className="px-4 py-2 rounded-full bg-white border border-gray-200 shadow-lg flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-violet-500 stroke-[1.75]" />
+                  <Zap className="w-4 h-4 text-primary stroke-[1.75]" />
                   <span className="text-sm font-semibold text-gray-900">X Score 67</span>
                 </div>
               </motion.div>
@@ -321,7 +321,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 className="absolute bottom-24 right-12 z-30"
               >
                 <div className="px-4 py-2 rounded-full bg-white border border-gray-200 shadow-lg flex items-center gap-2">
-                  <Award className="w-4 h-4 text-amber-500 stroke-[1.75]" />
+                  <Award className="w-4 h-4 text-primary stroke-[1.75]" />
                   <span className="text-sm font-semibold text-gray-900">Earned 400 points</span>
                 </div>
               </motion.div>
@@ -351,10 +351,10 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs px-2 py-1 rounded bg-emerald-500/10 text-emerald-700 font-medium">
+                      <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary font-medium">
                         {profile.ethos}
                       </span>
-                      <span className="text-xs px-2 py-1 rounded bg-violet-500/10 text-violet-700 font-medium">
+                      <span className="text-xs px-2 py-1 rounded bg-accent text-foreground font-medium">
                         {profile.xscore}
                       </span>
                     </div>
@@ -371,19 +371,19 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-wrap items-center justify-center gap-8 lg:gap-12">
             <div className="flex items-center gap-2">
-              <Shield className="w-6 h-6 text-emerald-500 stroke-[1.75]" />
+              <Shield className="w-6 h-6 text-primary stroke-[1.75]" />
               <span className="text-sm font-semibold text-gray-700">ETHOS Score</span>
             </div>
             <div className="flex items-center gap-2">
-              <Zap className="w-6 h-6 text-violet-500 stroke-[1.75]" />
+              <Zap className="w-6 h-6 text-primary stroke-[1.75]" />
               <span className="text-sm font-semibold text-gray-700">Wallchain XScore</span>
             </div>
             <div className="flex items-center gap-2">
-              <BadgeCheck className="w-6 h-6 text-cyan-500 stroke-[1.75]" />
+              <BadgeCheck className="w-6 h-6 text-primary stroke-[1.75]" />
               <span className="text-sm font-semibold text-gray-700">Verified Work</span>
             </div>
             <div className="flex items-center gap-2">
-              <LineChart className="w-6 h-6 text-indigo-500 stroke-[1.75]" />
+              <LineChart className="w-6 h-6 text-primary stroke-[1.75]" />
               <span className="text-sm font-semibold text-gray-700">Signals-First Analytics</span>
             </div>
           </div>
@@ -406,8 +406,8 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               transition={{ duration: 0.5 }}
               className="relative p-8 rounded-3xl border border-gray-200 bg-white hover:shadow-xl transition-all"
             >
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mb-6">
-                <FileCheck className="w-6 h-6 text-cyan-600 stroke-[1.75]" />
+              <div className="w-12 h-12 rounded-2xl bg-accent border border-border flex items-center justify-center mb-6">
+                <FileCheck className="w-6 h-6 text-primary stroke-[1.75]" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">Add work</h3>
               <p className="text-gray-600">
@@ -422,8 +422,8 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="relative p-8 rounded-3xl border border-gray-200 bg-white hover:shadow-xl transition-all"
             >
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-indigo-500/10 border border-indigo-500/30 flex items-center justify-center mb-6">
-                <BadgeCheck className="w-6 h-6 text-indigo-600 stroke-[1.75]" />
+              <div className="w-12 h-12 rounded-2xl bg-accent border border-border flex items-center justify-center mb-6">
+                <BadgeCheck className="w-6 h-6 text-primary stroke-[1.75]" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">Get verified</h3>
               <p className="text-gray-600">
@@ -438,8 +438,8 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="relative p-8 rounded-3xl border border-gray-200 bg-white hover:shadow-xl transition-all"
             >
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500/20 to-violet-500/10 border border-violet-500/30 flex items-center justify-center mb-6">
-                <TrendingUp className="w-6 h-6 text-violet-600 stroke-[1.75]" />
+              <div className="w-12 h-12 rounded-2xl bg-accent border border-border flex items-center justify-center mb-6">
+                <TrendingUp className="w-6 h-6 text-primary stroke-[1.75]" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">Show signals</h3>
               <p className="text-gray-600">
@@ -466,7 +466,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               viewport={{ once: true }}
               className="p-6 rounded-2xl border border-gray-200 bg-white hover:shadow-lg transition-all"
             >
-              <LineChart className="w-8 h-8 text-cyan-500 mb-4 stroke-[1.75]" />
+              <LineChart className="w-8 h-8 text-primary mb-4 stroke-[1.75]" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">Signals, not vanity charts</h3>
               <p className="text-sm text-gray-600">
                 See what changed and why. Growth metrics that explain momentum, not just big numbers.
@@ -481,7 +481,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               transition={{ delay: 0.1 }}
               className="p-6 rounded-2xl border border-gray-200 bg-white hover:shadow-lg transition-all"
             >
-              <FileCheck className="w-8 h-8 text-indigo-500 mb-4 stroke-[1.75]" />
+              <FileCheck className="w-8 h-8 text-primary mb-4 stroke-[1.75]" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">Verified case studies</h3>
               <p className="text-sm text-gray-600">
                 Real projects, real results. Get verification from actual counterparties who worked with you.
@@ -496,7 +496,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               transition={{ delay: 0.2 }}
               className="p-6 rounded-2xl border border-gray-200 bg-white hover:shadow-lg transition-all"
             >
-              <Building2 className="w-8 h-8 text-violet-500 mb-4 stroke-[1.75]" />
+              <Building2 className="w-8 h-8 text-primary mb-4 stroke-[1.75]" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">Company + subsidiaries</h3>
               <p className="text-sm text-gray-600">
                 Your company profile can have subsidiaries. Each with their own role: project, agency, media.
@@ -511,7 +511,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               transition={{ delay: 0.3 }}
               className="p-6 rounded-2xl border border-gray-200 bg-white hover:shadow-lg transition-all"
             >
-              <Users className="w-8 h-8 text-emerald-500 mb-4 stroke-[1.75]" />
+              <Users className="w-8 h-8 text-primary mb-4 stroke-[1.75]" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">Ripple effect: affiliates + ambassadors</h3>
               <p className="text-sm text-gray-600">
                 Your influence isn't just your account. Track your ambassadors, affiliates, and measurable reach.
@@ -526,7 +526,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               transition={{ delay: 0.4 }}
               className="p-6 rounded-2xl border border-gray-200 bg-white hover:shadow-lg transition-all"
             >
-              <Target className="w-8 h-8 text-rose-500 mb-4 stroke-[1.75]" />
+              <Target className="w-8 h-8 text-primary mb-4 stroke-[1.75]" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">Jobs, gigs, shortlists</h3>
               <p className="text-sm text-gray-600">
                 AI-powered matching for opportunities. Get discovered by projects looking for your exact skills.
@@ -541,7 +541,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               transition={{ delay: 0.5 }}
               className="p-6 rounded-2xl border border-gray-200 bg-white hover:shadow-lg transition-all"
             >
-              <Sparkles className="w-8 h-8 text-amber-500 mb-4 stroke-[1.75]" />
+              <Sparkles className="w-8 h-8 text-primary mb-4 stroke-[1.75]" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">Living reputation graph</h3>
               <p className="text-sm text-gray-600">
                 Carry your reputation anywhere: applying to jobs, pitching partnerships, raising rounds.
@@ -564,7 +564,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               onClick={() => setActiveTab("x")}
               className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
                 activeTab === "x"
-                  ? "bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-lg"
+                  ? "bg-primary text-primary-foreground shadow-lg"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
@@ -575,13 +575,13 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               onClick={() => setActiveTab("youtube")}
               className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
                 activeTab === "youtube"
-                  ? "bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-lg"
+                  ? "bg-primary text-primary-foreground shadow-lg"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
               <Youtube className="w-5 h-5 stroke-[1.75]" />
               YouTube
-              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 text-xs font-medium border border-amber-500/30">
+              <span className="px-2 py-0.5 rounded-full bg-accent text-foreground text-xs font-medium border border-border">
                 Soon
               </span>
             </button>
@@ -589,13 +589,13 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               onClick={() => setActiveTab("tiktok")}
               className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
                 activeTab === "tiktok"
-                  ? "bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-lg"
+                  ? "bg-primary text-primary-foreground shadow-lg"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
               <Radio className="w-5 h-5 stroke-[1.75]" />
               TikTok
-              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 text-xs font-medium border border-amber-500/30">
+              <span className="px-2 py-0.5 rounded-full bg-accent text-foreground text-xs font-medium border border-border">
                 Soon
               </span>
             </button>
@@ -613,19 +613,19 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">X Analytics - Live Now</h3>
                 <ul className="space-y-3">
                   <li className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 stroke-[1.75]" />
+                    <CheckCircle2 className="w-5 h-5 text-primary stroke-[1.75]" />
                     <span className="text-gray-700">Real-time follower growth tracking</span>
                   </li>
                   <li className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 stroke-[1.75]" />
+                    <CheckCircle2 className="w-5 h-5 text-primary stroke-[1.75]" />
                     <span className="text-gray-700">Engagement rate analysis</span>
                   </li>
                   <li className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 stroke-[1.75]" />
+                    <CheckCircle2 className="w-5 h-5 text-primary stroke-[1.75]" />
                     <span className="text-gray-700">Content performance signals</span>
                   </li>
                   <li className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 stroke-[1.75]" />
+                    <CheckCircle2 className="w-5 h-5 text-primary stroke-[1.75]" />
                     <span className="text-gray-700">Automated XScore updates</span>
                   </li>
                 </ul>
@@ -635,8 +635,8 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               <div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">YouTube Analytics <FeatureStatusBadge status="coming-soon" /></h3>
                 <p className="text-gray-600 mb-4">Track video performance and subscriber growth</p>
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
-                  <p className="text-sm text-amber-800">
+                <div className="p-4 rounded-xl bg-muted border border-border">
+                  <p className="text-sm text-foreground">
                     <strong>Early access available</strong> for Pro plan members. Sign up to get notified when we launch.
                   </p>
                 </div>
@@ -646,8 +646,8 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               <div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">TikTok Analytics <FeatureStatusBadge status="coming-soon" /></h3>
                 <p className="text-gray-600 mb-4">Monitor viral content and audience engagement</p>
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
-                  <p className="text-sm text-amber-800">
+                <div className="p-4 rounded-xl bg-muted border border-border">
+                  <p className="text-sm text-foreground">
                     <strong>Early access available</strong> for Pro plan members. Sign up to get notified when we launch.
                   </p>
                 </div>
@@ -674,13 +674,13 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 viewport={{ once: true }}
                 className={`relative p-8 rounded-3xl border-2 transition-all hover:shadow-2xl ${
                   plan.highlighted
-                    ? "border-cyan-500 bg-gradient-to-b from-cyan-50 to-white shadow-xl scale-105"
+                    ? "border-border bg-card shadow-xl scale-105"
                     : "border-gray-200 bg-white hover:border-gray-300"
                 }`}
               >
                 {plan.badge && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span className="px-4 py-1 rounded-full bg-gradient-to-r from-cyan-600 to-indigo-600 text-white text-sm font-semibold shadow-lg">
+                    <span className="px-4 py-1 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-lg">
                       {plan.badge}
                     </span>
                   </div>
@@ -698,7 +698,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 <ul className="space-y-3 mb-8">
                   {plan.features.map((feature, idx) => (
                     <li key={idx} className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-emerald-500 stroke-[2] flex-shrink-0 mt-0.5" />
+                      <Check className="w-5 h-5 text-primary stroke-[2] flex-shrink-0 mt-0.5" />
                       <span className="text-sm text-gray-700">{feature}</span>
                     </li>
                   ))}
@@ -708,7 +708,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                   onClick={() => setRoute({ name: "profile" })}
                   className={`w-full py-3 px-6 rounded-xl font-semibold transition-all ${
                     plan.highlighted
-                      ? "bg-gradient-to-r from-cyan-600 to-indigo-600 text-white hover:shadow-xl hover:scale-105"
+                      ? "bg-primary text-primary-foreground hover:opacity-90 hover:shadow-xl hover:scale-105"
                       : "bg-gray-900 text-white hover:bg-gray-800"
                   }`}
                 >
@@ -721,7 +721,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
           <div className="text-center mt-12">
             <button
               onClick={() => setRoute({ name: "explore" })}
-              className="text-cyan-600 hover:text-cyan-700 font-semibold flex items-center gap-2 mx-auto"
+              className="text-primary hover:opacity-90 font-semibold flex items-center gap-2 mx-auto"
             >
               Compare all features
               <ChevronRight className="w-5 h-5 stroke-[1.75]" />

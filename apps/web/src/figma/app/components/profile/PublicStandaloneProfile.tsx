@@ -153,7 +153,7 @@ export function PublicStandaloneProfile({ data, isLoggedIn = false, onLogin }: P
         {/* Hero Section */}
         <div className="mb-8 text-center">
           {/* Avatar */}
-          <div className="mx-auto mb-4 h-24 w-24 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-cyan-400" />
+          <div className="mx-auto mb-4 h-24 w-24 rounded-2xl bg-gradient-to-br from-primary to-primary/80" />
           
           {/* Name & Verification */}
           <div className="mb-2 flex items-center justify-center gap-2">
@@ -161,7 +161,7 @@ export function PublicStandaloneProfile({ data, isLoggedIn = false, onLogin }: P
               {data.name}
             </h1>
             {data.verified && (
-              <BadgeCheck className="h-7 w-7 text-emerald-500" />
+              <BadgeCheck className="h-7 w-7 text-primary" />
             )}
           </div>
           
@@ -195,22 +195,22 @@ export function PublicStandaloneProfile({ data, isLoggedIn = false, onLogin }: P
           {(data.ethos || data.xscore || data.reputationIndex || data.socialPower) && (
             <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
               {data.ethos && (
-                <div className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-semibold" style={{ color: '#334155' }}>
+                <div className="rounded-full border border-border bg-accent px-3 py-1.5 text-sm font-semibold" style={{ color: '#334155' }}>
                   ETHOS {data.ethos}
                 </div>
               )}
               {data.xscore && (
-                <div className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-sm font-semibold" style={{ color: '#334155' }}>
+                <div className="rounded-full border border-border bg-accent px-3 py-1.5 text-sm font-semibold" style={{ color: '#334155' }}>
                   XScore {data.xscore}
                 </div>
               )}
               {data.reputationIndex && (
-                <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold" style={{ color: '#334155' }}>
+                <div className="rounded-full border border-border bg-accent px-3 py-1.5 text-sm font-semibold" style={{ color: '#334155' }}>
                   Rep Index {data.reputationIndex}
                 </div>
               )}
               {data.socialPower && (
-                <div className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-semibold" style={{ color: '#334155' }}>
+                <div className="rounded-full border border-border bg-accent px-3 py-1.5 text-sm font-semibold" style={{ color: '#334155' }}>
                   Social {data.socialPower}
                 </div>
               )}
@@ -311,7 +311,7 @@ export function PublicStandaloneProfile({ data, isLoggedIn = false, onLogin }: P
               {data.ambassadorOf.map((proj, idx) => (
                 <span
                   key={idx}
-                  className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1.5 text-sm font-medium"
+                  className="rounded-full border border-border bg-accent px-3 py-1.5 text-sm font-medium"
                   style={{ color: '#334155' }}
                 >
                   {proj}
@@ -393,11 +393,11 @@ export function PublicStandaloneProfile({ data, isLoggedIn = false, onLogin }: P
                       </p>
                     </div>
                   </div>
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                  <div className="rounded-lg border border-border bg-accent p-3">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-emerald-600" />
+                      <TrendingUp className="h-4 w-4 text-primary" />
                       <span className="text-sm font-semibold" style={{ color: '#0F172A' }}>
-                        {cs.results.metric}: <span className="text-emerald-600">{cs.results.value}</span>
+                        {cs.results.metric}: <span className="text-primary">{cs.results.value}</span>
                       </span>
                     </div>
                   </div>

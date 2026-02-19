@@ -140,7 +140,7 @@ export default function OrgDetailPage({
   if (loading || !orgId) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -179,7 +179,7 @@ export default function OrgDetailPage({
           <button
             onClick={handleRecompute}
             disabled={recomputeLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm disabled:opacity-50"
           >
             {recomputeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
             Recompute Influence
@@ -192,8 +192,8 @@ export default function OrgDetailPage({
           {org.logo_url ? (
             <img src={org.logo_url} alt={org.name} className="w-14 h-14 rounded-xl object-cover" />
           ) : (
-            <div className="w-14 h-14 rounded-xl bg-indigo-500/20 flex items-center justify-center">
-              <Building2 className="w-7 h-7 text-indigo-400" />
+            <div className="w-14 h-14 rounded-xl bg-accent flex items-center justify-center">
+              <Building2 className="w-7 h-7 text-primary" />
             </div>
           )}
           <div>
@@ -217,7 +217,7 @@ export default function OrgDetailPage({
               onClick={() => setTab(t.id)}
               className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
                 tab === t.id
-                  ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
+                  ? "border-primary text-primary"
                   : "border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
               }`}
             >
@@ -235,7 +235,7 @@ export default function OrgDetailPage({
                 members.map((m) => (
                   <div key={m.id} className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
                     <span className="font-mono text-sm text-zinc-600 dark:text-zinc-400">{m.user_id}</span>
-                    <span className="text-xs px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">{m.role}</span>
+                    <span className="text-xs px-2 py-1 rounded-full bg-accent text-primary">{m.role}</span>
                   </div>
                 ))
               )}
@@ -259,11 +259,11 @@ export default function OrgDetailPage({
                   <button
                     onClick={() => handleInvite("affiliate")}
                     disabled={!affiliateHandle.trim()}
-                    className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm disabled:opacity-50"
+                    className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm disabled:opacity-50"
                   >
                     Invite Affiliate
                   </button>
-                  {inviteError && tab === "affiliates" && <p className="text-red-500 text-sm w-full">{inviteError}</p>}
+                  {inviteError && tab === "affiliates" && <p className="text-destructive text-sm w-full">{inviteError}</p>}
                 </div>
               )}
               {affiliations.length === 0 ? (
@@ -296,11 +296,11 @@ export default function OrgDetailPage({
                   <button
                     onClick={() => handleInvite("ambassador")}
                     disabled={!ambassadorHandle.trim()}
-                    className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm disabled:opacity-50"
+                    className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm disabled:opacity-50"
                   >
                     Invite Ambassador
                   </button>
-                  {inviteError && tab === "ambassadors" && <p className="text-red-500 text-sm w-full">{inviteError}</p>}
+                  {inviteError && tab === "ambassadors" && <p className="text-destructive text-sm w-full">{inviteError}</p>}
                 </div>
               )}
               {ambassadors.length === 0 ? (
@@ -322,7 +322,7 @@ export default function OrgDetailPage({
                 <button
                   type="button"
                   onClick={() => setShowCreateJobModal(true)}
-                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm"
+                  className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm"
                 >
                   Create job
                 </button>
@@ -339,7 +339,7 @@ export default function OrgDetailPage({
                     <button
                       type="button"
                       onClick={() => setRoute({ name: "market", data: { highlightJobId: j.id } })}
-                      className="text-sm text-indigo-600 hover:text-indigo-700"
+                      className="text-sm text-primary hover:opacity-90"
                     >
                       View in Marketplace
                     </button>
@@ -355,7 +355,7 @@ export default function OrgDetailPage({
                 <button
                   type="button"
                   onClick={() => setShowCaseStudyModal(true)}
-                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm"
+                  className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm"
                 >
                   Add New
                 </button>
@@ -368,7 +368,7 @@ export default function OrgDetailPage({
                     <p className="font-medium text-zinc-900 dark:text-zinc-100">{cs.title ?? "Untitled"}</p>
                     {cs.description && <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">{cs.description}</p>}
                     {cs.proof_url && (
-                      <a href={cs.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 mt-2 inline-block">Proof link</a>
+                      <a href={cs.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary mt-2 inline-block">Proof link</a>
                     )}
                   </div>
                 ))
@@ -431,7 +431,7 @@ export default function OrgDetailPage({
                     setCaseStudyProofUrl("");
                   }
                 }}
-                className="flex-1 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50"
+                className="flex-1 py-2 rounded-lg bg-primary hover:opacity-90 text-white disabled:opacity-50"
               >
                 {caseStudySaving ? "Saving…" : "Save"}
               </button>
@@ -513,7 +513,7 @@ export default function OrgDetailPage({
                     setJobType("job");
                   }
                 }}
-                className="flex-1 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50"
+                className="flex-1 py-2 rounded-lg bg-primary hover:opacity-90 text-white disabled:opacity-50"
               >
                 {jobSaving ? "Creating…" : "Create"}
               </button>

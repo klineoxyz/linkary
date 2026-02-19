@@ -56,28 +56,28 @@ export default function LockedFeatureModal({
 
   const colorClasses = {
     indigo: {
-      bg: "bg-indigo-50",
-      border: "border-indigo-200",
-      text: "text-indigo-700",
-      button: "bg-indigo-600 hover:bg-indigo-700",
+      bg: "bg-muted",
+      border: "border-border",
+      text: "text-foreground",
+      button: "bg-primary hover:opacity-90",
     },
     purple: {
-      bg: "bg-purple-50",
-      border: "border-purple-200",
-      text: "text-purple-700",
-      button: "bg-purple-600 hover:bg-purple-700",
+      bg: "bg-accent",
+      border: "border-border",
+      text: "text-primary",
+      button: "bg-primary hover:opacity-90",
     },
     amber: {
-      bg: "bg-amber-50",
-      border: "border-amber-200",
-      text: "text-amber-700",
-      button: "bg-amber-600 hover:bg-amber-700",
+      bg: "bg-muted",
+      border: "border-border",
+      text: "text-foreground",
+      button: "bg-primary hover:opacity-90",
     },
     red: {
-      bg: "bg-red-50",
-      border: "border-red-200",
-      text: "text-red-700",
-      button: "bg-red-600 hover:bg-red-700",
+      bg: "bg-muted",
+      border: "border-border",
+      text: "text-foreground",
+      button: "bg-primary hover:opacity-90",
     },
   };
 
@@ -118,7 +118,7 @@ export default function LockedFeatureModal({
             {plan.features.map((feature, idx) => (
               <div key={idx} className="flex items-start gap-2">
                 <div className={`h-5 w-5 rounded-full ${colors.bg} border ${colors.border} flex items-center justify-center flex-shrink-0`}>
-                  <div className={`h-2 w-2 rounded-full ${plan.color === 'indigo' ? 'bg-indigo-600' : plan.color === 'purple' ? 'bg-purple-600' : plan.color === 'amber' ? 'bg-amber-600' : 'bg-red-600'}`} />
+                  <div className={`h-2 w-2 rounded-full ${plan.color === 'indigo' ? 'bg-primary' : plan.color === 'purple' ? 'bg-primary' : plan.color === 'amber' ? 'bg-primary' : 'bg-destructive'}`} />
                 </div>
                 <span className="text-sm text-zinc-700">{feature}</span>
               </div>

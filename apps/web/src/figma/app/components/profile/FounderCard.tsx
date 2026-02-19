@@ -58,7 +58,7 @@ export function FounderCard({ founder }: FounderCardProps) {
                 {founder.name}
               </h4>
               {founder.verified && (
-                <BadgeCheck className="h-4 w-4 shrink-0 text-emerald-500" />
+                <BadgeCheck className="h-4 w-4 shrink-0 text-primary" />
               )}
             </div>
             <p className="text-sm" style={{ color: '#64748B' }}>
@@ -76,17 +76,17 @@ export function FounderCard({ founder }: FounderCardProps) {
         {(founder.ethos || founder.xscore || founder.socialPower) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {founder.ethos && (
-              <div className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium" style={{ color: '#334155' }}>
+              <div className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs font-medium" style={{ color: '#334155' }}>
                 ETHOS {founder.ethos}
               </div>
             )}
             {founder.xscore && (
-              <div className="rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs font-medium" style={{ color: '#334155' }}>
+              <div className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs font-medium" style={{ color: '#334155' }}>
                 XScore {founder.xscore}
               </div>
             )}
             {founder.socialPower && (
-              <div className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium" style={{ color: '#334155' }}>
+              <div className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs font-medium" style={{ color: '#334155' }}>
                 Social {founder.socialPower}
               </div>
             )}

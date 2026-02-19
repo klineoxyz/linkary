@@ -127,23 +127,23 @@ export default function AnalyticsTabContent({
     switch (signal) {
       case "good":
         return {
-          bg: "from-emerald-500/10 to-emerald-500/5",
-          border: "border-emerald-500/30",
-          text: "text-emerald-400",
+          bg: "from-primary/10 to-primary/5",
+          border: "border-primary/30",
+          text: "text-primary",
           icon: CheckCircle2,
         };
       case "watch":
         return {
-          bg: "from-amber-500/10 to-amber-500/5",
-          border: "border-amber-500/30",
-          text: "text-amber-400",
+          bg: "from-muted to-muted/80",
+          border: "border-border",
+          text: "text-muted-foreground",
           icon: Eye,
         };
       case "risk":
         return {
-          bg: "from-red-500/10 to-red-500/5",
-          border: "border-red-500/30",
-          text: "text-red-400",
+          bg: "from-muted to-muted/80",
+          border: "border-border",
+          text: "text-muted-foreground",
           icon: AlertTriangle,
         };
     }
@@ -175,7 +175,7 @@ export default function AnalyticsTabContent({
 
         {/* Icon */}
         <div className="p-2 rounded-xl bg-white/5 border border-white/10 inline-flex mb-3">
-          <Icon className="w-4 h-4 text-indigo-400 stroke-[1.75]" />
+          <Icon className="w-4 h-4 text-primary stroke-[1.75]" />
         </div>
 
         {/* Label */}
@@ -188,11 +188,11 @@ export default function AnalyticsTabContent({
           <h3 className="text-3xl font-bold text-white">{value}</h3>
           <div className="flex items-center gap-1 mb-1">
             {isPositive ? (
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-400 stroke-[1.75]" />
+              <TrendingUp className="w-3.5 h-3.5 text-primary stroke-[1.75]" />
             ) : (
-              <TrendingDown className="w-3.5 h-3.5 text-red-400 stroke-[1.75]" />
+              <TrendingDown className="w-3.5 h-3.5 text-muted-foreground stroke-[1.75]" />
             )}
-            <span className={`text-xs font-semibold ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
+            <span className={`text-xs font-semibold ${isPositive ? "text-primary" : "text-muted-foreground"}`}>
               {isPositive ? "+" : ""}{delta}%
             </span>
           </div>
@@ -206,15 +206,15 @@ export default function AnalyticsTabContent({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
-            <Twitter className="w-5 h-5 text-cyan-400 stroke-[1.75]" />
+          <div className="p-2 rounded-xl bg-accent border border-border">
+            <Twitter className="w-5 h-5 text-primary stroke-[1.75]" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-white">X Analytics</h2>
             <div className="flex items-center gap-2 mt-1">
               <Clock className="w-3 h-3 text-neutral-400 stroke-[1.75]" />
               <span className="text-xs text-neutral-400">Last updated: {xAnalytics.lastUpdated}</span>
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             </div>
           </div>
         </div>
@@ -227,7 +227,7 @@ export default function AnalyticsTabContent({
               onClick={() => setTimeRange(range)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 timeRange === range
-                  ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-cyan-400 border border-cyan-500/30"
+                  ? "bg-accent text-primary border border-border"
                   : "text-neutral-400 hover:text-white border border-white/10"
               }`}
             >
@@ -286,7 +286,7 @@ export default function AnalyticsTabContent({
       {/* Signals Feed */}
       <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-6">
         <div className="flex items-center gap-3 mb-5">
-          <Sparkles className="w-5 h-5 text-amber-400 stroke-[1.75]" />
+          <Sparkles className="w-5 h-5 text-primary stroke-[1.75]" />
           <div>
             <h3 className="text-lg font-bold text-white">Signals</h3>
             <p className="text-xs text-neutral-400 mt-0.5">
@@ -334,7 +334,7 @@ export default function AnalyticsTabContent({
         >
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-emerald-400 stroke-[1.75]" />
+              <TrendingUp className="w-4 h-4 text-primary stroke-[1.75]" />
               Follower Growth
             </h3>
           </div>
@@ -366,13 +366,13 @@ export default function AnalyticsTabContent({
                   return (
                     <motion.div
                       key={i}
-                      className="flex-1 rounded-t-sm bg-gradient-to-t from-emerald-500/40 to-emerald-500/20 border-t border-emerald-500/50 relative group"
+                      className="flex-1 rounded-t-sm bg-gradient-to-t from-chart-1/80 to-chart-1/40 border-t border-chart-1/50 relative group"
                       initial={{ height: 0 }}
                       animate={{ height: `${height}%` }}
                       transition={{ duration: 0.6, delay: i * 0.05 }}
                     >
                       {/* Tooltip on hover */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 border border-emerald-500/30 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-[10px] text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
                         Day {i * 3 + 1}: {Math.round(20000 + (height / 100) * 10000).toLocaleString()}
                       </div>
                     </motion.div>
@@ -398,7 +398,7 @@ export default function AnalyticsTabContent({
         >
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Activity className="w-4 h-4 text-cyan-400 stroke-[1.75]" />
+              <Activity className="w-4 h-4 text-primary stroke-[1.75]" />
               Engagement Rate
             </h3>
           </div>
@@ -430,13 +430,13 @@ export default function AnalyticsTabContent({
                   return (
                     <motion.div
                       key={i}
-                      className="flex-1 rounded-t-sm bg-gradient-to-t from-indigo-500/40 to-indigo-500/20 border-t border-indigo-500/50 relative group"
+                      className="flex-1 rounded-t-sm bg-gradient-to-t from-chart-2 to-chart-2/70 border-t border-chart-1/50 relative group"
                       initial={{ height: 0 }}
                       animate={{ height: `${height}%` }}
                       transition={{ duration: 0.6, delay: i * 0.05 }}
                     >
                       {/* Tooltip on hover */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 border border-indigo-500/30 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-[10px] text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
                         Day {i * 3 + 1}: {(1.0 + (height / 100) * 4.0).toFixed(1)}%
                       </div>
                     </motion.div>
@@ -459,8 +459,8 @@ export default function AnalyticsTabContent({
       <div className="grid grid-cols-3 gap-4">
         <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-5">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/30">
-              <Heart className="w-4 h-4 text-pink-400 stroke-[1.75]" />
+            <div className="p-2 rounded-xl bg-accent border border-border">
+              <Heart className="w-4 h-4 text-primary stroke-[1.75]" />
             </div>
             <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider">
               Avg Likes
@@ -471,8 +471,8 @@ export default function AnalyticsTabContent({
 
         <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-5">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/30">
-              <MessageSquare className="w-4 h-4 text-blue-400 stroke-[1.75]" />
+            <div className="p-2 rounded-xl bg-accent border border-border">
+              <MessageSquare className="w-4 h-4 text-primary stroke-[1.75]" />
             </div>
             <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider">
               Avg Replies
@@ -483,8 +483,8 @@ export default function AnalyticsTabContent({
 
         <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-5">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-              <Repeat className="w-4 h-4 text-emerald-400 stroke-[1.75]" />
+            <div className="p-2 rounded-xl bg-accent border border-border">
+              <Repeat className="w-4 h-4 text-primary stroke-[1.75]" />
             </div>
             <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider">
               Avg Reposts

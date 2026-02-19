@@ -166,11 +166,11 @@ function LinkCard({ link }: { link: Link }) {
       <GlassCard className="hover:shadow-xl">
         <div className="p-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+            <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
               <Icon className="w-5 h-5 text-white stroke-[1.75]" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-white font-semibold text-base truncate group-hover:text-indigo-300 transition-colors">
+              <h3 className="text-white font-semibold text-base truncate group-hover:text-primary transition-colors">
                 {link.title}
               </h3>
               {link.description && (
@@ -209,7 +209,7 @@ function LinkCard({ link }: { link: Link }) {
                 </div>
               </div>
               {link.preview.data.change24h !== undefined && (
-                <div className={`text-sm font-medium ${link.preview.data.change24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                <div className={`text-sm font-medium ${link.preview.data.change24h >= 0 ? 'text-primary' : 'text-muted-foreground'}`}>
                   {link.preview.data.change24h >= 0 ? '+' : ''}{link.preview.data.change24h}%
                 </div>
               )}
@@ -282,7 +282,7 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-gray-200/50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/90" />
             <span className="font-bold text-slate-900">Linkary</span>
           </div>
           
@@ -344,7 +344,7 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
           {/* Avatar/Logo */}
           <div className="flex justify-center">
             <div className="relative">
-              <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-1 shadow-2xl ring-4 ring-[#F7F8FB]">
+              <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-primary to-primary/80 p-1 shadow-2xl ring-4 ring-background">
                 <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden">
                   {data.avatar || data.logo ? (
                     <img 
@@ -361,7 +361,7 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
               </div>
               
               {data.verified && (
-                <div className="absolute -bottom-2 -right-2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg ring-4 ring-[#F7F8FB]">
+                <div className="absolute -bottom-2 -right-2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg ring-4 ring-background">
                   <Check className="w-5 h-5 md:w-6 md:h-6 text-white stroke-[2.5]" />
                 </div>
               )}
@@ -377,7 +377,7 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
             </div>
             
             <div className="flex items-center justify-center gap-2">
-              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/50 text-sm font-medium text-slate-900">
+              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r bg-accent border border-border text-sm font-medium text-slate-900">
                 {data.entityType === "creator" && <Users className="w-4 h-4 stroke-[1.75]" />}
                 {data.entityType === "project" && <Briefcase className="w-4 h-4 stroke-[1.75]" />}
                 {data.entityType === "company" && <Building2 className="w-4 h-4 stroke-[1.75]" />}
@@ -407,7 +407,7 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium shadow-lg hover:shadow-xl transition-all"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r bg-primary text-primary-foreground font-medium shadow-lg hover:shadow-xl transition-all"
                 >
                   <Globe className="w-5 h-5 stroke-[1.75]" />
                   Official Website
@@ -424,7 +424,7 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-blue-500 flex items-center justify-center transition-all shadow-md hover:shadow-lg"
+                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-border flex items-center justify-center transition-all shadow-md hover:shadow-lg"
                   aria-label="Twitter/X"
                 >
                   <X className="w-5 h-5 text-slate-900 stroke-[1.75]" />
@@ -438,10 +438,10 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-indigo-500 flex items-center justify-center transition-all shadow-md hover:shadow-lg"
+                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-border flex items-center justify-center transition-all shadow-md hover:shadow-lg"
                   aria-label="Discord"
                 >
-                  <MessageCircle className="w-5 h-5 text-indigo-500 stroke-[1.75]" />
+                  <MessageCircle className="w-5 h-5 text-primary stroke-[1.75]" />
                 </motion.a>
               )}
               
@@ -452,10 +452,10 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-blue-400 flex items-center justify-center transition-all shadow-md hover:shadow-lg"
+                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-border flex items-center justify-center transition-all shadow-md hover:shadow-lg"
                   aria-label="Telegram"
                 >
-                  <Send className="w-5 h-5 text-blue-400 stroke-[1.75]" />
+                  <Send className="w-5 h-5 text-primary stroke-[1.75]" />
                 </motion.a>
               )}
               
@@ -480,10 +480,10 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-blue-600 flex items-center justify-center transition-all shadow-md hover:shadow-lg"
+                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-border flex items-center justify-center transition-all shadow-md hover:shadow-lg"
                   aria-label="LinkedIn"
                 >
-                  <Linkedin className="w-5 h-5 text-blue-600 stroke-[1.75]" />
+                  <Linkedin className="w-5 h-5 text-primary stroke-[1.75]" />
                 </motion.a>
               )}
               
@@ -506,10 +506,10 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
                   href={`mailto:${data.email}`}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-red-500 flex items-center justify-center transition-all shadow-md hover:shadow-lg"
+                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-border flex items-center justify-center transition-all shadow-md hover:shadow-lg"
                   aria-label="Email"
                 >
-                  <Mail className="w-5 h-5 text-red-500 stroke-[1.75]" />
+                  <Mail className="w-5 h-5 text-primary stroke-[1.75]" />
                 </motion.a>
               )}
               
@@ -520,10 +520,10 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-pink-500 flex items-center justify-center transition-all shadow-md hover:shadow-lg"
+                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-primary flex items-center justify-center transition-all shadow-md hover:shadow-lg"
                   aria-label="Instagram"
                 >
-                  <Instagram className="w-5 h-5 text-pink-500 stroke-[1.75]" />
+                  <Instagram className="w-5 h-5 text-primary stroke-[1.75]" />
                 </motion.a>
               )}
               
@@ -534,10 +534,10 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-red-600 flex items-center justify-center transition-all shadow-md hover:shadow-lg"
+                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-border flex items-center justify-center transition-all shadow-md hover:shadow-lg"
                   aria-label="YouTube"
                 >
-                  <Youtube className="w-5 h-5 text-red-600 stroke-[1.75]" />
+                  <Youtube className="w-5 h-5 text-primary stroke-[1.75]" />
                 </motion.a>
               )}
               
@@ -548,10 +548,10 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-purple-600 flex items-center justify-center transition-all shadow-md hover:shadow-lg"
+                  className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 hover:border-primary flex items-center justify-center transition-all shadow-md hover:shadow-lg"
                   aria-label="Warpcast"
                 >
-                  <Hash className="w-5 h-5 text-purple-600 stroke-[1.75]" />
+                  <Hash className="w-5 h-5 text-primary stroke-[1.75]" />
                 </motion.a>
               )}
             </div>
@@ -664,7 +664,7 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
               {data.team.map((member, idx) => (
                 <GlassCard key={idx}>
                   <div className="p-4 flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center overflow-hidden flex-shrink-0">
                       {member.avatar ? (
                         <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
                       ) : (
@@ -677,7 +677,7 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
                       <div className="flex items-center gap-2">
                         <h3 className="text-white font-semibold truncate">{member.name}</h3>
                         {member.verified && (
-                          <BadgeCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                          <BadgeCheck className="w-4 h-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <p className="text-white/60 text-sm truncate">{member.role}</p>
@@ -702,7 +702,7 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
               {data.projects.map((project, idx) => (
                 <GlassCard key={idx}>
                   <div className="p-4 flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center overflow-hidden flex-shrink-0">
                       {project.logo ? (
                         <img src={project.logo} alt={project.name} className="w-full h-full object-cover" />
                       ) : (
@@ -715,7 +715,7 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
                       <div className="flex items-center gap-2">
                         <h3 className="text-white font-semibold truncate">{project.name}</h3>
                         {project.verified && (
-                          <BadgeCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                          <BadgeCheck className="w-4 h-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       {project.role && (

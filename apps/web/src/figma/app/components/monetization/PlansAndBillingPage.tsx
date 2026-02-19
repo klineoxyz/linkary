@@ -20,7 +20,7 @@ export default function PlansAndBillingPage({ setRoute, initialTab = "plans" }: 
               type="button"
               onClick={() => setTab("plans")}
               className={`flex items-center gap-2 h-10 px-4 rounded-lg text-sm font-medium transition-colors ${
-                tab === "plans" ? "bg-indigo-100 text-indigo-700" : "text-zinc-600 hover:bg-zinc-100"
+                tab === "plans" ? "bg-accent text-primary" : "text-zinc-600 hover:bg-zinc-100"
               }`}
             >
               <DollarSign className="h-4 w-4" />
@@ -30,7 +30,7 @@ export default function PlansAndBillingPage({ setRoute, initialTab = "plans" }: 
               type="button"
               onClick={() => setTab("billing")}
               className={`flex items-center gap-2 h-10 px-4 rounded-lg text-sm font-medium transition-colors ${
-                tab === "billing" ? "bg-indigo-100 text-indigo-700" : "text-zinc-600 hover:bg-zinc-100"
+                tab === "billing" ? "bg-accent text-primary" : "text-zinc-600 hover:bg-zinc-100"
               }`}
             >
               <Receipt className="h-4 w-4" />

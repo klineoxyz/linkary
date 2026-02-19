@@ -32,28 +32,28 @@ export function TierDistributionBar({ tiers }: { tiers: { nano: number; micro: n
       <div className="w-full h-2 rounded-full bg-zinc-100 overflow-hidden flex">
         {tiers.nano > 0 && (
           <div
-            className="h-full bg-blue-400"
+            className="h-full bg-primary"
             style={{ width: `${nanoPercent}%` }}
             title={`Nano: ${tiers.nano}`}
           />
         )}
         {tiers.micro > 0 && (
           <div
-            className="h-full bg-indigo-400"
+            className="h-full bg-primary"
             style={{ width: `${microPercent}%` }}
             title={`Micro: ${tiers.micro}`}
           />
         )}
         {tiers.mid > 0 && (
           <div
-            className="h-full bg-purple-400"
+            className="h-full bg-primary"
             style={{ width: `${midPercent}%` }}
             title={`Mid: ${tiers.mid}`}
           />
         )}
         {tiers.macro > 0 && (
           <div
-            className="h-full bg-pink-400"
+            className="h-full bg-accent"
             style={{ width: `${macroPercent}%` }}
             title={`Macro: ${tiers.macro}`}
           />
@@ -61,19 +61,19 @@ export function TierDistributionBar({ tiers }: { tiers: { nano: number; micro: n
       </div>
       <div className="flex items-center justify-between mt-2 text-xs text-zinc-600">
         <div className="flex items-center gap-1">
-          <div className="h-2 w-2 rounded-full bg-blue-400" />
+          <div className="h-2 w-2 rounded-full bg-primary" />
           <span>Nano ({tiers.nano})</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="h-2 w-2 rounded-full bg-indigo-400" />
+          <div className="h-2 w-2 rounded-full bg-primary" />
           <span>Micro ({tiers.micro})</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="h-2 w-2 rounded-full bg-purple-400" />
+          <div className="h-2 w-2 rounded-full bg-primary" />
           <span>Mid ({tiers.mid})</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="h-2 w-2 rounded-full bg-pink-400" />
+          <div className="h-2 w-2 rounded-full bg-accent" />
           <span>Macro ({tiers.macro})</span>
         </div>
       </div>
@@ -84,10 +84,10 @@ export function TierDistributionBar({ tiers }: { tiers: { nano: number; micro: n
 // Creator Row Card
 export function CreatorRowCard({ creator, isSelected, onToggle }: any) {
   const getTierBadge = (reach: number) => {
-    if (reach < 10000) return { label: "Nano", color: "bg-blue-100 text-blue-700 border-blue-200" };
-    if (reach < 100000) return { label: "Micro", color: "bg-indigo-100 text-indigo-700 border-indigo-200" };
-    if (reach < 1000000) return { label: "Mid", color: "bg-purple-100 text-purple-700 border-purple-200" };
-    return { label: "Macro", color: "bg-pink-100 text-pink-700 border-pink-200" };
+    if (reach < 10000) return { label: "Nano", color: "bg-accent text-foreground border-border" };
+    if (reach < 100000) return { label: "Micro", color: "bg-accent text-foreground border-border" };
+    if (reach < 1000000) return { label: "Mid", color: "bg-accent text-foreground border-border" };
+    return { label: "Macro", color: "bg-accent text-foreground border-border" };
   };
 
   const tier = getTierBadge(creator.reach || 0);
@@ -95,18 +95,18 @@ export function CreatorRowCard({ creator, isSelected, onToggle }: any) {
   return (
     <div
       className={cn(
-        "rounded-lg border bg-white p-4 hover:border-indigo-300 transition-all duration-300 shadow-sm cursor-pointer",
-        isSelected ? "border-indigo-500 bg-indigo-50" : "border-zinc-200"
+        "rounded-lg border bg-white p-4 hover:border-border transition-all duration-300 shadow-sm cursor-pointer",
+        isSelected ? "border-border bg-accent" : "border-zinc-200"
       )}
       onClick={onToggle}
     >
       <div className="flex items-center gap-4">
-        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 flex-shrink-0" />
+        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/80 flex-shrink-0" />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="font-semibold text-zinc-900 truncate">{creator.name}</span>
-            {creator.verified && <BadgeCheck className="h-4 w-4 text-emerald-600 flex-shrink-0" />}
+            {creator.verified && <BadgeCheck className="h-4 w-4 text-primary flex-shrink-0" />}
           </div>
           <div className="flex items-center gap-2 text-sm text-zinc-600">
             <span>@{creator.handle}</span>
@@ -120,7 +120,7 @@ export function CreatorRowCard({ creator, isSelected, onToggle }: any) {
           </div>
 
           {creator.topGeo && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs text-indigo-700">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-accent px-2.5 py-0.5 text-xs text-foreground">
               <MapPin className="h-3 w-3" />
               {creator.topGeo}
             </span>
@@ -134,8 +134,8 @@ export function CreatorRowCard({ creator, isSelected, onToggle }: any) {
             className={cn(
               "h-8 w-8 rounded-lg flex items-center justify-center transition-colors",
               isSelected
-                ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                : "border border-zinc-200 bg-white text-zinc-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300"
+                ? "bg-primary text-primary-foreground hover:opacity-90"
+                : "border border-zinc-200 bg-white text-zinc-600 hover:bg-accent hover:text-primary hover:border-border"
             )}
             onClick={(e) => {
               e.stopPropagation();
@@ -152,7 +152,7 @@ export function CreatorRowCard({ creator, isSelected, onToggle }: any) {
           {creator.roleTags.slice(0, 4).map((tag: string) => (
             <span
               key={tag}
-              className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs text-purple-700 font-medium"
+              className="inline-flex items-center rounded-full border border-border bg-accent px-2 py-0.5 text-xs text-primary font-medium"
             >
               {tag}
             </span>
@@ -193,7 +193,7 @@ export function KOLSelectionSummaryCard({ selectedCreators, onSave, onInviteToGi
   // Overlap risk placeholder
   const overlapRisk = selectedCreators.length > 10 ? "Medium" : selectedCreators.length > 5 ? "Low" : "Very Low";
   const overlapColor =
-    overlapRisk === "Medium" ? "text-amber-700 bg-amber-50 border-amber-200" : "text-emerald-700 bg-emerald-50 border-emerald-200";
+    overlapRisk === "Medium" ? "text-foreground bg-muted border-border" : "text-foreground bg-accent border-border";
 
   if (selectedCreators.length === 0) {
     return (
@@ -210,7 +210,7 @@ export function KOLSelectionSummaryCard({ selectedCreators, onSave, onInviteToGi
   }
 
   return (
-    <div className="rounded-xl border border-indigo-200 bg-white p-6 shadow-sm space-y-6">
+    <div className="rounded-xl border border-border bg-white p-6 shadow-sm space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -223,10 +223,10 @@ export function KOLSelectionSummaryCard({ selectedCreators, onSave, onInviteToGi
       </div>
 
       {/* Total Reach */}
-      <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-4">
+      <div className="rounded-lg border border-border bg-accent p-4">
         <div className="flex items-center justify-between mb-1">
           <span className="text-sm font-medium text-zinc-700">Total Potential Reach</span>
-          <TrendingUp className="h-4 w-4 text-indigo-600" />
+          <TrendingUp className="h-4 w-4 text-primary" />
         </div>
         <div className="text-2xl font-bold text-zinc-900">{totalReach.toLocaleString()}</div>
         <div className="text-xs text-zinc-500 mt-1">Placeholder - calculated by backend</div>
@@ -260,7 +260,7 @@ export function KOLSelectionSummaryCard({ selectedCreators, onSave, onInviteToGi
             {topGeos.map((geo) => (
               <div key={geo.country} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-3 w-3 text-indigo-600" />
+                  <MapPin className="h-3 w-3 text-primary" />
                   <span className="text-sm text-zinc-700">{geo.country}</span>
                 </div>
                 <span className="text-sm font-medium text-zinc-900">{geo.reach.toLocaleString()}</span>
@@ -271,8 +271,8 @@ export function KOLSelectionSummaryCard({ selectedCreators, onSave, onInviteToGi
       )}
 
       {/* Note */}
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-        <div className="text-xs text-amber-800">
+      <div className="rounded-lg border border-border bg-muted p-3">
+        <div className="text-xs text-foreground">
           <strong>Note:</strong> Overlap and projections are estimates. Final calculations implemented in backend.
         </div>
       </div>
@@ -281,14 +281,14 @@ export function KOLSelectionSummaryCard({ selectedCreators, onSave, onInviteToGi
       <div className="space-y-2 pt-4 border-t border-zinc-200">
         <button
           onClick={onSave}
-          className="w-full h-11 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors flex items-center justify-center gap-2"
+          className="w-full h-11 px-4 rounded-lg bg-primary hover:opacity-90 text-primary-foreground font-medium transition-colors flex items-center justify-center gap-2"
         >
           <Award className="h-4 w-4" />
           Save as Circle
         </button>
         <button
           onClick={onInviteToGig}
-          className="w-full h-11 px-4 rounded-lg border border-indigo-200 bg-white hover:bg-indigo-50 text-indigo-600 font-medium transition-colors flex items-center justify-center gap-2"
+          className="w-full h-11 px-4 rounded-lg border border-border bg-white hover:bg-accent text-primary font-medium transition-colors flex items-center justify-center gap-2"
         >
           <Target className="h-4 w-4" />
           Invite to Gig

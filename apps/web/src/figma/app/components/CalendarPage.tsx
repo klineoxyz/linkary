@@ -169,14 +169,14 @@ const demoEvents: CalendarEvent[] = [
 // Event Type Badge
 function EventTypeBadge({ type }: { type: string }) {
   const typeColors: { [key: string]: string } = {
-    Strategy: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
-    Launch: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-    AMA: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-    Review: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-    Workshop: "bg-pink-500/20 text-pink-300 border-pink-500/30",
-    Planning: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-    Education: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-    Pitch: "bg-orange-500/20 text-orange-300 border-orange-500/30",
+    Strategy: "bg-accent text-foreground border-border",
+    Launch: "bg-accent text-foreground border-border",
+    AMA: "bg-accent text-foreground border-border",
+    Review: "bg-accent text-foreground border-border",
+    Workshop: "bg-accent text-foreground border-border",
+    Planning: "bg-accent text-foreground border-border",
+    Education: "bg-accent text-foreground border-border",
+    Pitch: "bg-accent text-primary border-border",
   };
 
   return (
@@ -248,14 +248,14 @@ export default function CalendarPage({ events = demoEvents }: CalendarPageProps)
 
   // Event colors
   const eventGradients: { [key: string]: string } = {
-    Strategy: "from-indigo-600/90 to-purple-600/90",
-    Launch: "from-purple-600/90 to-pink-600/90",
-    AMA: "from-cyan-600/90 to-blue-600/90",
-    Review: "from-amber-600/90 to-orange-600/90",
-    Workshop: "from-pink-600/90 to-rose-600/90",
-    Planning: "from-emerald-600/90 to-teal-600/90",
-    Education: "from-blue-600/90 to-indigo-600/90",
-    Pitch: "from-orange-600/90 to-red-600/90",
+    Strategy: "from-primary/90 to-primary/70",
+    Launch: "from-primary/90 to-primary/70",
+    AMA: "from-primary/90 to-primary/70",
+    Review: "from-primary/90 to-primary/70",
+    Workshop: "from-primary/90 to-primary/70",
+    Planning: "from-primary/90 to-primary/70",
+    Education: "from-primary/90 to-primary/70",
+    Pitch: "from-primary/90 to-primary/70",
   };
 
   const eventBackgrounds = [
@@ -277,8 +277,8 @@ export default function CalendarPage({ events = demoEvents }: CalendarPageProps)
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/20">
-                <CalendarIcon className="w-7 h-7 text-indigo-400 stroke-[1.75]" />
+              <div className="p-3 rounded-2xl bg-accent border border-border">
+                <CalendarIcon className="w-7 h-7 text-primary stroke-[1.75]" />
               </div>
               Calendar
             </h1>
@@ -294,7 +294,7 @@ export default function CalendarPage({ events = demoEvents }: CalendarPageProps)
                   onClick={() => setView(v as "month" | "week" | "day")}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                     view === v
-                      ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg"
+                      ? "bg-primary text-primary-foreground shadow-lg"
                       : "text-gray-600 hover:text-gray-900 hover:bg-white/5"
                   }`}
                 >
@@ -303,7 +303,7 @@ export default function CalendarPage({ events = demoEvents }: CalendarPageProps)
               ))}
             </GlassCard>
 
-            <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-medium hover:from-indigo-600 hover:to-purple-600 transition-all shadow-lg hover:shadow-indigo-500/25 flex items-center gap-2">
+            <button className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 transition-all shadow-lg flex items-center gap-2">
               <Plus className="w-4 h-4" />
               New Event
             </button>
@@ -397,14 +397,14 @@ export default function CalendarPage({ events = demoEvents }: CalendarPageProps)
                       day
                         ? "bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer"
                         : "bg-transparent border-transparent"
-                    } ${isToday ? "ring-2 ring-indigo-500" : ""}`}
+                    } ${isToday ? "ring-2 ring-ring" : ""}`}
                   >
                     {day && (
                       <>
                         <div
                           className={`text-sm font-semibold mb-2 ${
                             isToday
-                              ? "bg-indigo-500 text-white w-6 h-6 rounded-full flex items-center justify-center"
+                              ? "bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center"
                               : "text-gray-700"
                           }`}
                         >
@@ -439,7 +439,7 @@ export default function CalendarPage({ events = demoEvents }: CalendarPageProps)
         {(view === "week" || view === "day") && (
           <GlassCard className="p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <List className="w-5 h-5 text-indigo-400 stroke-[1.75]" />
+              <List className="w-5 h-5 text-primary stroke-[1.75]" />
               {view === "week" ? "This Week's Events" : "Today's Events"}
             </h3>
             <div className="space-y-3">
@@ -550,7 +550,7 @@ export default function CalendarPage({ events = demoEvents }: CalendarPageProps)
 
                   <div className="space-y-4 mb-6">
                     <div className="flex items-center gap-3 text-neutral-300">
-                      <Clock className="w-5 h-5 text-indigo-400" />
+                      <Clock className="w-5 h-5 text-primary" />
                       <div>
                         <div className="font-medium">{selectedEvent.start}</div>
                         <div className="text-sm text-neutral-500">to {selectedEvent.end}</div>
@@ -559,13 +559,13 @@ export default function CalendarPage({ events = demoEvents }: CalendarPageProps)
 
                     {selectedEvent.location && (
                       <div className="flex items-center gap-3 text-neutral-300">
-                        <MapPin className="w-5 h-5 text-purple-400" />
+                        <MapPin className="w-5 h-5 text-primary" />
                         <div>{selectedEvent.location}</div>
                       </div>
                     )}
 
                     <div className="flex items-center gap-3 text-neutral-300">
-                      <Users className="w-5 h-5 text-cyan-400" />
+                      <Users className="w-5 h-5 text-primary" />
                       <div>
                         Host: <span className="font-medium">{selectedEvent.host}</span>
                       </div>
@@ -573,7 +573,7 @@ export default function CalendarPage({ events = demoEvents }: CalendarPageProps)
 
                     {selectedEvent.attendees && (
                       <div className="flex items-center gap-3 text-neutral-300">
-                        <Users className="w-5 h-5 text-emerald-400" />
+                        <Users className="w-5 h-5 text-primary" />
                         <div>{selectedEvent.attendees} attendees expected</div>
                       </div>
                     )}
@@ -596,7 +596,7 @@ export default function CalendarPage({ events = demoEvents }: CalendarPageProps)
                               {selectedEvent.speakers?.length || 0} of {selectedEvent.speakerSlots} slots filled
                             </div>
                           </div>
-                          <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:from-indigo-600 hover:to-purple-600 transition-all font-medium">
+                          <button className="px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-all font-medium">
                             Apply to Speak
                           </button>
                         </div>
@@ -605,7 +605,7 @@ export default function CalendarPage({ events = demoEvents }: CalendarPageProps)
                   </div>
 
                   <div className="flex gap-3">
-                    <button className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:from-indigo-600 hover:to-purple-600 transition-all font-medium shadow-lg">
+                    <button className="flex-1 px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-all font-medium shadow-lg">
                       Join Event
                     </button>
                     <button className="px-4 py-3 bg-white/5 border border-white/10 text-neutral-300 hover:bg-white/10 hover:text-white rounded-xl transition-all font-medium">

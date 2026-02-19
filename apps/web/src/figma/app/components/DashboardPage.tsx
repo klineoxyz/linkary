@@ -168,11 +168,11 @@ const activityData = [
 ];
 
 const categoryDistribution = [
-  { name: "Marketing", value: 35, color: "#8b5cf6" },
-  { name: "Development", value: 25, color: "#06b6d4" },
-  { name: "Design", value: 20, color: "#ec4899" },
-  { name: "Content", value: 15, color: "#f59e0b" },
-  { name: "Other", value: 5, color: "#6366f1" },
+  { name: "Marketing", value: 35, color: "var(--chart-1)" },
+  { name: "Development", value: 25, color: "var(--chart-2)" },
+  { name: "Design", value: 20, color: "var(--chart-3)" },
+  { name: "Content", value: 15, color: "var(--chart-4)" },
+  { name: "Other", value: 5, color: "var(--chart-5)" },
 ];
 
 const skillsRadarData = [
@@ -189,7 +189,7 @@ const demoBrands: Brand[] = [
     id: "1",
     name: "MatrixPay",
     logo: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200&q=80",
-    color: "from-purple-500 to-pink-500",
+    color: "from-primary to-primary/80",
     category: "Fintech",
     created: "2025-09-15",
     totalRevenue: 8450,
@@ -203,7 +203,7 @@ const demoBrands: Brand[] = [
     id: "2",
     name: "Web3 Creators Hub",
     logo: "https://images.unsplash.com/photo-1639322537228-f710d846310a?w=200&q=80",
-    color: "from-emerald-500 to-cyan-500",
+    color: "from-primary to-primary/80",
     category: "Media",
     created: "2025-11-20",
     totalRevenue: 4200,
@@ -217,7 +217,7 @@ const demoBrands: Brand[] = [
     id: "3",
     name: "ChainLink Studios",
     logo: "https://images.unsplash.com/photo-1620321023374-d1a68fbc720d?w=200&q=80",
-    color: "from-blue-500 to-cyan-500",
+    color: "from-primary to-primary/80",
     category: "Gaming",
     created: "2025-08-10",
     totalRevenue: 12750,
@@ -231,7 +231,7 @@ const demoBrands: Brand[] = [
     id: "4",
     name: "NFT Gallery Pro",
     logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&q=80",
-    color: "from-pink-500 to-rose-500",
+    color: "from-primary to-primary/80",
     category: "NFT Platform",
     created: "2025-10-05",
     totalRevenue: 6890,
@@ -245,7 +245,7 @@ const demoBrands: Brand[] = [
     id: "5",
     name: "DeFi Analytics",
     logo: "https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=200&q=80",
-    color: "from-indigo-500 to-purple-500",
+    color: "from-primary to-primary/90",
     category: "Analytics",
     created: "2025-07-22",
     totalRevenue: 9320,
@@ -259,7 +259,7 @@ const demoBrands: Brand[] = [
     id: "6",
     name: "MetaVerse Events",
     logo: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=200&q=80",
-    color: "from-amber-500 to-orange-500",
+    color: "from-primary to-primary/80",
     category: "Events",
     created: "2025-12-01",
     totalRevenue: 3560,
@@ -281,10 +281,10 @@ const brandPerformanceData = [
 ];
 
 const brandAudienceData = [
-  { source: "Organic", value: 45, color: "#8b5cf6" },
-  { source: "Referral", value: 30, color: "#06b6d4" },
-  { source: "Social", value: 20, color: "#ec4899" },
-  { source: "Direct", value: 5, color: "#f59e0b" },
+  { source: "Organic", value: 45, color: "var(--chart-1)" },
+  { source: "Referral", value: 30, color: "var(--chart-2)" },
+  { source: "Social", value: 20, color: "var(--chart-3)" },
+  { source: "Direct", value: 5, color: "var(--chart-4)" },
 ];
 
 // Social Growth Data
@@ -452,12 +452,12 @@ function StatCard({
     <GlassCard hover className="group">
       <div className="p-6">
         <div className="flex items-start justify-between mb-4">
-          <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 group-hover:scale-110 transition-transform duration-300">
-            <Icon className="w-5 h-5 text-indigo-400 stroke-[1.75]" />
+          <div className="p-3 rounded-2xl bg-gradient-to-br bg-accent border border-border group-hover:scale-110 transition-transform duration-300">
+            <Icon className="w-5 h-5 text-primary stroke-[1.75]" />
           </div>
           <div
             className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
-              isPositive ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+              isPositive ? "bg-primary/20 text-primary" : "bg-destructive/20 text-destructive"
             }`}
           >
             <ChangeIcon className="w-3 h-3 stroke-[1.75]" />
@@ -490,7 +490,7 @@ function BrandCard({ brand, onSelect }: { brand: Brand; onSelect: () => void }) 
                 <span className="px-2 py-0.5 rounded-full bg-white/10 text-xs">{brand.category}</span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
-                  <Star className="w-3 h-3 text-amber-400 fill-amber-400 stroke-[1.75]" />
+                  <Star className="w-3 h-3 text-primary fill-primary stroke-[1.75]" />
                   {brand.rating}
                 </span>
               </div>
@@ -512,9 +512,9 @@ function BrandCard({ brand, onSelect }: { brand: Brand; onSelect: () => void }) 
             </div>
           </div>
           
-          <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border border-emerald-500/30 backdrop-blur-xl">
+          <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-border backdrop-blur-xl">
             <div className="flex items-center gap-2 text-sm text-gray-700">
-              <Activity className="w-4 h-4 text-emerald-400 stroke-[1.75]" />
+              <Activity className="w-4 h-4 text-primary stroke-[1.75]" />
               Engagement Rate
             </div>
             <div className="font-bold text-gray-900">{brand.engagement}%</div>
@@ -573,7 +573,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 setSearchQuery(e.target.value);
                 setShowSearchResults(e.target.value.length > 0);
               }}
-              className="w-full bg-gradient-to-r from-indigo-500/5 to-purple-500/5 border border-indigo-500/20 rounded-2xl pl-12 pr-12 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-500/40 transition-all"
+              className="w-full bg-gradient-to-r bg-card border border-border rounded-2xl pl-12 pr-12 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-border transition-all"
             />
             {searchQuery && (
               <button
@@ -612,7 +612,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                             setRoute({ name: "userProfile", data: user });
                           }
                         }}
-                        className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 hover:border-indigo-500/40 transition-all cursor-pointer hover:scale-105"
+                        className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all cursor-pointer hover:scale-105"
                       >
                         <div className="flex items-start gap-3">
                           <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full" />
@@ -620,10 +620,10 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                             <h4 className="font-semibold text-gray-900 truncate">{user.name}</h4>
                             <p className="text-xs text-gray-600 truncate mb-2">{user.role}</p>
                             <div className="flex items-center gap-2 text-xs">
-                              <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
+                              <span className="px-2 py-0.5 rounded-full bg-accent text-foreground">
                                 ETHOS {user.ethos}
                               </span>
-                              <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300">
+                              <span className="px-2 py-0.5 rounded-full bg-accent text-foreground">
                                 X {user.xscore}
                               </span>
                             </div>
@@ -649,14 +649,14 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                             setRoute({ name: "brandProfile", data: project });
                           }
                         }}
-                        className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 hover:border-emerald-500/40 transition-all cursor-pointer hover:scale-105"
+                        className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all cursor-pointer hover:scale-105"
                       >
                         <div className="flex items-start gap-3">
                           <img src={project.logo} alt={project.name} className="w-12 h-12 rounded-xl" />
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-gray-900 truncate">{project.name}</h4>
                             <p className="text-xs text-gray-600 mb-2">{project.category}</p>
-                            <div className="flex items-center gap-1 text-xs text-emerald-400">
+                            <div className="flex items-center gap-1 text-xs text-primary">
                               <Target className="w-3 h-3 stroke-[1.75]" />
                               Looking: {project.looking}
                             </div>
@@ -677,13 +677,13 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-indigo-400 stroke-[1.75]" />
+              <Building2 className="w-5 h-5 text-primary stroke-[1.75]" />
               My Orgs
             </h3>
             {userId ? (
               <button
                 onClick={() => setShowCreateOrg(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-medium"
               >
                 <Plus className="w-4 h-4 stroke-[1.75]" />
                 Create Org
@@ -700,14 +700,14 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               <div
                 key={org.id}
                 onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id } })}
-                className="p-4 rounded-xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 hover:border-indigo-500/40 cursor-pointer transition-all"
+                className="p-4 rounded-xl border border-border bg-gradient-to-br bg-card hover:border-border cursor-pointer transition-all"
               >
                 <div className="flex items-center gap-3">
                   {org.logo_url ? (
                     <img src={org.logo_url} alt={org.name} className="w-10 h-10 rounded-lg object-cover" />
                   ) : (
-                    <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-                      <Building2 className="w-5 h-5 text-indigo-400" />
+                    <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
+                      <Building2 className="w-5 h-5 text-primary" />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
@@ -726,42 +726,42 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
       <GlassCard>
         <div className="p-6">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Eye className="w-5 h-5 text-indigo-400 stroke-[1.75]" />
+            <Eye className="w-5 h-5 text-primary stroke-[1.75]" />
             Profile Showcase
-            <span className="text-xs px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-medium ml-2">Demo</span>
+            <span className="text-xs px-2 py-1 rounded-full bg-accent text-primary border border-border font-medium ml-2">Demo</span>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <button onClick={() => setRoute && setRoute({ name: "creatorProfile" })} className="p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 hover:border-indigo-500/40 transition-all hover:scale-105 text-left group">
+            <button onClick={() => setRoute && setRoute({ name: "creatorProfile" })} className="p-5 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-xl bg-indigo-500/20 border border-indigo-500/30"><Users className="w-5 h-5 text-indigo-400 stroke-[1.75]" /></div>
+                <div className="p-2 rounded-xl bg-accent border border-border"><Users className="w-5 h-5 text-primary stroke-[1.75]" /></div>
                 <h4 className="font-semibold text-gray-900">Creator</h4>
               </div>
               <p className="text-xs text-gray-600 mb-2">Creators, developers, freelancers</p>
-              <div className="flex items-center gap-2 text-xs text-indigo-400"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
+              <div className="flex items-center gap-2 text-xs text-primary"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
             </button>
-            <button onClick={() => setRoute && setRoute({ name: "brandProfile" })} className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 hover:border-emerald-500/40 transition-all hover:scale-105 text-left group">
+            <button onClick={() => setRoute && setRoute({ name: "brandProfile" })} className="p-5 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30"><Building2 className="w-5 h-5 text-emerald-400 stroke-[1.75]" /></div>
+                <div className="p-2 rounded-xl bg-primary/20 border border-primary/30"><Building2 className="w-5 h-5 text-primary stroke-[1.75]" /></div>
                 <h4 className="font-semibold text-gray-900">Project</h4>
               </div>
               <p className="text-xs text-gray-600 mb-2">Web3 projects & protocols</p>
-              <div className="flex items-center gap-2 text-xs text-emerald-400"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
+              <div className="flex items-center gap-2 text-xs text-primary"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
             </button>
-            <button onClick={() => setRoute && setRoute({ name: "agencyProfile" })} className="p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover:border-purple-500/40 transition-all hover:scale-105 text-left group">
+            <button onClick={() => setRoute && setRoute({ name: "agencyProfile" })} className="p-5 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-xl bg-purple-500/20 border border-purple-500/30"><Briefcase className="w-5 h-5 text-purple-400 stroke-[1.75]" /></div>
+                <div className="p-2 rounded-xl bg-accent border border-border"><Briefcase className="w-5 h-5 text-primary stroke-[1.75]" /></div>
                 <h4 className="font-semibold text-gray-900">Agency</h4>
               </div>
               <p className="text-xs text-gray-600 mb-2">Marketing agencies & services</p>
-              <div className="flex items-center gap-2 text-xs text-purple-400"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
+              <div className="flex items-center gap-2 text-xs text-primary"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
             </button>
-            <button onClick={() => setRoute && setRoute({ name: "userProfile" })} className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all hover:scale-105 text-left group">
+            <button onClick={() => setRoute && setRoute({ name: "userProfile" })} className="p-5 rounded-2xl bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-xl bg-amber-500/20 border border-amber-500/30"><User className="w-5 h-5 text-amber-400 stroke-[1.75]" /></div>
+                <div className="p-2 rounded-xl bg-accent border border-border"><User className="w-5 h-5 text-primary stroke-[1.75]" /></div>
                 <h4 className="font-semibold text-gray-900">User</h4>
               </div>
               <p className="text-xs text-gray-600 mb-2">General user profiles</p>
-              <div className="flex items-center gap-2 text-xs text-amber-400"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
+              <div className="flex items-center gap-2 text-xs text-primary"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
             </button>
           </div>
         </div>
@@ -770,7 +770,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-purple-700 to-pink-700 bg-clip-text text-transparent mb-2">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground via-primary to-primary/80 bg-clip-text text-transparent mb-2">
             Analytics Dashboard
           </h1>
           <p className="text-gray-600">Track your performance and manage your brands</p>
@@ -778,7 +778,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
         
         {/* View Toggle */}
         <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 backdrop-blur-xl border border-indigo-500/30 p-1 flex">
+          <div className="rounded-2xl bg-gradient-to-br bg-accent backdrop-blur-xl border border-border p-1 flex">
             <button
               onClick={() => {
                 setView("personal");
@@ -786,7 +786,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               }}
               className={`px-6 py-2.5 rounded-xl font-medium transition-all duration-300 ${
                 view === "personal"
-                  ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg"
+                  ? "bg-gradient-to-r from-primary to-primary/90 text-white shadow-lg"
                   : "text-gray-600 hover:text-gray-900"
               }`}
             >
@@ -796,7 +796,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               onClick={() => setView("brands")}
               className={`px-6 py-2.5 rounded-xl font-medium transition-all duration-300 ${
                 view === "brands"
-                  ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg"
+                  ? "bg-gradient-to-r from-primary to-primary/90 text-white shadow-lg"
                   : "text-gray-600 hover:text-gray-900"
               }`}
             >
@@ -907,7 +907,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   </div>
                   <button
                     onClick={() => setView("brands")}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-300 hover:border-indigo-500/50 transition-all"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r bg-accent border border-border text-primary hover:border-border transition-all"
                   >
                     View All
                     <ArrowUpRight className="w-4 h-4 stroke-[1.75]" />
@@ -923,7 +923,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                         setSelectedBrand(brand);
                         setView("brands");
                       }}
-                      className={`cursor-pointer transition-all ${selectedBrand?.id === brand.id ? 'ring-2 ring-indigo-500/50' : ''}`}
+                      className={`cursor-pointer transition-all ${selectedBrand?.id === brand.id ? 'ring-2 ring-ring' : ''}`}
                     >
                       <GlassCard className="group">
                         <div className="p-6 space-y-5">
@@ -937,7 +937,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                                 <span className="px-2.5 py-1 rounded-full bg-white/10 text-xs font-medium">{brand.category}</span>
                                 <span>•</span>
                                 <span className="flex items-center gap-1">
-                                  <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 stroke-[1.75]" />
+                                  <Star className="w-3.5 h-3.5 text-primary fill-primary stroke-[1.75]" />
                                   <span className="font-medium">{brand.rating}</span>
                                 </span>
                               </div>
@@ -945,15 +945,15 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                           </div>
                           
                           <div className="grid grid-cols-3 gap-4">
-                            <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20">
+                            <div className="p-3.5 rounded-xl bg-gradient-to-br bg-accent border border-border">
                               <div className="text-xs text-gray-600 mb-1.5">Revenue</div>
                               <div className="font-bold text-gray-900 text-sm">€{brand.totalRevenue.toLocaleString()}</div>
                             </div>
-                            <div className="p-3.5 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20">
+                            <div className="p-3.5 rounded-xl bg-gradient-to-br bg-accent border border-border">
                               <div className="text-xs text-gray-600 mb-1.5">Projects</div>
                               <div className="font-bold text-gray-900 text-sm">{brand.completedProjects + brand.activeProjects}</div>
                             </div>
-                            <div className="p-3.5 rounded-xl bg-gradient-to-br from-pink-500/10 to-rose-500/10 border border-pink-500/20">
+                            <div className="p-3.5 rounded-xl bg-gradient-to-br bg-accent border border-border">
                               <div className="text-xs text-gray-600 mb-1.5">Engagement</div>
                               <div className="font-bold text-gray-900 text-sm">{brand.engagement}%</div>
                             </div>
@@ -968,7 +968,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                                     setRoute({ name: "brandProfile", data: brand });
                                   }
                                 }}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:from-indigo-600 hover:to-purple-600 transition-all font-medium text-sm"
+                                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary to-primary/90 text-white hover:opacity-90 transition-all font-medium text-sm"
                               >
                                 <Building2 className="w-4 h-4 stroke-[1.75]" />
                                 View Full Brand Profile
@@ -1056,38 +1056,38 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                       <h3 className="text-lg font-bold text-gray-900 mb-1">Volume Trend</h3>
                       <p className="text-sm text-gray-600">Personal vs Brand Activity</p>
                     </div>
-                    <div className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
-                      <TrendingUp className="w-5 h-5 text-emerald-400 stroke-[1.75]" />
+                    <div className="p-2 rounded-xl bg-primary/20 border border-primary/30">
+                      <TrendingUp className="w-5 h-5 text-primary stroke-[1.75]" />
                     </div>
                   </div>
                   <ResponsiveContainer width="100%" height={250}>
                     <AreaChart data={volumeData}>
                       <defs>
                         <linearGradient id="personalGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                          <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="brandsGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                          <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                      <XAxis dataKey="month" stroke="#71717a" style={{ fontSize: "12px" }} />
-                      <YAxis stroke="#71717a" style={{ fontSize: "12px" }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="month" stroke="var(--muted-foreground)" style={{ fontSize: "12px" }} />
+                      <YAxis stroke="var(--muted-foreground)" style={{ fontSize: "12px" }} />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "rgba(0, 0, 0, 0.8)",
-                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          backgroundColor: "var(--card)",
+                          border: "1px solid var(--border)",
                           borderRadius: "12px",
-                          color: "#fff",
+                          color: "var(--foreground)",
                         }}
                       />
                       <Legend />
                       <Area
                         type="monotone"
                         dataKey="personal"
-                        stroke="#8b5cf6"
+                        stroke="var(--chart-1)"
                         fillOpacity={1}
                         fill="url(#personalGradient)"
                         strokeWidth={2}
@@ -1095,7 +1095,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                       <Area
                         type="monotone"
                         dataKey="brands"
-                        stroke="#06b6d4"
+                        stroke="var(--chart-2)"
                         fillOpacity={1}
                         fill="url(#brandsGradient)"
                         strokeWidth={2}
@@ -1113,27 +1113,27 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                       <h3 className="text-lg font-bold text-gray-900 mb-1">Reputation Growth</h3>
                       <p className="text-sm text-gray-600">ETHOS, XScore & Index</p>
                     </div>
-                    <div className="p-2 rounded-xl bg-purple-500/20 border border-purple-500/30">
-                      <Award className="w-5 h-5 text-purple-400 stroke-[1.75]" />
+                    <div className="p-2 rounded-xl bg-accent border border-border">
+                      <Award className="w-5 h-5 text-primary stroke-[1.75]" />
                     </div>
                   </div>
                   <ResponsiveContainer width="100%" height={250}>
                     <LineChart data={reputationData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                      <XAxis dataKey="month" stroke="#71717a" style={{ fontSize: "12px" }} />
-                      <YAxis stroke="#71717a" style={{ fontSize: "12px" }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="month" stroke="var(--muted-foreground)" style={{ fontSize: "12px" }} />
+                      <YAxis stroke="var(--muted-foreground)" style={{ fontSize: "12px" }} />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "rgba(0, 0, 0, 0.8)",
-                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          backgroundColor: "var(--card)",
+                          border: "1px solid var(--border)",
                           borderRadius: "12px",
-                          color: "#fff",
+                          color: "var(--foreground)",
                         }}
                       />
                       <Legend />
-                      <Line type="monotone" dataKey="ethos" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4 }} />
-                      <Line type="monotone" dataKey="xscore" stroke="#06b6d4" strokeWidth={2} dot={{ r: 4 }} />
-                      <Line type="monotone" dataKey="index" stroke="#ec4899" strokeWidth={2} dot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="ethos" stroke="var(--chart-1)" strokeWidth={2} dot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="xscore" stroke="var(--chart-2)" strokeWidth={2} dot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="index" stroke="var(--chart-3)" strokeWidth={2} dot={{ r: 4 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -1151,27 +1151,27 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                         <h3 className="text-lg font-bold text-gray-900 mb-1">Weekly Activity</h3>
                         <p className="text-sm text-gray-600">Projects, Reviews & Messages</p>
                       </div>
-                      <div className="p-2 rounded-xl bg-indigo-500/20 border border-indigo-500/30">
-                        <BarChart3 className="w-5 h-5 text-indigo-400 stroke-[1.75]" />
+                      <div className="p-2 rounded-xl bg-accent border border-border">
+                        <BarChart3 className="w-5 h-5 text-primary stroke-[1.75]" />
                       </div>
                     </div>
                     <ResponsiveContainer width="100%" height={250}>
                       <BarChart data={activityData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                        <XAxis dataKey="day" stroke="#71717a" style={{ fontSize: "12px" }} />
-                        <YAxis stroke="#71717a" style={{ fontSize: "12px" }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                        <XAxis dataKey="day" stroke="var(--muted-foreground)" style={{ fontSize: "12px" }} />
+                        <YAxis stroke="var(--muted-foreground)" style={{ fontSize: "12px" }} />
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: "rgba(0, 0, 0, 0.8)",
-                            border: "1px solid rgba(255, 255, 255, 0.1)",
+                            backgroundColor: "var(--card)",
+                            border: "1px solid var(--border)",
                             borderRadius: "12px",
-                            color: "#fff",
+                            color: "var(--foreground)",
                           }}
                         />
                         <Legend />
-                        <Bar dataKey="projects" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="reviews" fill="#06b6d4" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="messages" fill="#ec4899" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="projects" fill="var(--chart-1)" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="reviews" fill="var(--chart-2)" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="messages" fill="var(--chart-3)" radius={[8, 8, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -1186,8 +1186,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                       <h3 className="text-lg font-bold text-gray-900 mb-1">Categories</h3>
                       <p className="text-sm text-gray-600">Project Distribution</p>
                     </div>
-                    <div className="p-2 rounded-xl bg-pink-500/20 border border-pink-500/30">
-                      <PieChart className="w-5 h-5 text-pink-400 stroke-[1.75]" />
+                    <div className="p-2 rounded-xl bg-accent border border-border">
+                      <PieChart className="w-5 h-5 text-primary stroke-[1.75]" />
                     </div>
                   </div>
                   <ResponsiveContainer width="100%" height={250}>
@@ -1207,10 +1207,10 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                       </Pie>
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "rgba(0, 0, 0, 0.8)",
-                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          backgroundColor: "var(--card)",
+                          border: "1px solid var(--border)",
                           borderRadius: "12px",
-                          color: "#fff",
+                          color: "var(--foreground)",
                         }}
                       />
                     </RePieChart>
@@ -1235,24 +1235,24 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                     <h3 className="text-lg font-bold text-gray-900 mb-1">Skills Comparison</h3>
                     <p className="text-sm text-gray-600">Your Performance vs Industry Average</p>
                   </div>
-                  <div className="p-2 rounded-xl bg-cyan-500/20 border border-cyan-500/30">
-                    <Zap className="w-5 h-5 text-cyan-400 stroke-[1.75]" />
+                  <div className="p-2 rounded-xl bg-accent border border-border">
+                    <Zap className="w-5 h-5 text-primary stroke-[1.75]" />
                   </div>
                 </div>
                 <ResponsiveContainer width="100%" height={350}>
                   <RadarChart data={skillsRadarData}>
-                    <PolarGrid stroke="#ffffff20" />
-                    <PolarAngleAxis dataKey="skill" stroke="#71717a" style={{ fontSize: "12px" }} />
-                    <PolarRadiusAxis angle={90} domain={[0, 100]} stroke="#71717a" tick={false} />
-                    <Radar name="Your Skills" dataKey="personal" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.6} />
-                    <Radar name="Industry Avg" dataKey="industry" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.3} />
+                    <PolarGrid stroke="var(--border)" />
+                    <PolarAngleAxis dataKey="skill" stroke="var(--muted-foreground)" style={{ fontSize: "12px" }} />
+                    <PolarRadiusAxis angle={90} domain={[0, 100]} stroke="var(--muted-foreground)" tick={false} />
+                    <Radar name="Your Skills" dataKey="personal" stroke="var(--chart-1)" fill="var(--chart-1)" fillOpacity={0.6} />
+                    <Radar name="Industry Avg" dataKey="industry" stroke="var(--chart-2)" fill="var(--chart-2)" fillOpacity={0.3} />
                     <Legend />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "rgba(0, 0, 0, 0.8)",
-                        border: "1px solid rgba(255, 255, 255, 0.1)",
+                        backgroundColor: "var(--card)",
+                        border: "1px solid var(--border)",
                         borderRadius: "12px",
-                        color: "#fff",
+                        color: "var(--foreground)",
                       }}
                     />
                   </RadarChart>
@@ -1290,32 +1290,32 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                           <span className="px-3 py-1 rounded-full bg-white/10 text-sm">{selectedBrand.category}</span>
                           <span>•</span>
                           <span className="flex items-center gap-1">
-                            <Star className="w-4 h-4 text-amber-400 fill-amber-400 stroke-[1.75]" />
+                            <Star className="w-4 h-4 text-primary fill-primary stroke-[1.75]" />
                             {selectedBrand.rating} Rating
                           </span>
                           <span>•</span>
                           <span>{selectedBrand.followers.toLocaleString()} Followers</span>
                         </div>
                       </div>
-                      <button className="px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-medium hover:from-indigo-600 hover:to-purple-600 transition-all shadow-lg">
+                      <button className="px-6 py-3 rounded-2xl bg-gradient-to-r from-primary to-primary/90 text-white font-medium hover:opacity-90 transition-all shadow-lg">
                         Edit Brand
                       </button>
                     </div>
                     
                     <div className="grid grid-cols-4 gap-6 lg:gap-8">
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 backdrop-blur-xl hover:border-emerald-500/30 transition-all duration-300">
+                      <div className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border backdrop-blur-xl hover:border-border transition-all duration-300">
                         <div className="text-xs text-gray-600 mb-1">Total Revenue</div>
                         <div className="text-2xl font-bold text-gray-900">€{selectedBrand.totalRevenue.toLocaleString()}</div>
                       </div>
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 backdrop-blur-xl hover:border-indigo-500/30 transition-all duration-300">
+                      <div className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border backdrop-blur-xl hover:border-border transition-all duration-300">
                         <div className="text-xs text-gray-600 mb-1">Active Projects</div>
                         <div className="text-2xl font-bold text-gray-900">{selectedBrand.activeProjects}</div>
                       </div>
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 backdrop-blur-xl hover:border-purple-500/30 transition-all duration-300">
+                      <div className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border backdrop-blur-xl hover:border-border transition-all duration-300">
                         <div className="text-xs text-gray-600 mb-1">Completed</div>
                         <div className="text-2xl font-bold text-gray-900">{selectedBrand.completedProjects}</div>
                       </div>
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-pink-500/10 to-rose-500/10 border border-pink-500/20 backdrop-blur-xl hover:border-pink-500/30 transition-all duration-300">
+                      <div className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border backdrop-blur-xl hover:border-border transition-all duration-300">
                         <div className="text-xs text-gray-600 mb-1">Engagement</div>
                         <div className="text-2xl font-bold text-gray-900">{selectedBrand.engagement}%</div>
                       </div>
@@ -1332,7 +1332,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                          <TrendingUp className="w-5 h-5 text-emerald-400 stroke-[1.75]" />
+                          <TrendingUp className="w-5 h-5 text-primary stroke-[1.75]" />
                           Revenue Trend
                         </h3>
                         <span className="text-xs text-gray-600">Last 6 months</span>
@@ -1349,23 +1349,23 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                           ]}>
                             <defs>
                               <linearGradient id="revenueGradientBrand" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0}/>
                               </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
-                            <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} />
-                            <YAxis stroke="#9ca3af" fontSize={12} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                            <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
+                            <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                             <Tooltip
                               contentStyle={{
-                                backgroundColor: "rgba(0, 0, 0, 0.8)",
-                                border: "1px solid rgba(255, 255, 255, 0.1)",
+                                backgroundColor: "var(--card)",
+                                border: "1px solid var(--border)",
                                 borderRadius: "12px",
                                 backdropFilter: "blur(10px)",
                               }}
-                              labelStyle={{ color: "#fff" }}
+                              labelStyle={{ color: "var(--foreground)" }}
                             />
-                            <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fill="url(#revenueGradientBrand)" />
+                            <Area type="monotone" dataKey="revenue" stroke="var(--chart-1)" strokeWidth={3} fill="url(#revenueGradientBrand)" />
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
@@ -1377,7 +1377,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                          <BarChart3 className="w-5 h-5 text-indigo-400 stroke-[1.75]" />
+                          <BarChart3 className="w-5 h-5 text-primary stroke-[1.75]" />
                           Project Performance
                         </h3>
                         <span className="text-xs text-gray-600">Monthly breakdown</span>
@@ -1392,30 +1392,30 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                             { month: "Jan", completed: 2, active: 3 },
                             { month: "Feb", completed: selectedBrand.completedProjects % 3 || 2, active: selectedBrand.activeProjects },
                           ]}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
-                            <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} />
-                            <YAxis stroke="#9ca3af" fontSize={12} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                            <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
+                            <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                             <Tooltip
                               contentStyle={{
-                                backgroundColor: "rgba(0, 0, 0, 0.8)",
-                                border: "1px solid rgba(255, 255, 255, 0.1)",
+                                backgroundColor: "var(--card)",
+                                border: "1px solid var(--border)",
                                 borderRadius: "12px",
                                 backdropFilter: "blur(10px)",
                               }}
-                              labelStyle={{ color: "#fff" }}
+                              labelStyle={{ color: "var(--foreground)" }}
                             />
-                            <Bar dataKey="completed" fill="#10b981" radius={[8, 8, 0, 0]} />
-                            <Bar dataKey="active" fill="#6366f1" radius={[8, 8, 0, 0]} />
+                            <Bar dataKey="completed" fill="var(--chart-1)" radius={[8, 8, 0, 0]} />
+                            <Bar dataKey="active" fill="var(--chart-2)" radius={[8, 8, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
                       <div className="flex items-center justify-center gap-6 mt-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                          <div className="w-3 h-3 rounded-full bg-primary"></div>
                           <span className="text-xs text-gray-600">Completed</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
+                          <div className="w-3 h-3 rounded-full bg-chart-2"></div>
                           <span className="text-xs text-gray-600">Active</span>
                         </div>
                       </div>
@@ -1427,7 +1427,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                          <Activity className="w-5 h-5 text-pink-400 stroke-[1.75]" />
+                          <Activity className="w-5 h-5 text-primary stroke-[1.75]" />
                           Engagement Metrics
                         </h3>
                       </div>
@@ -1438,7 +1438,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                             <span className="text-sm font-bold text-gray-900">12.4K</span>
                           </div>
                           <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-pink-500 to-rose-500" style={{ width: "78%" }}></div>
+                            <div className="h-full bg-gradient-to-r from-primary to-primary/80" style={{ width: "78%" }}></div>
                           </div>
                         </div>
                         <div>
@@ -1447,7 +1447,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                             <span className="text-sm font-bold text-gray-900">{selectedBrand.engagement}%</span>
                           </div>
                           <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500" style={{ width: `${selectedBrand.engagement}%` }}></div>
+                            <div className="h-full bg-gradient-to-r from-primary to-primary/90" style={{ width: `${selectedBrand.engagement}%` }}></div>
                           </div>
                         </div>
                         <div>
@@ -1456,7 +1456,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                             <span className="text-sm font-bold text-gray-900">34%</span>
                           </div>
                           <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500" style={{ width: "34%" }}></div>
+                            <div className="h-full bg-gradient-to-r from-primary to-primary/80" style={{ width: "34%" }}></div>
                           </div>
                         </div>
                         <div>
@@ -1465,7 +1465,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                             <span className="text-sm font-bold text-gray-900">2.3 hrs</span>
                           </div>
                           <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-amber-500 to-orange-500" style={{ width: "92%" }}></div>
+                            <div className="h-full bg-primary" style={{ width: "92%" }}></div>
                           </div>
                         </div>
                       </div>
@@ -1477,15 +1477,15 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                          <Award className="w-5 h-5 text-amber-400 stroke-[1.75]" />
+                          <Award className="w-5 h-5 text-primary stroke-[1.75]" />
                           Top Projects
                         </h3>
                       </div>
                       <div className="space-y-3">
                         {[
-                          { name: "DeFi Integration", revenue: 2400, rating: 5.0, color: "from-emerald-500 to-cyan-500" },
-                          { name: "NFT Marketplace", revenue: 1800, rating: 4.9, color: "from-pink-500 to-rose-500" },
-                          { name: "Smart Contract Audit", revenue: 1600, rating: 4.8, color: "from-indigo-500 to-purple-500" },
+                          { name: "DeFi Integration", revenue: 2400, rating: 5.0, color: "from-primary to-primary/80" },
+                          { name: "NFT Marketplace", revenue: 1800, rating: 4.9, color: "from-primary to-primary/80" },
+                          { name: "Smart Contract Audit", revenue: 1600, rating: 4.8, color: "from-primary to-primary/90" },
                         ].map((project, i) => (
                           <div key={i} className="p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-white/10">
                             <div className="flex items-center justify-between mb-2">
@@ -1494,13 +1494,13 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                                 <span className="font-semibold text-gray-900 text-sm">{project.name}</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <Star className="w-3 h-3 text-amber-400 fill-amber-400 stroke-[1.75]" />
+                                <Star className="w-3 h-3 text-primary fill-primary stroke-[1.75]" />
                                 <span className="text-sm text-gray-900 font-medium">{project.rating}</span>
                               </div>
                             </div>
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-gray-600">Revenue</span>
-                              <span className="font-bold text-emerald-400">€{project.revenue.toLocaleString()}</span>
+                              <span className="font-bold text-primary">€{project.revenue.toLocaleString()}</span>
                             </div>
                           </div>
                         ))}

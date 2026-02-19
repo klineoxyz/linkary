@@ -16,7 +16,7 @@ export function VerificationBadge({ state, label, size = 'md' }: VerificationBad
 
   if (state === 'verified') {
     return (
-      <span className={`inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 ${padding} ${textSize} font-medium text-emerald-700`}>
+      <span className={`inline-flex items-center gap-1 rounded-full border border-border bg-accent ${padding} ${textSize} font-medium text-foreground`}>
         <BadgeCheck className={iconSize} />
         {label || 'Verified'}
       </span>
@@ -25,7 +25,7 @@ export function VerificationBadge({ state, label, size = 'md' }: VerificationBad
 
   if (state === 'pending') {
     return (
-      <span className={`inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 ${padding} ${textSize} font-medium text-amber-700`}>
+      <span className={`inline-flex items-center gap-1 rounded-full border border-border bg-muted ${padding} ${textSize} font-medium text-foreground`}>
         <Clock className={iconSize} />
         {label || 'Pending'}
       </span>
@@ -34,7 +34,7 @@ export function VerificationBadge({ state, label, size = 'md' }: VerificationBad
 
   if (state === 'requested') {
     return (
-      <span className={`inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 ${padding} ${textSize} font-medium text-blue-700`}>
+      <span className={`inline-flex items-center gap-1 rounded-full border border-border bg-accent ${padding} ${textSize} font-medium text-primary`}>
         <AlertCircle className={iconSize} />
         {label || 'Requested'}
       </span>

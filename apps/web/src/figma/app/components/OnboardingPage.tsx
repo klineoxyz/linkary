@@ -169,20 +169,20 @@ export default function OnboardingPage({
               onChange={(e) => setHandle(e.target.value)}
               placeholder="alice"
               className={`w-full px-3 py-2 rounded-lg border bg-white text-zinc-900 ${
-                handleStatus === "taken" ? "border-red-400" : handleStatus === "available" ? "border-emerald-500" : "border-zinc-300"
+                handleStatus === "taken" ? "border-destructive" : handleStatus === "available" ? "border-primary" : "border-zinc-300"
               }`}
             />
             <p className="text-xs text-zinc-500 mt-0.5">linkary.xyz/{normalizedHandle || "…"}</p>
             {handleStatus === "checking" && <p className="text-xs text-zinc-500 mt-0.5">Checking availability…</p>}
-            {handleStatus === "available" && normalizedHandle && <p className="text-xs text-emerald-600 mt-0.5">✓ Available</p>}
+            {handleStatus === "available" && normalizedHandle && <p className="text-xs text-primary mt-0.5">✓ Available</p>}
             {handleStatus === "taken" && (
-              <p className="text-xs text-red-600 mt-0.5">✗ This handle is taken. Sign in with X and verify to claim it if it’s yours.</p>
+              <p className="text-xs text-destructive mt-0.5">✗ This handle is taken. Sign in with X and verify to claim it if it’s yours.</p>
             )}
             <p className="text-xs text-zinc-500 mt-1">
               Use your X (Twitter) handle. To <strong>confirm</strong> this handle you must sign in with X and verify—no handle is confirmed until then.
             </p>
-            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-              <p className="text-xs text-amber-800">
+            <div className="mt-2 rounded-lg border border-border bg-muted px-3 py-2">
+              <p className="text-xs text-foreground">
                 Not signed in with X? Confirm your handle by signing in with X and we’ll fill your handle and bio from your X profile.
               </p>
               <button
@@ -213,7 +213,7 @@ export default function OnboardingPage({
                   }
                   setXConnecting(false);
                 }}
-                className="mt-1.5 text-xs font-medium text-amber-700 hover:text-amber-800 disabled:opacity-50"
+                className="mt-1.5 text-xs font-medium text-primary hover:opacity-90 disabled:opacity-50"
               >
                 {xConnecting ? "Redirecting to X…" : "Confirm with X →"}
               </button>
@@ -283,12 +283,12 @@ export default function OnboardingPage({
             </p>
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
+              className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
             >
               {loading ? "Saving…" : "Finish"}
             </button>

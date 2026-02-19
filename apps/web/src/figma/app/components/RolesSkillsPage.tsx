@@ -47,7 +47,7 @@ export default function RolesSkillsPage({
         <button
           type="button"
           onClick={() => setRoute({ name: "login" })}
-          className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700"
+          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90"
         >
           Sign in
         </button>
@@ -68,7 +68,7 @@ export default function RolesSkillsPage({
       <p className="text-zinc-600 mb-8">Edit how you describe yourself. Skills coming soon.</p>
 
       {error && (
-        <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+        <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
           {error}
         </div>
       )}
@@ -100,7 +100,7 @@ export default function RolesSkillsPage({
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
             >
               {saving ? "Saving…" : "Save"}
             </button>

@@ -149,27 +149,27 @@ export const ICON_COLORS = {
   disabled: "text-zinc-500",
   
   // Reputation colors
-  ethos: "text-emerald-400",
-  xscore: "text-blue-400",
-  reputation: "text-purple-400",
-  social: "text-pink-400",
-  verified: "text-cyan-400",
+  ethos: "text-primary",
+  xscore: "text-primary",
+  reputation: "text-primary",
+  social: "text-primary",
+  verified: "text-primary",
   
   // Status colors
-  success: "text-emerald-400",
-  warning: "text-amber-400",
-  error: "text-red-400",
-  pending: "text-yellow-400",
+  success: "text-primary",
+  warning: "text-muted-foreground",
+  error: "text-muted-foreground",
+  pending: "text-muted-foreground",
   
-  // Neon accents
-  cyan: "text-cyan-400",
-  violet: "text-violet-400",
-  pink: "text-pink-400",
-  indigo: "text-indigo-400",
+  // Accent (design system: primary only)
+  cyan: "text-primary",
+  violet: "text-primary",
+  pink: "text-primary",
+  indigo: "text-primary",
 } as const;
 
 // Hover glow effect (use with group/hover)
-export const ICON_HOVER_GLOW = "group-hover:text-cyan-400 group-hover:drop-shadow-[0_0_8px_rgba(0,255,241,0.3)] transition-all duration-200";
+export const ICON_HOVER_GLOW = "group-hover:text-primary group-hover:drop-shadow-[0_0_8px_rgba(255,83,0,0.3)] transition-all duration-200";
 
 // Animated icon wrapper for special effects
 export const ICON_ANIMATED = "animate-pulse-subtle";

@@ -613,7 +613,7 @@ function Stars({ value = 5 }) {
           key={i}
           className={cn(
             "h-4 w-4",
-            i < full ? "fill-current text-yellow-400" : "text-zinc-600"
+            i < full ? "fill-current text-primary" : "text-zinc-600"
           )}
         />
       ))}
@@ -624,17 +624,17 @@ function Stars({ value = 5 }) {
 function ScorePills({ ethos, xscore, reputationIndex, socialPower }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-800 bg-emerald-950 px-2.5 py-1 text-xs text-emerald-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
         <Shield className="h-3.5 w-3.5 stroke-[1.75]" /> ETHOS {ethos}
       </span>
-      <span className="inline-flex items-center gap-1 rounded-full border border-purple-800 bg-purple-950 px-2.5 py-1 text-xs text-purple-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
         <Zap className="h-3.5 w-3.5 stroke-[1.75]" /> XScore {xscore}
       </span>
-      <span className="inline-flex items-center gap-1 rounded-full border border-indigo-800 bg-indigo-950 px-2.5 py-1 text-xs text-indigo-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
         <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" /> Index {reputationIndex}
       </span>
       {socialPower && (
-        <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-800 bg-fuchsia-950 px-2.5 py-1 text-xs text-fuchsia-300">
+        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
           <Sparkles className="h-3.5 w-3.5 stroke-[1.75]" /> Power {socialPower}
         </span>
       )}
@@ -644,16 +644,16 @@ function ScorePills({ ethos, xscore, reputationIndex, socialPower }) {
 
 function JobStatusBadge({ status }) {
   const styles = {
-    Open: "border-blue-500/30 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-300 backdrop-blur-xl",
-    Accepted: "border-yellow-500/30 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 text-yellow-300 backdrop-blur-xl",
-    Pending: "border-orange-500/30 bg-gradient-to-r from-orange-500/20 to-red-500/20 text-orange-300 backdrop-blur-xl",
-    Completed: "border-green-500/30 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 backdrop-blur-xl",
-    Paid: "border-emerald-500/30 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 backdrop-blur-xl",
-    Scheduled: "border-indigo-500/30 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-300 backdrop-blur-xl",
+    Open: "border-border bg-accent text-foreground backdrop-blur-xl",
+    Accepted: "border-border bg-muted text-foreground backdrop-blur-xl",
+    Pending: "border-border bg-muted text-foreground backdrop-blur-xl",
+    Completed: "border-border bg-accent text-primary backdrop-blur-xl",
+    Paid: "border-border bg-primary/20 text-primary backdrop-blur-xl",
+    Scheduled: "border-border bg-muted text-foreground backdrop-blur-xl",
   };
   
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs", styles[status] || "border-indigo-500/30 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-zinc-300 backdrop-blur-xl")}>
+    <span className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs", styles[status] || "border-border bg-muted text-muted-foreground backdrop-blur-xl")}>
       {status}
     </span>
   );
@@ -697,16 +697,16 @@ function useInViewAnimations(selector = ".animate-fade-in") {
 
 function Button({ children, variant = "primary", size = "md", className = "", ...props }) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none relative z-[10]";
+    "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none relative z-[10]";
   const sizes = {
     sm: "h-8 px-3 text-xs",
     md: "h-10 px-4 text-sm",
     icon: "h-10 w-10",
   };
   const variants = {
-    primary: "bg-indigo-600 hover:bg-indigo-700 text-white",
-    outline: "border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 hover:border-indigo-500/40 backdrop-blur-xl text-zinc-700",
-    ghost: "hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10 text-zinc-700",
+    primary: "bg-primary hover:opacity-90 text-primary-foreground",
+    outline: "border border-border bg-secondary hover:bg-accent backdrop-blur-xl text-foreground",
+    ghost: "hover:bg-accent text-foreground",
   };
   return (
     <button
@@ -722,7 +722,7 @@ function Input({ className = "", ...props }) {
   return (
     <input
       className={cn(
-        "h-10 w-full rounded-lg border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 backdrop-blur-xl px-3 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500/50 transition-all duration-300 relative z-[10]",
+        "h-10 w-full rounded-lg border border-border bg-input-background backdrop-blur-xl px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-border transition-all duration-300 relative z-[10]",
         className
       )}
       style={{ color: '#000000' }}
@@ -735,7 +735,7 @@ function Card({ className = "", children }) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 backdrop-blur-xl p-6 hover:border-indigo-500/40 transition-all duration-300 relative z-[10]",
+        "rounded-xl border border-border bg-card backdrop-blur-xl p-6 hover:border-border transition-all duration-300 relative z-[10]",
         className
       )}
     >
@@ -869,14 +869,14 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
       className={cn(
         "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
         isActive(name)
-          ? "border border-indigo-500/30 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-400 backdrop-blur-xl"
-          : "text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10"
+          ? "border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground backdrop-blur-xl"
+          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
       )}
     >
       <Icon className="h-4 w-4" />
       <span className="truncate">{label}</span>
       {badge && (
-        <span className="ml-auto rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-900">
+        <span className="ml-auto rounded-full bg-sidebar-accent px-2 py-0.5 text-[10px] font-medium text-sidebar-foreground">
           {badge}
         </span>
       )}
@@ -886,7 +886,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
   return (
     <aside
       className={cn(
-        "border-r border-zinc-800 bg-zinc-950",
+        "border-r border-sidebar-border bg-sidebar",
         "lg:w-64 w-full lg:h-screen lg:sticky lg:top-0",
         "flex lg:flex-col items-center lg:items-stretch",
         "px-6 py-4 lg:py-6 gap-6",
@@ -901,14 +901,14 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
             setRoute({ name: "landing" });
             setMobileOpen(false);
           }}
-          className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-white"
+          className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-sidebar-foreground"
           aria-label="Linkary Home"
         >
           <img src="/logos/logo-white.png" alt="Linkary" className="h-6 w-auto" />
         </Link>
 
         <button className="lg:hidden" onClick={() => setMobileOpen((v) => !v)}>
-          <Menu className="h-6 w-6 text-zinc-400" />
+          <Menu className="h-6 w-6 text-sidebar-foreground" />
         </button>
       </div>
 
@@ -919,7 +919,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
             setRoute({ name: "landing" });
             setMobileOpen(false);
           }}
-          className="uppercase text-xs font-medium text-zinc-500 mt-4 lg:mt-0 tracking-wide text-left w-full hover:text-zinc-400 transition-colors"
+          className="uppercase text-xs font-medium text-muted-foreground mt-4 lg:mt-0 tracking-wide text-left w-full hover:text-sidebar-foreground transition-colors"
         >
           Home
         </Link>
@@ -927,7 +927,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="overview" icon={Home} label="Overview" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Profile</span>
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Profile</span>
         <div className="flex flex-col gap-2">
           <NavLink name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
           <NavLink name="profile" icon={Users} label="My Profile" />
@@ -935,33 +935,33 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="brandProfile" icon={Building2} label="Project Demo" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Discover</span>
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Discover</span>
         <div className="flex flex-col gap-2">
           <NavLink name="explore" icon={Globe} label="Explore" />
           <NavLink name="leaderboards" icon={Trophy} label="Leaderboards" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Work</span>
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Work</span>
         <div className="flex flex-col gap-2">
           <NavLink name="market" icon={Briefcase} label="Jobs & Sprints" badge="3" />
           <NavLink name="messages" icon={MessageSquare} label="Messages" badge="2" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Circles & Networks</span>
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Circles & Networks</span>
         <div className="flex flex-col gap-2">
           <NavLink name="circles" icon={Target} label="Circles" />
           <NavLink name="kolLists" icon={Users} label="KOL Lists" />
           <NavLink name="capitalPartners" icon={Briefcase} label="Capital Partners" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Analytics & Verification</span>
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Analytics & Verification</span>
         <div className="flex flex-col gap-2">
           <NavLink name="analytics" icon={BarChart3} label="Analytics" />
           <NavLink name="verification" icon={FileCheck} label="Verification Center" />
           <NavLink name="privacy" icon={Shield} label="Privacy & Data" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Monetization</span>
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Monetization</span>
         <div className="flex flex-col gap-2">
           <NavLink name="monetizationFlowShowcase" icon={Sparkles} label="Flow Showcase" />
           <NavLink name="monetizationShowcase" icon={Sparkles} label="Monetization Hub" />
@@ -970,33 +970,33 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="availability" icon={Users} label="Availability" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-zinc-500 mt-6 tracking-wide">Account</span>
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-6 tracking-wide">Account</span>
         <div className="flex flex-col gap-2">
           <button
             type="button"
             onClick={() => setRoute({ name: "preferences" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
           >
             <Sliders className="h-4 w-4 stroke-[1.75]" /> Preferences
           </button>
           <button
             type="button"
             onClick={() => setRoute({ name: "rolesSkills" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
           >
             <Briefcase className="h-4 w-4 stroke-[1.75]" /> Roles &amp; Skills
           </button>
           <button
             type="button"
             onClick={() => setRoute({ name: "integrations" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
           >
             <LinkIcon className="h-4 w-4 stroke-[1.75]" /> Integrations
           </button>
           <button
             type="button"
             onClick={() => setRoute({ name: "support" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
           >
             <HelpCircle className="h-4 w-4 stroke-[1.75]" /> Support
           </button>
@@ -1007,7 +1007,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
                 onSignOut?.();
                 setMobileOpen(false);
               }}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
             >
               <LogOut className="h-4 w-4 stroke-[1.75]" /> Log out
             </button>
@@ -1018,7 +1018,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
                 setRoute({ name: "login" });
                 setMobileOpen(false);
               }}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
             >
               <LogIn className="h-4 w-4 stroke-[1.75]" /> Login
             </button>
@@ -1026,21 +1026,21 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
         </div>
 
         <div className="mt-auto hidden lg:block">
-          <div className="bg-gradient-to-br rounded-xl p-4 from-indigo-600 to-indigo-700 text-white">
+          <div className="rounded-xl p-4 bg-primary text-primary-foreground">
             <h3 className="font-medium mb-3">Active Session</h3>
             <Timer />
           </div>
 
-          <div className="mt-4 bg-gradient-to-br rounded-xl p-4 from-yellow-600 to-indigo-700 text-white">
+          <div className="mt-4 rounded-xl p-4 bg-primary text-primary-foreground">
             <div className="flex items-center gap-2 mb-3">
               <Zap className="h-5 w-5 stroke-[1.75]" />
               <span className="font-medium">Upgrade to Pro</span>
             </div>
-            <p className="text-xs mb-4 text-yellow-100">Apply as speaker, advanced analytics, priority AI matching.</p>
+            <p className="text-xs mb-4 text-primary-foreground/90">Apply as speaker, advanced analytics, priority AI matching.</p>
             <button
               type="button"
               onClick={() => setRoute({ name: "plansBilling" })}
-              className="w-full text-xs font-medium rounded-lg px-4 py-2 bg-white text-yellow-700 hover:bg-yellow-50 transition-colors"
+              className="w-full text-xs font-medium rounded-lg px-4 py-2 bg-white text-primary hover:bg-accent transition-colors"
             >
               Upgrade Now
             </button>
@@ -1115,30 +1115,30 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
 
       <div className="flex items-center gap-3">
         <button 
-          className="relative p-2 rounded-lg transition-colors hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10"
+          className="relative p-2 rounded-lg transition-colors hover:bg-accent"
           onClick={() => setRoute({ name: "messages" })}
         >
           <MessageSquare className="h-5 w-5 text-zinc-600 stroke-[1.75]" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-indigo-500 rounded-full" />
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-primary rounded-full" />
         </button>
         <button
           type="button"
           onClick={() => setRoute({ name: "notifications" })}
-          className="relative p-2 rounded-lg transition-colors hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10"
+          className="relative p-2 rounded-lg transition-colors hover:bg-accent"
         >
           <Bell className="h-5 w-5 text-zinc-600" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-blue-500 rounded-full" />
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-primary rounded-full" />
         </button>
 
         <div
           role="button"
           tabIndex={0}
-          className="flex items-center gap-3 pl-3 border-l border-zinc-300 cursor-pointer hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10 rounded-lg pr-3 py-2 transition-colors"
+          className="flex items-center gap-3 pl-3 border-l border-zinc-300 cursor-pointer hover:bg-accent rounded-lg pr-3 py-2 transition-colors"
           onClick={() => setRoute({ name: "profile" })}
           onKeyDown={(e) => e.key === "Enter" && setRoute({ name: "profile" })}
           title="My Profile"
         >
-          <ProfileAvatar handle={me?.twitter_username || handle} alt={displayName} className="h-9 w-9 rounded-full shrink-0" fallbackGradient="from-indigo-500 via-fuchsia-500 to-cyan-400" avatarUrl={me?.avatar_url} />
+          <ProfileAvatar handle={me?.twitter_username || handle} alt={displayName} className="h-9 w-9 rounded-full shrink-0" fallbackGradient="from-primary to-primary/80" avatarUrl={me?.avatar_url} />
           <div className="hidden md:block min-w-0">
             <p className="text-sm font-medium leading-none text-zinc-900 truncate">{displayName}</p>
             <span className="text-xs text-zinc-600 truncate block">{handle ? `${handle}@linkary.xyz` : "linkary.xyz"}</span>
@@ -1175,7 +1175,7 @@ function ComingSoonModal({ onClose, previousRoute, setRoute }) {
   };
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 backdrop-blur-xl p-8 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="relative rounded-2xl border border-border bg-card from-accent to-muted backdrop-blur-xl p-8 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-xl font-semibold text-zinc-900 mb-2">Coming soon</h2>
         <p className="text-zinc-600 text-sm mb-6">This feature is on the roadmap.</p>
         <div className="flex gap-2">
@@ -1206,7 +1206,7 @@ function OverviewPage({ setRoute }) {
         right={
           <div className="flex flex-wrap gap-3">
             <Button 
-              className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              className="flex items-center gap-2 bg-primary hover:opacity-90"
               onClick={() => setRoute({ name: "userProfile", handle: u.handle })}
             >
               <Users className="h-4 w-4 stroke-[1.75]" /> View Public Profile
@@ -1225,7 +1225,7 @@ function OverviewPage({ setRoute }) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Active Creators */}
         <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-orange-500/20 cursor-pointer group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)' }}>
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-600/90 to-red-600/90 transition-all duration-500 group-hover:from-orange-500/95 group-hover:to-red-500/95" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-foreground/80 transition-all duration-500 group-hover:from-primary/95 group-hover:to-foreground/90" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium text-white">Active Creators</p>
@@ -1241,8 +1241,8 @@ function OverviewPage({ setRoute }) {
         </div>
 
         {/* Active Projects */}
-        <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/20 cursor-pointer group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80)' }}>
-          <div className="absolute inset-0 bg-gradient-to-br from-teal-600/90 to-cyan-600/90 transition-all duration-500 group-hover:from-teal-500/95 group-hover:to-cyan-500/95" />
+        <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-primary/20 cursor-pointer group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80)' }}>
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium text-white">Active Projects</p>
@@ -1258,8 +1258,8 @@ function OverviewPage({ setRoute }) {
         </div>
 
         {/* Live Opportunities */}
-        <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20 cursor-pointer group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683311-eac922347aa1?w=800&q=80)' }}>
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-600/90 to-indigo-600/90 transition-all duration-500 group-hover:from-purple-500/95 group-hover:to-indigo-500/95" />
+        <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-primary/20 cursor-pointer group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683311-eac922347aa1?w=800&q=80)' }}>
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium text-white">Live Opportunities</p>
@@ -1275,8 +1275,8 @@ function OverviewPage({ setRoute }) {
         </div>
 
         {/* Total Paid */}
-        <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-emerald-500/20 cursor-pointer group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80)' }}>
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/90 to-green-600/90 transition-all duration-500 group-hover:from-emerald-500/95 group-hover:to-green-500/95" />
+        <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-primary/20 cursor-pointer group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80)' }}>
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium text-white">Total Paid</p>
@@ -1308,7 +1308,7 @@ function OverviewPage({ setRoute }) {
             const bgImages = ['1557683316-973673baf926', '1579546929518-9e396f3cc809', '1557683311-eac922347aa1'];
             return (
             <div key={e.id} className="relative overflow-hidden rounded-lg border-0 p-4 hover:shadow-lg transition-all cursor-pointer bg-cover bg-center" style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx]}?w=800&q=80)` }}>
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/90 to-purple-600/90" />
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70" />
               <div className="relative z-10">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <span className="rounded-full border border-black/30 bg-black/20 px-2.5 py-1 text-xs font-medium backdrop-blur-sm" style={{ color: '#000000' }}>
@@ -1345,7 +1345,7 @@ function OverviewPage({ setRoute }) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {demo.explore.individuals.map((creator, idx) => {
             const bgImages = ['1559827260-dc66d52bef19', '1637825891028-564f672aa42c', '1678581231067-644dddeca6dc'];
-            const gradients = ['from-teal-600/90 to-cyan-600/90', 'from-fuchsia-600/90 to-pink-600/90', 'from-amber-600/90 to-orange-600/90'];
+            const gradients = ['from-primary/90 to-primary/70', 'from-primary/80 to-foreground/60', 'from-chart-1/90 to-chart-2/80'];
             return (
             <div key={creator.handle} className="relative overflow-hidden rounded-lg border-0 p-4 hover:shadow-lg transition-all cursor-pointer bg-cover bg-center" style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx % 3]}?w=800&q=80)` }}>
               <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx % 3]}`} />
@@ -1410,7 +1410,7 @@ function OverviewPage({ setRoute }) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {demo.explore.projects.map((project, idx) => {
             const bgImages = ['1719432268911-f3ef8b7bd5ec', '1637825891028-564f672aa42c', '1678581231067-644dddeca6dc'];
-            const gradients = ['from-emerald-600/90 to-green-600/90', 'from-blue-600/90 to-indigo-600/90', 'from-purple-600/90 to-fuchsia-600/90'];
+            const gradients = ['from-primary/90 to-primary/70', 'from-primary/80 to-foreground/60', 'from-chart-1/90 to-chart-2/80'];
             return (
             <div key={project.slug} className="relative overflow-hidden rounded-lg border-0 p-4 hover:shadow-lg transition-all cursor-pointer bg-cover bg-center" style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx % 3]}?w=800&q=80)` }}>
               <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx % 3]}`} />
@@ -1459,13 +1459,13 @@ function OverviewPage({ setRoute }) {
       {demo.marketplace.interestedProjects.length > 0 && (
         <Card>
           <div className="flex items-start gap-3">
-            <div className="rounded-full bg-indigo-500/20 p-2">
-              <Sparkles className="h-5 w-5 text-indigo-400 stroke-[1.75]" />
+            <div className="rounded-full bg-accent p-2">
+              <Sparkles className="h-5 w-5 text-primary stroke-[1.75]" />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold" style={{ color: '#000000' }}>AI Matched Opportunities</h3>
-                <span className="rounded-full bg-indigo-500 px-2 py-0.5 text-xs font-medium text-white">{demo.marketplace.interestedProjects.length}</span>
+                <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">{demo.marketplace.interestedProjects.length}</span>
               </div>
               <p className="mt-1 text-sm" style={{ color: '#1a1a1a' }}>Projects interested in your profile</p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -1473,11 +1473,11 @@ function OverviewPage({ setRoute }) {
                   <button
                     key={proj.name}
                     onClick={() => setRoute({ name: "market" })}
-                    className="rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 px-3 py-2 text-left hover:border-emerald-500/40 backdrop-blur-xl transition-all duration-300"
+                    className="rounded-lg border border-border bg-accent px-3 py-2 text-left hover:border-border backdrop-blur-xl transition-all duration-300"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium" style={{ color: '#000000' }}>{proj.name}</span>
-                      <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-xs text-green-400">{proj.match}% match</span>
+                      <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs text-primary">{proj.match}% match</span>
                     </div>
                     <div className="mt-0.5 text-xs" style={{ color: '#404040' }}>{proj.role}</div>
                   </button>
@@ -1565,7 +1565,7 @@ function ExplorePage({ setRoute }) {
       </div>
 
       {showFiltersPanel && (
-        <div className="rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 backdrop-blur-xl p-4 flex flex-wrap items-end gap-4">
+        <div className="rounded-xl border border-border bg-card from-accent to-muted backdrop-blur-xl p-4 flex flex-wrap items-end gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-zinc-500">Min ETHOS</label>
             <Input
@@ -1611,7 +1611,7 @@ function ExplorePage({ setRoute }) {
               <p className="text-lg text-white/90 mb-4 line-clamp-2">{demo.blog.posts[0].excerpt}</p>
               <div className="flex items-center gap-4 text-sm text-white/80">
                 <span className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-cyan-400" />
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/80" />
                   {demo.blog.posts[0].author}
                 </span>
                 <span>{demo.blog.posts[0].readTime}</span>
@@ -1652,12 +1652,12 @@ function ExplorePage({ setRoute }) {
 
           {/* Write Article CTA */}
           <div className="relative overflow-hidden rounded-xl p-8 bg-cover bg-center" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200&q=80)' }}>
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/95 to-purple-600/95" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/95 to-primary/80" />
             <div className="relative z-10 text-center max-w-2xl mx-auto">
               <FileText className="h-12 w-12 text-white mx-auto mb-4 stroke-[1.75]" />
               <h3 className="text-2xl font-bold text-white mb-2">Share Your Knowledge</h3>
               <p className="text-white/90 mb-6">Selected contributors can publish rich articles with images and reach thousands in the Web3 community</p>
-              <Button className="bg-white text-indigo-600 hover:bg-white/90" onClick={() => setRoute({ name: "comingSoon" })}>
+              <Button className="bg-white text-primary hover:bg-white/90" onClick={() => setRoute({ name: "comingSoon" })}>
                 Apply to Write
               </Button>
             </div>
@@ -1670,11 +1670,11 @@ function ExplorePage({ setRoute }) {
           {filteredIndividuals.map((c) => (
             <Card key={c.handle} className="hover:border-zinc-600 transition-colors cursor-pointer">
               <div className="flex items-start gap-3 mb-4">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-cyan-400" />
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-primary/80" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold truncate" style={{ color: '#000000' }}>{c.name}</span>
-                    {c.verified && <BadgeCheck className="h-4 w-4 text-emerald-400 stroke-[1.75]" />}
+                    {c.verified && <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />}
                   </div>
                   <p className="text-xs truncate" style={{ color: '#404040' }}>@{c.handle}</p>
                 </div>
@@ -1684,7 +1684,7 @@ function ExplorePage({ setRoute }) {
 
               <div className="flex flex-wrap gap-1 mb-3">
                 {c.roleTags?.slice(0, 2).map((tag) => (
-                  <span key={tag} className="rounded-full border border-indigo-500/30 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 px-2 py-0.5 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
+                  <span key={tag} className="rounded-full border border-border bg-accent px-2 py-0.5 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
                     {tag}
                   </span>
                 ))}
@@ -1693,11 +1693,11 @@ function ExplorePage({ setRoute }) {
               <div className="grid grid-cols-2 gap-2 text-xs mb-3">
                 <div>
                   <div style={{ color: '#666666' }}>ETHOS</div>
-                  <div className="font-semibold text-emerald-400">{c.ethos}</div>
+                  <div className="font-semibold text-primary">{c.ethos}</div>
                 </div>
                 <div>
                   <div style={{ color: '#666666' }}>XScore</div>
-                  <div className="font-semibold text-purple-400">{c.xscore}</div>
+                  <div className="font-semibold text-primary">{c.xscore}</div>
                 </div>
               </div>
 
@@ -1718,13 +1718,13 @@ function ExplorePage({ setRoute }) {
           {filteredProjects.map((p) => (
             <Card key={p.slug} className="hover:border-zinc-600 transition-colors cursor-pointer">
               <div className="flex items-start gap-3 mb-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-lg font-bold text-white">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/90 text-lg font-bold text-white">
                   {p.name.substring(0, 2).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold truncate" style={{ color: '#000000' }}>{p.name}</span>
-                    {p.verified && <BadgeCheck className="h-4 w-4 text-emerald-400 stroke-[1.75]" />}
+                    {p.verified && <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />}
                   </div>
                   <p className="text-xs truncate" style={{ color: '#404040' }}>{p.slug}</p>
                 </div>
@@ -1735,11 +1735,11 @@ function ExplorePage({ setRoute }) {
               <div className="grid grid-cols-2 gap-2 text-xs mb-3">
                 <div>
                   <div style={{ color: '#666666' }}>ETHOS</div>
-                  <div className="font-semibold text-emerald-400">{p.ethos}</div>
+                  <div className="font-semibold text-primary">{p.ethos}</div>
                 </div>
                 <div>
                   <div style={{ color: '#666666' }}>XScore</div>
-                  <div className="font-semibold text-purple-400">{p.xscore}</div>
+                  <div className="font-semibold text-primary">{p.xscore}</div>
                 </div>
               </div>
 
@@ -1862,7 +1862,7 @@ function MarketplacePage({ setRoute }) {
             <div className="space-y-3">
               {jobs.map((j, idx) => {
                 const bgImages = ['1557683316-973673baf926', '1579546929518-9e396f3cc809', '1557683311-eac922347aa1', '1559827260-dc66d52bef19'];
-                const gradients = ['from-blue-600/90 to-indigo-600/90', 'from-emerald-600/90 to-teal-600/90', 'from-purple-600/90 to-fuchsia-600/90', 'from-amber-600/90 to-orange-600/90'];
+                const gradients = ['from-primary/90 to-primary/70', 'from-primary/80 to-foreground/60', 'from-chart-1/90 to-chart-2/80', 'from-chart-3/90 to-chart-4/80'];
                 return (
                 <div key={j.id} className="relative overflow-hidden rounded-lg border-0 p-4 bg-cover bg-center" style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx % 4]}?w=800&q=80)` }}>
                   <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx % 4]}`} />
@@ -1928,7 +1928,7 @@ function MarketplacePage({ setRoute }) {
             <div className="space-y-3">
               {sprints.map((s, idx) => {
                 const bgImages = ['1719432268911-f3ef8b7bd5ec', '1637825891028-564f672aa42c', '1678581231067-644dddeca6dc', '1559827260-dc66d52bef19'];
-                const gradients = ['from-fuchsia-600/90 to-pink-600/90', 'from-teal-600/90 to-cyan-600/90', 'from-orange-600/90 to-red-600/90', 'from-purple-600/90 to-indigo-600/90'];
+                const gradients = ['from-primary/90 to-primary/70', 'from-primary/80 to-foreground/60', 'from-chart-1/90 to-chart-2/80', 'from-chart-3/90 to-chart-4/80'];
                 return (
                 <div key={s.id} className="relative overflow-hidden rounded-lg border-0 p-4 bg-cover bg-center" style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx % 4]}?w=800&q=80)` }}>
                   <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx % 4]}`} />
@@ -1994,7 +1994,7 @@ function MarketplacePage({ setRoute }) {
             )}
             <div className="flex gap-2">
               <button type="button" onClick={() => { setApplyJob(null); setApplyMessage(""); setApplyAsOrgId(null); }} className="flex-1 py-2 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
-              <button type="button" disabled={applyLoading || !userId || !profileId} onClick={handleApplySubmit} className="flex-1 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">{applyLoading ? "Applying…" : "Apply"}</button>
+              <button type="button" disabled={applyLoading || !userId || !profileId} onClick={handleApplySubmit} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50">{applyLoading ? "Applying…" : "Apply"}</button>
             </div>
           </div>
         </div>
@@ -2017,7 +2017,7 @@ function LeaderboardsPage({ setRoute }) {
         <Card>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-amber-400 stroke-[1.75]" />
+              <Trophy className="h-5 w-5 text-primary stroke-[1.75]" />
               <h3 className="font-semibold" style={{ color: '#000000' }}>Top Creators</h3>
             </div>
             <span className="text-xs" style={{ color: '#404040' }}>This Month</span>
@@ -2025,7 +2025,7 @@ function LeaderboardsPage({ setRoute }) {
           <div className="space-y-3">
             {topCreators.map((creator, idx) => {
               const bgImages = ['1557683316-973673baf926', '1579546929518-9e396f3cc809', '1557683311-eac922347aa1'];
-              const gradients = ['from-yellow-600/90 to-orange-600/90', 'from-gray-600/90 to-slate-600/90', 'from-amber-700/90 to-orange-700/90'];
+              const gradients = ['from-primary/90 to-primary/70', 'from-foreground/80 to-foreground/60', 'from-chart-1/90 to-chart-2/80'];
               return (
               <div 
                 key={creator.name} 
@@ -2076,7 +2076,7 @@ function LeaderboardsPage({ setRoute }) {
         <Card>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-indigo-400 stroke-[1.75]" />
+              <Award className="h-5 w-5 text-primary stroke-[1.75]" />
               <h3 className="font-semibold" style={{ color: '#000000' }}>Top Projects</h3>
             </div>
             <span className="text-xs" style={{ color: '#404040' }}>This Month</span>
@@ -2084,7 +2084,7 @@ function LeaderboardsPage({ setRoute }) {
           <div className="space-y-3">
             {topProjects.map((project, idx) => {
               const bgImages = ['1719432268911-f3ef8b7bd5ec', '1637825891028-564f672aa42c', '1678581231067-644dddeca6dc'];
-              const gradients = ['from-indigo-600/90 to-purple-600/90', 'from-teal-600/90 to-cyan-600/90', 'from-emerald-600/90 to-green-600/90'];
+              const gradients = ['from-primary/90 to-primary/70', 'from-primary/80 to-foreground/60', 'from-chart-1/90 to-chart-2/80'];
               return (
               <div key={project.name} className="relative overflow-hidden rounded-lg border-0 p-4 bg-cover bg-center" style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[Math.min(idx, 2)]}?w=800&q=80)` }}>
                 <div className={`absolute inset-0 bg-gradient-to-br ${gradients[Math.min(idx, 2)]}`} />
@@ -2198,11 +2198,11 @@ function MessagesPage({ setRoute, initialConversationId }) {
           <div className="space-y-2">
             {list.map((conv, idx) => {
               const bgImages = ['1557683316-973673baf926', '1579546929518-9e396f3cc809', '1557683311-eac922347aa1'];
-              const gradients = ['from-indigo-600/90 to-purple-600/90', 'from-teal-600/90 to-cyan-600/90', 'from-fuchsia-600/90 to-pink-600/90'];
+              const gradients = ['from-primary/90 to-primary/70', 'from-primary/80 to-foreground/60', 'from-chart-1/90 to-chart-2/80'];
               const name = conv.name ?? (conv.participants?.length ? conv.participants.map((p) => p.type + ":" + p.id).join(", ") : conv.id);
               const isSelected = conv.id === selectedId;
               return (
-              <div key={conv.id} onClick={() => setSelectedId(conv.id)} className={`relative overflow-hidden rounded-lg border-0 p-3 cursor-pointer hover:shadow-lg transition-all bg-cover bg-center ${isSelected ? "ring-2 ring-indigo-500" : ""}`} style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx % 3]}?w=800&q=80)` }}>
+              <div key={conv.id} onClick={() => setSelectedId(conv.id)} className={`relative overflow-hidden rounded-lg border-0 p-3 cursor-pointer hover:shadow-lg transition-all bg-cover bg-center ${isSelected ? "ring-2 ring-ring" : ""}`} style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx % 3]}?w=800&q=80)` }}>
                 <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx % 3]}`} />
                 <div className="relative z-10">
                   <div className="flex items-start justify-between mb-1">
@@ -2220,23 +2220,23 @@ function MessagesPage({ setRoute, initialConversationId }) {
         <Card className="lg:col-span-2">
           <div className="flex items-center justify-between pb-4 border-b border-zinc-200 dark:border-zinc-700 mb-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600" />
+              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-primary/90" />
               <div>
                 <p className="font-semibold" style={{ color: '#000000' }}>{selectedConv ? (selectedConv.name ?? selectedConv.id) : "Select a conversation"}</p>
                 <p className="text-xs" style={{ color: '#404040' }}>{messages.length} messages</p>
               </div>
             </div>
             {selectedConv?.participants?.some((p) => p.type === "org") && (
-              <button type="button" onClick={() => setRoute({ name: "brandProfile", data: { orgId: selectedConv.participants.find((p) => p.type === "org")?.id } })} className="text-sm text-indigo-600">View Profile</button>
+              <button type="button" onClick={() => setRoute({ name: "brandProfile", data: { orgId: selectedConv.participants.find((p) => p.type === "org")?.id } })} className="text-sm text-primary">View Profile</button>
             )}
           </div>
 
           <div className="space-y-4 mb-4 min-h-[300px]">
             {messages.map((m) => (
               <div key={m.id} className="flex gap-3">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shrink-0" />
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/90 shrink-0" />
                 <div className="flex-1">
-                  <div className="rounded-lg border border-indigo-500/30 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 backdrop-blur-xl p-3">
+                  <div className="rounded-lg border border-border bg-card bg-accent backdrop-blur-xl p-3">
                     <p className="text-sm" style={{ color: '#000000' }}>{m.body}</p>
                   </div>
                   <span className="text-xs" style={{ color: '#666666' }}>{m.sender_type}{" · "}{new Date(m.created_at).toLocaleString()}</span>
@@ -2334,11 +2334,11 @@ function ProfilePage({ setRoute, me }) {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <div className="flex items-start gap-3 mb-4">
-            <ProfileAvatar handle={me?.twitter_username || u.handle} alt={u.name} fallbackGradient="from-indigo-500 via-fuchsia-500 to-cyan-400" avatarUrl={me?.avatar_url} />
+            <ProfileAvatar handle={me?.twitter_username || u.handle} alt={u.name} fallbackGradient="from-primary to-primary/80" avatarUrl={me?.avatar_url} />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold truncate" style={{ color: '#000000' }}>{u.name}</span>
-                {u.verified && <BadgeCheck className="h-5 w-5 text-emerald-400 stroke-[1.75]" />}
+                {u.verified && <BadgeCheck className="h-5 w-5 text-primary stroke-[1.75]" />}
               </div>
               <p className="text-sm truncate" style={{ color: '#404040' }}>@{u.handle} · {u.location}</p>
             </div>
@@ -2366,7 +2366,7 @@ function ProfilePage({ setRoute, me }) {
             <div className="text-xs font-medium mb-2" style={{ color: '#666666' }}>Roles</div>
             <div className="flex flex-wrap gap-2">
               {u.roleTags.map((role) => (
-                <span key={role} className="rounded-full border border-indigo-500/30 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 px-2.5 py-1 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
+                <span key={role} className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
                   {role}
                 </span>
               ))}
@@ -2379,7 +2379,7 @@ function ProfilePage({ setRoute, me }) {
               <div className="text-xs font-medium mb-2" style={{ color: '#666666' }}>Ambassador Of</div>
               <div className="flex flex-wrap gap-2">
                 {u.ambassadorOf.map((proj) => (
-                  <span key={proj} className="rounded-full border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500/20 to-pink-500/20 px-2.5 py-1 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
+                  <span key={proj} className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
                     {proj}
                   </span>
                 ))}
@@ -2394,7 +2394,7 @@ function ProfilePage({ setRoute, me }) {
               <div className="space-y-2">
                 {u.partnerships.map((p) => (
                   <div key={p.name} className="relative overflow-hidden rounded-lg border-0 px-4 py-3 bg-cover bg-center" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)' }}>
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/90 to-purple-600/90" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70" />
                     <div className="relative z-10 flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-white">{p.name}</p>
@@ -2413,10 +2413,10 @@ function ProfilePage({ setRoute, me }) {
             {u.links.map((l) => (
               <div
                 key={l.label}
-                className="flex items-center justify-between rounded-lg border border-blue-500/30 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-xl px-4 py-3 hover:border-blue-500/40 transition-all duration-300"
+                className="flex items-center justify-between rounded-lg border border-border bg-accent backdrop-blur-xl px-4 py-3 hover:border-border transition-all duration-300"
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <ExternalLink className="h-4 w-4 text-cyan-400 stroke-[1.75]" />
+                  <ExternalLink className="h-4 w-4 text-primary stroke-[1.75]" />
                   <span className="truncate font-medium" style={{ color: '#000000' }}>{l.label}</span>
                 </div>
                 <span className="text-xs" style={{ color: '#404040' }}>{l.clicks.toLocaleString()}</span>
@@ -2436,7 +2436,7 @@ function ProfilePage({ setRoute, me }) {
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {u.featuredWork.map((work, idx) => (
-                  <div key={idx} className="rounded-lg border border-blue-500/30 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-xl p-4 hover:border-blue-500/40 transition-all duration-300">
+                  <div key={idx} className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300">
                     <p className="font-semibold" style={{ color: '#000000' }}>{work.title}</p>
                     <div className="mt-2 flex items-center gap-1 text-xs" style={{ color: '#404040' }}>
                       <Eye className="h-3 w-3 stroke-[1.75]" />
@@ -2462,11 +2462,11 @@ function ProfilePage({ setRoute, me }) {
               </div>
               <div className="space-y-3">
                 {u.upcomingEvents.map((e) => (
-                  <div key={e.id} className="rounded-lg border border-indigo-500/30 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 backdrop-blur-xl p-3 hover:border-indigo-500/40 transition-all duration-300">
+                  <div key={e.id} className="rounded-lg border border-border bg-card bg-accent backdrop-blur-xl p-3 hover:border-border transition-all duration-300">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={cn(
                         "rounded-full border px-2.5 py-1 text-xs backdrop-blur-xl",
-                        e.type === "X Space" ? "border-indigo-500/30 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-300" : "border-purple-500/30 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300"
+                        e.type === "X Space" ? "border-border bg-accent text-primary" : "border-border bg-accent text-primary"
                       )}>
                         {e.type}
                       </span>
@@ -2492,32 +2492,32 @@ function ProfilePage({ setRoute, me }) {
             </div>
             <div className="space-y-3">
               {displayCaseStudies.map((cs) => (
-                <div key={cs.id} className="rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 backdrop-blur-xl p-4 hover:border-emerald-500/40 transition-all duration-300">
+                <div key={cs.id} className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-semibold" style={{ color: '#000000' }}>{cs.title ?? cs.projectName}</span>
-                        {cs.verified && <BadgeCheck className="h-4 w-4 text-emerald-400 stroke-[1.75]" />}
+                        {cs.verified && <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />}
                       </div>
                       {cs.role != null && <p className="mt-1 text-xs" style={{ color: '#404040' }}>{cs.role}{cs.duration ? ` · ${cs.duration}` : ""}</p>}
                       {cs.description && <p className="mt-1 text-sm" style={{ color: '#404040' }}>{cs.description}</p>}
                     </div>
                     {cs.proof_url && (
-                      <a href={cs.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-500">Proof</a>
+                      <a href={cs.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary">Proof</a>
                     )}
                   </div>
                   {cs.results && (
-                    <div className="rounded-lg border border-emerald-700 bg-emerald-950/30 p-3">
+                    <div className="rounded-lg border border-border bg-muted p-3">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-emerald-400 stroke-[1.75]" />
+                        <TrendingUp className="h-4 w-4 text-primary stroke-[1.75]" />
                         <span className="text-sm font-semibold" style={{ color: '#000000' }}>
-                          {cs.results.metric}: <span className="text-emerald-400">{cs.results.value}</span>
+                          {cs.results.metric}: <span className="text-primary">{cs.results.value}</span>
                         </span>
                       </div>
                     </div>
                   )}
                   {cs.testimonial && (
-                    <div className="mt-3 border-l-2 border-indigo-500 pl-3 text-sm italic text-zinc-400">
+                    <div className="mt-3 border-l-2 border-primary/50 pl-3 text-sm italic text-zinc-400">
                       "{cs.testimonial}"
                     </div>
                   )}
@@ -2535,7 +2535,7 @@ function ProfilePage({ setRoute, me }) {
                 <input placeholder="Proof URL (optional)" value={csProofUrl} onChange={(e) => setCsProofUrl(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-4" />
                 <div className="flex gap-2">
                   <button type="button" onClick={() => { setShowCaseStudyModal(false); setCsTitle(""); setCsDescription(""); setCsProofUrl(""); }} className="flex-1 py-2 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
-                  <button type="button" disabled={csSubmitting || !csTitle.trim()} onClick={handleCreateCaseStudy} className="flex-1 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">{csSubmitting ? "Saving…" : "Save"}</button>
+                  <button type="button" disabled={csSubmitting || !csTitle.trim()} onClick={handleCreateCaseStudy} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50">{csSubmitting ? "Saving…" : "Save"}</button>
                 </div>
               </div>
             </div>
@@ -2554,16 +2554,16 @@ function ProfilePage({ setRoute, me }) {
             </div>
             <div className="space-y-3">
               {u.reviews.items.map((r, idx) => (
-                <div key={idx} className="rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/20 to-orange-500/20 backdrop-blur-xl p-4 hover:border-amber-500/40 transition-all duration-300">
+                <div key={idx} className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold" style={{ color: '#000000' }}>{r.by}</span>
-                        <span className="rounded-full border border-indigo-500/30 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 px-2 py-0.5 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
+                        <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
                           {r.byType}
                         </span>
                         {r.verifiedDeal && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 px-2 py-0.5 text-xs text-emerald-300 backdrop-blur-xl">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-accent px-2 py-0.5 text-xs text-primary backdrop-blur-xl">
                             <BadgeCheck className="h-3 w-3 stroke-[1.75]" /> Verified Deal
                           </span>
                         )}
@@ -2578,7 +2578,7 @@ function ProfilePage({ setRoute, me }) {
                   <p className="mt-1 text-sm" style={{ color: '#404040' }}>{r.text}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {r.tags.map((t) => (
-                      <span key={t} className="rounded-full border border-blue-500/30 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 px-2.5 py-1 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
+                      <span key={t} className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
                         {t}
                       </span>
                     ))}
@@ -2834,7 +2834,7 @@ export default function LinkaryApp() {
 
         {/* Additional Accent Squares */}
         <motion.div
-          className="absolute w-24 h-24 bg-gradient-to-br from-indigo-500/25 to-indigo-500/10 rounded-xl"
+          className="absolute w-24 h-24 bg-gradient-to-br from-primary/25 to-primary/10 rounded-xl"
           style={{ left: '3%', top: '28%' }}
           animate={{
             opacity: [0.3, 0.6, 0.3],
@@ -2849,7 +2849,7 @@ export default function LinkaryApp() {
           }}
         />
         <motion.div
-          className="absolute w-28 h-28 bg-gradient-to-br from-fuchsia-500/28 to-transparent rounded-2xl"
+          className="absolute w-28 h-28 bg-gradient-to-br from-primary/28 to-transparent rounded-2xl"
           style={{ right: '25%', top: '68%' }}
           animate={{
             opacity: [0.35, 0.65, 0.35],
@@ -2864,7 +2864,7 @@ export default function LinkaryApp() {
           }}
         />
         <motion.div
-          className="absolute w-26 h-26 bg-gradient-to-br from-blue-500/22 to-blue-500/8 rounded-xl blur-sm"
+          className="absolute w-26 h-26 bg-gradient-to-br from-primary/22 to-primary/8 rounded-xl blur-sm"
           style={{ left: '45%', top: '8%' }}
           animate={{
             opacity: [0.3, 0.55, 0.3],
@@ -2879,7 +2879,7 @@ export default function LinkaryApp() {
           }}
         />
         <motion.div
-          className="absolute w-22 h-22 bg-gradient-to-br from-purple-500/26 to-purple-500/10 rounded-lg"
+          className="absolute w-22 h-22 bg-gradient-to-br from-primary/26 to-primary/10 rounded-lg"
           style={{ right: '35%', top: '42%' }}
           animate={{
             opacity: [0.35, 0.6, 0.35],
@@ -2894,7 +2894,7 @@ export default function LinkaryApp() {
           }}
         />
         <motion.div
-          className="absolute w-30 h-30 bg-gradient-to-br from-rose-500/24 to-rose-500/8 rounded-2xl"
+          className="absolute w-30 h-30 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl"
           style={{ left: '38%', top: '78%' }}
           animate={{
             opacity: [0.3, 0.58, 0.3],
@@ -2909,7 +2909,7 @@ export default function LinkaryApp() {
           }}
         />
         <motion.div
-          className="absolute w-32 h-32 bg-gradient-to-br from-teal-500/20 to-transparent rounded-3xl blur-sm"
+          className="absolute w-32 h-32 bg-gradient-to-br from-primary/20 to-transparent rounded-3xl blur-sm"
           style={{ right: '42%', top: '25%' }}
           animate={{
             opacity: [0.25, 0.5, 0.25],
@@ -2924,7 +2924,7 @@ export default function LinkaryApp() {
           }}
         />
         <motion.div
-          className="absolute w-24 h-24 bg-gradient-to-br from-amber-500/26 to-amber-500/10 rounded-xl"
+          className="absolute w-24 h-24 bg-gradient-to-br from-primary/26 to-primary/10 rounded-xl"
           style={{ left: '68%', top: '52%' }}
           animate={{
             opacity: [0.32, 0.62, 0.32],
@@ -2939,7 +2939,7 @@ export default function LinkaryApp() {
           }}
         />
         <motion.div
-          className="absolute w-28 h-28 bg-gradient-to-br from-emerald-500/22 to-transparent rounded-2xl"
+          className="absolute w-28 h-28 bg-gradient-to-br from-primary/22 to-transparent rounded-2xl"
           style={{ right: '18%', top: '92%' }}
           animate={{
             opacity: [0.28, 0.55, 0.28],
@@ -2954,7 +2954,7 @@ export default function LinkaryApp() {
           }}
         />
         <motion.div
-          className="absolute w-20 h-20 bg-gradient-to-br from-pink-500/28 to-pink-500/12 rounded-lg"
+          className="absolute w-20 h-20 bg-gradient-to-br from-primary/28 to-primary/12 rounded-lg"
           style={{ left: '82%', top: '72%' }}
           animate={{
             opacity: [0.35, 0.65, 0.35],
@@ -2984,7 +2984,7 @@ export default function LinkaryApp() {
           }}
         />
         <motion.div
-          className="absolute w-34 h-34 bg-gradient-to-br from-violet-500/20 to-transparent rounded-3xl blur-md"
+          className="absolute w-34 h-34 bg-gradient-to-br from-primary/20 to-transparent rounded-3xl blur-md"
           style={{ right: '5%', top: '5%' }}
           animate={{
             opacity: [0.25, 0.48, 0.25],
@@ -3027,7 +3027,7 @@ export default function LinkaryApp() {
           <>
             <div className="fixed inset-0 pointer-events-none z-[2]">
               <motion.div
-                className="absolute top-0 right-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl"
+                className="absolute top-0 right-1/4 w-96 h-96 bg-accent rounded-full blur-3xl"
                 animate={{
                   x: [0, 50, 0],
                   y: [0, -30, 0],
@@ -3040,7 +3040,7 @@ export default function LinkaryApp() {
                 }}
               />
               <motion.div
-                className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-fuchsia-500/15 rounded-full blur-3xl"
+                className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-primary/15 rounded-full blur-3xl"
                 animate={{
                   x: [0, -40, 0],
                   y: [0, 40, 0],
@@ -3054,7 +3054,7 @@ export default function LinkaryApp() {
                 }}
               />
               <motion.div
-                className="absolute top-1/3 left-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl"
+                className="absolute top-1/3 left-1/4 w-72 h-72 bg-primary/10 rounded-full blur-3xl"
                 animate={{
                   x: [0, 30, 0],
                   y: [0, -20, 0],
@@ -3096,27 +3096,27 @@ export default function LinkaryApp() {
 
             {/* Corner Accent Decorations */}
             <div className="fixed top-0 left-0 w-32 h-32 pointer-events-none z-[4]">
-              <div className="absolute top-0 left-0 w-full h-full border-t-2 border-l-2 border-indigo-500/30 rounded-tl-3xl" />
+              <div className="absolute top-0 left-0 w-full h-full border-t-2 border-l-2 border-primary/30 rounded-tl-3xl" />
               <motion.div
-                className="absolute top-0 left-0 w-2 h-8 bg-gradient-to-b from-indigo-500/50 to-transparent"
+                className="absolute top-0 left-0 w-2 h-8 bg-gradient-to-b from-primary/50 to-transparent"
                 animate={{ opacity: [0.3, 0.7, 0.3] }}
                 transition={{ duration: 2, repeat: Infinity }}
               />
               <motion.div
-                className="absolute top-0 left-0 w-8 h-2 bg-gradient-to-r from-indigo-500/50 to-transparent"
+                className="absolute top-0 left-0 w-8 h-2 bg-gradient-to-r from-primary/50 to-transparent"
                 animate={{ opacity: [0.3, 0.7, 0.3] }}
                 transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
               />
             </div>
             <div className="fixed top-0 right-0 w-32 h-32 pointer-events-none z-[4]">
-              <div className="absolute top-0 right-0 w-full h-full border-t-2 border-r-2 border-fuchsia-500/30 rounded-tr-3xl" />
+              <div className="absolute top-0 right-0 w-full h-full border-t-2 border-r-2 border-primary/30 rounded-tr-3xl" />
               <motion.div
-                className="absolute top-0 right-0 w-2 h-8 bg-gradient-to-b from-fuchsia-500/50 to-transparent"
+                className="absolute top-0 right-0 w-2 h-8 bg-gradient-to-b from-primary/50 to-transparent"
                 animate={{ opacity: [0.3, 0.7, 0.3] }}
                 transition={{ duration: 2, repeat: Infinity, delay: 1 }}
               />
               <motion.div
-                className="absolute top-0 right-0 w-8 h-2 bg-gradient-to-l from-fuchsia-500/50 to-transparent"
+                className="absolute top-0 right-0 w-8 h-2 bg-gradient-to-l from-primary/50 to-transparent"
                 animate={{ opacity: [0.3, 0.7, 0.3] }}
                 transition={{ duration: 2, repeat: Infinity, delay: 1.5 }}
               />

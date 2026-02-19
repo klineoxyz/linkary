@@ -187,7 +187,7 @@ export default function VerificationInboxPage() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/30">
-              <Shield className="w-6 h-6 text-cyan-400 stroke-[1.75]" />
+              <Shield className="w-6 h-6 text-primary stroke-[1.75]" />
             </div>
             <div>
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Verification Inbox</h1>
@@ -200,28 +200,28 @@ export default function VerificationInboxPage() {
             <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-amber-400 font-semibold uppercase tracking-wider mb-1">Pending</p>
+                  <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Pending</p>
                   <p className="text-3xl font-black text-gray-900">{pendingCount}</p>
                 </div>
-                <Clock className="w-8 h-8 text-amber-400/40 stroke-[1.75]" />
+                <Clock className="w-8 h-8 text-muted-foreground/40 stroke-[1.75]" />
               </div>
             </div>
             <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-1">Accepted</p>
+                  <p className="text-xs text-primary font-semibold uppercase tracking-wider mb-1">Accepted</p>
                   <p className="text-3xl font-black text-gray-900">{acceptedCount}</p>
                 </div>
-                <CheckCircle2 className="w-8 h-8 text-emerald-400/40 stroke-[1.75]" />
+                <CheckCircle2 className="w-8 h-8 text-primary/40 stroke-[1.75]" />
               </div>
             </div>
             <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/20">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-indigo-400 font-semibold uppercase tracking-wider mb-1">Total</p>
+                  <p className="text-xs text-primary font-semibold uppercase tracking-wider mb-1">Total</p>
                   <p className="text-3xl font-black text-gray-900">{requests.length}</p>
                 </div>
-                <Bell className="w-8 h-8 text-indigo-400/40 stroke-[1.75]" />
+                <Bell className="w-8 h-8 text-primary/40 stroke-[1.75]" />
               </div>
             </div>
           </div>
@@ -239,7 +239,7 @@ export default function VerificationInboxPage() {
                 onClick={() => setFilter(f.id as any)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                   filter === f.id
-                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                    ? "bg-accent text-primary border border-border"
                     : "bg-white/5 text-gray-600 hover:text-gray-900 border border-white/10 hover:border-white/20"
                 }`}
               >
@@ -304,10 +304,10 @@ export default function VerificationInboxPage() {
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="px-2 py-1 rounded-lg bg-indigo-500/20 border border-indigo-500/30">
-                              <TypeIcon className="w-3.5 h-3.5 text-indigo-400 stroke-[1.75]" />
+                            <div className="px-2 py-1 rounded-lg bg-accent border border-border">
+                              <TypeIcon className="w-3.5 h-3.5 text-primary stroke-[1.75]" />
                             </div>
-                            <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+                            <span className="text-xs font-semibold text-primary uppercase tracking-wider">
                               {getTypeLabel(request.type)}
                             </span>
                             <span className="text-xs text-neutral-500">•</span>
@@ -339,8 +339,8 @@ export default function VerificationInboxPage() {
                                 </div>
                               )}
                               {request.details.outcome && (
-                                <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                                  <span className="text-xs text-emerald-400 font-medium">{request.details.outcome}</span>
+                                <div className="px-3 py-1.5 rounded-lg bg-accent border border-border">
+                                  <span className="text-xs text-primary font-medium">{request.details.outcome}</span>
                                 </div>
                               )}
                             </div>
@@ -362,7 +362,7 @@ export default function VerificationInboxPage() {
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => handleDecline(request.id)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/20 text-gray-900 font-semibold text-sm hover:bg-red-500/20 hover:border-red-500/30 transition-all"
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/20 text-gray-900 font-semibold text-sm hover:bg-muted hover:border-border transition-all"
                               >
                                 <X className="w-4 h-4 stroke-[2]" />
                                 Decline
@@ -381,20 +381,20 @@ export default function VerificationInboxPage() {
                             <div className="flex items-center gap-2">
                               {request.status === "accepted" && (
                                 <>
-                                  <CheckCircle2 className="w-5 h-5 text-emerald-400 stroke-[1.75]" />
-                                  <span className="text-emerald-400 font-semibold text-sm">Verified</span>
+                                  <CheckCircle2 className="w-5 h-5 text-primary stroke-[1.75]" />
+                                  <span className="text-primary font-semibold text-sm">Verified</span>
                                 </>
                               )}
                               {request.status === "declined" && (
                                 <>
-                                  <XCircle className="w-5 h-5 text-red-400 stroke-[1.75]" />
-                                  <span className="text-red-400 font-semibold text-sm">Declined</span>
+                                  <XCircle className="w-5 h-5 text-muted-foreground stroke-[1.75]" />
+                                  <span className="text-muted-foreground font-semibold text-sm">Declined</span>
                                 </>
                               )}
                               {request.status === "revision_requested" && (
                                 <>
-                                  <AlertCircle className="w-5 h-5 text-amber-400 stroke-[1.75]" />
-                                  <span className="text-amber-400 font-semibold text-sm">Revision Requested</span>
+                                  <AlertCircle className="w-5 h-5 text-muted-foreground stroke-[1.75]" />
+                                  <span className="text-muted-foreground font-semibold text-sm">Revision Requested</span>
                                 </>
                               )}
                             </div>

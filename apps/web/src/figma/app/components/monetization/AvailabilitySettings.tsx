@@ -28,14 +28,14 @@ export default function AvailabilitySettings() {
           {/* Available to Speak */}
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-3 flex-1">
-              <div className="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-                <Mic className="h-5 w-5 text-purple-600" />
+              <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
+                <Mic className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-medium text-zinc-900">I'm available to speak</span>
                   {availableToSpeak && (
-                    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                    <span className="inline-flex items-center rounded-full border border-border bg-accent px-2 py-0.5 text-xs font-medium text-foreground">
                       Active
                     </span>
                   )}
@@ -48,7 +48,7 @@ export default function AvailabilitySettings() {
             <button
               onClick={() => setAvailableToSpeak(!availableToSpeak)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ml-4 ${
-                availableToSpeak ? "bg-indigo-600" : "bg-zinc-200"
+                availableToSpeak ? "bg-primary" : "bg-zinc-200"
               }`}
             >
               <span
@@ -62,14 +62,14 @@ export default function AvailabilitySettings() {
           {/* Open to Partnerships */}
           <div className="flex items-start justify-between pt-6 border-t border-zinc-200">
             <div className="flex items-start gap-3 flex-1">
-              <div className="h-10 w-10 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                <Handshake className="h-5 w-5 text-indigo-600" />
+              <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
+                <Handshake className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-medium text-zinc-900">I'm open to partnerships</span>
                   {openToPartnerships && (
-                    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                    <span className="inline-flex items-center rounded-full border border-border bg-accent px-2 py-0.5 text-xs font-medium text-foreground">
                       Active
                     </span>
                   )}
@@ -82,7 +82,7 @@ export default function AvailabilitySettings() {
             <button
               onClick={() => setOpenToPartnerships(!openToPartnerships)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ml-4 ${
-                openToPartnerships ? "bg-indigo-600" : "bg-zinc-200"
+                openToPartnerships ? "bg-primary" : "bg-zinc-200"
               }`}
             >
               <span
@@ -100,7 +100,7 @@ export default function AvailabilitySettings() {
             <div className="text-xs font-medium text-zinc-500 mb-3">Profile Preview</div>
             <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
               <div className="flex items-center gap-3 mb-3">
-                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400" />
+                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/80" />
                 <div>
                   <div className="font-semibold text-zinc-900">Your Name</div>
                   <div className="text-sm text-zinc-600">@yourhandle</div>
@@ -108,13 +108,13 @@ export default function AvailabilitySettings() {
               </div>
               <div className="flex gap-2">
                 {availableToSpeak && (
-                  <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2.5 py-0.5 text-xs font-medium text-purple-700">
+                  <span className="inline-flex items-center rounded-full border border-border bg-accent px-2.5 py-0.5 text-xs font-medium text-primary">
                     <Mic className="h-3 w-3 mr-1" />
                     Available to Speak
                   </span>
                 )}
                 {openToPartnerships && (
-                  <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
+                  <span className="inline-flex items-center rounded-full border border-border bg-accent px-2.5 py-0.5 text-xs font-medium text-foreground">
                     <Handshake className="h-3 w-3 mr-1" />
                     Open to Partnerships
                   </span>
@@ -129,12 +129,12 @@ export default function AvailabilitySettings() {
       {speakerReputation.hasVerifiedSpeaker && (
         <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
-            <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center">
-              <Award className="h-6 w-6 text-purple-600" />
+            <div className="h-12 w-12 rounded-xl bg-accent flex items-center justify-center">
+              <Award className="h-6 w-6 text-primary" />
             </div>
             <div>
               <h2 className="text-xl font-semibold text-zinc-900">Speaker Reputation</h2>
-              <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700 mt-1">
+              <span className="inline-flex items-center rounded-full border border-border bg-accent px-2 py-0.5 text-xs font-medium text-primary mt-1">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
                 Verified X Space Speaker
               </span>
@@ -168,8 +168,8 @@ export default function AvailabilitySettings() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
-            <p className="text-sm text-indigo-900">
+          <div className="mt-6 rounded-lg border border-border bg-accent p-4">
+            <p className="text-sm text-foreground">
               <strong>Verified Speaker Badge:</strong> Earned after speaking at 5+ verified events with a 4.5+ rating.
               This badge appears on your profile and in search results.
             </p>
@@ -209,8 +209,8 @@ export default function AvailabilitySettings() {
       </div>
 
       {/* Note */}
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-        <p className="text-sm text-amber-900">
+      <div className="rounded-lg border border-border bg-muted p-4">
+        <p className="text-sm text-foreground">
           <strong>Design Only:</strong> Availability toggles, reputation scores, and badges are UI demonstrations.
           Backend logic required for real functionality.
         </p>

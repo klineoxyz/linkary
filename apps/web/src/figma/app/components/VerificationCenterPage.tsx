@@ -125,9 +125,9 @@ export default function VerificationCenterPage() {
     return (
       <span
         className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border
-          ${badge.color === "cyan" ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" : ""}
-          ${badge.color === "indigo" ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" : ""}
-          ${badge.color === "purple" ? "bg-purple-500/20 text-purple-300 border-purple-500/30" : ""}
+          ${badge.color === "cyan" ? "bg-accent text-primary border-border" : ""}
+          ${badge.color === "indigo" ? "bg-accent text-primary border-border" : ""}
+          ${badge.color === "purple" ? "bg-accent text-primary border-border" : ""}
         `}
       >
         {badge.label}
@@ -151,7 +151,7 @@ export default function VerificationCenterPage() {
       <div className="border-b border-white/10 bg-gradient-to-b from-white/5 to-transparent backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center gap-3 mb-2">
-            <FileCheck className="w-6 h-6 text-emerald-400 stroke-[1.75]" />
+            <FileCheck className="w-6 h-6 text-primary stroke-[1.75]" />
             <h1 className="text-3xl font-bold text-gray-900">Verification Center</h1>
           </div>
           <p className="text-gray-600">Maintain Source-of-Truth Across Ecosystem</p>
@@ -166,9 +166,9 @@ export default function VerificationCenterPage() {
           transition={{ duration: 0.5 }}
         >
           <div className="flex items-center gap-3 mb-6">
-            <Clock className="w-5 h-5 text-amber-400 stroke-[1.75]" />
+            <Clock className="w-5 h-5 text-primary stroke-[1.75]" />
             <h2 className="text-2xl font-bold text-gray-900">Pending Claims</h2>
-            <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-sm font-medium border border-amber-500/30">
+            <span className="px-3 py-1 rounded-full bg-accent text-primary text-sm font-medium border border-border">
               {pendingClaims.length}
             </span>
           </div>
@@ -218,14 +218,14 @@ export default function VerificationCenterPage() {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => handleAccept(claim.id)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-medium hover:from-emerald-500/30 hover:to-emerald-500/20 transition-all"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r bg-accent border border-border text-primary font-medium hover:from-emerald-500/30 hover:to-emerald-500/20 transition-all"
                       >
                         <CheckCircle2 className="w-4 h-4 stroke-[1.75]" />
                         Accept
                       </button>
                       <button
                         onClick={() => handleDecline(claim.id)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-500/20 to-red-500/10 border border-red-500/30 text-red-300 font-medium hover:from-red-500/30 hover:to-red-500/20 transition-all"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r bg-muted border border-border text-muted-foreground font-medium hover:from-red-500/30 hover:to-red-500/20 transition-all"
                       >
                         <XCircle className="w-4 h-4 stroke-[1.75]" />
                         Decline
@@ -245,7 +245,7 @@ export default function VerificationCenterPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <div className="flex items-center gap-3 mb-6">
-            <BadgeCheck className="w-5 h-5 text-cyan-400 stroke-[1.75]" />
+            <BadgeCheck className="w-5 h-5 text-primary stroke-[1.75]" />
             <h2 className="text-2xl font-bold text-gray-900">Verified Records</h2>
             <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-sm font-medium border border-cyan-500/30">
               {verifiedClaims.length}
@@ -263,13 +263,13 @@ export default function VerificationCenterPage() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
+                    <div className="p-2 rounded-xl bg-accent border border-border">
                       {getClaimIcon(claim.type)}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-semibold text-gray-900">{claim.claimantName}</span>
-                        <BadgeCheck className="w-4 h-4 text-cyan-400 stroke-[1.75]" />
+                        <BadgeCheck className="w-4 h-4 text-primary stroke-[1.75]" />
                         {getClaimTypeBadge(claim.type)}
                       </div>
                       <p className="text-sm text-gray-700 mb-2">{claim.description}</p>
@@ -295,9 +295,9 @@ export default function VerificationCenterPage() {
             onClick={() => setShowDeclined(!showDeclined)}
             className="flex items-center gap-3 mb-6 w-full group"
           >
-            <AlertCircle className="w-5 h-5 text-red-400 stroke-[1.75]" />
+            <AlertCircle className="w-5 h-5 text-muted-foreground stroke-[1.75]" />
             <h2 className="text-2xl font-bold text-gray-900">Declined Records</h2>
-            <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-300 text-sm font-medium border border-red-500/30">
+            <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-sm font-medium border border-border">
               {declinedClaims.length}
             </span>
             <motion.div
@@ -324,22 +324,22 @@ export default function VerificationCenterPage() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.4, delay: index * 0.1 }}
-                    className="relative overflow-hidden rounded-2xl border border-red-500/30 bg-gradient-to-br from-red-500/10 to-red-500/5 backdrop-blur-xl p-6"
+                    className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-red-500/10 to-red-500/5 backdrop-blur-xl p-6"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-red-500/20 border border-red-500/30">
+                        <div className="p-2 rounded-xl bg-red-500/20 border border-border">
                           {getClaimIcon(claim.type)}
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-semibold text-gray-900">{claim.claimantName}</span>
-                            <XCircle className="w-4 h-4 text-red-400 stroke-[1.75]" />
+                            <XCircle className="w-4 h-4 text-muted-foreground stroke-[1.75]" />
                             {getClaimTypeBadge(claim.type)}
                           </div>
                           <p className="text-sm text-gray-700 mb-2">{claim.description}</p>
                           {claim.details && (
-                            <p className="text-xs text-red-300 mb-1">Reason: {claim.details}</p>
+                            <p className="text-xs text-muted-foreground mb-1">Reason: {claim.details}</p>
                           )}
                           <p className="text-xs text-gray-600 flex items-center gap-2">
                             <Calendar className="w-3 h-3 stroke-[1.75]" />

@@ -23,8 +23,8 @@ export default function PrivacyPolicyPage({
 
         <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-6 sm:p-8">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 rounded-lg bg-indigo-50">
-              <Shield className="w-6 h-6 text-indigo-600" />
+            <div className="p-2 rounded-lg bg-accent">
+              <Shield className="w-6 h-6 text-primary" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-zinc-900">Privacy Policy</h1>

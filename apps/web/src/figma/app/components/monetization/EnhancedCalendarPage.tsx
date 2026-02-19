@@ -132,7 +132,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
             </div>
             <button
               onClick={handleCreateEvent}
-              className="h-11 px-5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors flex items-center gap-2"
+              className="h-11 px-5 rounded-lg bg-primary hover:opacity-90 text-primary-foreground font-medium transition-colors flex items-center gap-2"
             >
               <Plus className="h-5 w-5" />
               Create Event
@@ -149,7 +149,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
             <input
               type="text"
               placeholder="Search events..."
-              className="w-full h-11 pl-10 pr-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500"
+              className="w-full h-11 pl-10 pr-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-border focus:ring-2 focus:ring-ring"
             />
           </div>
           <button className="h-11 px-4 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 font-medium transition-colors flex items-center gap-2">
@@ -166,24 +166,24 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-2">
                   {event.type === "X Space" && (
-                    <div className="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                      <Mic className="h-5 w-5 text-purple-600" />
+                    <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center">
+                      <Mic className="h-5 w-5 text-primary" />
                     </div>
                   )}
                   {event.type === "Podcast" && (
-                    <div className="h-10 w-10 rounded-lg bg-indigo-100 flex items-center justify-center">
-                      <Video className="h-5 w-5 text-indigo-600" />
+                    <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center">
+                      <Video className="h-5 w-5 text-primary" />
                     </div>
                   )}
                   {event.type === "AMA" && (
-                    <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                      <Users className="h-5 w-5 text-emerald-600" />
+                    <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center">
+                      <Users className="h-5 w-5 text-primary" />
                     </div>
                   )}
                   <span className="text-xs font-medium text-zinc-600">{event.type}</span>
                 </div>
                 {event.featured && (
-                  <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
+                  <span className="inline-flex items-center rounded-full border border-border bg-accent px-2 py-0.5 text-xs font-medium text-primary">
                     Featured
                   </span>
                 )}
@@ -222,7 +222,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
                 </div>
                 <div className="flex items-center gap-2">
                   {event.speakers.slice(0, 3).map((speaker, idx) => (
-                    <div key={idx} className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400" />
+                    <div key={idx} className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/80" />
                   ))}
                   {event.speakers.length > 3 && (
                     <span className="text-xs text-zinc-600">+{event.speakers.length - 3} more</span>
@@ -242,7 +242,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
                 {event.canRequestSpeak && (
                   <button
                     onClick={() => handleRequestSpeak(event)}
-                    className="flex-1 h-9 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 h-9 px-3 rounded-lg bg-primary hover:opacity-90 text-primary-foreground font-medium text-sm transition-colors flex items-center justify-center gap-2"
                   >
                     <Send className="h-4 w-4" />
                     Speak
@@ -254,8 +254,8 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
         </div>
 
         {/* Placeholder Note */}
-        <div className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm text-amber-900">
+        <div className="mt-8 rounded-lg border border-border bg-muted p-4">
+          <p className="text-sm text-foreground">
             <strong>Design Only:</strong> All event creation, speaker requests, analytics, and calendar sync features
             are UI placeholders. Backend integration required for full functionality.
           </p>
@@ -284,7 +284,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
                   {["X Space", "Podcast", "AMA", "Webinar"].map((type) => (
                     <button
                       key={type}
-                      className="h-11 px-4 rounded-lg border border-zinc-200 bg-white hover:bg-indigo-50 hover:border-indigo-300 text-zinc-700 font-medium text-sm transition-colors"
+                      className="h-11 px-4 rounded-lg border border-zinc-200 bg-white hover:bg-accent hover:border-border text-zinc-700 font-medium text-sm transition-colors"
                     >
                       {type}
                     </button>
@@ -298,7 +298,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
                 <input
                   type="text"
                   placeholder="Give your event a clear title..."
-                  className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-border focus:ring-2 focus:ring-ring"
                 />
               </div>
 
@@ -308,7 +308,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
                 <textarea
                   rows={4}
                   placeholder="Describe what your event is about..."
-                  className="w-full px-4 py-3 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500 resize-none"
+                  className="w-full px-4 py-3 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-border focus:ring-2 focus:ring-ring resize-none"
                 />
               </div>
 
@@ -318,14 +318,14 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
                   <label className="block text-sm font-medium text-zinc-700 mb-2">Date</label>
                   <input
                     type="date"
-                    className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:outline-none focus:border-indigo-500"
+                    className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:outline-none focus:border-border focus:ring-2 focus:ring-ring"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-2">Time</label>
                   <input
                     type="time"
-                    className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:outline-none focus:border-indigo-500"
+                    className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:outline-none focus:border-border focus:ring-2 focus:ring-ring"
                   />
                 </div>
               </div>
@@ -333,7 +333,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
               {/* Duration */}
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-2">Duration</label>
-                <select className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:outline-none focus:border-indigo-500">
+                <select className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:outline-none focus:border-border focus:ring-2 focus:ring-ring">
                   <option>30 minutes</option>
                   <option>1 hour</option>
                   <option>1.5 hours</option>
@@ -350,7 +350,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
                       <input
                         type="radio"
                         name="visibility"
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
+                        className="h-4 w-4 text-primary focus:ring-ring"
                       />
                       <span className="text-sm text-zinc-700">{vis}</span>
                     </label>
@@ -366,13 +366,13 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
                   min="1"
                   max="20"
                   defaultValue="5"
-                  className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:outline-none focus:border-indigo-500"
+                  className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 focus:outline-none focus:border-border focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               {/* Actions */}
               <div className="flex gap-3 pt-4 border-t border-zinc-200">
-                <button className="flex-1 h-12 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors">
+                <button className="flex-1 h-12 rounded-lg bg-primary hover:opacity-90 text-primary-foreground font-semibold transition-colors">
                   Create Event
                 </button>
                 <button
@@ -418,7 +418,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
                 <input
                   type="text"
                   placeholder="Your topic or area of expertise..."
-                  className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-border focus:ring-2 focus:ring-ring"
                 />
               </div>
 
@@ -428,7 +428,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
                 <textarea
                   rows={4}
                   placeholder="Share your experience, previous talks, or relevant credentials..."
-                  className="w-full px-4 py-3 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500 resize-none"
+                  className="w-full px-4 py-3 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-border focus:ring-2 focus:ring-ring resize-none"
                 />
               </div>
 
@@ -438,13 +438,13 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
                 <input
                   type="url"
                   placeholder="https://..."
-                  className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full h-11 px-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-border focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               {/* Actions */}
               <div className="flex gap-3">
-                <button className="flex-1 h-12 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors flex items-center justify-center gap-2">
+                <button className="flex-1 h-12 rounded-lg bg-primary hover:opacity-90 text-primary-foreground font-semibold transition-colors flex items-center justify-center gap-2">
                   <Send className="h-5 w-5" />
                   Submit Request
                 </button>

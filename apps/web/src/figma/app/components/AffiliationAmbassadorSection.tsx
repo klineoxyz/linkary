@@ -64,9 +64,9 @@ export default function AffiliationAmbassadorSection() {
   if (loading || (!affiliations.length && !ambassadors.length)) return null;
 
   return (
-    <div className="rounded-xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 p-6 space-y-6">
+    <div className="rounded-xl border border-border bg-muted p-6 space-y-6">
       <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-        <UserPlus className="w-5 h-5 text-indigo-400" />
+        <UserPlus className="w-5 h-5 text-primary" />
         Affiliation & Ambassadors
       </h3>
 
@@ -77,13 +77,13 @@ export default function AffiliationAmbassadorSection() {
             {affiliations.map((a) => (
               <li key={a.id} className="flex items-center justify-between py-2 border-b border-white/10 last:border-0">
                 <span className="flex items-center gap-2 text-gray-900">
-                  <Building2 className="w-4 h-4 text-indigo-400" />
+                  <Building2 className="w-4 h-4 text-primary" />
                   {a.orgName ?? a.org_id}
                 </span>
                 {a.status === "invited" ? (
                   <button
                     onClick={() => handleAcceptAffiliation(a.id)}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm"
+                    className="px-3 py-1.5 rounded-lg bg-primary hover:opacity-90 text-white text-sm"
                   >
                     Accept
                   </button>
@@ -103,13 +103,13 @@ export default function AffiliationAmbassadorSection() {
             {ambassadors.map((a) => (
               <li key={a.id} className="flex items-center justify-between py-2 border-b border-white/10 last:border-0">
                 <span className="flex items-center gap-2 text-gray-900">
-                  <Building2 className="w-4 h-4 text-purple-400" />
+                  <Building2 className="w-4 h-4 text-primary" />
                   {a.orgName ?? a.org_id}
                 </span>
                 {a.status === "invited" ? (
                   <button
                     onClick={() => handleAcceptAmbassador(a.id)}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm"
+                    className="px-3 py-1.5 rounded-lg bg-primary hover:opacity-90 text-white text-sm"
                   >
                     Accept
                   </button>

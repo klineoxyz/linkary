@@ -22,7 +22,7 @@ function Stars({ value = 5 }: { value: number }) {
           key={i}
           className={cn(
             "h-4 w-4",
-            i < full ? "fill-current text-yellow-400" : "text-zinc-600"
+            i < full ? "fill-current text-primary" : "text-muted-foreground"
           )}
           viewBox="0 0 24 24"
         >
@@ -36,17 +36,17 @@ function Stars({ value = 5 }: { value: number }) {
 function ScorePills({ ethos, xscore, reputationIndex, socialPower }: any) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-800 bg-emerald-950 px-2.5 py-1 text-xs text-emerald-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
         🛡️ ETHOS {ethos}
       </span>
-      <span className="inline-flex items-center gap-1 rounded-full border border-purple-800 bg-purple-950 px-2.5 py-1 text-xs text-purple-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
         ⚡ XScore {xscore}
       </span>
-      <span className="inline-flex items-center gap-1 rounded-full border border-indigo-800 bg-indigo-950 px-2.5 py-1 text-xs text-indigo-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
         ✓ Index {reputationIndex}
       </span>
       {socialPower && (
-        <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-800 bg-fuchsia-950 px-2.5 py-1 text-xs text-fuchsia-300">
+        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
           ✨ Power {socialPower}
         </span>
       )}
@@ -56,14 +56,14 @@ function ScorePills({ ethos, xscore, reputationIndex, socialPower }: any) {
 
 function Button({ children, variant = "primary", size = "md", className = "", ...props }: any) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none relative z-[10]";
+    "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none relative z-[10]";
   const sizes = {
     sm: "h-8 px-3 text-xs",
     md: "h-10 px-4 text-sm",
   };
   const variants = {
-    primary: "bg-purple-600 hover:bg-purple-700 text-white",
-    outline: "border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10 hover:border-purple-500/40 backdrop-blur-xl text-zinc-700",
+    primary: "bg-primary hover:opacity-90 text-primary-foreground",
+    outline: "border border-border bg-secondary hover:bg-accent backdrop-blur-xl text-foreground",
   };
   return (
     <button
@@ -79,7 +79,7 @@ function Card({ className = "", children }: any) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-xl p-6 hover:border-purple-500/40 transition-all duration-300 relative z-[10]",
+        "rounded-xl border border-border bg-card backdrop-blur-xl p-6 hover:border-border transition-all duration-300 relative z-[10]",
         className
       )}
     >
@@ -241,13 +241,13 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <div className="flex items-start gap-3 mb-4">
-            <ProfileAvatar handle={u.handle} alt={u.name} fallbackGradient="from-purple-500 via-fuchsia-500 to-pink-400" />
+            <ProfileAvatar handle={u.handle} alt={u.name} fallbackGradient="from-primary to-primary/80" />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold truncate" style={{ color: "#000000" }}>
                   {u.name}
                 </span>
-                {u.verified && <BadgeCheck className="h-5 w-5 text-emerald-400 stroke-[1.75]" />}
+                {u.verified && <BadgeCheck className="h-5 w-5 text-primary stroke-[1.75]" />}
               </div>
               <p className="text-sm truncate" style={{ color: "#404040" }}>
                 {u.tagline}
@@ -287,7 +287,7 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
               {u.services.map((service) => (
                 <span
                   key={service}
-                  className="rounded-full border border-purple-500/30 bg-gradient-to-r from-purple-500/20 to-pink-500/20 px-2.5 py-1 text-xs backdrop-blur-xl"
+                  className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl"
                   style={{ color: "#1a1a1a" }}
                 >
                   {service}
@@ -306,10 +306,10 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
                 {u.team.slice(0, 3).map((member: any) => (
                   <div
                     key={member.name}
-                    className="flex items-center justify-between rounded-lg border border-purple-500/30 bg-gradient-to-r from-purple-500/10 to-pink-500/10 px-3 py-2"
+                    className="flex items-center justify-between rounded-lg border border-border bg-accent px-3 py-2"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400" />
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/80" />
                       <div>
                         <p className="text-sm font-medium" style={{ color: "#000000" }}>
                           {member.name}
@@ -319,11 +319,11 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
                         </p>
                       </div>
                     </div>
-                    {member.verified && <BadgeCheck className="h-4 w-4 text-emerald-400 stroke-[1.75]" />}
+                    {member.verified && <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />}
                   </div>
                 ))}
                 {u.team.length > 3 && (
-                  <button className="w-full text-xs text-purple-400 hover:text-purple-300 transition-colors">
+                  <button className="w-full text-xs text-primary hover:opacity-90 transition-colors">
                     View all {u.team.length} team members →
                   </button>
                 )}
@@ -341,11 +341,11 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
                 {u.clients.map((client) => (
                   <span
                     key={client.name}
-                    className="rounded-full border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500/20 to-pink-500/20 px-2.5 py-1 text-xs backdrop-blur-xl inline-flex items-center gap-1"
+                    className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl inline-flex items-center gap-1"
                     style={{ color: "#1a1a1a" }}
                   >
                     {client.name}
-                    {client.verified && <BadgeCheck className="h-3 w-3 text-emerald-400 stroke-[1.75]" />}
+                    {client.verified && <BadgeCheck className="h-3 w-3 text-primary stroke-[1.75]" />}
                   </span>
                 ))}
               </div>
@@ -368,7 +368,7 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
                         "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)",
                     }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-600/90 to-pink-600/90" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70" />
                     <div className="relative z-10 flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-white">{p.name}</p>
@@ -387,10 +387,10 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
             {u.links.map((l) => (
               <div
                 key={l.label}
-                className="flex items-center justify-between rounded-lg border border-purple-500/30 bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-xl px-4 py-3 hover:border-purple-500/40 transition-all duration-300"
+                className="flex items-center justify-between rounded-lg border border-border bg-accent backdrop-blur-xl px-4 py-3 hover:border-border transition-all duration-300"
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <ExternalLink className="h-4 w-4 text-pink-400 stroke-[1.75]" />
+                  <ExternalLink className="h-4 w-4 text-primary stroke-[1.75]" />
                   <span className="truncate font-medium" style={{ color: "#000000" }}>
                     {l.label}
                   </span>
@@ -416,7 +416,7 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
                 {u.metrics.map((metric: any) => (
                   <div
                     key={metric.label}
-                    className="rounded-lg border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-xl p-4"
+                    className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4"
                   >
                     <div className="text-xs font-medium mb-1" style={{ color: "#666666" }}>
                       {metric.label}
@@ -428,7 +428,7 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
                       <span
                         className={cn(
                           "text-xs font-medium",
-                          metric.change.startsWith("+") ? "text-emerald-400" : "text-zinc-400"
+                          metric.change.startsWith("+") ? "text-primary" : "text-muted-foreground"
                         )}
                       >
                         {metric.change}
@@ -455,7 +455,7 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
                 {u.featuredWork.map((work, idx) => (
                   <div
                     key={idx}
-                    className="rounded-lg border border-purple-500/30 bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-xl p-4 hover:border-purple-500/40 transition-all duration-300"
+                    className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300"
                   >
                     <p className="font-semibold" style={{ color: "#000000" }}>
                       {work.title}
@@ -484,7 +484,7 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
               {u.caseStudies.map((cs) => (
                 <div
                   key={cs.id}
-                  className="rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 backdrop-blur-xl p-4 hover:border-emerald-500/40 transition-all duration-300"
+                  className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300"
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
@@ -492,7 +492,7 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
                         <span className="font-semibold" style={{ color: "#000000" }}>
                           {cs.projectName}
                         </span>
-                        {cs.verified && <BadgeCheck className="h-4 w-4 text-emerald-400 stroke-[1.75]" />}
+                        {cs.verified && <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />}
                       </div>
                       <p className="mt-1 text-xs" style={{ color: "#404040" }}>
                         {cs.role} · {cs.duration}
@@ -503,17 +503,17 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
                     </Button>
                   </div>
 
-                  <div className="rounded-lg border border-emerald-700 bg-emerald-950/30 p-3">
+                  <div className="rounded-lg border border-border bg-muted p-3">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-emerald-400 stroke-[1.75]" />
+                      <TrendingUp className="h-4 w-4 text-primary stroke-[1.75]" />
                       <span className="text-sm font-semibold" style={{ color: "#000000" }}>
-                        {cs.results.metric}: <span className="text-emerald-400">{cs.results.value}</span>
+                        {cs.results.metric}: <span className="text-primary">{cs.results.value}</span>
                       </span>
                     </div>
                   </div>
 
                   {cs.testimonial && (
-                    <div className="mt-3 border-l-2 border-purple-500 pl-3 text-sm italic text-zinc-400">
+                    <div className="mt-3 border-l-2 border-primary/50 pl-3 text-sm italic text-zinc-400">
                       "{cs.testimonial}"
                     </div>
                   )}
@@ -525,7 +525,7 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
                         {cs.deliverables.map((d, i) => (
                           <span
                             key={i}
-                            className="rounded-full border border-cyan-500/30 bg-cyan-500/20 px-2.5 py-1 text-xs text-cyan-300"
+                            className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs text-foreground"
                           >
                             {d}
                           </span>
@@ -554,7 +554,7 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
               {u.reviewItems.map((review, idx) => (
                 <div
                   key={idx}
-                  className="rounded-lg border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-xl p-4"
+                  className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
@@ -562,11 +562,11 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
                         <span className="font-semibold" style={{ color: "#000000" }}>
                           {review.by}
                         </span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-primary">
                           {review.byType}
                         </span>
                         {review.verifiedDeal && (
-                          <BadgeCheck className="h-4 w-4 text-emerald-400 stroke-[1.75]" />
+                          <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />
                         )}
                       </div>
                       <Stars value={review.rating} />
@@ -586,7 +586,7 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
                       {review.tags.map((tag, i) => (
                         <span
                           key={i}
-                          className="text-xs px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/20 text-emerald-300"
+                          className="text-xs px-2.5 py-1 rounded-full border border-border bg-accent text-foreground"
                         >
                           {tag}
                         </span>

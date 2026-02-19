@@ -54,7 +54,7 @@ export default function CreateOrgModal({
   };
 
   const inputClass =
-    "w-full px-3 py-2.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500";
+    "w-full px-3 py-2.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-ring focus:border-border";
   const labelClass = "block text-sm font-medium text-zinc-700 mb-1.5";
 
   return (
@@ -76,7 +76,7 @@ export default function CreateOrgModal({
         </div>
         <form onSubmit={handleSubmit} className="px-6 sm:px-8 py-5 lg:py-6 flex flex-col flex-1 min-h-0 overflow-y-auto">
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm shrink-0">
+            <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm shrink-0">
               {error}
             </div>
           )}
@@ -93,7 +93,7 @@ export default function CreateOrgModal({
                       onClick={() => setOrgType(t.value)}
                       className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
                         org_type === t.value
-                          ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                          ? "border-primary bg-accent text-primary"
                           : "border-zinc-300 text-zinc-600 hover:bg-zinc-50"
                       }`}
                     >
@@ -181,7 +181,7 @@ export default function CreateOrgModal({
             <button
               type="submit"
               disabled={loading || !name.trim()}
-              className="flex-1 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 rounded-lg bg-primary hover:opacity-90 text-primary-foreground font-medium disabled:opacity-50"
             >
               {loading ? "Creating…" : "Create"}
             </button>

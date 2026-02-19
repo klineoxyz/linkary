@@ -222,7 +222,7 @@ export default function GlobalSearch({
           onFocus={() => setIsOpen(true)}
           placeholder={canSearch ? "Search creators, projects, agencies..." : "Upgrade to search"}
           disabled={!canSearch}
-          className="w-full pl-12 pr-12 py-3 rounded-2xl bg-white/5 border border-white/10 text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full pl-12 pr-12 py-3 rounded-2xl bg-white/5 border border-white/10 text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-ring focus:border-border transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         />
         {query && (
           <button
@@ -245,7 +245,7 @@ export default function GlobalSearch({
                 onClick={() => setFilter(f.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   filter === f.id
-                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                    ? "bg-accent text-foreground border border-border"
                     : "bg-white/5 text-neutral-400 hover:text-white border border-white/10 hover:border-white/20"
                 }`}
               >
@@ -270,14 +270,14 @@ export default function GlobalSearch({
             {/* Access Gate (Free tier) */}
             {!canSearch && (
               <div className="p-6 text-center">
-                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 inline-flex mb-4">
-                  <Crown className="w-6 h-6 text-amber-400 stroke-[1.75]" />
+                <div className="p-3 rounded-2xl bg-accent border border-border inline-flex mb-4">
+                  <Crown className="w-6 h-6 text-primary stroke-[1.75]" />
                 </div>
                 <h3 className="text-white font-bold mb-2">{tierConfig.message}</h3>
                 <p className="text-sm text-neutral-400 mb-4">
                   Get access to global search and discover the full network.
                 </p>
-                <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-500 text-white font-semibold text-sm hover:shadow-lg hover:shadow-cyan-500/50 transition-all">
+                <button className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-all">
                   Upgrade Now
                 </button>
               </div>
@@ -286,7 +286,7 @@ export default function GlobalSearch({
             {/* Loading State */}
             {isLoading && (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 text-cyan-400 animate-spin stroke-[1.75]" />
+                <Loader2 className="w-6 h-6 text-primary animate-spin stroke-[1.75]" />
                 <span className="ml-2 text-neutral-400">Searching...</span>
               </div>
             )}
@@ -347,8 +347,8 @@ export default function GlobalSearch({
                         <div className="flex items-center gap-2">
                           <h4 className="text-white font-semibold truncate">{result.name}</h4>
                           {result.verified && (
-                            <div className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            <div className="w-4 h-4 rounded-full bg-accent border border-border flex items-center justify-center flex-shrink-0">
+                              <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                             </div>
                           )}
                         </div>
@@ -358,11 +358,11 @@ export default function GlobalSearch({
                         <div className="flex items-center gap-3">
                           <div className="text-right">
                             <div className="text-xs text-neutral-500">ETHOS</div>
-                            <div className="text-sm font-semibold text-indigo-400">{result.ethos}</div>
+                            <div className="text-sm font-semibold text-primary">{result.ethos}</div>
                           </div>
                           <div className="text-right">
                             <div className="text-xs text-neutral-500">XScore</div>
-                            <div className="text-sm font-semibold text-cyan-400">{result.xscore}</div>
+                            <div className="text-sm font-semibold text-primary">{result.xscore}</div>
                           </div>
                         </div>
                       )}
@@ -376,7 +376,7 @@ export default function GlobalSearch({
             {canSearch && "quota" in tierConfig && tierConfig.quota && (
               <div className="border-t border-white/10 px-4 py-3 bg-white/5">
                 <p className="text-xs text-neutral-400 text-center">
-                  {tierConfig.message} · <button className="text-cyan-400 hover:text-cyan-300 font-semibold">Upgrade</button>
+                  {tierConfig.message} · <button className="text-primary hover:opacity-90 font-semibold">Upgrade</button>
                 </p>
               </div>
             )}

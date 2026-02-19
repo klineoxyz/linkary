@@ -9,7 +9,7 @@ import { Star, TrendingUp, TrendingDown, CheckCircle2, ExternalLink, X as XIcon,
  * - Lucide Icons only (outline style)
  * - Stroke: 1.75px via stroke-[1.75]
  * - Base color: zinc-200 @ 80% opacity
- * - Hover: cyan-400 with 8px glow
+ * - Hover: primary with 8px glow
  */
 
 // Animation variants
@@ -38,7 +38,7 @@ export function ProfileAvatar({
   handle,
   alt,
   className = "h-14 w-14 rounded-2xl object-cover shrink-0",
-  fallbackGradient = "from-indigo-500 via-fuchsia-500 to-cyan-400",
+  fallbackGradient = "from-primary to-primary/80",
   avatarUrl,
 }: {
   handle: string;
@@ -96,7 +96,7 @@ export function StatCard({
   value,
   change,
   icon: Icon,
-  gradient = "from-indigo-500/20 to-purple-500/20",
+  gradient = "from-primary/20 to-primary/10",
 }: {
   label: string;
   value: string | number;
@@ -123,8 +123,8 @@ export function StatCard({
           <div
             className={`flex items-center gap-1 text-xs sm:text-sm font-semibold flex-shrink-0 px-2 py-1 rounded-lg backdrop-blur-sm border ${
               isPositive 
-                ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/30" 
-                : "text-rose-300 bg-rose-500/10 border-rose-500/30"
+                ? "text-primary bg-primary/10 border-primary/30" 
+                : "text-muted-foreground bg-muted border-border"
             }`}
           >
             {isPositive ? <TrendingUp className="w-3.5 h-3.5 flex-shrink-0 stroke-[2]" /> : <TrendingDown className="w-3.5 h-3.5 flex-shrink-0 stroke-[2]" />}
@@ -141,35 +141,35 @@ export function ReputationBadge({
   icon: Icon,
   label,
   value,
-  color = "emerald",
+  color = "primary",
   description,
 }: {
   icon: any;
   label: string;
   value: number | string;
-  color?: "emerald" | "blue" | "purple" | "amber";
+  color?: "primary" | "muted" | "accent" | "chart";
   description?: string;
 }) {
   const colorMap = {
-    emerald: {
-      bg: "bg-emerald-500/20",
-      text: "text-emerald-400",
-      border: "border-emerald-500/30",
+    primary: {
+      bg: "bg-primary/20",
+      text: "text-primary",
+      border: "border-primary/30",
     },
-    blue: {
-      bg: "bg-blue-500/20",
-      text: "text-blue-400",
-      border: "border-blue-500/30",
+    muted: {
+      bg: "bg-muted",
+      text: "text-muted-foreground",
+      border: "border-border",
     },
-    purple: {
-      bg: "bg-purple-500/20",
-      text: "text-purple-400",
-      border: "border-purple-500/30",
+    accent: {
+      bg: "bg-accent",
+      text: "text-foreground",
+      border: "border-border",
     },
-    amber: {
-      bg: "bg-amber-500/20",
-      text: "text-amber-400",
-      border: "border-amber-500/30",
+    chart: {
+      bg: "bg-chart-1/20",
+      text: "text-foreground",
+      border: "border-border",
     },
   };
 
@@ -192,8 +192,8 @@ export function ReputationBadge({
 // Role Chip Component
 export function RoleChip({
   label,
-  gradient = "from-indigo-500/20 to-purple-500/20",
-  borderColor = "border-indigo-500/30",
+  gradient = "from-primary/20 to-primary/10",
+  borderColor = "border-border",
   icon: Icon,
 }: {
   label: string;
@@ -217,7 +217,7 @@ export function SocialCard({
   label,
   value,
   url,
-  hoverColor = "hover:bg-blue-500/10 hover:border-blue-500/20",
+  hoverColor = "hover:bg-accent hover:border-border",
 }: {
   icon: any;
   label: string;
@@ -276,7 +276,7 @@ export function ReviewCard({
           <div>
             <div className="flex items-center gap-2">
               <h4 className="font-semibold text-white">{author}</h4>
-              {verified && <CheckCircle2 className="w-4 h-4 text-cyan-400" />}
+              {verified && <CheckCircle2 className="w-4 h-4 text-primary" />}
             </div>
             {authorType && <p className="text-xs text-neutral-400">{authorType}</p>}
           </div>
@@ -287,7 +287,7 @@ export function ReviewCard({
               <Star
                 key={idx}
                 className={`w-4 h-4 ${
-                  idx < rating ? "text-amber-400 fill-amber-400" : "text-neutral-600"
+                  idx < rating ? "text-primary fill-primary" : "text-neutral-600"
                 }`}
               />
             ))}
@@ -328,7 +328,7 @@ export function FilterPill({
       onClick={onClick}
       className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
         active
-          ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg scale-105"
+          ? "bg-primary text-primary-foreground shadow-lg scale-105"
           : "bg-white/5 border border-white/10 text-neutral-400 hover:bg-white/10 hover:border-white/20 hover:text-white"
       }`}
     >
@@ -347,51 +347,51 @@ export function StatusBadge({
 }) {
   const statusMap: Record<string, { bg: string; text: string; border: string; animate: string }> = {
     active: {
-      bg: "bg-emerald-500/20",
-      text: "text-emerald-400",
-      border: "border-emerald-500/30",
+      bg: "bg-primary/20",
+      text: "text-primary",
+      border: "border-primary/30",
       animate: "animate-pulse",
     },
     inactive: {
-      bg: "bg-neutral-500/20",
-      text: "text-neutral-400",
-      border: "border-neutral-500/30",
+      bg: "bg-muted",
+      text: "text-muted-foreground",
+      border: "border-border",
       animate: "",
     },
     pending: {
-      bg: "bg-amber-500/20",
-      text: "text-amber-400",
-      border: "border-amber-500/30",
+      bg: "bg-muted",
+      text: "text-muted-foreground",
+      border: "border-border",
       animate: "animate-pulse",
     },
     completed: {
-      bg: "bg-blue-500/20",
-      text: "text-blue-400",
-      border: "border-blue-500/30",
+      bg: "bg-accent",
+      text: "text-foreground",
+      border: "border-border",
       animate: "",
     },
     filled: {
-      bg: "bg-purple-500/20",
-      text: "text-purple-400",
-      border: "border-purple-500/30",
+      bg: "bg-accent",
+      text: "text-foreground",
+      border: "border-border",
       animate: "",
     },
     closed: {
-      bg: "bg-rose-500/20",
-      text: "text-rose-400",
-      border: "border-rose-500/30",
+      bg: "bg-destructive/20",
+      text: "text-destructive",
+      border: "border-destructive/30",
       animate: "",
     },
     confirmed: {
-      bg: "bg-emerald-500/20",
-      text: "text-emerald-400",
-      border: "border-emerald-500/30",
+      bg: "bg-primary/20",
+      text: "text-primary",
+      border: "border-primary/30",
       animate: "",
     },
     Scheduled: {
-      bg: "bg-cyan-500/20",
-      text: "text-cyan-400",
-      border: "border-cyan-500/30",
+      bg: "bg-accent",
+      text: "text-primary",
+      border: "border-border",
       animate: "animate-pulse",
     },
   };
@@ -415,8 +415,8 @@ export function EcosystemCard({
   description,
   logo,
   status,
-  gradient = "from-indigo-500/10 to-purple-500/10",
-  borderColor = "border-indigo-500/20",
+  gradient = "from-primary/10 to-primary/5",
+  borderColor = "border-border",
   value,
   url,
 }: {
@@ -462,12 +462,12 @@ export function EcosystemCard({
       <p className="text-sm text-neutral-300 mb-3">{description}</p>
       <div className="flex items-center justify-between">
         {status && (
-          <span className="text-xs px-3 py-1 rounded-full bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-semibold">
+          <span className="text-xs px-3 py-1 rounded-full bg-primary/30 text-primary border border-primary/40 font-semibold">
             {status}
           </span>
         )}
         {value && (
-          <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+          <span className="text-xs text-primary font-bold flex items-center gap-1">
             {value}
           </span>
         )}
@@ -509,7 +509,7 @@ export function MemberCard({
           className="w-12 h-12 rounded-full object-cover border-2 border-white/20 group-hover:border-4 group-hover:scale-110 transition-all duration-300"
         />
         {verified && (
-          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-zinc-900 flex items-center justify-center">
+          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-full border-2 border-zinc-900 flex items-center justify-center">
             <CheckCircle2 className="w-3 h-3 text-white" strokeWidth={3} />
           </div>
         )}
@@ -519,7 +519,7 @@ export function MemberCard({
         <div className="text-xs text-neutral-400 truncate">{role}</div>
         {ethos && (
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
               ETHOS {ethos}
             </span>
           </div>
@@ -534,8 +534,8 @@ export function AchievementCard({
   icon: Icon,
   title,
   description,
-  color = "from-amber-500/10 to-orange-500/10",
-  borderColor = "border-amber-500/20",
+  color = "from-primary/10 to-primary/5",
+  borderColor = "border-border",
 }: {
   icon: any;
   title: string;
@@ -607,8 +607,8 @@ export function SectionHeader({
   title,
   subtitle,
   action,
-  gradient = "from-indigo-500/20 to-purple-500/20",
-  borderColor = "border-indigo-500/30",
+  gradient = "from-primary/20 to-primary/10",
+  borderColor = "border-border",
 }: {
   icon: any;
   title: string;
@@ -661,9 +661,9 @@ export function EmptyState(
 // Feature status badge: Live | Beta | Coming soon — use for launch polish (no conflict with StatusBadge for events/circles)
 export function FeatureStatusBadge({ status }: { status: "live" | "beta" | "coming-soon" }) {
   const config = {
-    live: { label: "Live", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-    beta: { label: "Beta", className: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
-    "coming-soon": { label: "Coming soon", className: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+    live: { label: "Live", className: "bg-primary/20 text-primary border-primary/30" },
+    beta: { label: "Beta", className: "bg-muted text-muted-foreground border-border" },
+    "coming-soon": { label: "Coming soon", className: "bg-muted text-muted-foreground border-border" },
   };
   const { label, className } = config[status];
   return (
@@ -683,21 +683,21 @@ export function VerificationBadge({
 }) {
   const badges = {
     verified: {
-      bg: "bg-cyan-500/20",
-      border: "border-cyan-500/40",
-      text: "text-cyan-400",
+      bg: "bg-accent",
+      border: "border-border",
+      text: "text-primary",
       label: "Verified",
     },
     partner: {
-      bg: "bg-purple-500/20",
-      border: "border-purple-500/40",
-      text: "text-purple-400",
+      bg: "bg-accent",
+      border: "border-border",
+      text: "text-primary",
       label: "Partner",
     },
     "client-verified": {
-      bg: "bg-emerald-500/20",
-      border: "border-emerald-500/40",
-      text: "text-emerald-400",
+      bg: "bg-primary/20",
+      border: "border-primary/40",
+      text: "text-primary",
       label: "Client Verified",
     },
   };
@@ -778,9 +778,9 @@ export function TagChip({
 }) {
   const variants = {
     default: "bg-white/10 border-white/20 text-neutral-300",
-    primary: "bg-indigo-500/20 border-indigo-500/30 text-indigo-300",
-    success: "bg-emerald-500/20 border-emerald-500/30 text-emerald-300",
-    warning: "bg-amber-500/20 border-amber-500/30 text-amber-300",
+    primary: "bg-primary/20 border-primary/30 text-primary",
+    success: "bg-primary/20 border-primary/30 text-primary",
+    warning: "bg-muted border-border text-muted-foreground",
   };
 
   const sizes = {
@@ -849,7 +849,7 @@ export function PortfolioCard({
         </div>
       )}
       {results && (
-        <div className="flex items-center gap-2 text-xs font-medium text-emerald-400">
+        <div className="flex items-center gap-2 text-xs font-medium text-primary">
           <TrendingUpIcon className="w-3 h-3 stroke-[1.75]" />
           {results}
         </div>
@@ -872,11 +872,11 @@ export function ProfileCompletenessBar({
     <div className="p-4 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10">
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-medium text-white">Profile Completeness</span>
-        <span className="text-sm font-bold text-indigo-400">{percentage}%</span>
+        <span className="text-sm font-bold text-primary">{percentage}%</span>
       </div>
       <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-3">
         <div
-          className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+          className="h-full bg-gradient-to-r from-primary to-primary/90 transition-all duration-500"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -885,7 +885,7 @@ export function ProfileCompletenessBar({
           {checklist.map((item, idx) => (
             <div key={idx} className="flex items-center gap-2 text-xs">
               {item.completed ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <CheckCircle2 className="w-4 h-4 text-primary" />
               ) : (
                 <div className="w-4 h-4 rounded-full border-2 border-white/20" />
               )}
@@ -910,25 +910,25 @@ export function AvailabilityStatus({
 }) {
   const statusConfig = {
     available: {
-      bg: "bg-emerald-500/20",
-      text: "text-emerald-400",
-      border: "border-emerald-500/30",
+      bg: "bg-primary/20",
+      text: "text-primary",
+      border: "border-primary/30",
       label: "Available",
-      dot: "bg-emerald-400",
+      dot: "bg-primary",
     },
     busy: {
-      bg: "bg-amber-500/20",
-      text: "text-amber-400",
-      border: "border-amber-500/30",
+      bg: "bg-muted",
+      text: "text-muted-foreground",
+      border: "border-border",
       label: "Busy",
-      dot: "bg-amber-400",
+      dot: "bg-primary",
     },
     booked: {
-      bg: "bg-rose-500/20",
-      text: "text-rose-400",
-      border: "border-rose-500/30",
+      bg: "bg-destructive/20",
+      text: "text-destructive",
+      border: "border-destructive/30",
       label: "Booked",
-      dot: "bg-rose-400",
+      dot: "bg-destructive",
     },
   };
 
@@ -965,13 +965,13 @@ export function MediaKitCard({
     <div className="p-6 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-indigo-400" />
+          <FileText className="w-5 h-5 text-primary" />
           <h4 className="font-semibold text-white">Media Kit</h4>
         </div>
         {onDownload && (
           <button
             onClick={onDownload}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/30 transition-all text-sm font-medium"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-accent border border-border text-primary hover:bg-accent/80 transition-all text-sm font-medium"
           >
             <Download className="w-4 h-4" />
             Download
@@ -986,7 +986,7 @@ export function MediaKitCard({
         </div>
         <div className="p-3 rounded-xl bg-white/5 border border-white/10">
           <div className="text-xs text-neutral-400 mb-1">Engagement</div>
-          <div className="text-lg font-bold text-emerald-400">{engagementRate}</div>
+          <div className="text-lg font-bold text-primary">{engagementRate}</div>
         </div>
       </div>
 
@@ -1061,23 +1061,23 @@ export function CaseStudyCard({
       {expanded && (
         <div className="space-y-3 pt-3 border-t border-white/10">
           <div>
-            <h6 className="text-xs font-semibold text-amber-400 mb-1">Problem</h6>
+            <h6 className="text-xs font-semibold text-primary mb-1">Problem</h6>
             <p className="text-sm text-neutral-300">{problem}</p>
           </div>
           <div>
-            <h6 className="text-xs font-semibold text-indigo-400 mb-1">Approach</h6>
+            <h6 className="text-xs font-semibold text-primary mb-1">Approach</h6>
             <p className="text-sm text-neutral-300">{approach}</p>
           </div>
           <div>
-            <h6 className="text-xs font-semibold text-emerald-400 mb-1">Outcome</h6>
+            <h6 className="text-xs font-semibold text-primary mb-1">Outcome</h6>
             <p className="text-sm text-neutral-300">{outcome}</p>
           </div>
           {results && results.length > 0 && (
             <div className="grid grid-cols-2 gap-2 pt-2">
               {results.map((result, idx) => (
-                <div key={idx} className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <div key={idx} className="p-2 rounded-xl bg-primary/10 border border-primary/20">
                   <div className="text-xs text-neutral-400">{result.label}</div>
-                  <div className="text-sm font-bold text-emerald-400">{result.value}</div>
+                  <div className="text-sm font-bold text-primary">{result.value}</div>
                 </div>
               ))}
             </div>
@@ -1113,10 +1113,10 @@ export function CampaignCard({
   onApply?: () => void;
 }) {
   const typeColors = {
-    paid: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    equity: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-    token: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    ambassador: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    paid: "bg-primary/20 text-primary border-primary/30",
+    equity: "bg-accent text-foreground border-border",
+    token: "bg-accent text-foreground border-border",
+    ambassador: "bg-muted text-muted-foreground border-border",
   };
 
   return (
@@ -1167,7 +1167,7 @@ export function CampaignCard({
       {onApply && status === "active" && (
         <button
           onClick={onApply}
-          className="w-full py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-medium hover:scale-105 transition-all"
+          className="w-full py-2 rounded-xl bg-gradient-to-r from-primary to-primary/90 text-white font-medium hover:scale-105 transition-all"
         >
           Apply Now
         </button>
@@ -1194,37 +1194,37 @@ export function ReputationLevel({
   const getTierStyle = (lvl: number) => {
     if (lvl >= 50) {
       return {
-        glow: "shadow-lg shadow-amber-500/50",
-        gradient: "from-amber-400 via-yellow-400 to-amber-400",
-        border: "border-amber-500/50",
-        text: "text-amber-400",
+        glow: "shadow-lg shadow-primary/50",
+        gradient: "from-primary to-primary/80",
+        border: "border-primary/50",
+        text: "text-primary",
         sparkle: true,
         aura: true,
       };
     } else if (lvl >= 26) {
       return {
-        glow: "shadow-md shadow-amber-500/30",
-        gradient: "from-amber-400 to-yellow-500",
-        border: "border-amber-500/40",
-        text: "text-amber-400",
+        glow: "shadow-md shadow-primary/30",
+        gradient: "from-primary to-primary/80",
+        border: "border-primary/40",
+        text: "text-primary",
         sparkle: true,
         aura: false,
       };
     } else if (lvl >= 11) {
       return {
-        glow: "shadow-md shadow-purple-500/30",
-        gradient: "from-purple-400 to-fuchsia-500",
-        border: "border-purple-500/40",
-        text: "text-purple-400",
+        glow: "shadow-md shadow-primary/30",
+        gradient: "from-primary to-primary/80",
+        border: "border-primary/40",
+        text: "text-primary",
         sparkle: false,
         aura: false,
       };
     } else {
       return {
-        glow: "shadow-sm shadow-blue-500/20",
-        gradient: "from-cyan-400 to-blue-500",
-        border: "border-blue-500/30",
-        text: "text-blue-400",
+        glow: "shadow-sm shadow-primary/20",
+        gradient: "from-primary to-primary/80",
+        border: "border-border",
+        text: "text-primary",
         sparkle: false,
         aura: false,
       };
@@ -1295,7 +1295,7 @@ export function ReputationLevel({
     return (
       <div className={`p-4 rounded-2xl backdrop-blur-xl border ${tier.border} bg-gradient-to-br from-white/5 to-white/[0.02] ${tier.aura ? 'animate-pulse-slow' : ''}`}>
         {tier.aura && (
-          <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 rounded-2xl blur-xl animate-pulse" />
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-primary/15 to-primary/20 rounded-2xl blur-xl animate-pulse" />
         )}
         <div className="relative z-10">
           {levelDisplay}
@@ -1316,10 +1316,10 @@ export function ReputationLevelCompact({
   progress: number;
 }) {
   const getTierColor = (lvl: number) => {
-    if (lvl >= 50) return "text-amber-400";
-    if (lvl >= 26) return "text-amber-400";
-    if (lvl >= 11) return "text-purple-400";
-    return "text-blue-400";
+    if (lvl >= 50) return "text-primary";
+    if (lvl >= 26) return "text-primary";
+    if (lvl >= 11) return "text-primary";
+    return "text-primary";
   };
 
   return (

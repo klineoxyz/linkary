@@ -703,8 +703,8 @@ function Button({ children, variant = "primary", size = "md", className = "", ..
   };
   const variants = {
     primary: "bg-indigo-600 hover:bg-indigo-700 text-white",
-    outline: "border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 hover:border-indigo-500/40 backdrop-blur-xl text-zinc-300",
-    ghost: "hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10 text-zinc-300",
+    outline: "border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 hover:border-indigo-500/40 backdrop-blur-xl text-zinc-700",
+    ghost: "hover:bg-gradient-to-br hover:from-indigo-500/10 hover:to-purple-500/10 text-zinc-700",
   };
   return (
     <button
@@ -2298,7 +2298,6 @@ function ProfilePage({ setRoute, me }) {
     <div className="space-y-6">
       <SectionTitle
         title={`linkary.xyz/${u.handle}`}
-        subtitle="Public profile — This is how others see you"
         right={
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>

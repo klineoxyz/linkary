@@ -905,7 +905,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-sidebar-foreground"
           aria-label="Linkary Home"
         >
-          <img src="/logos/logo-white.png" alt="Linkary" className="h-6 w-auto" />
+          <img src="/icons/linkary-icon.png" alt="Linkary" className="h-6 w-auto" />
         </Link>
 
         <button className="lg:hidden" onClick={() => setMobileOpen((v) => !v)}>

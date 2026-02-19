@@ -18,10 +18,11 @@ export const metadata: Metadata = {
   description: "Web3 reputation-driven gigs and reviews",
   icons: {
     icon: [
+      { url: "/icons/linkary-icon.png", type: "image/png" },
       { url: "/icons/icon.svg", type: "image/svg+xml" },
       { url: "/icons/icon-color.svg", type: "image/svg+xml", media: "(prefers-color-scheme: light)" },
     ],
-    apple: "/icons/icon-color.svg",
+    apple: "/icons/linkary-icon.png",
   },
 };
 

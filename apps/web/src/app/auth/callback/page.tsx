@@ -11,7 +11,10 @@ const REDIRECT_AFTER = "/settings/integrations";
 
 function extractTwitterIdentity(user: { identities?: Array<Record<string, unknown>>; user_metadata?: Record<string, unknown> }): TwitterIdentity | null {
   const identities = user.identities ?? [];
-  const twitter = identities.find((i) => (i.provider as string) === "twitter");
+  const twitter = identities.find((i) => {
+    const p = (i.provider as string)?.toLowerCase();
+    return p === "twitter" || p === "x";
+  });
   if (twitter) {
     const raw = (twitter.identity_data ?? twitter) as Record<string, unknown>;
     return {
@@ -27,7 +30,8 @@ function extractTwitterIdentity(user: { identities?: Array<Record<string, unknow
     };
   }
   const meta = user.user_metadata ?? {};
-  if (meta.provider === "twitter" || (typeof meta.iss === "string" && meta.iss.includes("twitter"))) {
+  const metaProvider = (meta.provider as string)?.toLowerCase();
+  if (metaProvider === "twitter" || metaProvider === "x" || (typeof meta.iss === "string" && meta.iss.includes("twitter"))) {
     return {
       provider: "twitter",
       sub: meta.sub as string | undefined,

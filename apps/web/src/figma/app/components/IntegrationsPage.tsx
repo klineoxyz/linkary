@@ -43,7 +43,7 @@ export default function IntegrationsPage({
       /* ignore */
     }
     const { data, error: err } = await supabase.auth.signInWithOAuth({
-      provider: "twitter",
+      provider: "x",
       options: { redirectTo },
     });
     setConnecting(false);

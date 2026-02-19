@@ -5,7 +5,7 @@ Linkary supports an **optional** “Connect X” flow in **Settings → Integrat
 ## Flow
 
 1. User opens **Settings → Integrations** and clicks **Connect X**.
-2. App calls `supabase.auth.signInWithOAuth({ provider: "twitter", options: { redirectTo: "<NEXT_PUBLIC_SITE_URL>/auth/callback?next=/settings/integrations" } })`.
+2. App calls `supabase.auth.signInWithOAuth({ provider: "x", options: { redirectTo: "<NEXT_PUBLIC_SITE_URL>/auth/callback" } })`. (Supabase’s X/Twitter OAuth 2.0 provider is named **"x"**, not "twitter".)
 3. User authorizes on X and is redirected to your app’s `/auth/callback`.
 4. Callback page exchanges the code for a session (if needed), reads Twitter identity from `user.identities` / `user.user_metadata`, and updates `profiles` (twitter_user_id, twitter_username or twitter_username_candidate, avatar, twitter_connected_at). Then redirects to `next` or `/settings/integrations`.
 5. **Disconnect X** in the UI only clears `twitter_connected_at` and `twitter_user_id` in `profiles`; it does **not** delete the Supabase auth identity.

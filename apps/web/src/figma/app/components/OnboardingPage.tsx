@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { updateMyProfile, getMyProfile } from "@/lib/profiles";
+import { getProfileProfessions, setProfileProfessions } from "@/lib/profileProfessions";
+import ProfessionSelect from "./ProfessionSelect";
+import type { Profession } from "@/lib/professions";
 
 const SITE_URL = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin) : "http://localhost:3000";
 const AUTH_CALLBACK = `${SITE_URL.replace(/\/$/, "")}/auth/callback`;
-
-const INTENTS = ["Creator", "Brand", "Both"] as const;
 
 const LOCATION_REGIONS = [
   "",
@@ -31,7 +32,7 @@ export default function OnboardingPage({
   onComplete: () => void;
   setRoute: (r: { name: string }) => void;
 }) {
-  const [intent, setIntent] = useState<string>("Creator");
+  const [selectedProfessions, setSelectedProfessions] = useState<Profession[]>([]);
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
@@ -45,14 +46,17 @@ export default function OnboardingPage({
 
   const normalizedHandle = handle.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-");
 
-  // Pre-fill from profile only (no sync on load)
+  // Pre-fill from profile and professions
   useEffect(() => {
     let cancelled = false;
-    getMyProfile(userId).then((profile) => {
-      if (cancelled || !profile) return;
-      if (profile.username) setHandle(profile.username);
-      if (profile.display_name) setDisplayName(profile.display_name);
-      if (profile.bio) setBio(profile.bio);
+    Promise.all([getMyProfile(userId), getProfileProfessions(userId)]).then(([profile, { data: profs }]) => {
+      if (cancelled) return;
+      if (profile) {
+        if (profile.username) setHandle(profile.username);
+        if (profile.display_name) setDisplayName(profile.display_name);
+        if (profile.bio) setBio(profile.bio);
+      }
+      if (profs?.length) setSelectedProfessions(profs);
     });
     return () => { cancelled = true; };
   }, [userId]);
@@ -101,19 +105,36 @@ export default function OnboardingPage({
       return;
     }
 
-    const intentsArray = intent === "Both" ? ["Creator", "Brand"] : [intent];
-
     const { error: updateErr } = await updateMyProfile(userId, {
       username: handleTrim,
       display_name: displayName.trim() || null,
       bio: bio.trim() || null,
       website: website.trim() || null,
       location: location.trim() || null,
-      intents: intentsArray,
       published,
       onboarding_completed_at: new Date().toISOString(),
     });
+    if (updateErr) {
+      setLoading(false);
+      setError(updateErr);
+      return;
+    }
 
+    const { error: profErr } = await setProfileProfessions(userId, selectedProfessions.map((p) => p.id));
+    setLoading(false);
+    if (profErr) {
+      setError(profErr);
+      return;
+    }
+    onComplete();
+  };
+
+  const handleSkip = async () => {
+    setError(null);
+    setLoading(true);
+    const { error: updateErr } = await updateMyProfile(userId, {
+      onboarding_completed_at: new Date().toISOString(),
+    });
     setLoading(false);
     if (updateErr) {
       setError(updateErr);
@@ -130,23 +151,14 @@ export default function OnboardingPage({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">I am a</label>
-            <div className="flex gap-2 flex-wrap">
-              {INTENTS.map((i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setIntent(i)}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium ${
-                    intent === i
-                      ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                      : "border-zinc-300 text-zinc-600 hover:bg-zinc-50"
-                  }`}
-                >
-                  {i}
-                </button>
-              ))}
-            </div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">What best describes you?</label>
+            <ProfessionSelect
+              selectedProfessions={selectedProfessions}
+              onChange={setSelectedProfessions}
+              allowCreate={true}
+              placeholder="Search or add roles…"
+            />
+            <p className="text-xs text-zinc-500 mt-1">You can edit this later.</p>
           </div>
 
           <div>
@@ -277,6 +289,14 @@ export default function OnboardingPage({
               className="flex-1 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
             >
               {loading ? "Saving…" : "Finish"}
+            </button>
+            <button
+              type="button"
+              onClick={handleSkip}
+              disabled={loading}
+              className="py-2.5 px-4 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50"
+            >
+              Skip for now
             </button>
           </div>
         </form>

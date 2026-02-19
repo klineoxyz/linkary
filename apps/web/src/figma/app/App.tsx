@@ -180,6 +180,7 @@ import AvailabilitySettings from "./components/monetization/AvailabilitySettings
 import MonetizationShowcase from "./components/monetization/MonetizationShowcase";
 import MonetizationFlowShowcase from "./components/monetization/MonetizationFlowShowcase";
 import IntegrationsPage from "./components/IntegrationsPage";
+import RolesSkillsPage from "./components/RolesSkillsPage";
 
 /**
  * Linkary - Web3 Reputation + Opportunity + Review + Case Study Infrastructure
@@ -766,7 +767,7 @@ const RESERVED_PATHS = new Set([
   "pricing", "billing", "plans", "app", "api", "settings", "test-supabase", "home",
   "leaderboards", "creator", "brand", "agency", "calendar", "host", "availability",
   "monetization", "monetization-flow", "kol-lists", "capital-partners",
-  "preferences", "support", "notifications", "verification-inbox", "showcase", "integrations",
+  "preferences", "support", "notifications", "verification-inbox", "showcase", "integrations", "roles-skills",
 ]);
 
 function pathFromRoute(route: { name: string; data?: any; handle?: string }): string {
@@ -815,6 +816,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     notifications: "/notifications",
     showcase: "/showcase",
     integrations: "/settings/integrations",
+    rolesSkills: "/settings/roles-skills",
   };
   return map[route.name] ?? "/";
 }
@@ -823,6 +825,7 @@ function routeFromPathname(pathname: string | null): { name: string; data?: any;
   const fullPath = (pathname ?? "/").replace(/^\//, "");
   const parts = fullPath.split("/").map((p) => p.toLowerCase());
   if (parts[0] === "settings" && parts[1] === "integrations") return { name: "integrations" };
+  if (parts[0] === "settings" && parts[1] === "roles-skills") return { name: "rolesSkills" };
   const path = parts[0] || "";
   if (!path) return { name: "landing" };
   const segment = path;
@@ -841,6 +844,7 @@ function routeFromPathname(pathname: string | null): { name: string; data?: any;
       "capital-partners": "capitalPartners", preferences: "preferences",
       support: "support", notifications: "notifications",
       "verification-inbox": "verificationInbox", showcase: "showcase", integrations: "integrations",
+      "roles-skills": "rolesSkills",
     };
     return { name: nameMap[segment] ?? "landing" };
   }
@@ -970,6 +974,13 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
           >
             <Sliders className="h-4 w-4 stroke-[1.75]" /> Preferences
+          </button>
+          <button
+            type="button"
+            onClick={() => setRoute({ name: "rolesSkills" })}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-300 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-purple-500/10 transition-colors"
+          >
+            <Briefcase className="h-4 w-4 stroke-[1.75]" /> Roles &amp; Skills
           </button>
           <button
             type="button"
@@ -3165,6 +3176,7 @@ export default function LinkaryApp() {
                 {route.name === "availability" && <AvailabilitySettings />}
                 {route.name === "preferences" && <StubPage setRoute={setRoute} title="Preferences" message="Account preferences and display settings are on the roadmap." />}
                 {route.name === "integrations" && <IntegrationsPage setRoute={setRoute} userId={authUserId} />}
+                {route.name === "rolesSkills" && <RolesSkillsPage setRoute={setRoute} userId={authUserId} />}
                 {route.name === "support" && <StubPage setRoute={setRoute} title="Support" message="Help center and contact support are coming soon." />}
                 {route.name === "notifications" && <StubPage setRoute={setRoute} title="Notifications" message="No notifications yet. Activity and alerts will appear here." />}
                 {route.name === "signOut" && <StubPage setRoute={setRoute} title="Sign out" message="Sign out will be available when auth is connected." backTo="landing" />}

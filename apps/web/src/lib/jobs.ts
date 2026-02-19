@@ -83,12 +83,25 @@ export async function applyToJobAsProfile(
   return { data: { applicationId: (data as { id: string }).id }, error: null };
 }
 
-/** Apply to job as an org (e.g. agency). */
+/** Apply to job as an org. Only agencies can apply to gigs; projects cannot. */
 export async function applyToJobAsOrg(
   jobId: string,
   applicantOrgId: string,
   message?: string
 ): Promise<{ data: { applicationId: string } | null; error: string | null }> {
+  const { data: org, error: orgError } = await supabase
+    .from("orgs")
+    .select("org_type")
+    .eq("id", applicantOrgId)
+    .maybeSingle();
+  if (orgError || !org) return { data: null, error: "Organization not found." };
+  const orgType = (org as { org_type: string }).org_type;
+  if (orgType !== "agency") {
+    return {
+      data: null,
+      error: "Only agencies can apply to gigs. Projects and other org types cannot apply.",
+    };
+  }
   const { data, error } = await supabase
     .from(APPLICATIONS)
     .insert({

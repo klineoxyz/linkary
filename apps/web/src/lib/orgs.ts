@@ -19,6 +19,11 @@ export type Org = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  is_crypto_project?: boolean | null;
+  has_token?: boolean | null;
+  token_symbol?: string | null;
+  dexscreener_url?: string | null;
+  xscore?: number | null;
 };
 
 export type OrgMember = {
@@ -169,7 +174,7 @@ export async function getOrgBySlug(slug: string): Promise<Org | null> {
 /** Update org (caller must be owner/admin via RLS). */
 export async function updateOrg(
   orgId: string,
-  payload: Partial<Pick<Org, "name" | "tagline" | "website" | "twitter_username" | "logo_url">>
+  payload: Partial<Pick<Org, "name" | "tagline" | "website" | "twitter_username" | "logo_url" | "is_crypto_project" | "has_token" | "token_symbol" | "dexscreener_url" | "xscore">>
 ): Promise<{ error: string | null }> {
   const { error } = await supabase.from(ORGS).update(payload).eq("id", orgId);
   return { error: error?.message ?? null };

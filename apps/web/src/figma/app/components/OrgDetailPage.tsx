@@ -9,6 +9,7 @@ import {
   X,
   ArrowLeft,
   Loader2,
+  Settings,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -22,6 +23,7 @@ import {
   inviteAmbassadorByHandle,
   recomputeOrgMetrics,
   isOrgAdmin,
+  updateOrg,
   type Org,
   type OrgMember,
   type OrgAffiliation,
@@ -41,7 +43,7 @@ export default function OrgDetailPage({
   const orgId = data?.orgId ?? data?.slug;
   const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"members" | "affiliates" | "ambassadors" | "jobs" | "case_studies">("members");
+  const [tab, setTab] = useState<"members" | "affiliates" | "ambassadors" | "jobs" | "case_studies" | "settings">("members");
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [affiliations, setAffiliations] = useState<OrgAffiliation[]>([]);
   const [ambassadors, setAmbassadors] = useState<OrgAmbassador[]>([]);
@@ -66,6 +68,12 @@ export default function OrgDetailPage({
   const [jobDuration, setJobDuration] = useState("");
   const [jobTagsStr, setJobTagsStr] = useState("");
   const [jobSaving, setJobSaving] = useState(false);
+  const [isCryptoProject, setIsCryptoProject] = useState(false);
+  const [hasToken, setHasToken] = useState(false);
+  const [tokenSymbol, setTokenSymbol] = useState("");
+  const [dexscreenerUrl, setDexscreenerUrl] = useState("");
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
 
   useEffect(() => void loadSession(), []);
   function loadSession() {
@@ -86,6 +94,10 @@ export default function OrgDetailPage({
         : await getOrgBySlug(orgId as string);
       setOrg(o ?? null);
       if (o) {
+        setIsCryptoProject(!!o.is_crypto_project);
+        setHasToken(!!o.has_token);
+        setTokenSymbol(o.token_symbol ?? "");
+        setDexscreenerUrl(o.dexscreener_url ?? "");
         const [m, a, am, met, jobsAll, cs] = await Promise.all([
           listOrgMembers(o.id),
           listOrgAffiliations(o.id),
@@ -164,6 +176,7 @@ export default function OrgDetailPage({
     { id: "ambassadors" as const, label: "Ambassadors", icon: UserPlus },
     { id: "jobs" as const, label: "Jobs", icon: Briefcase },
     { id: "case_studies" as const, label: "Case Studies", icon: Building2 },
+    { id: "settings" as const, label: "Settings", icon: Settings },
   ];
 
   return (
@@ -372,6 +385,88 @@ export default function OrgDetailPage({
                     )}
                   </div>
                 ))
+              )}
+            </div>
+          )}
+
+          {tab === "settings" && (
+            <div className="space-y-6 max-w-lg">
+              {!admin ? (
+                <p className="text-zinc-500 text-sm">Only org admins can edit settings.</p>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3">Crypto &amp; token</h3>
+                    <label className="flex items-center gap-2 mb-2">
+                      <input
+                        type="checkbox"
+                        checked={isCryptoProject}
+                        onChange={(e) => { setIsCryptoProject(e.target.checked); if (!e.target.checked) { setHasToken(false); setTokenSymbol(""); setDexscreenerUrl(""); } }}
+                        className="rounded border-zinc-300"
+                      />
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300">This is a crypto project</span>
+                    </label>
+                    {isCryptoProject && (
+                      <>
+                        <label className="flex items-center gap-2 mb-2 mt-3">
+                          <input
+                            type="checkbox"
+                            checked={hasToken}
+                            onChange={(e) => { setHasToken(e.target.checked); if (!e.target.checked) { setTokenSymbol(""); setDexscreenerUrl(""); } }}
+                            className="rounded border-zinc-300"
+                          />
+                          <span className="text-sm text-zinc-700 dark:text-zinc-300">We have a token</span>
+                        </label>
+                        {hasToken && (
+                          <div className="mt-3 space-y-2">
+                            <div>
+                              <label className="block text-xs font-medium text-zinc-500 mb-1">Token symbol (optional)</label>
+                              <input
+                                type="text"
+                                value={tokenSymbol}
+                                onChange={(e) => setTokenSymbol(e.target.value)}
+                                placeholder="e.g. LINK"
+                                className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-zinc-500 mb-1">DexScreener link (paste chart URL)</label>
+                              <input
+                                type="url"
+                                value={dexscreenerUrl}
+                                onChange={(e) => setDexscreenerUrl(e.target.value)}
+                                placeholder="https://dexscreener.com/..."
+                                className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {settingsError && <p className="text-sm text-destructive">{settingsError}</p>}
+                  <button
+                    type="button"
+                    disabled={settingsSaving || !org}
+                    onClick={async () => {
+                      if (!org) return;
+                      setSettingsError(null);
+                      setSettingsSaving(true);
+                      const { error } = await updateOrg(org.id, {
+                        is_crypto_project: isCryptoProject,
+                        has_token: hasToken ? true : false,
+                        token_symbol: hasToken && tokenSymbol.trim() ? tokenSymbol.trim() : null,
+                        dexscreener_url: hasToken && dexscreenerUrl.trim() ? dexscreenerUrl.trim() : null,
+                      });
+                      setSettingsSaving(false);
+                      if (error) setSettingsError(error);
+                      else setOrg({ ...org, is_crypto_project: isCryptoProject, has_token: hasToken, token_symbol: tokenSymbol.trim() || null, dexscreener_url: dexscreenerUrl.trim() || null });
+                    }}
+                    className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm disabled:opacity-50"
+                  >
+                    {settingsSaving ? "Saving…" : "Save settings"}
+                  </button>
+                </>
               )}
             </div>
           )}

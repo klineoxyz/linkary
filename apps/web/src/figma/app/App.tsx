@@ -164,6 +164,7 @@ import PrivacyPolicyPage from "./components/PrivacyPolicyPage";
 import PublicProfileDemo from "./components/PublicProfileDemo";
 import PublicStandalonePage from "./components/PublicStandalonePage";
 import { ProfileAvatar } from "./components/SharedComponents";
+import { MediaHeader } from "@/components/public/MediaHeader";
 
 // Import Circles system components
 import CirclesOverviewPage from "./components/circles/CirclesOverviewPage";
@@ -1194,12 +1195,21 @@ function ComingSoonModal({ onClose, previousRoute, setRoute }) {
 // -----------------------------
 // Pages
 // -----------------------------
-function OverviewPage({ setRoute }) {
+function OverviewPage({ setRoute, headerMedia }) {
   const u = demo.me;
   const p = demo.project;
 
   return (
     <div className="space-y-6">
+      {headerMedia?.header_media_type && headerMedia.header_media_type !== "NONE" && headerMedia.header_media_url && (
+        <div className="mb-6">
+          <MediaHeader
+            type={headerMedia.header_media_type as "IMAGE" | "VIDEO"}
+            url={headerMedia.header_media_url}
+            alt="Profile header"
+          />
+        </div>
+      )}
       <SectionTitle
         title="Overview"
         subtitle="Web3 Reputation Infrastructure — Platform Stats & Featured Creators"
@@ -1771,6 +1781,7 @@ function MarketplacePage({ setRoute }) {
   const [applyMessage, setApplyMessage] = useState("");
   const [applyAsOrgId, setApplyAsOrgId] = useState<string | null>(null);
   const [applyLoading, setApplyLoading] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   useEffect(() => {
     listJobs().then(setDbJobs);
@@ -1801,7 +1812,8 @@ function MarketplacePage({ setRoute }) {
     const { data: appData, error: appErr } = isOrg
       ? await applyToJobAsOrg(applyJob.id, applyAsOrgId!, applyMessage.trim() || undefined)
       : await applyToJobAsProfile(applyJob.id, profileId, applyMessage.trim() || undefined);
-    if (appErr) { setApplyLoading(false); return; }
+    if (appErr) { setApplyLoading(false); setApplyError(appErr); return; }
+    setApplyError(null);
     const participants = isOrg
       ? [{ type: "org" as const, id: applyAsOrgId! }, { type: "org" as const, id: applyJob.org_id }]
       : [{ type: "profile" as const, id: profileId }, { type: "org" as const, id: applyJob.org_id }];
@@ -1814,6 +1826,7 @@ function MarketplacePage({ setRoute }) {
     setApplyJob(null);
     setApplyMessage("");
     setApplyAsOrgId(null);
+    setApplyError(null);
     setApplyLoading(false);
     setRoute({ name: "messages", data: { conversationId: conv.id } });
   };
@@ -1970,6 +1983,7 @@ function MarketplacePage({ setRoute }) {
           <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Apply to {applyJob.title}</h3>
             <p className="text-sm text-zinc-500 mb-4">{(applyJob.org?.name ?? applyJob.org_id)}</p>
+            {applyError && <p className="text-sm text-destructive mb-3">{applyError}</p>}
             <textarea
               placeholder="Message (optional)"
               value={applyMessage}
@@ -1993,7 +2007,7 @@ function MarketplacePage({ setRoute }) {
               </div>
             )}
             <div className="flex gap-2">
-              <button type="button" onClick={() => { setApplyJob(null); setApplyMessage(""); setApplyAsOrgId(null); }} className="flex-1 py-2 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
+              <button type="button" onClick={() => { setApplyJob(null); setApplyMessage(""); setApplyAsOrgId(null); setApplyError(null); }} className="flex-1 py-2 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
               <button type="button" disabled={applyLoading || !userId || !profileId} onClick={handleApplySubmit} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50">{applyLoading ? "Applying…" : "Apply"}</button>
             </div>
           </div>
@@ -2271,6 +2285,7 @@ function MessagesPage({ setRoute, initialConversationId }) {
 }
 
 function ProfilePage({ setRoute, me }) {
+  const router = useRouter();
   const [profileProfessions, setProfileProfessions] = useState<{ id: string; name: string }[]>([]);
   const [caseStudies, setCaseStudies] = useState<any[]>([]);
   const [showCaseStudyModal, setShowCaseStudyModal] = useState(false);
@@ -2318,9 +2333,20 @@ function ProfilePage({ setRoute, me }) {
       <div className="mb-8 relative z-[10] flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
         <div className="flex flex-wrap gap-3">
           {isMyProfile && (
-            <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "profileEdit" })}>
-              Edit profile
-            </Button>
+            <>
+              <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "profileEdit" })}>
+                Edit profile
+              </Button>
+              {me?.username ? (
+                <Button variant="outline" className="flex items-center gap-2" onClick={() => router.push("/" + encodeURIComponent(me.username))}>
+                  <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Public View
+                </Button>
+              ) : (
+                <Button variant="outline" className="flex items-center gap-2" disabled title="Set username to enable">
+                  Public View (set username to enable)
+                </Button>
+              )}
+            </>
           )}
           <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
             <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Share
@@ -2609,6 +2635,7 @@ export default function LinkaryApp() {
   const [authBootstrapped, setAuthBootstrapped] = useState(false);
   const [me, setMe] = useState(null);
   const [authUserId, setAuthUserId] = useState(null);
+  const [headerMedia, setHeaderMedia] = useState<{ header_media_type: string; header_media_url: string | null } | null>(null);
 
   useEffect(() => {
     const fromPath = routeFromPathname(pathname ?? "/");
@@ -2645,6 +2672,41 @@ export default function LinkaryApp() {
       setMe(p ?? null);
     }
   }, [authUserId]);
+
+  const refreshHeaderMedia = useCallback(async () => {
+    if (!me?.id) return;
+    const { data } = await supabase
+      .from("profile_media")
+      .select("header_media_type, header_media_url")
+      .eq("profile_id", me.id)
+      .maybeSingle();
+    if (data && data.header_media_type !== "NONE") {
+      setHeaderMedia({ header_media_type: data.header_media_type, header_media_url: data.header_media_url ?? null });
+    } else {
+      setHeaderMedia(null);
+    }
+  }, [me?.id]);
+
+  useEffect(() => {
+    if (!me?.id) {
+      setHeaderMedia(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("profile_media")
+        .select("header_media_type, header_media_url")
+        .eq("profile_id", me.id)
+        .maybeSingle();
+      if (!cancelled && data && data.header_media_type !== "NONE") {
+        setHeaderMedia({ header_media_type: data.header_media_type, header_media_url: data.header_media_url ?? null });
+      } else if (!cancelled) {
+        setHeaderMedia(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [me?.id]);
 
   const runAuthGate = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -3148,7 +3210,7 @@ export default function LinkaryApp() {
                 transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
                 className="relative z-[10]"
               >
-                {route.name === "overview" && <OverviewPage setRoute={setRoute} />}
+                {route.name === "overview" && <OverviewPage setRoute={setRoute} headerMedia={headerMedia} />}
                 {route.name === "explore" && <ExplorePage setRoute={setRoute} />}
                 {route.name === "market" && <MarketplacePage setRoute={setRoute} />}
                 {route.name === "calendar" && <CalendarPage events={demo.events} />}
@@ -3174,7 +3236,7 @@ export default function LinkaryApp() {
                 {route.name === "landing" && <LandingPage setRoute={setRoute} />}
                 {route.name === "profile" && <ProfilePage setRoute={setRoute} me={me} />}
                 {route.name === "profileEdit" && (
-                  <ProfileEditPage setRoute={setRoute} me={me} onSaved={refreshMe} />
+                  <ProfileEditPage setRoute={setRoute} me={me} onSaved={() => { refreshMe(); refreshHeaderMedia(); }} />
                 )}
                 {route.name === "userProfile" && (
                   <UserProfilePage

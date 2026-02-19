@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { updateMyProfile } from "@/lib/profiles";
 import { getProfileProfessions, setProfileProfessions } from "@/lib/profileProfessions";
 import ProfessionSelect from "./ProfessionSelect";
 import type { Profession } from "@/lib/professions";
 import type { Profile } from "@/lib/profiles";
+
+type HeaderMediaType = "NONE" | "IMAGE" | "VIDEO";
 
 const LOCATION_OPTIONS = [
   "",
@@ -34,6 +37,8 @@ export default function ProfileEditPage({
   const [website, setWebsite] = useState("");
   const [location, setLocation] = useState("");
   const [professions, setProfessions] = useState<Profession[]>([]);
+  const [headerMediaType, setHeaderMediaType] = useState<HeaderMediaType>("NONE");
+  const [headerMediaUrl, setHeaderMediaUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,13 +46,21 @@ export default function ProfileEditPage({
   const load = useCallback(async () => {
     if (!me?.id) return;
     setLoading(true);
-    const { data } = await getProfileProfessions(me.id);
+    const [profResult, mediaData] = await Promise.all([
+      getProfileProfessions(me.id),
+      supabase.from("profile_media").select("header_media_type, header_media_url").eq("profile_id", me.id).maybeSingle(),
+    ]);
     setLoading(false);
     if (me.display_name != null) setDisplayName(me.display_name);
     if (me.bio != null) setBio(me.bio);
     if (me.website != null) setWebsite(me.website);
     if (me.location != null) setLocation(me.location);
-    if (data?.length) setProfessions(data);
+    if (profResult?.data?.length) setProfessions(profResult.data);
+    if (mediaData?.data) {
+      const t = mediaData.data.header_media_type as HeaderMediaType;
+      setHeaderMediaType(t === "IMAGE" || t === "VIDEO" ? t : "NONE");
+      setHeaderMediaUrl(mediaData.data.header_media_url ?? "");
+    }
   }, [me?.id, me?.display_name, me?.bio, me?.website, me?.location]);
 
   useEffect(() => {
@@ -71,9 +84,23 @@ export default function ProfileEditPage({
       return;
     }
     const { error: profErr } = await setProfileProfessions(me.id, professions.map((p) => p.id));
-    setSaving(false);
     if (profErr) {
+      setSaving(false);
       setError(profErr);
+      return;
+    }
+    const { error: mediaErr } = await supabase.from("profile_media").upsert(
+      {
+        profile_id: me.id,
+        header_media_type: headerMediaType,
+        header_media_url: headerMediaType !== "NONE" ? headerMediaUrl.trim() || null : null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "profile_id" }
+    );
+    setSaving(false);
+    if (mediaErr) {
+      setError(mediaErr.message);
       return;
     }
     onSaved?.();
@@ -155,6 +182,28 @@ export default function ProfileEditPage({
               <option key={opt || "empty"} value={opt}>{opt || "Select…"}</option>
             ))}
           </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Header media (home &amp; public page)</label>
+          <p className="text-xs text-zinc-500 mb-2">Optional video or image shown on your overview and public profile.</p>
+          <select
+            value={headerMediaType}
+            onChange={(e) => setHeaderMediaType(e.target.value as HeaderMediaType)}
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 mb-2"
+          >
+            <option value="NONE">None</option>
+            <option value="IMAGE">Image</option>
+            <option value="VIDEO">Video</option>
+          </select>
+          {(headerMediaType === "IMAGE" || headerMediaType === "VIDEO") && (
+            <input
+              type="url"
+              value={headerMediaUrl}
+              onChange={(e) => setHeaderMediaUrl(e.target.value)}
+              placeholder={headerMediaType === "VIDEO" ? "https://… video URL" : "https://… image URL"}
+              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 mt-1"
+            />
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Roles</label>

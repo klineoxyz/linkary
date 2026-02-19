@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   const [profileRes, rollupRes, driversRes, baselineRes] = await Promise.all([
     supabase
       .from("profiles")
-      .select("followers_total, avg_engagement_rate, x_last_profile_sync_at, x_last_tweets_sync_at, x_sync_status")
+      .select("followers_total, avg_engagement_rate, x_last_profile_sync_at, x_last_tweets_sync_at, x_sync_status, twitter_username")
       .eq("id", user.id)
       .maybeSingle(),
     supabase.from("x_analytics_rollups").select("*").eq("profile_id", user.id).maybeSingle(),

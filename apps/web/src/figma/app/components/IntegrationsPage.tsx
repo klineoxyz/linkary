@@ -153,7 +153,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
                   {isConnected ? (handle != null ? "@" + String(handle).replace(/^@/, "") : "Connected") : "Connect for verification and profile link"}
                   {showLastSynced ? (
                     <span className="block mt-1 text-xs text-zinc-400">
-                      Last synced: profile {lastSyncedProfile} · tweets {lastSyncedTweets}
+                      Synced {lastSyncedProfile !== "\u2014" ? lastSyncedProfile : lastSyncedTweets}
                     </span>
                   ) : null}
                 </p>

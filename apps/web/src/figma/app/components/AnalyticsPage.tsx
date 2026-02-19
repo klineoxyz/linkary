@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -94,7 +94,7 @@ type Baseline = {
 } | null;
 
 type XAnalyticsData = {
-  profile: { followers_total?: number; avg_engagement_rate?: number; x_last_profile_sync_at?: string | null; x_last_tweets_sync_at?: string | null };
+  profile: { followers_total?: number; avg_engagement_rate?: number; x_last_profile_sync_at?: string | null; x_last_tweets_sync_at?: string | null; twitter_username?: string | null };
   rollup: Record<string, unknown> | null;
   topDrivers: Array<{ tweet_id: string; tweeted_at: string | null; like_count: number; reply_count: number; repost_count: number; engagement_score: number }>;
   baseline: Baseline;
@@ -107,21 +107,46 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const [entityType, setEntityType] = useState<"creator" | "project" | "agency" | "company">("creator");
   const [visibility, setVisibility] = useState<VisibilityType>("public");
   const [xAnalyticsData, setXAnalyticsData] = useState<XAnalyticsData | null>(null);
+  const initialSyncTriggered = useRef(false);
+
+  const fetchXAnalytics = React.useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return;
+    const json = await res.json().catch(() => ({}));
+    setXAnalyticsData({ profile: json.profile ?? {}, rollup: json.rollup ?? null, topDrivers: json.topDrivers ?? [], baseline: json.baseline ?? null });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token || cancelled) return;
-      const base = typeof window !== "undefined" ? window.location.origin : "";
-      const res = await fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok || cancelled) return;
-      const json = await res.json().catch(() => ({}));
-      if (!cancelled) setXAnalyticsData({ profile: json.profile ?? {}, rollup: json.rollup ?? null, topDrivers: json.topDrivers ?? [], baseline: json.baseline ?? null });
+      await fetchXAnalytics();
+      if (cancelled) return;
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [fetchXAnalytics]);
+
+  // When user has X connected but no baseline yet, take initial snapshot so 7D/30D/90D have a baseline
+  useEffect(() => {
+    if (!xAnalyticsData || initialSyncTriggered.current) return;
+    const profile = xAnalyticsData.profile ?? {};
+    const hasXHandle = (profile.twitter_username ?? "").toString().trim().replace(/^@/, "").length > 0;
+    const neverSynced = !profile.x_last_profile_sync_at;
+    const noBaseline = !xAnalyticsData.baseline;
+    if (!hasXHandle || (!neverSynced && !noBaseline)) return;
+    initialSyncTriggered.current = true;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/x-sync`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) await fetchXAnalytics();
+    })();
+  }, [xAnalyticsData, fetchXAnalytics]);
 
   const rollup = xAnalyticsData?.rollup;
   const profile = xAnalyticsData?.profile ?? {};
@@ -405,8 +430,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                       <Clock className="w-3 h-3 stroke-[1.75]" />
                       <span>
                         {profile.x_last_profile_sync_at || profile.x_last_tweets_sync_at
-                          ? `Profile ${formatTimeAgo(profile.x_last_profile_sync_at ?? "")} · Tweets ${formatTimeAgo(profile.x_last_tweets_sync_at ?? "")}`
-                          : "Last synced: — (sync from Settings → Integrations)"}
+                          ? `Synced ${formatTimeAgo(profile.x_last_profile_sync_at || profile.x_last_tweets_sync_at || "")}`
+                          : "Not synced (Settings → Integrations)"}
                       </span>
                       {(profile.x_last_profile_sync_at || profile.x_last_tweets_sync_at) && (
                         <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />

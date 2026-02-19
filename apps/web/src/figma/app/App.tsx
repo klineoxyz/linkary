@@ -149,6 +149,7 @@ import LoginPage from "./components/LoginPage";
 import OnboardingPage from "./components/OnboardingPage";
 import { supabase } from "@/lib/supabase";
 import { ensureProfileForSession, getMyProfile } from "@/lib/profiles";
+import { getProfileProfessions } from "@/lib/profileProfessions";
 import { listJobs, applyToJobAsProfile, applyToJobAsOrg, type JobWithOrg } from "@/lib/jobs";
 import { getOrCreateConversation, listConversationsForUser, listMessages, sendMessageAsProfile, sendMessageAsOrg } from "@/lib/messages";
 import { listMyOrgs } from "@/lib/orgs";
@@ -181,6 +182,7 @@ import MonetizationShowcase from "./components/monetization/MonetizationShowcase
 import MonetizationFlowShowcase from "./components/monetization/MonetizationFlowShowcase";
 import IntegrationsPage from "./components/IntegrationsPage";
 import RolesSkillsPage from "./components/RolesSkillsPage";
+import ProfileEditPage from "./components/ProfileEditPage";
 
 /**
  * Linkary - Web3 Reputation + Opportunity + Review + Case Study Infrastructure
@@ -767,7 +769,7 @@ const RESERVED_PATHS = new Set([
   "pricing", "billing", "plans", "app", "api", "settings", "test-supabase", "home",
   "leaderboards", "creator", "brand", "agency", "calendar", "host", "availability",
   "monetization", "monetization-flow", "kol-lists", "capital-partners",
-  "preferences", "support", "notifications", "verification-inbox", "showcase", "integrations", "roles-skills",
+  "preferences", "support", "notifications", "verification-inbox", "showcase",   "integrations", "roles-skills", "profile",
 ]);
 
 function pathFromRoute(route: { name: string; data?: any; handle?: string }): string {
@@ -788,6 +790,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     login: "/login",
     onboarding: "/onboarding",
     profile: "/profile",
+    profileEdit: "/profile/edit",
     market: "/market",
     messages: "/messages",
     circles: "/circles",
@@ -826,6 +829,7 @@ function routeFromPathname(pathname: string | null): { name: string; data?: any;
   const parts = fullPath.split("/").map((p) => p.toLowerCase());
   if (parts[0] === "settings" && parts[1] === "integrations") return { name: "integrations" };
   if (parts[0] === "settings" && parts[1] === "roles-skills") return { name: "rolesSkills" };
+  if (parts[0] === "profile" && parts[1] === "edit") return { name: "profileEdit" };
   const path = parts[0] || "";
   if (!path) return { name: "landing" };
   const segment = path;
@@ -844,7 +848,7 @@ function routeFromPathname(pathname: string | null): { name: string; data?: any;
       "capital-partners": "capitalPartners", preferences: "preferences",
       support: "support", notifications: "notifications",
       "verification-inbox": "verificationInbox", showcase: "showcase", integrations: "integrations",
-      "roles-skills": "rolesSkills",
+      "roles-skills": "rolesSkills", profile: "profile",
     };
     return { name: nameMap[segment] ?? "landing" };
   }
@@ -2267,7 +2271,7 @@ function MessagesPage({ setRoute, initialConversationId }) {
 }
 
 function ProfilePage({ setRoute, me }) {
-  const u = demo.me;
+  const [profileProfessions, setProfileProfessions] = useState<{ id: string; name: string }[]>([]);
   const [caseStudies, setCaseStudies] = useState<any[]>([]);
   const [showCaseStudyModal, setShowCaseStudyModal] = useState(false);
   const [csTitle, setCsTitle] = useState("");
@@ -2276,8 +2280,23 @@ function ProfilePage({ setRoute, me }) {
   const [csSubmitting, setCsSubmitting] = useState(false);
 
   useEffect(() => {
+    if (me?.id) getProfileProfessions(me.id).then(({ data }) => setProfileProfessions((data ?? []).map((p) => ({ id: p.id, name: p.name }))));
+  }, [me?.id]);
+  useEffect(() => {
     if (me?.id) listCaseStudiesForProfile(me.id).then(setCaseStudies);
   }, [me?.id]);
+
+  const roleTags = profileProfessions.length > 0 ? profileProfessions.map((p) => p.name) : demo.me.roleTags;
+  const u = me
+    ? {
+        ...demo.me,
+        handle: me.username ?? demo.me.handle,
+        name: me.display_name ?? demo.me.name,
+        bio: me.bio ?? demo.me.bio,
+        location: me.location ?? demo.me.location,
+        roleTags,
+      }
+    : demo.me;
 
   const handleCreateCaseStudy = async () => {
     if (!me?.id) return;
@@ -2300,6 +2319,11 @@ function ProfilePage({ setRoute, me }) {
         title={`linkary.xyz/${u.handle}`}
         right={
           <div className="flex flex-wrap gap-3">
+            {isMyProfile && (
+              <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "profileEdit" })}>
+                Edit profile
+              </Button>
+            )}
             <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
               <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Share
             </Button>
@@ -2313,7 +2337,7 @@ function ProfilePage({ setRoute, me }) {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <div className="flex items-start gap-3 mb-4">
-            <ProfileAvatar handle={u.handle} alt={u.name} fallbackGradient="from-indigo-500 via-fuchsia-500 to-cyan-400" />
+            <ProfileAvatar handle={me?.twitter_username || u.handle} alt={u.name} fallbackGradient="from-indigo-500 via-fuchsia-500 to-cyan-400" avatarUrl={me?.avatar_url} />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold truncate" style={{ color: '#000000' }}>{u.name}</span>
@@ -2612,6 +2636,13 @@ export default function LinkaryApp() {
       router.push(path || "/");
     }
   }, [route, router, pathname]);
+
+  const refreshMe = useCallback(async () => {
+    if (authUserId) {
+      const p = await getMyProfile(authUserId);
+      setMe(p ?? null);
+    }
+  }, [authUserId]);
 
   const runAuthGate = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -3140,6 +3171,9 @@ export default function LinkaryApp() {
                 )}
                 {route.name === "landing" && <LandingPage setRoute={setRoute} />}
                 {route.name === "profile" && <ProfilePage setRoute={setRoute} me={me} />}
+                {route.name === "profileEdit" && (
+                  <ProfileEditPage setRoute={setRoute} me={me} onSaved={refreshMe} />
+                )}
                 {route.name === "userProfile" && (
                   <UserProfilePage
                     setRoute={setRoute}

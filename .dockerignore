@@ -1,0 +1,10 @@
+# Dependencies and build outputs – keep out of Docker build context
+**/node_modules
+**/.next
+**/dist
+**/build
+**/.turbo
+**/.vercel
+**/.railway
+**/.env*
+.DS_Store

@@ -165,7 +165,7 @@ export default function IntegrationsPage({
                     const res = await syncProfileFromX();
                     setSyncing(false);
                     if (res.ok) await refreshProfile();
-                    else setError(res.error);
+                    else setError(res.ok === false ? res.error : "Sync failed");
                   }}
                   disabled={syncing}
                   className="px-4 py-2 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50"

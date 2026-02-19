@@ -23,6 +23,11 @@ export type Profile = {
   avg_engagement_rate: number;
   created_at: string;
   updated_at: string;
+  /** X analytics ingestion (cron / manual sync) */
+  x_last_profile_sync_at?: string | null;
+  x_last_tweets_sync_at?: string | null;
+  x_sync_status?: string | null;
+  x_sync_error?: string | null;
 };
 
 /** Identity shape from Supabase auth (user.identities or provider raw_user_meta) */

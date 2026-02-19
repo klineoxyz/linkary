@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   Twitter,
@@ -17,12 +17,24 @@ import {
   Activity,
   ChevronRight,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 /**
  * AnalyticsTabContent - Signals-First Embedded Analytics
- * Compact version for profile page tabs (Creator/Project/Agency)
- * Matches the standalone AnalyticsPage design system
+ * Reads from DB only (no sync on load). Fetches /api/analytics/x for current user.
  */
+
+function formatTimeAgo(iso: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (sec < 60) return "just now";
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+  if (sec < 604800) return `${Math.floor(sec / 86400)}d ago`;
+  return d.toLocaleDateString();
+}
 
 interface AnalyticsTabContentProps {
   entityType?: "creator" | "project" | "agency";
@@ -31,29 +43,52 @@ interface AnalyticsTabContentProps {
 
 type SignalType = "good" | "watch" | "risk";
 
-export default function AnalyticsTabContent({ 
+export default function AnalyticsTabContent({
   entityType = "creator",
-  entityName = "This Profile"
+  entityName = "This Profile",
 }: AnalyticsTabContentProps) {
   const [timeRange, setTimeRange] = useState<"7D" | "30D" | "90D">("30D");
+  const [apiData, setApiData] = useState<{
+    profile: { followers_total?: number; avg_engagement_rate?: number; x_last_profile_sync_at?: string | null; x_last_tweets_sync_at?: string | null };
+    rollup: Record<string, unknown> | null;
+  } | null>(null);
 
-  // Mock X Analytics Data
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token || cancelled) return;
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok || cancelled) return;
+      const json = await res.json().catch(() => ({}));
+      if (!cancelled) setApiData({ profile: json.profile ?? {}, rollup: json.rollup ?? null });
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const profile = apiData?.profile ?? {};
+  const rollup = apiData?.rollup;
+  const num = (v: unknown) => (typeof v === "number" && !Number.isNaN(v) ? v : 0);
+  const lastProfile = profile.x_last_profile_sync_at ?? profile.x_last_tweets_sync_at;
+
   const xAnalytics = {
-    followers: 24587,
+    followers: typeof profile.followers_total === "number" ? profile.followers_total : 24587,
     followersGrowth: 12.4,
-    engagementRate: 3.8,
+    engagementRate: typeof profile.avg_engagement_rate === "number" ? profile.avg_engagement_rate : 3.8,
     engagementGrowth: 0.6,
-    postsLast30Days: 84,
+    postsLast30Days: rollup ? num(rollup.posts_30d) : 84,
     postsDelta: -40.0,
     accountAge: "2 years 4 months",
-    lastUpdated: "2 hours ago",
-    avgLikes: 342,
+    lastUpdated: lastProfile ? formatTimeAgo(lastProfile) : "— (sync from Settings → Integrations)",
+    avgLikes: rollup ? num(rollup.avg_likes_30d) : 342,
     avgLikesGrowth: 18.2,
-    avgReplies: 28,
+    avgReplies: rollup ? num(rollup.avg_replies_30d) : 28,
     avgRepliesGrowth: 22.0,
     avgReposts: 64,
     avgRepostsGrowth: -12.0,
-    reachProxy: "1.2M",
+    reachProxy: rollup ? (num(rollup.reach_proxy_30d) >= 1e6 ? `${(num(rollup.reach_proxy_30d) / 1e6).toFixed(1)}M` : `${(num(rollup.reach_proxy_30d) / 1e3).toFixed(1)}K`) : "1.2M",
     reachGrowth: 15.8,
   };
 

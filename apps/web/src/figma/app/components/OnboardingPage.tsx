@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { updateMyProfile, getMyProfile } from "@/lib/profiles";
-import { syncProfileFromX } from "@/lib/x-sync";
 
 const SITE_URL = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin) : "http://localhost:3000";
 const AUTH_CALLBACK = `${SITE_URL.replace(/\/$/, "")}/auth/callback`;
@@ -46,21 +45,15 @@ export default function OnboardingPage({
 
   const normalizedHandle = handle.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-");
 
-  // Pre-fill from profile; if X is connected, sync from X first so handle/bio/analytics stay current
+  // Pre-fill from profile only (no sync on load)
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      let profile = await getMyProfile(userId);
+    getMyProfile(userId).then((profile) => {
       if (cancelled || !profile) return;
-      if (profile.twitter_username || profile.twitter_connected_at) {
-        const synced = await syncProfileFromX();
-        if (!cancelled && synced.ok) profile = await getMyProfile(userId) ?? profile;
-      }
-      if (cancelled) return;
-      if (profile?.username) setHandle(profile.username);
-      if (profile?.display_name) setDisplayName(profile.display_name);
-      if (profile?.bio) setBio(profile.bio);
-    })();
+      if (profile.username) setHandle(profile.username);
+      if (profile.display_name) setDisplayName(profile.display_name);
+      if (profile.bio) setBio(profile.bio);
+    });
     return () => { cancelled = true; };
   }, [userId]);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getMyProfile, disconnectTwitter } from "@/lib/profiles";
 import { syncProfileFromX } from "@/lib/x-sync";
@@ -22,7 +22,6 @@ export default function IntegrationsPage({
   const [disconnecting, setDisconnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const syncOnceRef = useRef(false);
 
   const refreshProfile = async () => {
     if (!userId) return;
@@ -40,15 +39,6 @@ export default function IntegrationsPage({
       setLoading(false);
     });
   }, [userId]);
-
-  // When X is connected, sync from X once on load so handle/avatar/analytics stay current
-  useEffect(() => {
-    if (!userId || !profile?.twitter_username || syncOnceRef.current) return;
-    syncOnceRef.current = true;
-    syncProfileFromX().then((res) => {
-      if (res.ok) refreshProfile();
-    });
-  }, [userId, profile?.twitter_username]);
 
   const handleConnectX = async () => {
     setError(null);
@@ -144,6 +134,11 @@ export default function IntegrationsPage({
                     ? `@${handle.replace(/^@/, "")}`
                     : "Connected"
                   : "Connect for verification and profile link"}
+                {isConnected && (profile?.x_last_profile_sync_at || profile?.x_last_tweets_sync_at) && (
+                  <span className="block mt-1 text-xs text-zinc-400">
+                    Last synced: profile {profile.x_last_profile_sync_at ? new Date(profile.x_last_profile_sync_at).toLocaleString() : "—"}, tweets {profile.x_last_tweets_sync_at ? new Date(profile.x_last_tweets_sync_at).toLocaleString() : "—"}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -165,7 +160,7 @@ export default function IntegrationsPage({
                     const res = await syncProfileFromX();
                     setSyncing(false);
                     if (res.ok) await refreshProfile();
-                    else setError(res.ok === false ? res.error : "Sync failed");
+                    else setError(res.ok === false ? (res as { error: string }).error : "Sync failed");
                   }}
                   disabled={syncing}
                   className="px-4 py-2 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50"

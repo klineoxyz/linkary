@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { supabase } from "@/lib/supabase";
 import {
   ArrowLeft,
   BarChart3,
@@ -32,6 +33,18 @@ import { FeatureStatusBadge } from "./SharedComponents";
  * Rich insights with numbers + AI-ready signal system
  * Platform-agnostic structure (X now, YouTube/TikTok later)
  */
+
+function formatTimeAgo(iso: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (sec < 60) return "just now";
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+  if (sec < 604800) return `${Math.floor(sec / 86400)}d ago`;
+  return d.toLocaleDateString();
+}
 
 type SignalType = "good" | "watch" | "risk";
 type PlatformType = "x" | "youtube" | "tiktok";
@@ -67,19 +80,51 @@ interface TopDriver {
   growthContribution?: string;
 }
 
+type XAnalyticsData = {
+  profile: { followers_total?: number; avg_engagement_rate?: number; x_last_profile_sync_at?: string | null; x_last_tweets_sync_at?: string | null };
+  rollup: Record<string, unknown> | null;
+  topDrivers: Array<{ tweet_id: string; tweeted_at: string | null; like_count: number; reply_count: number; repost_count: number; engagement_score: number }>;
+};
+
 export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) => void }) {
   const [activePlatform, setActivePlatform] = useState<PlatformType>("x");
   const [timePeriod, setTimePeriod] = useState<"7D" | "30D" | "90D">("30D");
   const [viewingEntity, setViewingEntity] = useState("My Analytics");
   const [entityType, setEntityType] = useState<"creator" | "project" | "agency" | "company">("creator");
   const [visibility, setVisibility] = useState<VisibilityType>("public");
+  const [xAnalyticsData, setXAnalyticsData] = useState<XAnalyticsData | null>(null);
 
-  // Mock data for X platform
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token || cancelled) return;
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok || cancelled) return;
+      const json = await res.json().catch(() => ({}));
+      if (!cancelled) setXAnalyticsData({ profile: json.profile ?? {}, rollup: json.rollup ?? null, topDrivers: json.topDrivers ?? [] });
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const rollup = xAnalyticsData?.rollup;
+  const profile = xAnalyticsData?.profile ?? {};
+  const followersTotal = typeof profile.followers_total === "number" ? profile.followers_total : 0;
+  const engagementRate = typeof profile.avg_engagement_rate === "number" ? profile.avg_engagement_rate : 0;
+  const num = (v: unknown) => (typeof v === "number" && !Number.isNaN(v) ? v : 0);
+  const posts30d = rollup ? num(rollup.posts_30d) : 0;
+  const avgLikes30d = rollup ? num(rollup.avg_likes_30d) : 0;
+  const avgReplies30d = rollup ? num(rollup.avg_replies_30d) : 0;
+  const reachProxy30d = rollup ? num(rollup.reach_proxy_30d) : 0;
+
+  // X KPIs: from DB when available, else mock
   const xKPIs: KPITile[] = [
     {
       id: "followers",
       label: "Followers",
-      value: "24,587",
+      value: xAnalyticsData ? followersTotal.toLocaleString() : "24,587",
       delta7D: 2.3,
       delta30D: 12.4,
       delta90D: 20.0,
@@ -90,7 +135,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     {
       id: "engagement",
       label: "Engagement Rate",
-      value: "3.8%",
+      value: xAnalyticsData ? `${engagementRate}%` : "3.8%",
       delta7D: 0.2,
       delta30D: 0.6,
       delta90D: 1.0,
@@ -101,7 +146,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     {
       id: "likes",
       label: "Avg Likes/Post",
-      value: "342",
+      value: xAnalyticsData ? String(Math.round(avgLikes30d)) : "342",
       delta7D: 8.5,
       delta30D: 18.2,
       delta90D: 25.0,
@@ -112,7 +157,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     {
       id: "replies",
       label: "Avg Replies/Post",
-      value: "28",
+      value: xAnalyticsData ? String(Math.round(avgReplies30d)) : "28",
       delta7D: 12.0,
       delta30D: 22.0,
       delta90D: 30.0,
@@ -123,7 +168,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     {
       id: "frequency",
       label: "Posts (30D)",
-      value: "84",
+      value: xAnalyticsData ? String(posts30d) : "84",
       delta7D: -15.0,
       delta30D: -40.0,
       delta90D: -50.0,
@@ -134,7 +179,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     {
       id: "reach",
       label: "Reach Proxy",
-      value: "1.2M",
+      value: xAnalyticsData ? (reachProxy30d >= 1e6 ? `${(reachProxy30d / 1e6).toFixed(1)}M` : reachProxy30d >= 1e3 ? `${(reachProxy30d / 1e3).toFixed(1)}K` : String(reachProxy30d)) : "1.2M",
       delta7D: 5.2,
       delta30D: 15.8,
       delta90D: 25.0,
@@ -175,53 +220,23 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     },
   ];
 
-  const topDrivers: TopDriver[] = [
-    {
-      date: "Feb 12, 2026",
-      postType: "thread",
-      likes: 1247,
-      replies: 89,
-      reposts: 234,
-      engagementRate: 6.8,
-      growthContribution: "+187 followers",
-    },
-    {
-      date: "Feb 14, 2026",
-      postType: "media",
-      likes: 1089,
-      replies: 67,
-      reposts: 198,
-      engagementRate: 5.9,
-      growthContribution: "+142 followers",
-    },
-    {
-      date: "Feb 10, 2026",
-      postType: "text",
-      likes: 892,
-      replies: 54,
-      reposts: 167,
-      engagementRate: 4.7,
-      growthContribution: "+98 followers",
-    },
-    {
-      date: "Feb 8, 2026",
-      postType: "media",
-      likes: 734,
-      replies: 43,
-      reposts: 128,
-      engagementRate: 4.2,
-      growthContribution: "+67 followers",
-    },
-    {
-      date: "Feb 6, 2026",
-      postType: "thread",
-      likes: 678,
-      replies: 38,
-      reposts: 112,
-      engagementRate: 3.9,
-      growthContribution: "+54 followers",
-    },
-  ];
+  const topDrivers: TopDriver[] =
+    xAnalyticsData?.topDrivers?.length > 0
+      ? xAnalyticsData.topDrivers.map((t) => ({
+          date: t.tweeted_at ? new Date(t.tweeted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
+          postType: "text" as const,
+          likes: t.like_count ?? 0,
+          replies: t.reply_count ?? 0,
+          reposts: t.repost_count ?? 0,
+          engagementRate: followersTotal > 0 ? Math.round((Number(t.engagement_score) / followersTotal) * 1000) / 10 : 0,
+        }))
+      : [
+          { date: "Feb 12, 2026", postType: "thread" as const, likes: 1247, replies: 89, reposts: 234, engagementRate: 6.8, growthContribution: "+187 followers" },
+          { date: "Feb 14, 2026", postType: "media" as const, likes: 1089, replies: 67, reposts: 198, engagementRate: 5.9, growthContribution: "+142 followers" },
+          { date: "Feb 10, 2026", postType: "text" as const, likes: 892, replies: 54, reposts: 167, engagementRate: 4.7, growthContribution: "+98 followers" },
+          { date: "Feb 8, 2026", postType: "media" as const, likes: 734, replies: 43, reposts: 128, engagementRate: 4.2, growthContribution: "+67 followers" },
+          { date: "Feb 6, 2026", postType: "thread" as const, likes: 678, replies: 38, reposts: 112, engagementRate: 3.9, growthContribution: "+54 followers" },
+        ];
 
   const getSignalColor = (signal: SignalType) => {
     switch (signal) {
@@ -330,11 +345,17 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                       ))}
                     </div>
                     
-                    {/* Last Synced */}
+                    {/* Last Synced (from DB, no sync on load) */}
                     <div className="flex items-center gap-1.5 text-xs text-gray-600">
                       <Clock className="w-3 h-3 stroke-[1.75]" />
-                      <span>Last synced: 2 hours ago</span>
-                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>
+                        {profile.x_last_profile_sync_at || profile.x_last_tweets_sync_at
+                          ? `Profile ${formatTimeAgo(profile.x_last_profile_sync_at ?? "")} · Tweets ${formatTimeAgo(profile.x_last_tweets_sync_at ?? "")}`
+                          : "Last synced: — (sync from Settings → Integrations)"}
+                      </span>
+                      {(profile.x_last_profile_sync_at || profile.x_last_tweets_sync_at) && (
+                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      )}
                     </div>
                   </div>
                 </div>

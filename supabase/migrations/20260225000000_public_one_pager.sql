@@ -59,7 +59,7 @@ CREATE POLICY "org_media_all_member" ON public.org_media FOR ALL USING (
   EXISTS (SELECT 1 FROM public.org_members m WHERE m.org_id = org_media.org_id AND m.user_id = auth.uid())
 );
 
--- 4) analytics_snapshots (if not exists; x-sync may have created)
+-- 4) analytics_snapshots (if not exists; x-sync may have created with profile_id)
 CREATE TABLE IF NOT EXISTS public.analytics_snapshots (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_type text NOT NULL CHECK (owner_type IN ('profile', 'org')),
@@ -75,6 +75,31 @@ CREATE TABLE IF NOT EXISTS public.analytics_snapshots (
   followers_delta bigint,
   updated_at timestamptz DEFAULT now() NOT NULL
 );
+
+-- If table already exists from x-sync (has profile_id, no owner_type), add columns and backfill
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'analytics_snapshots' AND column_name = 'profile_id'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'analytics_snapshots' AND column_name = 'owner_type'
+  ) THEN
+    ALTER TABLE public.analytics_snapshots
+      ADD COLUMN IF NOT EXISTS owner_type text,
+      ADD COLUMN IF NOT EXISTS owner_id uuid,
+      ADD COLUMN IF NOT EXISTS window_days int DEFAULT 30;
+    UPDATE public.analytics_snapshots
+    SET owner_type = 'profile', owner_id = profile_id, window_days = 30
+    WHERE owner_type IS NULL;
+    ALTER TABLE public.analytics_snapshots
+      ALTER COLUMN owner_type SET NOT NULL,
+      ALTER COLUMN owner_id SET NOT NULL;
+    ALTER TABLE public.analytics_snapshots
+      ALTER COLUMN owner_type SET DEFAULT 'profile';
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_analytics_snapshots_owner ON public.analytics_snapshots (owner_type, owner_id, platform, window_days);
 

@@ -1,5 +1,7 @@
 -- Add xscore to public_org_view (orgs.xscore added in 20260225)
-CREATE OR REPLACE VIEW public.public_org_view AS
+-- Drop and recreate so column order can change (REPLACE would fail when adding a column)
+DROP VIEW IF EXISTS public.public_org_view;
+CREATE VIEW public.public_org_view AS
 SELECT
   o.id,
   o.slug,
@@ -18,3 +20,4 @@ SELECT
   o.created_at,
   o.updated_at
 FROM public.orgs o;
+GRANT SELECT ON public.public_org_view TO anon;

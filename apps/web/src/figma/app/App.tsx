@@ -2629,6 +2629,11 @@ export default function LinkaryApp() {
     const path = pathFromRoute(r);
     const currentPath = (pathname ?? "/").replace(/\/$/, "") || "/";
     const nextPath = (path ?? "/").replace(/\/$/, "") || "/";
+    // Avoid full navigation to /profile/edit so we don't depend on that route existing (avoids 404)
+    if (r.name === "profileEdit") {
+      if (currentPath !== "/profile") router.push("/profile");
+      return;
+    }
     if (typeof window !== "undefined" && nextPath !== currentPath) {
       router.push(path || "/");
     }

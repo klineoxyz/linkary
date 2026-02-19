@@ -112,79 +112,99 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const rollup = xAnalyticsData?.rollup;
   const profile = xAnalyticsData?.profile ?? {};
   const followersTotal = typeof profile.followers_total === "number" ? profile.followers_total : 0;
-  const engagementRate = typeof profile.avg_engagement_rate === "number" ? profile.avg_engagement_rate : 0;
+  const profileEngagementRate = typeof profile.avg_engagement_rate === "number" ? profile.avg_engagement_rate : 0;
   const num = (v: unknown) => (typeof v === "number" && !Number.isNaN(v) ? v : 0);
+  const posts7d = rollup ? num(rollup.posts_7d) : 0;
   const posts30d = rollup ? num(rollup.posts_30d) : 0;
+  const posts90d = rollup ? num(rollup.posts_90d) : 0;
+  const avgLikes7d = rollup ? num(rollup.avg_likes_7d) : 0;
   const avgLikes30d = rollup ? num(rollup.avg_likes_30d) : 0;
+  const avgLikes90d = rollup ? num(rollup.avg_likes_90d) : 0;
+  const avgReplies7d = rollup ? num(rollup.avg_replies_7d) : 0;
   const avgReplies30d = rollup ? num(rollup.avg_replies_30d) : 0;
+  const avgReplies90d = rollup ? num(rollup.avg_replies_90d) : 0;
+  const engagementRate7d = rollup ? num(rollup.engagement_rate_7d) : profileEngagementRate;
+  const engagementRate30d = rollup ? num(rollup.engagement_rate_30d) : profileEngagementRate;
+  const engagementRate90d = rollup ? num(rollup.engagement_rate_90d) : profileEngagementRate;
+  const reachProxy7d = rollup ? num(rollup.reach_proxy_7d) : 0;
   const reachProxy30d = rollup ? num(rollup.reach_proxy_30d) : 0;
+  const reachProxy90d = rollup ? num(rollup.reach_proxy_90d) : 0;
 
-  // X KPIs: from DB when available, else mock
+  const postsByPeriod = timePeriod === "7D" ? posts7d : timePeriod === "30D" ? posts30d : posts90d;
+  const avgLikesByPeriod = timePeriod === "7D" ? avgLikes7d : timePeriod === "30D" ? avgLikes30d : avgLikes90d;
+  const avgRepliesByPeriod = timePeriod === "7D" ? avgReplies7d : timePeriod === "30D" ? avgReplies30d : avgReplies90d;
+  const engagementRateByPeriod = timePeriod === "7D" ? engagementRate7d : timePeriod === "30D" ? engagementRate30d : engagementRate90d;
+  const reachProxyByPeriod = timePeriod === "7D" ? reachProxy7d : timePeriod === "30D" ? reachProxy30d : reachProxy90d;
+  const periodLabel = timePeriod === "7D" ? "7D" : timePeriod === "30D" ? "30D" : "90D";
+
+  // X KPIs: from DB (twitterapi.io → worker → rollups) when available; selected period drives values
   const xKPIs: KPITile[] = [
     {
       id: "followers",
       label: "Followers",
-      value: xAnalyticsData ? followersTotal.toLocaleString() : "24,587",
+      value: xAnalyticsData ? followersTotal.toLocaleString() : "—",
       delta7D: 2.3,
       delta30D: 12.4,
       delta90D: 20.0,
       signal: "good",
-      insight: "Stable growth, consistent gains",
+      insight: "From X profile sync",
       sparklineData: [20, 22, 21, 23, 24, 24, 25],
     },
     {
       id: "engagement",
       label: "Engagement Rate",
-      value: xAnalyticsData ? `${engagementRate}%` : "3.8%",
+      value: xAnalyticsData ? `${Number(engagementRateByPeriod).toFixed(2)}%` : "—",
       delta7D: 0.2,
       delta30D: 0.6,
       delta90D: 1.0,
       signal: "good",
-      insight: "Up due to replies/post +22%",
+      insight: "From rollup for selected period",
       sparklineData: [3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8],
     },
     {
       id: "likes",
       label: "Avg Likes/Post",
-      value: xAnalyticsData ? String(Math.round(avgLikes30d)) : "342",
+      value: xAnalyticsData ? String(Math.round(avgLikesByPeriod)) : "—",
       delta7D: 8.5,
       delta30D: 18.2,
       delta90D: 25.0,
       signal: "good",
-      insight: "Content resonating well",
+      insight: "From rollup for selected period",
       sparklineData: [280, 290, 310, 320, 330, 340, 342],
     },
     {
       id: "replies",
       label: "Avg Replies/Post",
-      value: xAnalyticsData ? String(Math.round(avgReplies30d)) : "28",
+      value: xAnalyticsData ? String(Math.round(avgRepliesByPeriod)) : "—",
       delta7D: 12.0,
       delta30D: 22.0,
       delta90D: 30.0,
       signal: "good",
-      insight: "Conversation indicator strong",
+      insight: "From rollup for selected period",
       sparklineData: [20, 21, 23, 24, 26, 27, 28],
     },
     {
       id: "frequency",
-      label: "Posts (30D)",
-      value: xAnalyticsData ? String(posts30d) : "84",
+      label: `Posts (${periodLabel})`,
+      value: xAnalyticsData ? String(postsByPeriod) : "—",
       delta7D: -15.0,
       delta30D: -40.0,
       delta90D: -50.0,
-      signal: "risk",
-      insight: "Frequency dropped, growth slowed",
+      signal: "good",
+      insight: "From rollup for selected period",
       sparklineData: [120, 115, 105, 95, 90, 85, 84],
     },
     {
       id: "reach",
       label: "Reach Proxy",
-      value: xAnalyticsData ? (reachProxy30d >= 1e6 ? `${(reachProxy30d / 1e6).toFixed(1)}M` : reachProxy30d >= 1e3 ? `${(reachProxy30d / 1e3).toFixed(1)}K` : String(reachProxy30d)) : "1.2M",
+      value: xAnalyticsData
+        ? (reachProxyByPeriod >= 1e6 ? `${(reachProxyByPeriod / 1e6).toFixed(1)}M` : reachProxyByPeriod >= 1e3 ? `${(reachProxyByPeriod / 1e3).toFixed(1)}K` : String(Math.round(reachProxyByPeriod)))
+        : "—",
       delta7D: 5.2,
       delta30D: 15.8,
       delta90D: 25.0,
       signal: "good",
-      insight: "Rising engagement + follower trend",
+      insight: "From rollup for selected period",
       sparklineData: [0.9, 1.0, 1.05, 1.1, 1.15, 1.18, 1.2],
     },
   ];

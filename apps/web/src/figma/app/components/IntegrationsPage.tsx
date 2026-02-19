@@ -9,6 +9,13 @@ import type { Profile } from "@/lib/profiles";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
 const AUTH_CALLBACK = `${SITE_URL.replace(/\/$/, "")}/auth/callback`;
 
+function formatSyncTime(iso: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 export default function IntegrationsPage({
   setRoute,
   userId,
@@ -138,7 +145,7 @@ export default function IntegrationsPage({
                   : "Connect for verification and profile link"}
                 {isConnected && (profile?.x_last_profile_sync_at || profile?.x_last_tweets_sync_at) && (
                   <span className="block mt-1 text-xs text-zinc-400">
-                    Last synced: profile {profile.x_last_profile_sync_at ? new Date(profile.x_last_profile_sync_at).toLocaleString() : "—"}, tweets {profile.x_last_tweets_sync_at ? new Date(profile.x_last_tweets_sync_at).toLocaleString() : "—"}
+                    Last synced: profile {profile.x_last_profile_sync_at ? formatSyncTime(profile.x_last_profile_sync_at) : "—"} · tweets {profile.x_last_tweets_sync_at ? formatSyncTime(profile.x_last_tweets_sync_at) : "—"}
                   </span>
                 )}
               </p>
@@ -234,10 +241,6 @@ export default function IntegrationsPage({
           </div>
         </div>
       </div>
-
-      <p className="mt-6 text-xs text-zinc-500">
-        We use Supabase OAuth to connect your X account. Your handle and avatar are stored in your profile for verification. Disconnecting only removes the link in Linkary; it does not revoke the app in X.
-      </p>
     </div>
   );
 }

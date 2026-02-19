@@ -218,6 +218,19 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  apps/worker:
+    dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.47.0
+        version: 2.97.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.11
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
 packages:
 
   '@adraffy/ens-normalize@1.11.1':
@@ -6218,7 +6231,7 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 20.19.33
+      '@types/node': 22.19.11
 
   '@types/d3-array@3.2.2': {}
 
@@ -6280,11 +6293,11 @@ snapshots:
 
   '@types/ws@7.4.7':
     dependencies:
-      '@types/node': 20.19.33
+      '@types/node': 22.19.11
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 20.19.33
+      '@types/node': 22.19.11
 
   '@typescript-eslint/eslint-plugin@8.56.0(@typescript-eslint/parser@8.56.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:

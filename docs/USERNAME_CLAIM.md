@@ -1,5 +1,7 @@
 # Proof-based username claiming (X connect)
 
+**If you see “duplicate key value violates unique constraint profiles_username_key”:** the claim RPC was updated (migration `20260222000000_claim_username_handle_profiles_unique.sql`) so that when the username is not yet in the `usernames` table, we first check `profiles.username` and `orgs.slug`. If another profile or org already has that handle, we run the same takeover logic (or return USERNAME_TAKEN_VERIFIED). Apply that migration and try again.
+
 Usernames are in a **single namespace** (profiles + orgs). You can only claim a handle by connecting X (proof). Unverified placeholders are automatically renamed to `test-*` so the verified X owner gets the real handle.
 
 ## Flow

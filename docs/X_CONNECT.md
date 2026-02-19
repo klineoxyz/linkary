@@ -72,3 +72,40 @@ NEXT_PUBLIC_SITE_URL=https://www.linkary.xyz
 3. **App:** Set `NEXT_PUBLIC_SITE_URL` in `.env.local` (local) and in Vercel (production).
 
 After this, **Connect X** in Settings → Integrations should work on localhost and on Vercel.
+
+## Troubleshooting: HTTP 400 on authorize
+
+If you see **"This page isn't working"** / **HTTP ERROR 400** when the browser hits  
+`https://<project>.supabase.co/auth/v1/authorize?provider=twitter&redirect_to=...`,  
+Supabase is rejecting the request before redirecting to X. Check the following in order.
+
+### 1. Supabase Redirect URL allow list
+
+- Go to **Supabase Dashboard** → **Authentication** → **URL Configuration**.
+- Under **Redirect URLs**, ensure this **exact** entry exists (no trailing slash, no query):
+  - `https://www.linkary.xyz/auth/callback`
+- For local testing also add: `http://localhost:3000/auth/callback`.
+- Click **Save**.
+
+### 2. Supabase Twitter provider (Client ID & Secret)
+
+- Go to **Authentication** → **Providers** → **X / Twitter (OAuth 2.0)**.
+- **X / Twitter enabled** must be ON.
+- **Client ID** and **Client Secret** must both be filled. They must come from the **same** X app whose callback URL is the Supabase callback (see step 3).
+- If you’re unsure, in the [X Developer Portal](https://developer.x.com/) open your app → **Keys and tokens** or **User authentication settings** → copy **Client ID** and **Client Secret** (regenerate the secret if needed), then paste both into Supabase and **Save**.
+
+### 3. X Developer Portal callback URL
+
+- In the [X Developer Portal](https://developer.x.com/), open the **same** app that provided the Client ID/Secret.
+- Go to **User authentication settings** → **Callback URI / Redirect URL**.
+- You must have this **exact** URL (replace with your project ref if different):
+  - `https://itelswsgmdnydylclgzw.supabase.co/auth/v1/callback`
+- No trailing slash. No typo. **Type of App** = Web App, **App permissions** = Read (or as required).
+- Save in the X portal.
+
+### 4. Try from localhost
+
+- Run the app locally (`pnpm dev`) with `NEXT_PUBLIC_SITE_URL=http://localhost:3000`.
+- In Supabase Redirect URLs, add `http://localhost:3000/auth/callback` and save.
+- Open http://localhost:3000 → sign in → **Settings → Integrations** → **Connect X**.
+- If it works locally but not on production, the issue is with the production redirect URL or environment. If it fails locally too, the issue is Twitter provider config or X app callback.

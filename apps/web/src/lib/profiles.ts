@@ -33,6 +33,8 @@ export type TwitterIdentity = {
   user_name?: string;
   preferred_username?: string;
   username?: string;
+  /** X display name (e.g. "Alice") */
+  name?: string;
   avatar_url?: string;
   picture?: string;
   profile_image_url?: string;
@@ -147,17 +149,24 @@ export async function saveTwitterIdentityFromOAuth(
     .eq("id", userId)
     .maybeSingle();
 
+  const normalizedHandle = handle?.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-") ?? null;
   const existingHandle = (row?.twitter_username ?? "").trim();
   const updates: Record<string, unknown> = {
     twitter_user_id: twitterUserId,
     twitter_connected_at: new Date().toISOString(),
   };
   if (avatar) updates.avatar_url = avatar;
-
-  if (existingHandle && handle && existingHandle.toLowerCase() !== (handle ?? "").toLowerCase()) {
+  if (normalizedHandle) {
+    updates.username = normalizedHandle;
+    if (existingHandle && existingHandle.toLowerCase() !== normalizedHandle.toLowerCase()) {
+      updates.twitter_username_candidate = handle?.replace(/^@/, "").trim() ?? normalizedHandle;
+    } else {
+      updates.twitter_username = normalizedHandle;
+    }
+  } else if (existingHandle && handle && existingHandle.toLowerCase() !== (handle ?? "").toLowerCase()) {
     updates.twitter_username_candidate = handle;
   } else if (handle) {
-    updates.twitter_username = handle;
+    updates.twitter_username = handle?.trim().replace(/^@/, "").replace(/\s+/g, "-") || null;
   }
 
   const { error } = await supabase.from(PROFILES).update(updates).eq("id", userId);

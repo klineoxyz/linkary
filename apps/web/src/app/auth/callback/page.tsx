@@ -24,6 +24,7 @@ function extractTwitterIdentity(user: { identities?: Array<Record<string, unknow
       user_name: raw.user_name as string | undefined,
       preferred_username: raw.preferred_username as string | undefined,
       username: raw.user_name as string | undefined,
+      name: raw.name as string | undefined,
       avatar_url: raw.avatar_url as string | undefined,
       picture: raw.picture as string | undefined,
       profile_image_url: raw.profile_image_url as string | undefined,
@@ -39,6 +40,7 @@ function extractTwitterIdentity(user: { identities?: Array<Record<string, unknow
       user_name: (meta.user_name ?? meta.preferred_username ?? meta.username) as string | undefined,
       preferred_username: meta.preferred_username as string | undefined,
       username: meta.user_name as string | undefined,
+      name: meta.name as string | undefined,
       avatar_url: (meta.avatar_url ?? meta.picture ?? meta.profile_image_url) as string | undefined,
       picture: meta.picture as string | undefined,
       profile_image_url: meta.profile_image_url as string | undefined,
@@ -100,10 +102,12 @@ export default function AuthCallbackPage() {
               identity.user_name ?? identity.preferred_username ?? identity.username ?? null;
             const normalizedHandle = handle?.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-") ?? null;
             const bio = identity.description?.trim() || null;
-            if (normalizedHandle || bio) {
+            const displayName = identity.name?.trim() || null;
+            if (normalizedHandle || bio || displayName) {
               await updateMyProfile(user.id, {
                 ...(normalizedHandle ? { username: normalizedHandle } : {}),
                 ...(bio !== undefined ? { bio } : {}),
+                ...(displayName ? { display_name: displayName } : {}),
               });
             }
           }
@@ -128,10 +132,12 @@ export default function AuthCallbackPage() {
               identity.user_name ?? identity.preferred_username ?? identity.username ?? null;
             const normalizedHandle = handle?.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-") ?? null;
             const bio = identity.description?.trim() || null;
-            if (normalizedHandle || bio) {
+            const displayName = identity.name?.trim() || null;
+            if (normalizedHandle || bio || displayName) {
               await updateMyProfile(session.user.id, {
                 ...(normalizedHandle ? { username: normalizedHandle } : {}),
                 ...(bio !== undefined ? { bio } : {}),
+                ...(displayName ? { display_name: displayName } : {}),
               });
             }
           }

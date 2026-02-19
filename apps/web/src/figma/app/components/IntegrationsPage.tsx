@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { getMyProfile, disconnectTwitter } from "@/lib/profiles";
+import { syncProfileFromX } from "@/lib/x-sync";
 import type { Profile } from "@/lib/profiles";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
@@ -19,7 +20,15 @@ export default function IntegrationsPage({
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const syncOnceRef = useRef(false);
+
+  const refreshProfile = async () => {
+    if (!userId) return;
+    const p = await getMyProfile(userId);
+    setProfile(p ?? null);
+  };
 
   useEffect(() => {
     if (!userId) {
@@ -31,6 +40,15 @@ export default function IntegrationsPage({
       setLoading(false);
     });
   }, [userId]);
+
+  // When X is connected, sync from X once on load so handle/avatar/analytics stay current
+  useEffect(() => {
+    if (!userId || !profile?.twitter_username || syncOnceRef.current) return;
+    syncOnceRef.current = true;
+    syncProfileFromX().then((res) => {
+      if (res.ok) refreshProfile();
+    });
+  }, [userId, profile?.twitter_username]);
 
   const handleConnectX = async () => {
     setError(null);
@@ -139,6 +157,21 @@ export default function IntegrationsPage({
                     className="w-10 h-10 rounded-full object-cover"
                   />
                 )}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setSyncing(true);
+                    setError(null);
+                    const res = await syncProfileFromX();
+                    setSyncing(false);
+                    if (res.ok) await refreshProfile();
+                    else setError(res.error);
+                  }}
+                  disabled={syncing}
+                  className="px-4 py-2 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50"
+                >
+                  {syncing ? "Syncing…" : "Sync from X"}
+                </button>
                 <button
                   type="button"
                   onClick={handleDisconnectX}

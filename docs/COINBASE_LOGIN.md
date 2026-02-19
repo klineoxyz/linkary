@@ -47,7 +47,28 @@ Linkary uses **Coinbase Developer Platform (CDP) Embedded Wallets** for sign-in.
 - In **Vercel** → Project → **Settings** → **Environment Variables**, add:
   - `NEXT_PUBLIC_CDP_APP_ID` = your CDP Project ID (same as local).
 - The app reads this at **request time** from the server, so the Coinbase login option will show on https://www.linkary.xyz/login as soon as the variable is set (redeploy once if you add it after the first deploy).
-- Under **CDP Portal → Embedded Wallets → Domains**, add your production domain (e.g. `https://www.linkary.xyz`).
+- **Required:** Under **CDP Portal → Embedded Wallets → Domains**, add your production domain exactly as the browser origin, e.g. `https://www.linkary.xyz` (see [CORS / Domain allowlist](#cors--domain-allowlist) below).
+
+## CORS / Domain allowlist
+
+If you see in the browser console:
+
+```text
+Access to XMLHttpRequest at 'https://api.cdp.coinbase.com/...' from origin 'https://www.linkary.xyz' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present
+```
+
+the CDP API is rejecting your origin because it is not allowlisted.
+
+**Fix:**
+
+1. Go to [CDP Portal](https://portal.cdp.coinbase.com/) → select your project.
+2. Open **Embedded Wallets** → **Domains** (or **Products → Embedded Wallets → Domains**).
+3. Click **Add domain** and enter the **exact** origin your app uses:
+   - Production: `https://www.linkary.xyz` (with `https://`, no trailing slash, no path).
+   - If you also use the apex: `https://linkary.xyz`.
+4. Save. Changes take effect immediately; no redeploy needed.
+
+Format rules: use `https://domain` or `http://localhost:3000`; no path or query. If your site is served from `https://www.linkary.xyz`, that is the value to add.
 
 ## Security
 

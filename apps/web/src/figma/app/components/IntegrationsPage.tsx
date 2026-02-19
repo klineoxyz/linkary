@@ -35,17 +35,21 @@ export default function IntegrationsPage({
   const handleConnectX = async () => {
     setError(null);
     setConnecting(true);
-    const { error: err } = await supabase.auth.signInWithOAuth({
+    const redirectTo = `${AUTH_CALLBACK}?next=/settings/integrations`;
+    const { data, error: err } = await supabase.auth.signInWithOAuth({
       provider: "twitter",
-      options: {
-        redirectTo: `${AUTH_CALLBACK}?next=/settings/integrations`,
-      },
+      options: { redirectTo },
     });
     setConnecting(false);
     if (err) {
       setError(err.message);
       return;
     }
+    if (data?.url) {
+      window.location.href = data.url;
+      return;
+    }
+    setError("Could not start X sign-in. Check that Twitter is enabled in Supabase Auth.");
   };
 
   const handleDisconnectX = async () => {

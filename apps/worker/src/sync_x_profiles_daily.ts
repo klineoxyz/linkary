@@ -106,6 +106,17 @@ async function main() {
         },
         { onConflict: "profile_id,platform,snapshot_date" }
       );
+
+      // One-time baseline for "growth since joining" (first insert wins; ignore duplicate)
+      const { error: baselineErr } = await supabase.from("profile_analytics_baseline").insert({
+        profile_id: profile.id,
+        platform: "x",
+        followers_total: followers,
+        engagement_rate_proxy: engagementRate,
+      });
+      if (baselineErr && baselineErr.code !== "23505") {
+        console.warn("Baseline insert warning:", profile.id, baselineErr.message);
+      }
       ok += 1;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

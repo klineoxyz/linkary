@@ -60,6 +60,8 @@ interface KPITile {
   signal: SignalType;
   insight: string;
   sparklineData?: number[];
+  /** When baseline exists: e.g. "+12% since joining" */
+  sinceJoining?: string;
 }
 
 interface Signal {
@@ -80,10 +82,22 @@ interface TopDriver {
   growthContribution?: string;
 }
 
+type Baseline = {
+  baseline_at?: string;
+  baseline_date?: string;
+  followers_total?: number | null;
+  engagement_rate_proxy?: number | null;
+  posts_30d?: number | null;
+  avg_likes_30d?: number | null;
+  avg_replies_30d?: number | null;
+  reach_proxy_30d?: number | null;
+} | null;
+
 type XAnalyticsData = {
   profile: { followers_total?: number; avg_engagement_rate?: number; x_last_profile_sync_at?: string | null; x_last_tweets_sync_at?: string | null };
   rollup: Record<string, unknown> | null;
   topDrivers: Array<{ tweet_id: string; tweeted_at: string | null; like_count: number; reply_count: number; repost_count: number; engagement_score: number }>;
+  baseline: Baseline;
 };
 
 export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) => void }) {
@@ -104,7 +118,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       const res = await fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok || cancelled) return;
       const json = await res.json().catch(() => ({}));
-      if (!cancelled) setXAnalyticsData({ profile: json.profile ?? {}, rollup: json.rollup ?? null, topDrivers: json.topDrivers ?? [] });
+      if (!cancelled) setXAnalyticsData({ profile: json.profile ?? {}, rollup: json.rollup ?? null, topDrivers: json.topDrivers ?? [], baseline: json.baseline ?? null });
     })();
     return () => { cancelled = true; };
   }, []);
@@ -137,6 +151,21 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const reachProxyByPeriod = timePeriod === "7D" ? reachProxy7d : timePeriod === "30D" ? reachProxy30d : reachProxy90d;
   const periodLabel = timePeriod === "7D" ? "7D" : timePeriod === "30D" ? "30D" : "90D";
 
+  const baseline = xAnalyticsData?.baseline ?? null;
+  const bNum = (v: unknown) => (typeof v === "number" && !Number.isNaN(v) ? v : 0);
+  const baselineFollowers = baseline ? bNum(baseline.followers_total) : 0;
+  const baselineEngagement = baseline ? bNum(baseline.engagement_rate_proxy) : 0;
+  const baselinePosts30 = baseline ? bNum(baseline.posts_30d) : 0;
+  const baselineLikes30 = baseline ? bNum(baseline.avg_likes_30d) : 0;
+  const baselineReplies30 = baseline ? bNum(baseline.avg_replies_30d) : 0;
+  const baselineReach30 = baseline ? bNum(baseline.reach_proxy_30d) : 0;
+  const pctSince = (current: number, base: number): string | undefined => {
+    if (base === 0 || !Number.isFinite(base)) return undefined;
+    const pct = ((current - base) / base) * 100;
+    const sign = pct >= 0 ? "+" : "";
+    return `${sign}${pct.toFixed(1)}% since joining`;
+  };
+
   // X KPIs: from DB (twitterapi.io → worker → rollups) when available; selected period drives values
   const xKPIs: KPITile[] = [
     {
@@ -149,6 +178,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       signal: "good",
       insight: "From X profile sync",
       sparklineData: [20, 22, 21, 23, 24, 24, 25],
+      sinceJoining: baseline && baselineFollowers > 0 ? pctSince(followersTotal, baselineFollowers) : undefined,
     },
     {
       id: "engagement",
@@ -160,6 +190,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       signal: "good",
       insight: "From rollup for selected period",
       sparklineData: [3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8],
+      sinceJoining: baseline && baselineEngagement >= 0 ? pctSince(engagementRateByPeriod, baselineEngagement || 0.01) : undefined,
     },
     {
       id: "likes",
@@ -171,6 +202,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       signal: "good",
       insight: "From rollup for selected period",
       sparklineData: [280, 290, 310, 320, 330, 340, 342],
+      sinceJoining: baseline && (baselineLikes30 > 0 || avgLikesByPeriod > 0) ? pctSince(avgLikesByPeriod, baselineLikes30 || 1) : undefined,
     },
     {
       id: "replies",
@@ -182,6 +214,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       signal: "good",
       insight: "From rollup for selected period",
       sparklineData: [20, 21, 23, 24, 26, 27, 28],
+      sinceJoining: baseline && (baselineReplies30 > 0 || avgRepliesByPeriod > 0) ? pctSince(avgRepliesByPeriod, baselineReplies30 || 1) : undefined,
     },
     {
       id: "frequency",
@@ -193,6 +226,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       signal: "good",
       insight: "From rollup for selected period",
       sparklineData: [120, 115, 105, 95, 90, 85, 84],
+      sinceJoining: baseline && (baselinePosts30 > 0 || postsByPeriod > 0) ? pctSince(postsByPeriod, baselinePosts30 || 1) : undefined,
     },
     {
       id: "reach",
@@ -206,6 +240,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       signal: "good",
       insight: "From rollup for selected period",
       sparklineData: [0.9, 1.0, 1.05, 1.1, 1.15, 1.18, 1.2],
+      sinceJoining: baseline && (baselineReach30 > 0 || reachProxyByPeriod > 0) ? pctSince(reachProxyByPeriod, baselineReach30 || 1) : undefined,
     },
   ];
 
@@ -554,6 +589,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
 
                 {/* Insight */}
                 <p className="text-xs text-gray-600 leading-relaxed">{kpi.insight}</p>
+                {kpi.sinceJoining && (
+                  <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2 font-medium">{kpi.sinceJoining}</p>
+                )}
               </motion.div>
             );
           })}

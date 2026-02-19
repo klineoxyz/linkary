@@ -51,6 +51,7 @@ export default function AnalyticsTabContent({
   const [apiData, setApiData] = useState<{
     profile: { followers_total?: number; avg_engagement_rate?: number; x_last_profile_sync_at?: string | null; x_last_tweets_sync_at?: string | null };
     rollup: Record<string, unknown> | null;
+    baseline: { followers_total?: number | null; engagement_rate_proxy?: number | null } | null;
   } | null>(null);
 
   useEffect(() => {
@@ -63,7 +64,7 @@ export default function AnalyticsTabContent({
       const res = await fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok || cancelled) return;
       const json = await res.json().catch(() => ({}));
-      if (!cancelled) setApiData({ profile: json.profile ?? {}, rollup: json.rollup ?? null });
+      if (!cancelled) setApiData({ profile: json.profile ?? {}, rollup: json.rollup ?? null, baseline: json.baseline ?? null });
     })();
     return () => { cancelled = true; };
   }, []);
@@ -73,11 +74,20 @@ export default function AnalyticsTabContent({
   const num = (v: unknown) => (typeof v === "number" && !Number.isNaN(v) ? v : 0);
   const lastProfile = profile.x_last_profile_sync_at ?? profile.x_last_tweets_sync_at;
 
+  const baseline = apiData?.baseline;
+  const baselineFollowers = typeof baseline?.followers_total === "number" ? baseline.followers_total : 0;
+  const baselineEngagement = typeof baseline?.engagement_rate_proxy === "number" ? baseline.engagement_rate_proxy : 0;
+  const currentFollowers = typeof profile.followers_total === "number" ? profile.followers_total : 24587;
+  const currentEngagement = typeof profile.avg_engagement_rate === "number" ? profile.avg_engagement_rate : 3.8;
+  const pctChange = (cur: number, base: number) => (base > 0 && Number.isFinite(base) ? ((cur - base) / base) * 100 : 0);
+  const followersGrowth = baselineFollowers > 0 ? pctChange(currentFollowers, baselineFollowers) : 12.4;
+  const engagementGrowth = baselineEngagement >= 0 && (baselineEngagement > 0 || currentEngagement > 0) ? pctChange(currentEngagement, baselineEngagement || 0.01) : 0.6;
+
   const xAnalytics = {
-    followers: typeof profile.followers_total === "number" ? profile.followers_total : 24587,
-    followersGrowth: 12.4,
-    engagementRate: typeof profile.avg_engagement_rate === "number" ? profile.avg_engagement_rate : 3.8,
-    engagementGrowth: 0.6,
+    followers: currentFollowers,
+    followersGrowth,
+    engagementRate: currentEngagement,
+    engagementGrowth,
     postsLast30Days: rollup ? num(rollup.posts_30d) : 84,
     postsDelta: -40.0,
     accountAge: "2 years 4 months",

@@ -174,6 +174,17 @@ async function handleSync(request: NextRequest) {
     { onConflict: "profile_id,platform,snapshot_date" }
   );
 
+  // One-time baseline for "growth since joining" (first insert wins; ignore duplicate)
+  const { error: baselineErr } = await supabase.from("profile_analytics_baseline").insert({
+    profile_id: user.id,
+    platform: "x",
+    followers_total: followers,
+    engagement_rate_proxy: avgEngagement,
+  });
+  if (baselineErr && baselineErr.code !== "23505") {
+    // log but don't fail the sync
+  }
+
   return NextResponse.json({
     ok: true,
     lastSyncedAt: updates.x_last_profile_sync_at,

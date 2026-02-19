@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  const [profileRes, rollupRes, driversRes] = await Promise.all([
+  const [profileRes, rollupRes, driversRes, baselineRes] = await Promise.all([
     supabase
       .from("profiles")
       .select("followers_total, avg_engagement_rate, x_last_profile_sync_at, x_last_tweets_sync_at, x_sync_status")
@@ -34,6 +34,12 @@ export async function GET(request: NextRequest) {
       .eq("window_days", 30)
       .order("engagement_score", { ascending: false })
       .limit(10),
+    supabase
+      .from("profile_analytics_baseline")
+      .select("baseline_at, baseline_date, followers_total, engagement_rate_proxy, posts_30d, avg_likes_30d, avg_replies_30d, reach_proxy_30d")
+      .eq("profile_id", user.id)
+      .eq("platform", "x")
+      .maybeSingle(),
   ]);
 
   const profile = profileRes.data as {
@@ -52,10 +58,21 @@ export async function GET(request: NextRequest) {
     repost_count: number;
     engagement_score: number;
   }>;
+  const baseline = baselineRes.data as {
+    baseline_at?: string;
+    baseline_date?: string;
+    followers_total?: number | null;
+    engagement_rate_proxy?: number | null;
+    posts_30d?: number | null;
+    avg_likes_30d?: number | null;
+    avg_replies_30d?: number | null;
+    reach_proxy_30d?: number | null;
+  } | null;
 
   return NextResponse.json({
     profile: profile ?? {},
     rollup: rollup ?? null,
     topDrivers,
+    baseline: baseline ?? null,
   });
 }

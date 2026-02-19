@@ -36,6 +36,8 @@ export type TwitterIdentity = {
   avatar_url?: string;
   picture?: string;
   profile_image_url?: string;
+  /** X profile description (bio) when returned by OAuth */
+  description?: string;
 };
 
 const PROFILES = "profiles";

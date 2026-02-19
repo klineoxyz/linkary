@@ -2,7 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { updateMyProfile } from "@/lib/profiles";
+import { updateMyProfile, getMyProfile } from "@/lib/profiles";
+
+const SITE_URL = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin) : "http://localhost:3000";
+const AUTH_CALLBACK = `${SITE_URL.replace(/\/$/, "")}/auth/callback`;
 
 const INTENTS = ["Creator", "Brand", "Both"] as const;
 
@@ -38,8 +41,19 @@ export default function OnboardingPage({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [handleStatus, setHandleStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const [xConnecting, setXConnecting] = useState(false);
 
   const normalizedHandle = handle.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-");
+
+  // Pre-fill from profile when returning from X connect or when profile already has data
+  useEffect(() => {
+    getMyProfile(userId).then((profile) => {
+      if (!profile) return;
+      if (profile.username && !handle) setHandle(profile.username);
+      if (profile.display_name && !displayName) setDisplayName(profile.display_name);
+      if (profile.bio && !bio) setBio(profile.bio);
+    });
+  }, [userId]);
 
   const checkHandle = useCallback(async () => {
     if (!normalizedHandle) {
@@ -155,14 +169,37 @@ export default function OnboardingPage({
             </p>
             <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
               <p className="text-xs text-amber-800">
-                Not signed in with X? Confirm your handle by signing in with X and verifying in Verification Center.
+                Not signed in with X? Confirm your handle by signing in with X and we’ll fill your handle and bio from your X profile.
               </p>
               <button
                 type="button"
-                onClick={() => setRoute({ name: "verification" })}
-                className="mt-1.5 text-xs font-medium text-amber-700 hover:text-amber-800"
+                disabled={xConnecting}
+                onClick={async () => {
+                  setXConnecting(true);
+                  try {
+                    sessionStorage.setItem("linkary_oauth_next", "/onboarding");
+                    const { data, error: err } = await supabase.auth.signInWithOAuth({
+                      provider: "x",
+                      options: { redirectTo: AUTH_CALLBACK },
+                    });
+                    if (err) {
+                      setError(err.message);
+                      setXConnecting(false);
+                      return;
+                    }
+                    if (data?.url) {
+                      window.location.href = data.url;
+                      return;
+                    }
+                    setError("Could not start X sign-in.");
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "Something went wrong");
+                  }
+                  setXConnecting(false);
+                }}
+                className="mt-1.5 text-xs font-medium text-amber-700 hover:text-amber-800 disabled:opacity-50"
               >
-                Confirm with X →
+                {xConnecting ? "Redirecting to X…" : "Confirm with X →"}
               </button>
             </div>
           </div>

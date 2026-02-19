@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { ensureProfileForSession, saveTwitterIdentityFromOAuth } from "@/lib/profiles";
+import { ensureProfileForSession, saveTwitterIdentityFromOAuth, updateMyProfile } from "@/lib/profiles";
 import type { TwitterIdentity } from "@/lib/profiles";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -27,6 +27,7 @@ function extractTwitterIdentity(user: { identities?: Array<Record<string, unknow
       avatar_url: raw.avatar_url as string | undefined,
       picture: raw.picture as string | undefined,
       profile_image_url: raw.profile_image_url as string | undefined,
+      description: raw.description as string | undefined,
     };
   }
   const meta = user.user_metadata ?? {};
@@ -41,6 +42,7 @@ function extractTwitterIdentity(user: { identities?: Array<Record<string, unknow
       avatar_url: (meta.avatar_url ?? meta.picture ?? meta.profile_image_url) as string | undefined,
       picture: meta.picture as string | undefined,
       profile_image_url: meta.profile_image_url as string | undefined,
+      description: meta.description as string | undefined,
     };
   }
   return null;
@@ -92,6 +94,19 @@ export default function AuthCallbackPage() {
         if (identity) {
           const { error: saveErr } = await saveTwitterIdentityFromOAuth(user.id, identity);
           if (saveErr && !cancelled) setMessage(saveErr);
+          // When returning to onboarding, update handle and bio from X so the form is pre-filled
+          if (next === "/onboarding" || next?.includes("onboarding")) {
+            const handle =
+              identity.user_name ?? identity.preferred_username ?? identity.username ?? null;
+            const normalizedHandle = handle?.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-") ?? null;
+            const bio = identity.description?.trim() || null;
+            if (normalizedHandle || bio) {
+              await updateMyProfile(user.id, {
+                ...(normalizedHandle ? { username: normalizedHandle } : {}),
+                ...(bio !== undefined ? { bio } : {}),
+              });
+            }
+          }
         }
         if (!cancelled) {
           setStatus("ok");
@@ -108,6 +123,18 @@ export default function AuthCallbackPage() {
         const identity = extractTwitterIdentity(user);
         if (identity) {
           await saveTwitterIdentityFromOAuth(session.user.id, identity);
+          if (next === "/onboarding" || next?.includes("onboarding")) {
+            const handle =
+              identity.user_name ?? identity.preferred_username ?? identity.username ?? null;
+            const normalizedHandle = handle?.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-") ?? null;
+            const bio = identity.description?.trim() || null;
+            if (normalizedHandle || bio) {
+              await updateMyProfile(session.user.id, {
+                ...(normalizedHandle ? { username: normalizedHandle } : {}),
+                ...(bio !== undefined ? { bio } : {}),
+              });
+            }
+          }
         }
         setStatus("ok");
         window.location.href = redirectTo;

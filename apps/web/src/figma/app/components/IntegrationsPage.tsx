@@ -9,20 +9,20 @@ import type { Profile } from "@/lib/profiles";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
 const AUTH_CALLBACK = `${SITE_URL.replace(/\/$/, "")}/auth/callback`;
 
+type RoutePayload = { name: string };
+interface IntegrationsPageProps {
+  setRoute: (r: RoutePayload) => void;
+  userId: string | null;
+}
+
 function formatSyncTime(iso: string): string {
-  if (!iso) return "—";
+  if (!iso) return "\u2014";
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
+  if (isNaN(d.getTime())) return "\u2014";
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-export default function IntegrationsPage({
-  setRoute,
-  userId,
-}: {
-  setRoute: (r: { name: string }) => void;
-  userId: string | null;
-}) {
+export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
@@ -93,6 +93,25 @@ export default function IntegrationsPage({
   const handle = profile?.twitter_username ?? profile?.twitter_username_candidate ?? null;
   const avatar = profile?.avatar_url ?? null;
 
+  const handleSyncFromX = async () => {
+    setSyncing(true);
+    setError(null);
+    const res = await syncProfileFromX();
+    setSyncing(false);
+    if (res.ok) await refreshProfile();
+    else {
+      const resObj = res as Record<string, unknown>;
+      const errMsg = typeof resObj?.error === "string" ? resObj.error : "Sync failed";
+      setError(errMsg === "USERNAME_TAKEN_VERIFIED" ? "That X handle is already taken by a verified account. Your profile was updated; you can keep a different handle or contact support." : errMsg);
+    }
+  };
+
+  const showLastSynced = isConnected && (profile?.x_last_profile_sync_at ?? profile?.x_last_tweets_sync_at);
+  const lastSyncedProfile = profile?.x_last_profile_sync_at ? formatSyncTime(profile.x_last_profile_sync_at) : "\u2014";
+  const lastSyncedTweets = profile?.x_last_tweets_sync_at ? formatSyncTime(profile.x_last_tweets_sync_at) : "\u2014";
+  const goToPreferences = () => setRoute({ name: "preferences" });
+  const goToLogin = () => setRoute({ name: "login" });
+
   if (!userId) {
     return (
       <div className="max-w-2xl mx-auto p-6">
@@ -100,7 +119,7 @@ export default function IntegrationsPage({
         <p className="text-zinc-600 mb-6">Sign in to connect accounts.</p>
         <button
           type="button"
-          onClick={() => setRoute({ name: "login" })}
+          onClick={goToLogin}
           className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700"
         >
           Sign in
@@ -111,97 +130,56 @@ export default function IntegrationsPage({
 
   return (
     <div className="max-w-2xl mx-auto p-6">
-      <button
-        type="button"
-        onClick={() => setRoute({ name: "preferences" })}
-        className="text-sm text-zinc-500 hover:text-zinc-700 mb-6"
-      >
-        ← Back to Preferences
+        <button type="button" onClick={goToPreferences} className="text-sm text-zinc-500 hover:text-zinc-700 mb-6">
+        {"\u2190"} Back to Preferences
       </button>
       <h1 className="text-2xl font-bold text-zinc-900 mb-2">Integrations</h1>
       <p className="text-zinc-600 mb-8">Connect your accounts for verification and linking.</p>
-
-      {error && (
+      {error != null ? (
         <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
           {error}
         </div>
-      )}
-
+      ) : null}
       <div className="space-y-6">
-        {/* X (Twitter) - live */}
         <div className="bg-white rounded-xl border border-zinc-200 p-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center text-xl font-bold text-zinc-900">
-                𝕏
+                {"\uD835\uDD4F"}
               </div>
               <div>
                 <h2 className="font-semibold text-zinc-900">X</h2>
-              <p className="text-sm text-zinc-500">
-                {isConnected
-                  ? handle
-                    ? `@${handle.replace(/^@/, "")}`
-                    : "Connected"
-                  : "Connect for verification and profile link"}
-                {isConnected && (profile?.x_last_profile_sync_at || profile?.x_last_tweets_sync_at) && (
-                  <span className="block mt-1 text-xs text-zinc-400">
-                    Last synced: profile {profile.x_last_profile_sync_at ? formatSyncTime(profile.x_last_profile_sync_at) : "—"} · tweets {profile.x_last_tweets_sync_at ? formatSyncTime(profile.x_last_tweets_sync_at) : "—"}
-                  </span>
-                )}
-              </p>
+                <p className="text-sm text-zinc-500">
+                  {isConnected ? (handle != null ? "@" + String(handle).replace(/^@/, "") : "Connected") : "Connect for verification and profile link"}
+                  {showLastSynced ? (
+                    <span className="block mt-1 text-xs text-zinc-400">
+                      Last synced: profile {lastSyncedProfile} · tweets {lastSyncedTweets}
+                    </span>
+                  ) : null}
+                </p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
             {isConnected ? (
               <>
-                {avatar && (
-                  <img
-                    src={avatar}
-                    alt=""
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                )}
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setSyncing(true);
-                    setError(null);
-                    const res = await syncProfileFromX();
-                    setSyncing(false);
-                    if (res.ok) await refreshProfile();
-                    else {
-                      const err = res.ok === false ? (res as { error: string }).error : "Sync failed";
-                      setError(err === "USERNAME_TAKEN_VERIFIED" ? "That X handle is already taken by a verified account. Your profile was updated; you can keep a different handle or contact support." : err);
-                    }
-                  }}
-                  disabled={syncing}
-                  className="px-4 py-2 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50"
-                >
+                {avatar != null ? (
+                  <img src={avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+                ) : null}
+                <button type="button" onClick={handleSyncFromX} disabled={syncing} className="px-4 py-2 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50">
                   {syncing ? "Syncing…" : "Sync from X"}
                 </button>
-                <button
-                  type="button"
-                  onClick={handleDisconnectX}
-                  disabled={disconnecting}
-                  className="px-4 py-2 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50"
-                >
+                <button type="button" onClick={handleDisconnectX} disabled={disconnecting} className="px-4 py-2 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50">
                   {disconnecting ? "Disconnecting…" : "Disconnect"}
                 </button>
               </>
             ) : (
-              <button
-                type="button"
-                onClick={handleConnectX}
-                disabled={connecting}
-                className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 disabled:opacity-50"
-              >
+              <button type="button" onClick={handleConnectX} disabled={connecting} className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 disabled:opacity-50">
                 {connecting ? "Connecting…" : "Connect X"}
               </button>
             )}
           </div>
         </div>
-
-        {/* YouTube - coming soon */}
         <div className="bg-white rounded-xl border border-zinc-200 p-6 opacity-90">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">
@@ -220,8 +198,6 @@ export default function IntegrationsPage({
             </button>
           </div>
         </div>
-
-        {/* TikTok - coming soon */}
         <div className="bg-white rounded-xl border border-zinc-200 p-6 opacity-90">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">

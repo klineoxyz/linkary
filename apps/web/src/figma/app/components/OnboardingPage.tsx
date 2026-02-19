@@ -194,7 +194,9 @@ export default function OnboardingPage({
                     sessionStorage.setItem("linkary_oauth_next", "/onboarding");
                     const { data, error: err } = await supabase.auth.signInWithOAuth({
                       provider: "x",
-                      options: { redirectTo: AUTH_CALLBACK },
+                      options: {
+                        redirectTo: `${AUTH_CALLBACK}?next=/onboarding`,
+                      },
                     });
                     if (err) {
                       setError(err.message);

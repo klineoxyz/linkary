@@ -9,144 +9,159 @@ import type { TwitterIdentity } from "@/lib/profiles";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 const REDIRECT_AFTER = "/settings/integrations";
 
+/** Pick first non-empty string from an object for given keys (in order). */
+function firstStr(obj: Record<string, unknown>, ...keys: string[]): string | undefined {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return undefined;
+}
+
 function extractTwitterIdentity(user: { identities?: Array<Record<string, unknown>>; user_metadata?: Record<string, unknown> }): TwitterIdentity | null {
   const identities = user.identities ?? [];
   const twitter = identities.find((i) => {
     const p = (i.provider as string)?.toLowerCase();
     return p === "twitter" || p === "x";
   });
-  if (twitter) {
-    const raw = (twitter.identity_data ?? twitter) as Record<string, unknown>;
-    return {
-      provider: "twitter",
-      id: raw.id as string | undefined,
-      sub: raw.sub as string | undefined,
-      user_name: raw.user_name as string | undefined,
-      preferred_username: raw.preferred_username as string | undefined,
-      username: raw.user_name as string | undefined,
-      name: raw.name as string | undefined,
-      avatar_url: raw.avatar_url as string | undefined,
-      picture: raw.picture as string | undefined,
-      profile_image_url: raw.profile_image_url as string | undefined,
-      description: raw.description as string | undefined,
-    };
-  }
-  const meta = user.user_metadata ?? {};
-  const metaProvider = (meta.provider as string)?.toLowerCase();
-  if (metaProvider === "twitter" || metaProvider === "x" || (typeof meta.iss === "string" && meta.iss.includes("twitter"))) {
-    return {
-      provider: "twitter",
-      sub: meta.sub as string | undefined,
-      user_name: (meta.user_name ?? meta.preferred_username ?? meta.username) as string | undefined,
-      preferred_username: meta.preferred_username as string | undefined,
-      username: meta.user_name as string | undefined,
-      name: meta.name as string | undefined,
-      avatar_url: (meta.avatar_url ?? meta.picture ?? meta.profile_image_url) as string | undefined,
-      picture: meta.picture as string | undefined,
-      profile_image_url: meta.profile_image_url as string | undefined,
-      description: meta.description as string | undefined,
-    };
-  }
-  return null;
+  const rawIdentity = (twitter ? (twitter.identity_data ?? twitter) : {}) as Record<string, unknown>;
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const isTwitter =
+    (twitter && true) ||
+    ["twitter", "x"].includes((meta.provider as string)?.toLowerCase()) ||
+    (typeof meta.iss === "string" && meta.iss.includes("twitter"));
+  if (!isTwitter && Object.keys(rawIdentity).length === 0) return null;
+
+  const merged = { ...meta, ...rawIdentity };
+  const handle = firstStr(merged, "user_name", "preferred_username", "username", "screen_name", "nickname");
+  const name = firstStr(merged, "name", "full_name", "display_name");
+  const description = firstStr(merged, "description", "bio");
+  const avatar =
+    firstStr(merged, "avatar_url", "picture", "profile_image_url", "image", "profile_image_url_https") ||
+    (merged.picture as string | undefined);
+  const sub = (merged.sub ?? merged.id ?? (twitter as Record<string, unknown>)?.["id"]) as string | undefined;
+
+  return {
+    provider: "twitter",
+    id: (merged.id as string) ?? sub,
+    sub,
+    user_name: handle,
+    preferred_username: handle,
+    username: handle,
+    name: name ?? undefined,
+    avatar_url: avatar ?? undefined,
+    picture: avatar ?? undefined,
+    profile_image_url: avatar ?? undefined,
+    description: description ?? undefined,
+  };
 }
 
 export default function AuthCallbackPage() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [message, setMessage] = useState("Completing sign in…");
+  const [redirectPath, setRedirectPath] = useState<string>(REDIRECT_AFTER);
 
   useEffect(() => {
     let cancelled = false;
 
     async function run() {
-      const code = searchParams.get("code");
-      let next = searchParams.get("next");
-      if (!next) {
-        try {
-          const stored = sessionStorage.getItem("linkary_oauth_next");
-          if (stored) {
-            next = stored;
-            sessionStorage.removeItem("linkary_oauth_next");
+      try {
+        const code = searchParams.get("code");
+        let next = searchParams.get("next");
+        if (!next) {
+          try {
+            const stored = sessionStorage.getItem("linkary_oauth_next");
+            if (stored) {
+              next = stored;
+              sessionStorage.removeItem("linkary_oauth_next");
+            }
+          } catch {
+            /* ignore */
           }
-        } catch {
-          /* ignore */
         }
-      }
-      next = next ?? REDIRECT_AFTER;
-      const redirectTo = next.startsWith("/") ? `${SITE_URL.replace(/\/$/, "")}${next}` : `${SITE_URL}/${next}`;
+        next = next ?? REDIRECT_AFTER;
+        setRedirectPath(next);
+        const redirectTo = next.startsWith("/") ? `${SITE_URL.replace(/\/$/, "")}${next}` : `${SITE_URL}/${next}`;
 
-      if (code) {
-        setMessage("Exchanging code for session…");
-        const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (cancelled) return;
-        if (exchangeError) {
-          setStatus("error");
-          setMessage(exchangeError.message);
-          return;
-        }
-        const user = sessionData?.session?.user;
-        if (!user?.id) {
-          setStatus("error");
-          setMessage("No session after exchange");
-          return;
-        }
-        setMessage("Updating profile…");
-        await ensureProfileForSession(user.id);
-        const identity = extractTwitterIdentity(user as unknown as Parameters<typeof extractTwitterIdentity>[0]);
-        if (identity) {
-          const { error: saveErr } = await saveTwitterIdentityFromOAuth(user.id, identity);
-          if (saveErr && !cancelled) {
-            setMessage(saveErr === "USERNAME_TAKEN_VERIFIED" ? "That handle is already taken by a verified account. Try another or contact support." : saveErr);
+        if (code) {
+          setMessage("Exchanging code for session…");
+          const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (cancelled) return;
+          if (exchangeError) {
             setStatus("error");
+            setMessage(exchangeError.message ?? "Sign-in failed. Try again.");
             return;
           }
-          // When returning to onboarding, pre-fill bio and display_name (username already claimed by saveTwitterIdentityFromOAuth)
-          if (next === "/onboarding" || next?.includes("onboarding")) {
-            const bio = identity.description?.trim() || null;
-            const displayName = identity.name?.trim() || null;
-            if (bio !== undefined || displayName) {
+          const user = sessionData?.session?.user;
+          if (!user?.id) {
+            setStatus("error");
+            setMessage("No session after exchange. Try again.");
+            return;
+          }
+          setMessage("Saving your X profile…");
+          await ensureProfileForSession(user.id);
+          const identity = extractTwitterIdentity(user as unknown as Parameters<typeof extractTwitterIdentity>[0]);
+          if (identity) {
+            const { error: saveErr } = await saveTwitterIdentityFromOAuth(user.id, identity);
+            if (saveErr && !cancelled) {
+              setMessage(saveErr === "USERNAME_TAKEN_VERIFIED" ? "That handle is already taken by a verified account. Try another or contact support." : saveErr);
+              setStatus("error");
+              return;
+            }
+            if (next === "/onboarding" || next?.includes("onboarding")) {
+              const bio = identity.description?.trim() || null;
+              const displayName = identity.name?.trim() || null;
               await updateMyProfile(user.id, {
-                ...(bio !== undefined ? { bio } : {}),
-                ...(displayName ? { display_name: displayName } : {}),
+                ...(bio != null ? { bio } : {}),
+                ...(displayName != null ? { display_name: displayName } : {}),
               });
             }
           }
-        }
-        if (!cancelled) {
-          setStatus("ok");
-          window.location.href = redirectTo;
-          return;
-        }
-      }
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (cancelled) return;
-      if (session?.user) {
-        const user = session.user as unknown as Parameters<typeof extractTwitterIdentity>[0];
-        await ensureProfileForSession(session.user.id);
-        const identity = extractTwitterIdentity(user);
-        if (identity) {
-          const { error: saveErr } = await saveTwitterIdentityFromOAuth(session.user.id, identity);
-          if (saveErr) {
-            setMessage(saveErr === "USERNAME_TAKEN_VERIFIED" ? "That handle is already taken by a verified account." : saveErr);
-            setStatus("error");
+          if (!cancelled) {
+            setStatus("ok");
+            setMessage("Redirecting…");
+            window.location.href = redirectTo;
             return;
           }
-          if (next === "/onboarding" || next?.includes("onboarding")) {
-            const bio = identity.description?.trim() || null;
-            const displayName = identity.name?.trim() || null;
-            if (bio !== undefined || displayName) {
-              await updateMyProfile(session.user.id, { ...(bio !== undefined ? { bio } : {}), ...(displayName ? { display_name: displayName } : {}) });
+        } else {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (cancelled) return;
+          if (session?.user) {
+            setMessage("Updating profile…");
+            const user = session.user as unknown as Parameters<typeof extractTwitterIdentity>[0];
+            await ensureProfileForSession(session.user.id);
+            const identity = extractTwitterIdentity(user);
+            if (identity) {
+              const { error: saveErr } = await saveTwitterIdentityFromOAuth(session.user.id, identity);
+              if (saveErr && !cancelled) {
+                setMessage(saveErr === "USERNAME_TAKEN_VERIFIED" ? "That handle is already taken by a verified account." : saveErr);
+                setStatus("error");
+                return;
+              }
+              if (next === "/onboarding" || next?.includes("onboarding")) {
+                const bio = identity.description?.trim() || null;
+                const displayName = identity.name?.trim() || null;
+                await updateMyProfile(session.user.id, { ...(bio != null ? { bio } : {}), ...(displayName != null ? { display_name: displayName } : {}) });
+              }
+            }
+            if (!cancelled) {
+              setStatus("ok");
+              setMessage("Redirecting…");
+              window.location.href = redirectTo;
+              return;
             }
           }
         }
-        setStatus("ok");
-        window.location.href = redirectTo;
-        return;
-      }
 
-      setStatus("error");
-      setMessage("No code or session. Try connecting again from Settings.");
+        setStatus("error");
+        setMessage("No authorization code or session. Try connecting again from the previous page.");
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
+        setStatus("error");
+        setMessage(msg);
+      }
     }
 
     run();
@@ -171,10 +186,10 @@ export default function AuthCallbackPage() {
           <>
             <p className="text-red-600 mb-4">{message}</p>
             <a
-              href={REDIRECT_AFTER}
+              href={redirectPath.startsWith("/") ? `${SITE_URL.replace(/\/$/, "")}${redirectPath}` : REDIRECT_AFTER}
               className="text-indigo-600 hover:underline text-sm"
             >
-              Back to Settings
+              {redirectPath === "/onboarding" || redirectPath?.includes("onboarding") ? "Back to onboarding" : "Back to Settings"}
             </a>
           </>
         )}

@@ -1,7 +1,8 @@
 # env files - never commit secrets
-.env.local
-.env*
+.env
+.env.*
 !.env.example
+.env.local
 apps/api/.env
 
 # dependencies
@@ -13,6 +14,7 @@ node_modules/
 .next/
 out/
 dist/
+build/
 .turbo/
 *.tsbuildinfo
 

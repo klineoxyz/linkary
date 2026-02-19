@@ -35,7 +35,13 @@ export default function IntegrationsPage({
   const handleConnectX = async () => {
     setError(null);
     setConnecting(true);
-    const redirectTo = `${AUTH_CALLBACK}?next=/settings/integrations`;
+    // Use exact callback URL (no query) so it matches Supabase Redirect URLs allow list.
+    const redirectTo = AUTH_CALLBACK;
+    try {
+      sessionStorage.setItem("linkary_oauth_next", "/settings/integrations");
+    } catch {
+      /* ignore */
+    }
     const { data, error: err } = await supabase.auth.signInWithOAuth({
       provider: "twitter",
       options: { redirectTo },

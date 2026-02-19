@@ -52,7 +52,19 @@ export default function AuthCallbackPage() {
 
     async function run() {
       const code = searchParams.get("code");
-      const next = searchParams.get("next") ?? REDIRECT_AFTER;
+      let next = searchParams.get("next");
+      if (!next) {
+        try {
+          const stored = sessionStorage.getItem("linkary_oauth_next");
+          if (stored) {
+            next = stored;
+            sessionStorage.removeItem("linkary_oauth_next");
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      next = next ?? REDIRECT_AFTER;
       const redirectTo = next.startsWith("/") ? `${SITE_URL.replace(/\/$/, "")}${next}` : `${SITE_URL}/${next}`;
 
       if (code) {

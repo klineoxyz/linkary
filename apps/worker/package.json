@@ -1,8 +1,9 @@
 {
-  "name": "linkary-worker",
+  "name": "worker",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "sync:x:daily": "node dist/sync_x_profiles_daily.js",

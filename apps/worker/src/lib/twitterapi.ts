@@ -2,7 +2,9 @@ const TWITTERAPI_BASE = "https://api.twitterapi.io";
 
 function getApiKey(): string {
   const key = process.env.TWITTERAPI_API_KEY;
-  if (!key) throw new Error("TWITTERAPI_API_KEY must be set");
+  if (!key) {
+    throw new Error("TWITTERAPI_API_KEY must be set");
+  }
   return key;
 }
 
@@ -15,7 +17,7 @@ export type UserInfo = {
   description?: string;
   profilePicture?: string;
   userName?: string;
-};
+} & Record<string, unknown>;
 
 export async function getUserInfo(username: string): Promise<UserInfo | null> {
   const u = username.trim().replace(/^@/, "");
@@ -28,7 +30,7 @@ export async function getUserInfo(username: string): Promise<UserInfo | null> {
   const json = await res.json();
   const data = json?.data;
   if (!data || json?.status === "error") return null;
-  return data;
+  return data as UserInfo;
 }
 
 export type TweetRaw = {
@@ -42,9 +44,17 @@ export type TweetRaw = {
   createdAt?: string;
 } & Record<string, unknown>;
 
-export async function getUserTweets(username: string, limit: number = 50): Promise<TweetRaw[]> {
+/**
+ * Fetch recent tweets for a user (paginates; up to limit).
+ * GET .../twitter/user/last_tweets?userName=... (cursor for next pages).
+ */
+export async function getRecentTweets(
+  username: string,
+  limit: number = 50
+): Promise<TweetRaw[]> {
   const u = username.trim().replace(/^@/, "");
   if (!u) return [];
+  getApiKey();
   const out: TweetRaw[] = [];
   let cursor = "";
   while (out.length < limit) {
@@ -60,14 +70,10 @@ export async function getUserTweets(username: string, limit: number = 50): Promi
     if (tweets.length === 0) break;
     for (const t of tweets) {
       if (out.length >= limit) break;
-      out.push(t);
+      out.push(t as TweetRaw);
     }
     if (!json?.has_next_page || !json?.next_cursor) break;
     cursor = json.next_cursor;
   }
   return out.slice(0, limit);
-}
-
-export function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
 }

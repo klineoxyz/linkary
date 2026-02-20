@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   Shield,
   Eye,
-  EyeOff,
   Twitter,
   Youtube,
   Radio,
@@ -11,21 +10,42 @@ import {
   ExternalLink,
   AlertCircle,
   Lock,
-  Unlock,
 } from "lucide-react";
 import { FeatureStatusBadge } from "./SharedComponents";
+import { getMyProfile, updateMyProfile } from "@/lib/profiles";
 
 /**
  * Privacy & Data Controls Page
  * Analytics visibility and data integration management
  */
 
-export default function PrivacyDataPage() {
+export default function PrivacyDataPage({
+  userId,
+  refreshMe,
+}: {
+  userId?: string | null;
+  refreshMe?: () => Promise<void>;
+}) {
   const [analyticsVisibility, setAnalyticsVisibility] = useState({
-    publicVisible: false,
+    publicVisible: true,
     shareOnApplications: true,
     caseStudyAnalytics: true,
   });
+  const [publicAnalyticsSaving, setPublicAnalyticsSaving] = useState(false);
+  const [publicAnalyticsError, setPublicAnalyticsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    getMyProfile(userId).then((p) => {
+      if (cancelled || !p) return;
+      setAnalyticsVisibility((prev) => ({
+        ...prev,
+        publicVisible: p.analytics_visibility !== "private",
+      }));
+    });
+    return () => { cancelled = true; };
+  }, [userId]);
 
   const [connectedAccounts, setConnectedAccounts] = useState({
     twitter: true,
@@ -33,11 +53,27 @@ export default function PrivacyDataPage() {
     tiktok: false,
   });
 
-  const toggleAnalyticsSetting = (key: keyof typeof analyticsVisibility) => {
-    setAnalyticsVisibility((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+  const toggleAnalyticsSetting = async (key: keyof typeof analyticsVisibility) => {
+    if (key === "publicVisible" && userId) {
+      const next = !analyticsVisibility.publicVisible;
+      setPublicAnalyticsError(null);
+      setPublicAnalyticsSaving(true);
+      const { error } = await updateMyProfile(userId, {
+        analytics_visibility: next ? "public" : "private",
+      });
+      setPublicAnalyticsSaving(false);
+      if (error) {
+        setPublicAnalyticsError(error);
+        return;
+      }
+      setAnalyticsVisibility((prev) => ({ ...prev, publicVisible: next }));
+      await refreshMe?.();
+    } else {
+      setAnalyticsVisibility((prev) => ({
+        ...prev,
+        [key]: !prev[key],
+      }));
+    }
   };
 
   const toggleAccountConnection = (platform: keyof typeof connectedAccounts) => {
@@ -81,22 +117,26 @@ export default function PrivacyDataPage() {
           </div>
 
           <div className="space-y-4">
-            {/* Public Visibility Toggle */}
+            {/* Public analytics toggle — writes profiles.analytics_visibility */}
             <div className="flex items-start justify-between p-5 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all group">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <h3 className="font-semibold text-gray-900">Allow analytics to be visible publicly</h3>
+                  <h3 className="font-semibold text-gray-900">Public analytics</h3>
                   {!analyticsVisibility.publicVisible && (
                     <Lock className="w-4 h-4 text-primary stroke-[1.75]" />
                   )}
                 </div>
                 <p className="text-sm text-gray-600">
-                  When enabled, anyone viewing your profile can see your performance metrics
+                  When enabled, anyone viewing your public profile can see followers, engagement rate, and XScore
                 </p>
+                {publicAnalyticsError && (
+                  <p className="text-sm text-destructive mt-2">{publicAnalyticsError}</p>
+                )}
               </div>
               <button
                 onClick={() => toggleAnalyticsSetting("publicVisible")}
-                className={`relative w-14 h-7 rounded-full transition-all duration-300 ${
+                disabled={publicAnalyticsSaving || !userId}
+                className={`relative w-14 h-7 rounded-full transition-all duration-300 disabled:opacity-50 ${
                   analyticsVisibility.publicVisible
                     ? "bg-primary"
                     : "bg-white/20"

@@ -72,6 +72,7 @@ export default function OrgDetailPage({
   const [hasToken, setHasToken] = useState(false);
   const [tokenSymbol, setTokenSymbol] = useState("");
   const [dexscreenerUrl, setDexscreenerUrl] = useState("");
+  const [published, setPublished] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
@@ -98,6 +99,7 @@ export default function OrgDetailPage({
         setHasToken(!!o.has_token);
         setTokenSymbol(o.token_symbol ?? "");
         setDexscreenerUrl(o.dexscreener_url ?? "");
+        setPublished(!!o.published);
         const [m, a, am, met, jobsAll, cs] = await Promise.all([
           listOrgMembers(o.id),
           listOrgAffiliations(o.id),
@@ -396,6 +398,18 @@ export default function OrgDetailPage({
               ) : (
                 <>
                   <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3">Public listing</h3>
+                    <label className="flex items-center gap-2 mb-4">
+                      <input
+                        type="checkbox"
+                        checked={published}
+                        onChange={(e) => setPublished(e.target.checked)}
+                        className="rounded border-zinc-300"
+                      />
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300">Show this org on Linkary search and landing (public listing)</span>
+                    </label>
+                  </div>
+                  <div>
                     <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3">Crypto &amp; token</h3>
                     <label className="flex items-center gap-2 mb-2">
                       <input
@@ -453,6 +467,7 @@ export default function OrgDetailPage({
                       setSettingsError(null);
                       setSettingsSaving(true);
                       const { error } = await updateOrg(org.id, {
+                        published,
                         is_crypto_project: isCryptoProject,
                         has_token: hasToken ? true : false,
                         token_symbol: hasToken && tokenSymbol.trim() ? tokenSymbol.trim() : null,
@@ -460,7 +475,7 @@ export default function OrgDetailPage({
                       });
                       setSettingsSaving(false);
                       if (error) setSettingsError(error);
-                      else setOrg({ ...org, is_crypto_project: isCryptoProject, has_token: hasToken, token_symbol: tokenSymbol.trim() || null, dexscreener_url: dexscreenerUrl.trim() || null });
+                      else setOrg({ ...org, published, is_crypto_project: isCryptoProject, has_token: hasToken, token_symbol: tokenSymbol.trim() || null, dexscreener_url: dexscreenerUrl.trim() || null });
                     }}
                     className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm disabled:opacity-50"
                   >

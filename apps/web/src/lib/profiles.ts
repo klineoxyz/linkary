@@ -18,6 +18,8 @@ export type Profile = {
   twitter_username_candidate?: string | null;
   onboarding_completed_at: string | null;
   published: boolean;
+  /** Controls whether analytics (followers_total, avg_engagement_rate, xscore) are exposed on public views. */
+  analytics_visibility?: 'public' | 'private';
   location: string | null;
   intents: string[];
   followers_total: number;
@@ -72,6 +74,7 @@ export async function getMyProfile(userId: string): Promise<Profile | null> {
     ...p,
     intents: Array.isArray(p.intents) ? p.intents : (typeof p.intents === "string" ? JSON.parse(p.intents || "[]") : []),
     published: !!p.published,
+    analytics_visibility: (p.analytics_visibility === 'private' ? 'private' : 'public') as 'public' | 'private',
     followers_total: Number(p.followers_total ?? 0),
     avg_engagement_rate: Number(p.avg_engagement_rate ?? 0),
   } as Profile;
@@ -118,6 +121,7 @@ export async function updateMyProfile(
     location?: string | null;
     intents?: string[];
     published?: boolean;
+    analytics_visibility?: 'public' | 'private';
     onboarding_completed_at?: string | null;
     followers_total?: number;
     avg_engagement_rate?: number;

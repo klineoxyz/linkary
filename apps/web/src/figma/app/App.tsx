@@ -3245,7 +3245,7 @@ export default function LinkaryApp() {
                 {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "discovery" && <ExplorePage setRoute={setRoute} />}
                 {route.name === "analytics" && <AnalyticsPage />}
-                {route.name === "privacy" && <PrivacyDataPage />}
+                {route.name === "privacy" && <PrivacyDataPage userId={authUserId} refreshMe={refreshMe} />}
                 {route.name === "terms" && <TermsOfServicePage setRoute={setRoute} />}
                 {route.name === "privacyPolicy" && <PrivacyPolicyPage setRoute={setRoute} />}
                 {route.name === "showcase" && <ComponentShowcase />}

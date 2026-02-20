@@ -24,6 +24,9 @@ export type Org = {
   token_symbol?: string | null;
   dexscreener_url?: string | null;
   xscore?: number | null;
+  /** Whether this org is publicly listed on Linkary public pages/search. */
+  published?: boolean;
+  public_layout?: unknown;
 };
 
 export type OrgMember = {
@@ -174,7 +177,7 @@ export async function getOrgBySlug(slug: string): Promise<Org | null> {
 /** Update org (caller must be owner/admin via RLS). xscore is write-only via Wallchain/cron/service-role; never accepted here. */
 export async function updateOrg(
   orgId: string,
-  payload: Partial<Pick<Org, "name" | "tagline" | "website" | "twitter_username" | "logo_url" | "is_crypto_project" | "has_token" | "token_symbol" | "dexscreener_url">>
+  payload: Partial<Pick<Org, "name" | "tagline" | "website" | "twitter_username" | "logo_url" | "is_crypto_project" | "has_token" | "token_symbol" | "dexscreener_url" | "published">>
 ): Promise<{ error: string | null }> {
   const updates = { ...payload } as Record<string, unknown>;
   delete updates.xscore;

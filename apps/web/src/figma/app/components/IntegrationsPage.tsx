@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getMyProfile, disconnectTwitter } from "@/lib/profiles";
-import { getXConnection } from "@/lib/xAuth";
+import { getXConnection, getXHandleFromSessionUser } from "@/lib/xAuth";
 import { syncProfileFromX } from "@/lib/x-sync";
 import type { Profile } from "@/lib/profiles";
 
@@ -26,6 +26,7 @@ function formatSyncTime(iso: string): string {
 export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [xFromDb, setXFromDb] = useState<{ username: string | null } | null>(null);
+  const [sessionXHandle, setSessionXHandle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -44,15 +45,42 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       return;
     }
     (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const handleFromSession = getXHandleFromSessionUser(session?.user ?? null);
+      setSessionXHandle(handleFromSession);
+
       const [p, conn] = await Promise.all([
         getMyProfile(userId),
         getXConnection(userId),
       ]);
       setProfile(p ?? null);
       let resolvedConn = conn;
-      if (p && !conn && (p.twitter_username || p.twitter_connected_at)) {
+
+      const hasProfileX = !!(p?.twitter_username || p?.twitter_connected_at || p?.twitter_user_id);
+      if (!resolvedConn && (hasProfileX || handleFromSession)) {
         try {
-          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token;
+          if (token) {
+            const base = typeof window !== "undefined" ? window.location.origin : "";
+            const res = await fetch(`${base}/api/auth/sync-session-x`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+              const again = await getXConnection(userId);
+              resolvedConn = again ?? null;
+              if (!p?.twitter_username) {
+                const updated = await getMyProfile(userId);
+                setProfile(updated ?? null);
+              }
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!resolvedConn && hasProfileX) {
+        try {
           const token = session?.access_token;
           if (token) {
             const base = typeof window !== "undefined" ? window.location.origin : "";
@@ -62,13 +90,14 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
             });
             if (res.ok) {
               const again = await getXConnection(userId);
-              resolvedConn = again ?? conn;
+              resolvedConn = again ?? resolvedConn;
             }
           }
         } catch {
           /* ignore */
         }
       }
+
       setXFromDb(resolvedConn ? { username: resolvedConn.username ?? null } : null);
       setLoading(false);
     })();
@@ -117,9 +146,13 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   };
 
   const isConnected = Boolean(
-    xFromDb ?? profile?.twitter_connected_at ?? profile?.twitter_user_id ?? (profile?.twitter_username && String(profile.twitter_username).trim().length > 0)
+    sessionXHandle ??
+    xFromDb ??
+    profile?.twitter_connected_at ??
+    profile?.twitter_user_id ??
+    (profile?.twitter_username && String(profile.twitter_username).trim().length > 0)
   );
-  const handle = xFromDb?.username ?? profile?.twitter_username ?? profile?.twitter_username_candidate ?? null;
+  const handle = xFromDb?.username ?? profile?.twitter_username ?? profile?.twitter_username_candidate ?? sessionXHandle ?? null;
   const avatar = profile?.avatar_url ?? null;
 
   const handleSyncFromX = async () => {

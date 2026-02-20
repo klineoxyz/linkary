@@ -1,7 +1,28 @@
 /**
- * X (Twitter) connection state from DB. Use for "connected" everywhere, not session-only.
+ * X (Twitter) connection state from DB and session. Use for "connected" everywhere.
  */
 import { supabase } from "./supabase";
+
+/** Extract X handle from Supabase auth user (session). Use so Integrations shows Connected when user signed in with X even if DB is not yet synced. */
+export function getXHandleFromSessionUser(user: { identities?: Array<Record<string, unknown>>; user_metadata?: Record<string, unknown> } | null): string | null {
+  if (!user) return null;
+  const identities = user.identities ?? [];
+  const twitter = identities.find((i) => {
+    const p = (i.provider as string)?.toLowerCase();
+    return p === "twitter" || p === "x";
+  });
+  const raw = (twitter ? (twitter.identity_data ?? twitter) : {}) as Record<string, unknown>;
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const isX = !!twitter || ["twitter", "x"].includes((meta.provider as string)?.toLowerCase());
+  if (!isX && Object.keys(raw).length === 0) return null;
+  const merged = { ...meta, ...raw };
+  const keys = ["user_name", "preferred_username", "username", "screen_name", "nickname"];
+  for (const k of keys) {
+    const v = merged[k];
+    if (typeof v === "string" && v.trim()) return v.trim().replace(/^@/, "");
+  }
+  return null;
+}
 
 export type XConnectionRow = {
   id: string;

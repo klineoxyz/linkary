@@ -32,6 +32,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   const [disconnecting, setDisconnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [twitterUsernameConflict, setTwitterUsernameConflict] = useState(false);
 
   const refreshProfile = async () => {
     if (!userId) return;
@@ -67,12 +68,12 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
               headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
+              const body = await res.json().catch(() => ({}));
+              setTwitterUsernameConflict(Boolean(body?.twitterUsernameConflict));
               const again = await getXConnection(userId);
               resolvedConn = again ?? null;
-              if (!p?.twitter_username) {
-                const updated = await getMyProfile(userId);
-                setProfile(updated ?? null);
-              }
+              const updated = await getMyProfile(userId);
+              setProfile(updated ?? null);
             }
           }
         } catch {
@@ -140,6 +141,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       setError(result.error);
       return;
     }
+    setTwitterUsernameConflict(false);
     setXFromDb(null);
     const updated = await getMyProfile(userId);
     setProfile(updated ?? null);
@@ -200,6 +202,11 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       {error != null ? (
         <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-border text-foreground text-sm">
           {error}
+        </div>
+      ) : null}
+      {twitterUsernameConflict ? (
+        <div className="mb-6 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-sm">
+          Your connected X account differs from your stored handle. We kept your existing handle; the connected account is saved as a suggestion. You can disconnect and reconnect with the correct account, or keep your current handle.
         </div>
       ) : null}
       <div className="space-y-6">

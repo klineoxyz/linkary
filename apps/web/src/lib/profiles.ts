@@ -104,7 +104,7 @@ export async function ensureProfileForSession(userId: string): Promise<{ error: 
   return { error: error?.message ?? null };
 }
 
-/** Update current user's profile. Does NOT overwrite non-empty twitter_username. */
+/** Update current user's profile. Does NOT overwrite non-empty twitter_username. xscore is write-only via Wallchain/cron/service-role; never accepted here. */
 export async function updateMyProfile(
   userId: string,
   payload: {
@@ -121,10 +121,10 @@ export async function updateMyProfile(
     onboarding_completed_at?: string | null;
     followers_total?: number;
     avg_engagement_rate?: number;
-    xscore?: number | null;
   }
 ): Promise<{ error: string | null }> {
   const updates: Record<string, unknown> = { ...payload };
+  delete updates.xscore;
   if (updates.twitter_username !== undefined) {
     const { data: row } = await supabase.from(PROFILES).select("twitter_username").eq("id", userId).maybeSingle();
     if (row?.twitter_username && row.twitter_username.trim() !== "" && updates.twitter_username === "") {

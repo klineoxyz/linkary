@@ -158,7 +158,7 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
   const [socialsRow, mediaRow, snapshotRow, window30Row, caseRows, reviewRows, affRow, ambRows] = await Promise.all([
     supabase.from("profile_socials").select("*").eq("profile_id", profile.id).maybeSingle(),
     supabase.from("profile_media").select("header_media_type, header_media_url").eq("profile_id", profile.id).maybeSingle(),
-    supabase.from("analytics_snapshots").select("*").eq("owner_type", "profile").eq("owner_id", profile.id).eq("platform", "x").eq("window_days", 30).maybeSingle(),
+    supabase.from("analytics_snapshots").select("day, metrics").eq("owner_type", "profile").eq("owner_id", profile.id).eq("platform", "x").eq("window_days", 1).order("day", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("x_window_aggregates").select("*").eq("owner_type", "profile").eq("owner_id", profile.id).eq("window_days", 30).order("as_of", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profile.id).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     supabase.from("reviews").select("id, rating, body, title, created_at").eq("reviewee_type", "profile").eq("reviewee_profile_id", profile.id).eq("verified_deal", true).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
@@ -213,8 +213,9 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
     })
   );
 
-  const legacySnapshot = snapshotRow.data as AnalyticsSnapshot | null;
+  const snapshotRowData = snapshotRow.data as { day?: string; metrics?: { followers_total?: number; engagement_rate_proxy?: number } } | null;
   const win30 = window30Row.data as { followers_end?: number; followers_delta?: number; avg_engagement_rate?: number; avg_likes_per_post?: number; avg_replies_per_post?: number; reach_avg?: number; spaces_count?: number } | null;
+  const metrics = snapshotRowData?.metrics;
   const analyticsSnapshot: PublicEntity["analyticsSnapshot"] = win30
     ? {
         followers: win30.followers_end ?? null,
@@ -225,15 +226,15 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
         spaces_count: win30.spaces_count ?? null,
         followers_delta: win30.followers_delta ?? null,
       }
-    : legacySnapshot
+    : metrics != null
       ? {
-          followers: legacySnapshot.followers ?? null,
-          reach_avg: legacySnapshot.reach_avg ?? null,
-          engagement_rate: legacySnapshot.engagement_rate ?? null,
-          likes_avg: legacySnapshot.likes_avg ?? null,
-          replies_avg: legacySnapshot.replies_avg ?? null,
-          spaces_count: legacySnapshot.spaces_count ?? null,
-          followers_delta: legacySnapshot.followers_delta ?? null,
+          followers: metrics.followers_total ?? null,
+          reach_avg: null,
+          engagement_rate: metrics.engagement_rate_proxy ?? null,
+          likes_avg: null,
+          replies_avg: null,
+          spaces_count: null,
+          followers_delta: null,
         }
       : null;
   return {
@@ -260,7 +261,7 @@ async function buildPublicOrgEntity(org: PublicOrg, _norm: string): Promise<Publ
   const tier = await getSubscriptionTier("org", org.id);
   const [mediaRow, snapshotRow, ecosystemRows, subsRows, caseRows, reviewRows, ambRows, affRows] = await Promise.all([
     supabase.from("org_media").select("header_media_type, header_media_url").eq("org_id", org.id).maybeSingle(),
-    supabase.from("analytics_snapshots").select("*").eq("owner_type", "org").eq("owner_id", org.id).eq("platform", "x").eq("window_days", 30).maybeSingle(),
+    supabase.from("analytics_snapshots").select("day, metrics").eq("owner_type", "org").eq("owner_id", org.id).eq("platform", "x").eq("window_days", 1).order("day", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("org_ecosystem_categories").select("category").eq("org_id", org.id),
     supabase.from("org_relationships").select("child_org_id").eq("parent_org_id", org.id).eq("rel_type", "SUBSIDIARY"),
     supabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "org").eq("owner_org_id", org.id).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
@@ -288,21 +289,22 @@ async function buildPublicOrgEntity(org: PublicOrg, _norm: string): Promise<Publ
     activeAffiliatesCount: (affRows.data ?? []).length,
   });
 
-  const snapshot = snapshotRow.data as AnalyticsSnapshot | null;
+  const orgSnapshotData = snapshotRow.data as { day?: string; metrics?: { followers_total?: number; engagement_rate_proxy?: number } } | null;
+  const orgMetrics = orgSnapshotData?.metrics;
   return {
     type: "org",
     org,
     publicLayout: org.public_layout ?? null,
     headerMedia: mediaRow.data ? (mediaRow.data as HeaderMedia) : null,
-    analyticsSnapshot: snapshot
+    analyticsSnapshot: orgMetrics != null
       ? {
-          followers: snapshot.followers ?? null,
-          reach_avg: snapshot.reach_avg ?? null,
-          engagement_rate: snapshot.engagement_rate ?? null,
-          likes_avg: snapshot.likes_avg ?? null,
-          replies_avg: snapshot.replies_avg ?? null,
-          spaces_count: snapshot.spaces_count ?? null,
-          followers_delta: snapshot.followers_delta ?? null,
+          followers: orgMetrics.followers_total ?? null,
+          reach_avg: null,
+          engagement_rate: orgMetrics.engagement_rate_proxy ?? null,
+          likes_avg: null,
+          replies_avg: null,
+          spaces_count: null,
+          followers_delta: null,
         }
       : null,
     linkaryInfluence,

@@ -40,7 +40,6 @@ export default function ProfileEditPage({
   const [professions, setProfessions] = useState<Profession[]>([]);
   const [headerMediaType, setHeaderMediaType] = useState<HeaderMediaType>("NONE");
   const [headerMediaUrl, setHeaderMediaUrl] = useState("");
-  const [xscore, setXscore] = useState<string>("");
   const [xUrl, setXUrl] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -63,7 +62,6 @@ export default function ProfileEditPage({
     if (me.bio != null) setBio(me.bio);
     if (me.website != null) setWebsite(me.website);
     if (me.location != null) setLocation(me.location);
-    if (me.xscore != null && Number.isFinite(me.xscore)) setXscore(String(me.xscore));
     if (profResult?.data?.length) setProfessions(profResult.data);
     if (mediaData?.data) {
       const t = mediaData.data.header_media_type as HeaderMediaType;
@@ -77,7 +75,7 @@ export default function ProfileEditPage({
       setYoutubeUrl(s.youtube_url ?? "");
       setTelegramUrl(s.telegram_url ?? "");
     }
-  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.xscore]);
+  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location]);
 
   useEffect(() => {
     load();
@@ -88,14 +86,12 @@ export default function ProfileEditPage({
     if (!me?.id) return;
     setError(null);
     setSaving(true);
-    const xscoreNum = xscore.trim() === "" ? null : parseInt(xscore.trim(), 10);
     const { error: profileErr } = await updateMyProfile(me.id, {
       display_name: displayName.trim() || null,
       email: email.trim() || null,
       bio: bio.trim() || null,
       website: website.trim() || null,
       location: location.trim() || null,
-      xscore: xscoreNum != null && Number.isFinite(xscoreNum) ? Math.min(1000, Math.max(0, xscoreNum)) : null,
     });
     if (profileErr) {
       setSaving(false);
@@ -263,19 +259,6 @@ export default function ProfileEditPage({
               className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
             />
           </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1">XScore (0–1000)</label>
-          <p className="text-xs text-zinc-500 mb-2">Copy from Wallchain X Score extension.</p>
-          <input
-            type="number"
-            min={0}
-            max={1000}
-            value={xscore}
-            onChange={(e) => setXscore(e.target.value)}
-            placeholder="0–1000"
-            className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-          />
         </div>
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Location (region)</label>

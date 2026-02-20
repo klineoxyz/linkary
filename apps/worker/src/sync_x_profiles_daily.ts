@@ -98,13 +98,15 @@ async function main() {
 
       await supabase.from("analytics_snapshots").upsert(
         {
-          profile_id: profile.id,
+          owner_type: "profile",
+          owner_id: profile.id,
           platform: "x",
-          snapshot_date: today,
-          followers_total: followers,
-          engagement_rate_proxy: engagementRate,
+          day: today,
+          window_days: 1,
+          metrics: { followers_total: followers, engagement_rate_proxy: engagementRate },
+          updated_at: new Date().toISOString(),
         },
-        { onConflict: "profile_id,platform,snapshot_date" }
+        { onConflict: "owner_type,owner_id,platform,day,window_days" }
       );
 
       // One-time baseline for "growth since joining" (first insert wins; ignore duplicate)

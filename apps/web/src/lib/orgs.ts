@@ -171,12 +171,14 @@ export async function getOrgBySlug(slug: string): Promise<Org | null> {
   return data as Org | null;
 }
 
-/** Update org (caller must be owner/admin via RLS). */
+/** Update org (caller must be owner/admin via RLS). xscore is write-only via Wallchain/cron/service-role; never accepted here. */
 export async function updateOrg(
   orgId: string,
-  payload: Partial<Pick<Org, "name" | "tagline" | "website" | "twitter_username" | "logo_url" | "is_crypto_project" | "has_token" | "token_symbol" | "dexscreener_url" | "xscore">>
+  payload: Partial<Pick<Org, "name" | "tagline" | "website" | "twitter_username" | "logo_url" | "is_crypto_project" | "has_token" | "token_symbol" | "dexscreener_url">>
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase.from(ORGS).update(payload).eq("id", orgId);
+  const updates = { ...payload } as Record<string, unknown>;
+  delete updates.xscore;
+  const { error } = await supabase.from(ORGS).update(updates).eq("id", orgId);
   return { error: error?.message ?? null };
 }
 

@@ -166,13 +166,15 @@ async function handleSync(request: NextRequest) {
   const today = new Date().toISOString().slice(0, 10);
   await supabase.from("analytics_snapshots").upsert(
     {
-      profile_id: user.id,
+      owner_type: "profile",
+      owner_id: user.id,
       platform: "x",
-      snapshot_date: today,
-      followers_total: followers,
-      engagement_rate_proxy: avgEngagement,
+      day: today,
+      window_days: 1,
+      metrics: { followers_total: followers, engagement_rate_proxy: avgEngagement },
+      updated_at: new Date().toISOString(),
     },
-    { onConflict: "profile_id,platform,snapshot_date" }
+    { onConflict: "owner_type,owner_id,platform,day,window_days" }
   );
 
   // One-time baseline for "growth since joining" (first insert wins; ignore duplicate)

@@ -34,7 +34,14 @@ export async function POST(request: Request) {
   const normalizedHandle = handle?.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-") ?? null;
   const twitterUserId = identity.id ?? identity.sub ?? null;
 
-  const { data: existingProfile } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
+  const { data: existingProfile } = await supabase
+    .from("profiles")
+    .select("id, twitter_username")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  let twitterUsernameConflict = false;
+
   if (!existingProfile) {
     await supabase.from("profiles").insert({
       id: user.id,
@@ -54,16 +61,28 @@ export async function POST(request: Request) {
       avg_engagement_rate: 0,
     });
   } else {
+    const storedHandle = (existingProfile.twitter_username ?? "").trim().toLowerCase().replace(/^@/, "");
+    const oauthHandle = (normalizedHandle ?? "").toLowerCase().replace(/^@/, "");
+
     const updates: Record<string, unknown> = {
       twitter_user_id: twitterUserId,
       twitter_connected_at: new Date().toISOString(),
     };
     if (identity.avatar_url) updates.avatar_url = identity.avatar_url;
-    if (normalizedHandle) updates.twitter_username = normalizedHandle;
+
+    if (storedHandle === "" || !storedHandle) {
+      if (normalizedHandle) updates.twitter_username = normalizedHandle;
+      Object.assign(updates, { twitter_username_candidate: null });
+    } else if (storedHandle === oauthHandle) {
+      Object.assign(updates, { twitter_username_candidate: null });
+    } else {
+      updates.twitter_username_candidate = normalizedHandle;
+      twitterUsernameConflict = true;
+    }
     await supabase.from("profiles").update(updates).eq("id", user.id);
   }
 
-  if (normalizedHandle) {
+  if (normalizedHandle && !twitterUsernameConflict) {
     await supabase.rpc("claim_username_for_profile", { desired_username: normalizedHandle });
   }
 
@@ -104,5 +123,9 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, synced: true });
+  return NextResponse.json({
+    ok: true,
+    synced: true,
+    twitterUsernameConflict: twitterUsernameConflict || undefined,
+  });
 }

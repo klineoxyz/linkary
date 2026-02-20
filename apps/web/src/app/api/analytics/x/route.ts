@@ -42,10 +42,12 @@ export async function GET(request: NextRequest) {
       .maybeSingle(),
     supabase
       .from("analytics_snapshots")
-      .select("snapshot_date, followers_total")
-      .eq("profile_id", user.id)
+      .select("day, metrics")
+      .eq("owner_type", "profile")
+      .eq("owner_id", user.id)
       .eq("platform", "x")
-      .order("snapshot_date", { ascending: false })
+      .eq("window_days", 1)
+      .order("day", { ascending: false })
       .limit(90),
     supabase
       .from("x_daily_snapshots")
@@ -91,7 +93,7 @@ export async function GET(request: NextRequest) {
     reach_proxy_30d?: number | null;
   } | null;
 
-  type LegacySnapshotRow = { snapshot_date: string; followers_total?: number | null };
+  type LegacySnapshotRow = { day: string; metrics?: { followers_total?: number } | null };
   const legacySnapshots = (legacySnapshotsRes.data ?? []) as LegacySnapshotRow[];
 
   type DailyRow = { day: string; followers: number | null };
@@ -100,7 +102,10 @@ export async function GET(request: NextRequest) {
   const snapshots =
     snapshotsFromDaily.length > 0
       ? snapshotsFromDaily
-      : legacySnapshots.map((s) => ({ snapshot_date: s.snapshot_date, followers_total: s.followers_total ?? null }));
+      : legacySnapshots.map((s) => ({
+          snapshot_date: s.day,
+          followers_total: s.metrics?.followers_total ?? null,
+        }));
 
   type WindowAgg = {
     window_days?: number;

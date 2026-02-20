@@ -45,7 +45,7 @@ export default function LinkProfilePanel() {
     <div className="space-y-4">
       <h3 className="text-base font-semibold">Link a profile</h3>
       <p className="text-sm text-muted-foreground">
-        Your sign-in and profile methods are linked to your wallet for recovery and verification.
+        The email and accounts below are linked to this wallet so you can claim and recover it.
       </p>
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -54,14 +54,14 @@ export default function LinkProfilePanel() {
           <p className="text-xs font-medium text-muted-foreground">Linked to your account</p>
           <div className="flex flex-wrap gap-2">
             {hasEmail && (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700" title="Email linked to this wallet">
                 <Check className="h-3.5 w-3.5 shrink-0" />
                 <Mail className="h-3.5 w-3.5" />
-                Email
+                Email ({profile?.email ?? ""})
               </span>
             )}
             {hasX && (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700" title="X handle linked to this wallet">
                 <Check className="h-3.5 w-3.5 shrink-0" />
                 <Link2 className="h-3.5 w-3.5" />
                 X (@{String(profile?.twitter_username).replace(/^@/, "")})

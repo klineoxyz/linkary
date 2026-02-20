@@ -6,6 +6,7 @@ import { supabase } from "./supabase";
 
 export type Profile = {
   id: string;
+  email: string | null;
   username: string | null;
   display_name: string | null;
   bio: string | null;
@@ -101,6 +102,7 @@ export async function ensureProfileForSession(userId: string): Promise<{ error: 
 export async function updateMyProfile(
   userId: string,
   payload: {
+    email?: string | null;
     username?: string | null;
     display_name?: string | null;
     bio?: string | null;

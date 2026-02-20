@@ -33,6 +33,7 @@ export default function ProfileEditPage({
   onSaved?: () => void;
 }) {
   const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const [bio, setBio] = useState("");
   const [website, setWebsite] = useState("");
   const [location, setLocation] = useState("");
@@ -58,6 +59,7 @@ export default function ProfileEditPage({
     ]);
     setLoading(false);
     if (me.display_name != null) setDisplayName(me.display_name);
+    if (me.email != null) setEmail(me.email);
     if (me.bio != null) setBio(me.bio);
     if (me.website != null) setWebsite(me.website);
     if (me.location != null) setLocation(me.location);
@@ -75,7 +77,7 @@ export default function ProfileEditPage({
       setYoutubeUrl(s.youtube_url ?? "");
       setTelegramUrl(s.telegram_url ?? "");
     }
-  }, [me?.id, me?.display_name, me?.bio, me?.website, me?.location, me?.xscore]);
+  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.xscore]);
 
   useEffect(() => {
     load();
@@ -89,6 +91,7 @@ export default function ProfileEditPage({
     const xscoreNum = xscore.trim() === "" ? null : parseInt(xscore.trim(), 10);
     const { error: profileErr } = await updateMyProfile(me.id, {
       display_name: displayName.trim() || null,
+      email: email.trim() || null,
       bio: bio.trim() || null,
       website: website.trim() || null,
       location: location.trim() || null,
@@ -182,6 +185,28 @@ export default function ProfileEditPage({
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="Your name"
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Email</label>
+          <p className="text-xs text-zinc-500 mb-2">Contact email (stored in your profile). Other users can have their own.</p>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Email</label>
+          <p className="text-xs text-zinc-500 mb-2">Contact email (stored in your profile).</p>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
             className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
           />
         </div>

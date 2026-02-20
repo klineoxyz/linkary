@@ -21,6 +21,7 @@ All backend SQL is applied via migrations in this folder. Apply them **in filena
 | 13 | `20260227000000_public_layout.sql` | public_layout + view updates |
 | 14 | `20260228000000_social_accounts_and_analytics_backfill.sql` | social_accounts, x_daily_snapshots, x_window_aggregates, backfill job |
 | 15 | `20260229000000_ensure_supabase_schema.sql` | Idempotent: missing columns, ethos_scores, grants |
+| 16 | `20260230000000_superadmin_and_profile_email.sql` | superadmin_emails table (mmxinthi@gmail.com), profiles.email |
 
 ## How to apply
 
@@ -39,7 +40,7 @@ This applies any migrations that haven’t been applied yet.
 
 1. Open your project → **SQL Editor**.
 2. Run each migration file **in the order above**, one at a time (copy/paste or upload).
-3. Run `20260229000000_ensure_supabase_schema.sql` last so any missing columns/grants are added.
+3. Run `20260229000000_ensure_supabase_schema.sql` and then `20260230000000_superadmin_and_profile_email.sql` so superadmin list and profile email are in place.
 
 ### Prerequisites
 

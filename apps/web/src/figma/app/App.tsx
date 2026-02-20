@@ -2749,6 +2749,11 @@ export default function LinkaryApp() {
     await ensureProfileForSession(session.user.id);
     const profile = await getMyProfile(session.user.id);
     setMe(profile ?? null);
+    // Keep profile.email in sync with auth (so SQL has user emails; users can also update in Profile → Edit)
+    const authEmail = (session.user.email ?? "").toString().trim();
+    if (authEmail && profile?.id) {
+      updateMyProfile(session.user.id, { email: authEmail }).catch(() => {});
+    }
     if (!profile?.onboarding_completed_at) {
       setRoute({ name: "onboarding" });
     } else {

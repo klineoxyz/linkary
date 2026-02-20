@@ -5,11 +5,13 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
 
-/** Comma-separated emails; users in this list can trigger backfill for any profile (e.g. superadmin). */
-const SUPERADMIN_EMAILS = (process.env.SUPERADMIN_EMAILS ?? "")
-  .split(",")
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean);
+/** Fallback from env if superadmin_emails table is empty (comma-separated). */
+function getSuperadminEmailsFromEnv(): string[] {
+  return (process.env.SUPERADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
 
 /**
  * GET or POST: Ensure 90d backfill is enqueued (and today's snapshot written) for a profile with X.
@@ -44,6 +46,8 @@ async function ensureBackfill(request: NextRequest) {
     return NextResponse.json({ enqueued: false, reason: "no_service_key" });
   }
 
+  const service = createClient(supabaseUrl, supabaseServiceKey);
+
   let targetProfileId: string = user.id;
   try {
     if (request.method === "POST") {
@@ -51,7 +55,14 @@ async function ensureBackfill(request: NextRequest) {
       const requestedId = typeof body?.profile_id === "string" ? body.profile_id.trim() : null;
       if (requestedId && requestedId !== user.id) {
         const email = (user.email ?? "").toString().toLowerCase();
-        const isSuperadmin = SUPERADMIN_EMAILS.length > 0 && SUPERADMIN_EMAILS.includes(email);
+        const { data: superadminRows } = await service
+          .from("superadmin_emails")
+          .select("email")
+          .limit(500);
+        const fromDb = (superadminRows ?? []).map((r: { email?: string }) => (r.email ?? "").toLowerCase().trim()).filter(Boolean);
+        const fromEnv = getSuperadminEmailsFromEnv();
+        const superadminSet = new Set([...fromDb, ...fromEnv]);
+        const isSuperadmin = superadminSet.size > 0 && superadminSet.has(email);
         if (!isSuperadmin) {
           return NextResponse.json({ error: "Forbidden", enqueued: false }, { status: 403 });
         }
@@ -61,8 +72,6 @@ async function ensureBackfill(request: NextRequest) {
   } catch {
     /* body parse failed; use self */
   }
-
-  const service = createClient(supabaseUrl, supabaseServiceKey);
 
   const { data: profile, error: profileError } = await service
     .from("profiles")

@@ -441,9 +441,20 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground"
+            className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground flex flex-wrap items-center justify-between gap-2"
           >
-            Backfilling your last 90 days. 7D/30D/90D windows will update when ready. You can sync from Integrations to refresh.
+            <span>
+              {hasRealInsights
+                ? "7D/30D/90D windows are being computed. Your latest stats are below. (For new accounts under 90 days, full windows appear shortly.)"
+                : "Connect X in Integrations to load your data. 7D/30D/90D windows are backfilled automatically on login and when your profile is viewed."}
+            </span>
+            <button
+              type="button"
+              onClick={() => fetchXAnalytics()}
+              className="shrink-0 px-3 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary font-medium text-sm transition-colors"
+            >
+              Refresh analytics
+            </button>
           </motion.div>
         ) : null}
         {/* A) Sticky Analytics Context Header */}
@@ -487,8 +498,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                       ))}
                     </div>
                     
-                    {/* Last Synced (from DB, no sync on load) */}
-                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                    {/* Last Synced + Refresh */}
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
                       <Clock className="w-3 h-3 stroke-[1.75]" />
                       <span>
                         {profile.x_last_profile_sync_at || profile.x_last_tweets_sync_at
@@ -498,6 +509,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                       {(profile.x_last_profile_sync_at || profile.x_last_tweets_sync_at) && (
                         <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                       )}
+                      <button
+                        type="button"
+                        onClick={() => fetchXAnalytics()}
+                        className="text-primary hover:underline font-medium"
+                      >
+                        Refresh
+                      </button>
                     </div>
                   </div>
                 </div>

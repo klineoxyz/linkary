@@ -2757,6 +2757,13 @@ export default function LinkaryApp() {
       setRouteState((prev) => (prev.name === "login" ? { name: "explore" } : prev));
       if (p === "/login") router.push("/explore");
     }
+    // Ensure 90d analytics backfill is enqueued when user has X (so Analytics has 7D/30D/90D without manual sync)
+    if (session?.access_token && profile?.twitter_username && typeof window !== "undefined") {
+      fetch(`${window.location.origin}/api/analytics/ensure-backfill`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }).catch(() => {});
+    }
     setAuthBootstrapped(true);
   };
 

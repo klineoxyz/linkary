@@ -118,10 +118,11 @@ export default function AuthCallbackPage() {
               });
             }
             const session = sessionData?.session as { provider_token?: string; provider_refresh_token?: string } | undefined;
+            const token = sessionData?.session?.access_token ?? "";
             try {
               await fetch(`${window.location.origin}/api/auth/persist-social`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData?.session?.access_token ?? ""}` },
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
                   provider: "x",
                   provider_token: session?.provider_token ?? undefined,
@@ -133,6 +134,9 @@ export default function AuthCallbackPage() {
               });
             } catch {
               /* non-blocking */
+            }
+            if (token) {
+              fetch(`${window.location.origin}/api/analytics/ensure-backfill`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
             }
           }
           if (!cancelled) {
@@ -178,6 +182,13 @@ export default function AuthCallbackPage() {
               } catch {
                 /* non-blocking */
               }
+            }
+            // Ensure 90d analytics backfill on every login when session exists (e.g. return visit with X connected)
+            if (session?.access_token) {
+              fetch(`${window.location.origin}/api/analytics/ensure-backfill`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              }).catch(() => {});
             }
             if (!cancelled) {
               setStatus("ok");

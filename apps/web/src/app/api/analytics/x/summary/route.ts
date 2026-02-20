@@ -50,12 +50,15 @@ export async function GET(request: NextRequest) {
     .eq("owner_type", "profile")
     .eq("owner_id", user.id);
 
-  const isBackfilling = (count ?? 0) < 7;
+  const snapshotDays = count ?? 0;
+  const hasAnyWindow = !!(byWindow[7] || byWindow[30] || byWindow[90]);
+  // Only show "backfilling" when we have few snapshots AND no 7D/30D/90D window data yet
+  const isBackfilling = snapshotDays < 7 && !hasAnyWindow;
 
   return NextResponse.json({
     windows: { "7": byWindow[7] ?? null, "30": byWindow[30] ?? null, "90": byWindow[90] ?? null },
     profile: profile ?? null,
     is_backfilling: isBackfilling,
-    snapshot_days_count: count ?? 0,
+    snapshot_days_count: snapshotDays,
   });
 }

@@ -146,6 +146,17 @@ export async function runXBackfill90d(
       totalPosts += r.tweets_count ?? 0;
     }
 
+    const totalEngagement = totalLikes + totalReplies + totalRetweets;
+    const followersEndSafe = followersEnd ?? followersStart ?? 1;
+    const avgEngagement =
+      totalPosts > 0 && followersEndSafe > 0
+        ? Math.min(100, (totalEngagement / totalPosts / followersEndSafe) * 100)
+        : null;
+    const reachAvg =
+      totalPosts > 0 && followersEnd != null
+        ? totalPosts * followersEnd
+        : null;
+
     const agg = {
       owner_type: "profile",
       owner_id: job.owner_id,
@@ -155,9 +166,11 @@ export async function runXBackfill90d(
       followers_end: followersEnd,
       followers_delta:
         followersStart != null && followersEnd != null ? followersEnd - followersStart : null,
+      avg_engagement_rate: avgEngagement,
       avg_likes_per_post: totalPosts > 0 ? totalLikes / totalPosts : null,
       avg_replies_per_post: totalPosts > 0 ? totalReplies / totalPosts : null,
       avg_retweets_per_post: totalPosts > 0 ? totalRetweets / totalPosts : null,
+      reach_avg: reachAvg,
       posts_count: totalPosts,
       updated_at: new Date().toISOString(),
     };

@@ -42,6 +42,23 @@ export function PublicOnePagerWrapper({
     })();
   }, [entity.type, entity.profile?.id, entity.org?.id]);
 
+  // When this profile is viewed (by owner or by someone with right, e.g. superadmin), ensure 90d backfill is enqueued so analytics stay healthy
+  useEffect(() => {
+    if (entity.type !== "profile" || !entity.profile?.id) return;
+    const handle = (entity.profile as { twitter_username?: string | null }).twitter_username;
+    if (!handle || !String(handle).trim()) return;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/analytics/ensure-backfill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ profile_id: entity.profile!.id }),
+      }).catch(() => {});
+    })();
+  }, [entity.type, entity.profile?.id, entity.profile]);
+
   return (
     <PublicOnePager
       entity={entity}

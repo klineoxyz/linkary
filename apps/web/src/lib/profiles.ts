@@ -31,6 +31,12 @@ export type Profile = {
   x_last_tweets_sync_at?: string | null;
   x_sync_status?: string | null;
   x_sync_error?: string | null;
+  /** CDP embedded wallet */
+  cdp_wallet_address?: string | null;
+  cdp_wallet_chain?: string | null;
+  cdp_wallet_type?: string | null;
+  cdp_wallet_created_at?: string | null;
+  cdp_mfa_enabled?: boolean;
 };
 
 /** Identity shape from Supabase auth (user.identities or provider raw_user_meta) */

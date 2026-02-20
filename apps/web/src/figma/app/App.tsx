@@ -184,6 +184,7 @@ import MonetizationShowcase from "./components/monetization/MonetizationShowcase
 import MonetizationFlowShowcase from "./components/monetization/MonetizationFlowShowcase";
 import IntegrationsPage from "./components/IntegrationsPage";
 import RolesSkillsPage from "./components/RolesSkillsPage";
+import WalletShell from "@/components/wallet/WalletShell";
 import ProfileEditPage from "./components/ProfileEditPage";
 
 /**
@@ -820,6 +821,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     showcase: "/showcase",
     integrations: "/settings/integrations",
     rolesSkills: "/settings/roles-skills",
+    wallet: "/settings/wallet",
   };
   return map[route.name] ?? "/";
 }
@@ -829,6 +831,7 @@ function routeFromPathname(pathname: string | null): { name: string; data?: any;
   const parts = fullPath.split("/").map((p) => p.toLowerCase());
   if (parts[0] === "settings" && parts[1] === "integrations") return { name: "integrations" };
   if (parts[0] === "settings" && parts[1] === "roles-skills") return { name: "rolesSkills" };
+  if (parts[0] === "settings" && parts[1] === "wallet") return { name: "wallet" };
   if (parts[0] === "profile" && parts[1] === "edit") return { name: "profileEdit" };
   const path = parts[0] || "";
   if (!path) return { name: "landing" };
@@ -2365,6 +2368,9 @@ function ProfilePage({ setRoute, me }) {
               <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "profileEdit" })}>
                 Edit profile
               </Button>
+              <Button variant="outline" className="flex items-center gap-2" onClick={() => router.push("/settings/wallet")}>
+                <Wallet className="h-4 w-4 stroke-[1.75]" /> Wallet
+              </Button>
               {hasPublicSlug ? (
                 <Button variant="outline" className="flex items-center gap-2" onClick={async () => { if (!publicSlug) return; await updateMyProfile(me.id, { published: true }); window.location.href = "/" + encodeURIComponent(publicSlug); }}>
                   <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Public View
@@ -3316,6 +3322,7 @@ export default function LinkaryApp() {
                 {route.name === "preferences" && <StubPage setRoute={setRoute} title="Preferences" message="Account preferences and display settings are on the roadmap." />}
                 {route.name === "integrations" && <IntegrationsPage setRoute={setRoute} userId={authUserId} />}
                 {route.name === "rolesSkills" && <RolesSkillsPage setRoute={setRoute} userId={authUserId} />}
+                {route.name === "wallet" && <WalletShell />}
                 {route.name === "support" && <StubPage setRoute={setRoute} title="Support" message="Help center and contact support are coming soon." />}
                 {route.name === "notifications" && <StubPage setRoute={setRoute} title="Notifications" message="No notifications yet. Activity and alerts will appear here." />}
                 {route.name === "signOut" && <StubPage setRoute={setRoute} title="Sign out" message="Sign out will be available when auth is connected." backTo="landing" />}

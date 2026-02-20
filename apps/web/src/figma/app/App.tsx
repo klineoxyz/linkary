@@ -88,7 +88,6 @@ import {
   ChevronDown,
   ExternalLink,
   Globe,
-  HelpCircle,
   Home,
   LayoutDashboard,
   LogIn,
@@ -100,7 +99,6 @@ import {
   Plus,
   Search,
   Shield,
-  Sliders,
   Square,
   Star,
   TrendingUp,
@@ -131,7 +129,6 @@ import {
   X as XIcon,
   Twitter,
   BarChart3,
-  FileCheck,
   Lock,
 } from "lucide-react";
 
@@ -157,8 +154,6 @@ import { listMyOrgs } from "@/lib/orgs";
 import { listCaseStudiesForProfile, createCaseStudyForProfile } from "@/lib/caseStudies";
 import LandingPage from "./components/LandingPage";
 import AnalyticsPage from "./components/AnalyticsPage";
-import VerificationCenterPage from "./components/VerificationCenterPage";
-import VerificationInboxPage from "./components/VerificationInboxPage";
 import PrivacyDataPage from "./components/PrivacyDataPage";
 import TermsOfServicePage from "./components/TermsOfServicePage";
 import PrivacyPolicyPage from "./components/PrivacyPolicyPage";
@@ -935,8 +930,6 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
           <NavLink name="profile" icon={Users} label="My Profile" />
           <NavLink name="profileEdit" icon={FileText} label="Profile Builder" />
-          <NavLink name="creatorProfile" icon={Users} label="Creator Demo" />
-          <NavLink name="brandProfile" icon={Building2} label="Project Demo" />
         </div>
 
         <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Discover</span>
@@ -958,31 +951,14 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="capitalPartners" icon={Briefcase} label="Capital Partners" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Analytics & Verification</span>
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Analytics & Data</span>
         <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="analytics" icon={BarChart3} label="Analytics" />
-          <NavLink name="verification" icon={FileCheck} label="Verification Center" />
           <NavLink name="privacy" icon={Shield} label="Privacy & Data" />
-        </div>
-
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Monetization</span>
-        <div className="flex flex-col gap-1.5 lg:gap-2">
-          <NavLink name="monetizationFlowShowcase" icon={Sparkles} label="Flow Showcase" />
-          <NavLink name="monetizationShowcase" icon={Sparkles} label="Monetization Hub" />
-          <NavLink name="plansBilling" icon={DollarSign} label="Plans & Billing" />
-          <NavLink name="hostDashboard" icon={Mic} label="X Spaces Hub" />
-          <NavLink name="availability" icon={Users} label="Availability" />
         </div>
 
         <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Account</span>
         <div className="flex flex-col gap-1.5 lg:gap-2">
-          <button
-            type="button"
-            onClick={() => setRoute({ name: "preferences" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-          >
-            <Sliders className="h-4 w-4 stroke-[1.75]" /> Preferences
-          </button>
           <button
             type="button"
             onClick={() => setRoute({ name: "rolesSkills" })}
@@ -996,13 +972,6 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
           >
             <LinkIcon className="h-4 w-4 stroke-[1.75]" /> Integrations
-          </button>
-          <button
-            type="button"
-            onClick={() => setRoute({ name: "support" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-          >
-            <HelpCircle className="h-4 w-4 stroke-[1.75]" /> Support
           </button>
           {isLoggedIn ? (
             <button
@@ -1033,21 +1002,6 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <div className="rounded-xl p-4 bg-primary text-primary-foreground">
             <h3 className="font-medium mb-3">Active Session</h3>
             <Timer />
-          </div>
-
-          <div className="mt-4 rounded-xl p-4 bg-primary text-primary-foreground">
-            <div className="flex items-center gap-2 mb-3">
-              <Zap className="h-5 w-5 stroke-[1.75]" />
-              <span className="font-medium">Upgrade to Pro</span>
-            </div>
-            <p className="text-xs mb-4 text-primary-foreground/90">Apply as speaker, advanced analytics, priority AI matching.</p>
-            <button
-              type="button"
-              onClick={() => setRoute({ name: "plansBilling" })}
-              className="w-full text-xs font-medium rounded-lg px-4 py-2 bg-white text-primary hover:bg-accent transition-colors"
-            >
-              Upgrade Now
-            </button>
           </div>
         </div>
       </nav>
@@ -1153,20 +1107,7 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
   );
 }
 
-// Stub page for launch polish: routes that have no real UI yet
-function StubPage({ setRoute, title, message, backTo = "overview" }) {
-  return (
-    <div className="max-w-md mx-auto py-12 px-6 text-center space-y-4">
-      <h1 className="text-2xl font-semibold text-zinc-900">{title}</h1>
-      <p className="text-zinc-600">{message}</p>
-      <Button variant="outline" onClick={() => setRoute({ name: backTo })}>
-        Back to {backTo === "landing" ? "Home" : backTo === "overview" ? "Overview" : backTo}
-      </Button>
-    </div>
-  );
-}
-
-// Lightweight overlay for "Coming soon" — back button returns to previous route
+// Lightweight overlay when a feature is not available — back button returns to previous route
 function routeToLabel(name) {
   const labels = { overview: "Overview", landing: "Home", explore: "Explore", market: "Jobs & Sprints", profile: "My Profile", dashboard: "My Dashboard", calendar: "Calendar", leaderboards: "Leaderboards", messages: "Messages", circles: "Circles", analytics: "Analytics", verification: "Verification", privacy: "Privacy & Data", plansBilling: "Plans & Billing", hostDashboard: "X Spaces Hub", availability: "Availability" };
   return labels[name] || name;
@@ -1180,8 +1121,8 @@ function ComingSoonModal({ onClose, previousRoute, setRoute }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div className="relative rounded-2xl border border-border bg-card from-accent to-muted backdrop-blur-xl p-8 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-xl font-semibold text-zinc-900 mb-2">Coming soon</h2>
-        <p className="text-zinc-600 text-sm mb-6">This feature is on the roadmap.</p>
+        <h2 className="text-xl font-semibold text-zinc-900 mb-2">Not available yet</h2>
+        <p className="text-zinc-600 text-sm mb-6">This feature is not available in this release.</p>
         <div className="flex gap-2">
           <Button variant="outline" onClick={goBack} className="flex-1">
             Back to {routeToLabel(safePrevious.name)}
@@ -2791,6 +2732,13 @@ export default function LinkaryApp() {
     runAuthGate();
   }, [authBootstrapped]);
 
+  // Redirect removed routes (verification stubs) to overview
+  useEffect(() => {
+    if (route.name === "verification" || route.name === "verificationInbox") {
+      setRoute({ name: "overview" });
+    }
+  }, [route.name]);
+
   useInViewAnimations(".animate-fade-in");
 
   return (
@@ -3297,8 +3245,6 @@ export default function LinkaryApp() {
                 {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "discovery" && <ExplorePage setRoute={setRoute} />}
                 {route.name === "analytics" && <AnalyticsPage />}
-                {route.name === "verification" && <VerificationCenterPage />}
-                {route.name === "verificationInbox" && <VerificationInboxPage />}
                 {route.name === "privacy" && <PrivacyDataPage />}
                 {route.name === "terms" && <TermsOfServicePage setRoute={setRoute} />}
                 {route.name === "privacyPolicy" && <PrivacyPolicyPage setRoute={setRoute} />}
@@ -3319,13 +3265,9 @@ export default function LinkaryApp() {
                 {route.name === "enhancedCalendar" && <EnhancedCalendarPage setRoute={setRoute} userPlan="free" />}
                 {route.name === "hostDashboard" && <HostDashboard setRoute={setRoute} />}
                 {route.name === "availability" && <AvailabilitySettings />}
-                {route.name === "preferences" && <StubPage setRoute={setRoute} title="Preferences" message="Account preferences and display settings are on the roadmap." />}
                 {route.name === "integrations" && <IntegrationsPage setRoute={setRoute} userId={authUserId} />}
                 {route.name === "rolesSkills" && <RolesSkillsPage setRoute={setRoute} userId={authUserId} />}
                 {route.name === "wallet" && <WalletShell />}
-                {route.name === "support" && <StubPage setRoute={setRoute} title="Support" message="Help center and contact support are coming soon." />}
-                {route.name === "notifications" && <StubPage setRoute={setRoute} title="Notifications" message="No notifications yet. Activity and alerts will appear here." />}
-                {route.name === "signOut" && <StubPage setRoute={setRoute} title="Sign out" message="Sign out will be available when auth is connected." backTo="landing" />}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -3337,7 +3279,7 @@ export default function LinkaryApp() {
         <CreateCircleFlow onClose={() => setRoute({ name: "circles" })} setRoute={setRoute} />
       )}
 
-      {/* Coming soon overlay — Back returns to previous route */}
+      {/* Not-available overlay — Back returns to previous route */}
       {comingSoonOpen && (
         <ComingSoonModal
           onClose={() => setComingSoonOpen(false)}

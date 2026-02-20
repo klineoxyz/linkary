@@ -91,7 +91,7 @@ export default function WalletsSection({ profileId }: WalletsSectionProps) {
           <h2 className="text-lg font-semibold text-neutral-900">
             Wallets (manual for now)
           </h2>
-          <span className="text-xs text-neutral-500">Connect wallet (coming soon)</span>
+          <span className="text-xs text-neutral-500">Connect wallet</span>
         </div>
 
         {loading ? (

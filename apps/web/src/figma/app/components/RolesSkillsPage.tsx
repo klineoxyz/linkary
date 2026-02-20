@@ -65,7 +65,7 @@ export default function RolesSkillsPage({
         ← Back to Preferences
       </button>
       <h1 className="text-2xl font-bold text-zinc-900 mb-2">Roles &amp; Skills</h1>
-      <p className="text-zinc-600 mb-8">Edit how you describe yourself. Skills coming soon.</p>
+      <p className="text-zinc-600 mb-8">Edit how you describe yourself and the roles you offer.</p>
 
       {error && (
         <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">

@@ -521,7 +521,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 </div>
               </div>
 
-              {/* Right: Platform Tabs (X = new logo; YouTube/TikTok = coming soon) */}
+              {/* Right: Platform Tabs (X supported; other platforms can be added later) */}
               <div className="flex items-center gap-2">
                 {platforms.map((platform) => (
                   <button

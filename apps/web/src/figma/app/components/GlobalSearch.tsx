@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Search, X, Users, FolderKanban, Building2, Clock, Crown, Loader2 } from "lucide-react";
+import { Search, X, Users, FolderKanban, Building2, Clock, Loader2 } from "lucide-react";
 
 /**
  * GlobalSearch Component - Functional search with debouncing & access control
@@ -8,8 +8,6 @@ import { Search, X, Users, FolderKanban, Building2, Clock, Crown, Loader2 } from
  */
 
 type SearchFilter = "all" | "people" | "projects" | "agencies";
-type UserTier = "free" | "starter" | "pro" | "institutional";
-
 interface SearchResult {
   id: string;
   type: "person" | "project" | "agency";
@@ -22,69 +20,10 @@ interface SearchResult {
 }
 
 interface GlobalSearchProps {
-  userTier?: UserTier;
   onResultClick?: (result: SearchResult) => void;
 }
 
-const MOCK_RESULTS: SearchResult[] = [
-  {
-    id: "1",
-    type: "person",
-    name: "Alex Chen",
-    handle: "@alexbuilds",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=alex",
-    verified: true,
-    ethos: 87,
-    xscore: 92,
-  },
-  {
-    id: "2",
-    type: "project",
-    name: "MatrixPay",
-    handle: "/p/matrixpay",
-    avatar: "https://api.dicebear.com/7.x/shapes/svg?seed=matrix",
-    verified: true,
-    ethos: 94,
-    xscore: 88,
-  },
-  {
-    id: "3",
-    type: "agency",
-    name: "Nexus Labs",
-    handle: "/a/nexuslabs",
-    avatar: "https://api.dicebear.com/7.x/shapes/svg?seed=nexus",
-    verified: true,
-    ethos: 91,
-    xscore: 95,
-  },
-];
-
-const TIER_LIMITS = {
-  free: {
-    enabled: false,
-    message: "Upgrade to Starter to search the network",
-  },
-  starter: {
-    enabled: true,
-    quota: 50,
-    message: "Limited searches this month",
-  },
-  pro: {
-    enabled: true,
-    quota: null,
-    message: null,
-  },
-  institutional: {
-    enabled: true,
-    quota: null,
-    message: null,
-  },
-};
-
-export default function GlobalSearch({ 
-  userTier = "free",
-  onResultClick 
-}: GlobalSearchProps) {
+export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [filter, setFilter] = useState<SearchFilter>("all");
@@ -133,22 +72,14 @@ export default function GlobalSearch({
 
   const performSearch = async (searchQuery: string) => {
     setIsLoading(true);
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Filter results based on search query and filter
-    const filtered = MOCK_RESULTS.filter((result) => {
-      const matchesQuery = result.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          result.handle.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesFilter = filter === "all" || 
-                           (filter === "people" && result.type === "person") ||
-                           (filter === "projects" && result.type === "project") ||
-                           (filter === "agencies" && result.type === "agency");
-      return matchesQuery && matchesFilter;
-    });
-
-    setResults(filtered);
+    try {
+      const params = new URLSearchParams({ q: searchQuery, filter });
+      const res = await fetch(`/api/search?${params}`);
+      const data = await res.json();
+      setResults(Array.isArray(data.results) ? data.results : []);
+    } catch {
+      setResults([]);
+    }
     setIsLoading(false);
   };
 
@@ -184,8 +115,7 @@ export default function GlobalSearch({
     inputRef.current?.focus();
   };
 
-  const tierConfig = TIER_LIMITS[userTier];
-  const canSearch = tierConfig.enabled;
+  const canSearch = true;
 
   const filters: { id: SearchFilter; label: string; icon: any }[] = [
     { id: "all", label: "All", icon: Search },
@@ -220,7 +150,7 @@ export default function GlobalSearch({
           value={query}
           onChange={handleInputChange}
           onFocus={() => setIsOpen(true)}
-          placeholder={canSearch ? "Search creators, projects, agencies..." : "Upgrade to search"}
+          placeholder="Search creators, projects, agencies..."
           disabled={!canSearch}
           className="w-full pl-12 pr-12 py-3 rounded-2xl bg-white/5 border border-white/10 text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-ring focus:border-border transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         />
@@ -267,22 +197,6 @@ export default function GlobalSearch({
             transition={{ duration: 0.2 }}
             className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-white/10 bg-gradient-to-br from-[#0D0F1A] to-[#141826] backdrop-blur-xl shadow-2xl overflow-hidden z-50 max-h-[400px] overflow-y-auto"
           >
-            {/* Access Gate (Free tier) */}
-            {!canSearch && (
-              <div className="p-6 text-center">
-                <div className="p-3 rounded-2xl bg-accent border border-border inline-flex mb-4">
-                  <Crown className="w-6 h-6 text-primary stroke-[1.75]" />
-                </div>
-                <h3 className="text-white font-bold mb-2">{tierConfig.message}</h3>
-                <p className="text-sm text-neutral-400 mb-4">
-                  Get access to global search and discover the full network.
-                </p>
-                <button className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-all">
-                  Upgrade Now
-                </button>
-              </div>
-            )}
-
             {/* Loading State */}
             {isLoading && (
               <div className="flex items-center justify-center py-8">
@@ -354,16 +268,10 @@ export default function GlobalSearch({
                         </div>
                         <p className="text-sm text-neutral-400 truncate">{result.handle}</p>
                       </div>
-                      {result.ethos && result.xscore && (
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <div className="text-xs text-neutral-500">ETHOS</div>
-                            <div className="text-sm font-semibold text-primary">{result.ethos}</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xs text-neutral-500">XScore</div>
-                            <div className="text-sm font-semibold text-primary">{result.xscore}</div>
-                          </div>
+                      {result.xscore != null && (
+                        <div className="text-right">
+                          <div className="text-xs text-neutral-500">XScore</div>
+                          <div className="text-sm font-semibold text-primary">{result.xscore}</div>
                         </div>
                       )}
                     </button>
@@ -372,14 +280,6 @@ export default function GlobalSearch({
               </div>
             )}
 
-            {/* Tier Limit Warning */}
-            {canSearch && "quota" in tierConfig && tierConfig.quota && (
-              <div className="border-t border-white/10 px-4 py-3 bg-white/5">
-                <p className="text-xs text-neutral-400 text-center">
-                  {tierConfig.message} · <button className="text-primary hover:opacity-90 font-semibold">Upgrade</button>
-                </p>
-              </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>

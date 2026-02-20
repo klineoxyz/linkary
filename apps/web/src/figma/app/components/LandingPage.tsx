@@ -39,61 +39,52 @@ interface LandingPageProps {
   setRoute: (route: any) => void;
 }
 
-// Mock profile cards for the living network hero
-const MOCK_PROFILES = [
-  {
-    id: "1",
-    type: "creator" as const,
-    name: "Sarah Kim",
-    handle: "@sarahcrypto",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=sarah",
-    ethos: 842,
-    xscore: 771,
-    followers: "12.4K",
-    engagement: "8.2%",
-    verified: true,
-  },
-  {
-    id: "2",
-    type: "project" as const,
-    name: "MatrixPay",
-    handle: "/p/matrixpay",
-    avatar: "https://api.dicebear.com/7.x/shapes/svg?seed=matrix",
-    ethos: 721,
-    xscore: 806,
-    followers: "24.1K",
-    engagement: "12.4%",
-    verified: true,
-  },
-  {
-    id: "3",
-    type: "creator" as const,
-    name: "Alex Chen",
-    handle: "@alexbuilds",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=alex",
-    ethos: 912,
-    xscore: 654,
-    followers: "8.7K",
-    engagement: "6.1%",
-    verified: true,
-  },
-  {
-    id: "4",
-    type: "brand" as const,
-    name: "Nexus Labs",
-    handle: "/a/nexuslabs",
-    avatar: "https://api.dicebear.com/7.x/shapes/svg?seed=nexus",
-    ethos: 840,
-    xscore: 792,
-    followers: "18.2K",
-    engagement: "9.7%",
-    verified: true,
-  },
-];
+type FeaturedItem = {
+  id: string;
+  type: "creator" | "project" | "brand";
+  name: string;
+  handle: string;
+  avatar: string;
+  xscore?: number;
+  verified: boolean;
+};
 
 export default function LandingPage({ setRoute }: LandingPageProps) {
   const [activeTab, setActiveTab] = useState<"x" | "youtube" | "tiktok">("x");
   const [selectedPlan, setSelectedPlan] = useState<"free" | "starter" | "pro" | "institutional">("pro");
+  const [featured, setFeatured] = useState<FeaturedItem[]>([]);
+
+  useEffect(() => {
+    fetch("/api/landing/featured")
+      .then((r) => r.json())
+      .then((data) => {
+        const list: FeaturedItem[] = [];
+        (data.profiles || []).forEach((p: { id: string; display_name: string | null; username: string | null; avatar_url: string | null; xscore: number | null }) => {
+          list.push({
+            id: p.id,
+            type: "creator",
+            name: p.display_name || p.username || "Creator",
+            handle: p.username ? `@${p.username}` : "",
+            avatar: p.avatar_url || "",
+            xscore: p.xscore ?? undefined,
+            verified: false,
+          });
+        });
+        (data.orgs || []).forEach((o: { id: string; name: string; slug: string; logo_url: string | null; org_type: string; xscore: number | null }) => {
+          list.push({
+            id: o.id,
+            type: o.org_type === "agency" ? "brand" : "project",
+            name: o.name,
+            handle: o.slug ? `/p/${o.slug}` : "",
+            avatar: o.logo_url || "",
+            xscore: o.xscore ?? undefined,
+            verified: false,
+          });
+        });
+        setFeatured(list);
+      })
+      .catch(() => setFeatured([]));
+  }, []);
 
   // Pricing tiers with SPECIFIC numbers (no "limited")
   const pricingPlans = [
@@ -249,31 +240,46 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 z-20"
               >
                 <div className="relative overflow-hidden rounded-3xl border-2 border-border bg-white shadow-2xl p-6">
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-border">
-                      <img src={MOCK_PROFILES[0].avatar} alt={MOCK_PROFILES[0].name} className="w-full h-full" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-bold text-gray-900">{MOCK_PROFILES[0].name}</h3>
-                        {MOCK_PROFILES[0].verified && (
-                          <BadgeCheck className="w-4 h-4 text-primary stroke-[1.75]" />
-                        )}
+                  {featured.length > 0 ? (
+                    <>
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-border bg-muted">
+                          {featured[0].avatar ? (
+                            <img src={featured[0].avatar} alt={featured[0].name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                              <Users className="w-8 h-8" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-bold text-gray-900">{featured[0].name}</h3>
+                            {featured[0].verified && (
+                              <BadgeCheck className="w-4 h-4 text-primary stroke-[1.75]" />
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600">{featured[0].handle}</p>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-600">{MOCK_PROFILES[0].handle}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="px-3 py-2 rounded-lg bg-accent border border-border">
+                          <p className="text-xs text-foreground font-medium mb-1">XScore</p>
+                          <p className="text-lg font-bold text-gray-900">{featured[0].xscore ?? "—"}</p>
+                        </div>
+                        <div className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
+                          <p className="text-xs text-primary font-medium mb-1">Reputation</p>
+                          <p className="text-lg font-bold text-gray-900">Live</p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-4">
+                      <Users className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                      <h3 className="font-bold text-gray-900">Join the network</h3>
+                      <p className="text-sm text-gray-600 mt-1">Get your verifiable reputation score</p>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
-                      <p className="text-xs text-primary font-medium mb-1">ETHOS</p>
-                      <p className="text-lg font-bold text-gray-900">{MOCK_PROFILES[0].ethos}</p>
-                    </div>
-                    <div className="px-3 py-2 rounded-lg bg-accent border border-border">
-                      <p className="text-xs text-foreground font-medium mb-1">XScore</p>
-                      <p className="text-lg font-bold text-gray-900">{MOCK_PROFILES[0].xscore}</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </motion.div>
 
@@ -327,7 +333,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               </motion.div>
 
               {/* Background Profile Cards */}
-              {MOCK_PROFILES.slice(1).map((profile, idx) => (
+              {featured.slice(1).map((profile, idx) => (
                 <motion.div
                   key={profile.id}
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -342,8 +348,12 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 >
                   <div className="rounded-2xl border border-gray-200 bg-white/60 backdrop-blur-sm p-4 shadow-lg">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-xl overflow-hidden">
-                        <img src={profile.avatar} alt={profile.name} className="w-full h-full" />
+                      <div className="w-10 h-10 rounded-xl overflow-hidden bg-muted">
+                        {profile.avatar ? (
+                          <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Users className="w-5 h-5" /></div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-gray-900 text-sm truncate">{profile.name}</p>
@@ -351,11 +361,8 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary font-medium">
-                        {profile.ethos}
-                      </span>
                       <span className="text-xs px-2 py-1 rounded bg-accent text-foreground font-medium">
-                        {profile.xscore}
+                        XScore {profile.xscore ?? "—"}
                       </span>
                     </div>
                   </div>

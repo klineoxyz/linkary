@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-/** GET: X analytics for current user from DB only (no twitterapi.io). */
+/** GET: X analytics for current user. Uses x_daily_snapshots + x_window_aggregates (worker backfill); falls back to legacy tables. */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  const [profileRes, rollupRes, driversRes, baselineRes, snapshotsRes] = await Promise.all([
+  const [profileRes, legacyRollupRes, driversRes, baselineRes, legacySnapshotsRes, dailySnapshotsRes, windowAggsRes] = await Promise.all([
     supabase
       .from("profiles")
       .select("followers_total, avg_engagement_rate, x_last_profile_sync_at, x_last_tweets_sync_at, x_sync_status, twitter_username")
@@ -47,6 +47,20 @@ export async function GET(request: NextRequest) {
       .eq("platform", "x")
       .order("snapshot_date", { ascending: false })
       .limit(90),
+    supabase
+      .from("x_daily_snapshots")
+      .select("day, followers")
+      .eq("owner_type", "profile")
+      .eq("owner_id", user.id)
+      .order("day", { ascending: false })
+      .limit(90),
+    supabase
+      .from("x_window_aggregates")
+      .select("*")
+      .eq("owner_type", "profile")
+      .eq("owner_id", user.id)
+      .in("window_days", [7, 30, 90])
+      .order("as_of", { ascending: false }),
   ]);
 
   const profile = profileRes.data as {
@@ -55,8 +69,9 @@ export async function GET(request: NextRequest) {
     x_last_profile_sync_at?: string | null;
     x_last_tweets_sync_at?: string | null;
     x_sync_status?: string | null;
+    twitter_username?: string | null;
   } | null;
-  const rollup = rollupRes.data as Record<string, unknown> | null;
+  const legacyRollup = legacyRollupRes.data as Record<string, unknown> | null;
   const topDrivers = (driversRes.data ?? []) as Array<{
     tweet_id: string;
     tweeted_at: string | null;
@@ -76,14 +91,57 @@ export async function GET(request: NextRequest) {
     reach_proxy_30d?: number | null;
   } | null;
 
-  type SnapshotRow = { snapshot_date: string; followers_total?: number | null };
-  const snapshots = (snapshotsRes.data ?? []) as SnapshotRow[];
+  type LegacySnapshotRow = { snapshot_date: string; followers_total?: number | null };
+  const legacySnapshots = (legacySnapshotsRes.data ?? []) as LegacySnapshotRow[];
+
+  type DailyRow = { day: string; followers: number | null };
+  const dailyRows = (dailySnapshotsRes.data ?? []) as DailyRow[];
+  const snapshotsFromDaily = dailyRows.map((r) => ({ snapshot_date: r.day, followers_total: r.followers ?? null }));
+  const snapshots =
+    snapshotsFromDaily.length > 0
+      ? snapshotsFromDaily
+      : legacySnapshots.map((s) => ({ snapshot_date: s.snapshot_date, followers_total: s.followers_total ?? null }));
+
+  const windowRows = (windowAggsRes.data ?? []) as Array<Record<string, unknown>>;
+  const byWindow = windowRows.reduce(
+    (acc, r) => {
+      const w = Number(r.window_days);
+      if (!(w in acc)) acc[w] = r;
+      return acc;
+    },
+    {} as Record<number, Record<string, unknown>>
+  );
+  const w7 = byWindow[7];
+  const w30 = byWindow[30];
+  const w90 = byWindow[90];
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  const rollupFromWindows =
+    w7 || w30 || w90
+      ? ({
+          posts_7d: w7 ? num(w7.posts_count) : 0,
+          posts_30d: w30 ? num(w30.posts_count) : 0,
+          posts_90d: w90 ? num(w90.posts_count) : 0,
+          avg_likes_7d: w7 ? num(w7.avg_likes_per_post) : 0,
+          avg_likes_30d: w30 ? num(w30.avg_likes_per_post) : 0,
+          avg_likes_90d: w90 ? num(w90.avg_likes_per_post) : 0,
+          avg_replies_7d: w7 ? num(w7.avg_replies_per_post) : 0,
+          avg_replies_30d: w30 ? num(w30.avg_replies_per_post) : 0,
+          avg_replies_90d: w90 ? num(w90.avg_replies_per_post) : 0,
+          engagement_rate_7d: w7 ? num(w7.avg_engagement_rate) : 0,
+          engagement_rate_30d: w30 ? num(w30.avg_engagement_rate) : 0,
+          engagement_rate_90d: w90 ? num(w90.avg_engagement_rate) : 0,
+          reach_proxy_7d: w7 ? num(w7.reach_avg) : 0,
+          reach_proxy_30d: w30 ? num(w30.reach_avg) : 0,
+          reach_proxy_90d: w90 ? num(w90.reach_avg) : 0,
+        } as Record<string, unknown>)
+      : null;
+  const rollup = rollupFromWindows ?? legacyRollup;
 
   return NextResponse.json({
     profile: profile ?? {},
     rollup: rollup ?? null,
     topDrivers,
     baseline: baseline ?? null,
-    snapshots: snapshots.map((s) => ({ snapshot_date: s.snapshot_date, followers_total: s.followers_total ?? null })),
+    snapshots,
   });
 }

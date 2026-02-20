@@ -129,10 +129,11 @@ export async function getPublicEntityByUsername(username: string): Promise<Publi
 
 async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): Promise<PublicEntity> {
   const tier = await getSubscriptionTier("profile", profile.id);
-  const [socialsRow, mediaRow, snapshotRow, caseRows, reviewRows, affRow, ambRows] = await Promise.all([
+  const [socialsRow, mediaRow, snapshotRow, window30Row, caseRows, reviewRows, affRow, ambRows] = await Promise.all([
     supabase.from("profile_socials").select("*").eq("profile_id", profile.id).maybeSingle(),
     supabase.from("profile_media").select("header_media_type, header_media_url").eq("profile_id", profile.id).maybeSingle(),
     supabase.from("analytics_snapshots").select("*").eq("owner_type", "profile").eq("owner_id", profile.id).eq("platform", "x").eq("window_days", 30).maybeSingle(),
+    supabase.from("x_window_aggregates").select("*").eq("owner_type", "profile").eq("owner_id", profile.id).eq("window_days", 30).order("as_of", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profile.id).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     supabase.from("reviews").select("id, rating, body, title, created_at").eq("reviewee_type", "profile").eq("reviewee_profile_id", profile.id).eq("verified_deal", true).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     supabase.from("org_affiliations").select("org_id").eq("profile_id", profile.id).eq("status", "active").maybeSingle(),
@@ -174,6 +175,7 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
     }
   }
 
+  const ratingAvg = reviews.length > 0 ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : undefined;
   const { score1000: linkaryPower } = await import("./linkaryScore").then((m) =>
     m.computeLinkaryPower({
       ethosScore: ethosScore ?? profile.xscore ?? undefined,
@@ -181,27 +183,40 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
       followers: profile.followers_total,
       engagementRate: profile.avg_engagement_rate,
       verifiedReviewsCount: reviews.length,
+      ratingAvg,
     })
   );
 
-  const snapshot = snapshotRow.data as AnalyticsSnapshot | null;
+  const legacySnapshot = snapshotRow.data as AnalyticsSnapshot | null;
+  const win30 = window30Row.data as { followers_end?: number; followers_delta?: number; avg_engagement_rate?: number; avg_likes_per_post?: number; avg_replies_per_post?: number; reach_avg?: number; spaces_count?: number } | null;
+  const analyticsSnapshot: PublicEntity["analyticsSnapshot"] = win30
+    ? {
+        followers: win30.followers_end ?? null,
+        reach_avg: win30.reach_avg ?? null,
+        engagement_rate: win30.avg_engagement_rate ?? null,
+        likes_avg: win30.avg_likes_per_post ?? null,
+        replies_avg: win30.avg_replies_per_post ?? null,
+        spaces_count: win30.spaces_count ?? null,
+        followers_delta: win30.followers_delta ?? null,
+      }
+    : legacySnapshot
+      ? {
+          followers: legacySnapshot.followers ?? null,
+          reach_avg: legacySnapshot.reach_avg ?? null,
+          engagement_rate: legacySnapshot.engagement_rate ?? null,
+          likes_avg: legacySnapshot.likes_avg ?? null,
+          replies_avg: legacySnapshot.replies_avg ?? null,
+          spaces_count: legacySnapshot.spaces_count ?? null,
+          followers_delta: legacySnapshot.followers_delta ?? null,
+        }
+      : null;
   return {
     type: "profile",
     profile,
     publicLayout: profile.public_layout ?? null,
     socials: socialsRow.data ? (socialsRow.data as ProfileSocials) : null,
     headerMedia: mediaRow.data ? (mediaRow.data as HeaderMedia) : null,
-    analyticsSnapshot: snapshot
-      ? {
-          followers: snapshot.followers ?? null,
-          reach_avg: snapshot.reach_avg ?? null,
-          engagement_rate: snapshot.engagement_rate ?? null,
-          likes_avg: snapshot.likes_avg ?? null,
-          replies_avg: snapshot.replies_avg ?? null,
-          spaces_count: snapshot.spaces_count ?? null,
-          followers_delta: snapshot.followers_delta ?? null,
-        }
-      : null,
+    analyticsSnapshot,
     ethosScore: ethosScore ?? null,
     ethosResults,
     linkaryPower,

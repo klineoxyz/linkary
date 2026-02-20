@@ -13,10 +13,10 @@ interface SearchResult {
   type: "person" | "project" | "agency";
   name: string;
   handle: string;
+  handleLabel?: string;
+  url?: string;
   avatar: string;
   verified: boolean;
-  ethos?: number;
-  xscore?: number;
 }
 
 interface GlobalSearchProps {
@@ -76,7 +76,13 @@ export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
       const params = new URLSearchParams({ q: searchQuery, filter });
       const res = await fetch(`/api/search?${params}`);
       const data = await res.json();
-      setResults(Array.isArray(data.results) ? data.results : []);
+      const raw = Array.isArray(data.results) ? data.results : [];
+      setResults(
+        raw.map((r: Record<string, unknown>) => ({
+          ...r,
+          handle: (r.handleLabel as string) ?? (r.handle as string) ?? "",
+        }))
+      );
     } catch {
       setResults([]);
     }
@@ -268,12 +274,6 @@ export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
                         </div>
                         <p className="text-sm text-neutral-400 truncate">{result.handle}</p>
                       </div>
-                      {result.xscore != null && (
-                        <div className="text-right">
-                          <div className="text-xs text-neutral-500">XScore</div>
-                          <div className="text-sm font-semibold text-primary">{result.xscore}</div>
-                        </div>
-                      )}
                     </button>
                   );
                 })}

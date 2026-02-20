@@ -60,10 +60,12 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
       .then((data) => {
         const list: FeaturedItem[] = [];
         (data.profiles || []).forEach((p: { id: string; display_name: string | null; username: string | null; avatar_url: string | null; xscore: number | null }) => {
+          const name = p.display_name || p.username || "";
+          if (!name) return;
           list.push({
             id: p.id,
             type: "creator",
-            name: p.display_name || p.username || "Creator",
+            name,
             handle: p.username ? `@${p.username}` : "",
             avatar: p.avatar_url || "",
             xscore: p.xscore ?? undefined,
@@ -71,10 +73,11 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
           });
         });
         (data.orgs || []).forEach((o: { id: string; name: string; slug: string; logo_url: string | null; org_type: string; xscore: number | null }) => {
+          if (!o.name && !o.slug) return;
           list.push({
             id: o.id,
             type: o.org_type === "agency" ? "brand" : "project",
-            name: o.name,
+            name: o.name || o.slug || "Project",
             handle: o.slug ? `/p/${o.slug}` : "",
             avatar: o.logo_url || "",
             xscore: o.xscore ?? undefined,
@@ -277,7 +280,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                     <div className="text-center py-4">
                       <Users className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
                       <h3 className="font-bold text-gray-900">Join the network</h3>
-                      <p className="text-sm text-gray-600 mt-1">Get your verifiable reputation score</p>
+                      <p className="text-sm text-gray-600 mt-1">Create your profile and connect X to get your verifiable reputation score.</p>
                     </div>
                   )}
                 </div>
@@ -332,8 +335,8 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 </div>
               </motion.div>
 
-              {/* Background Profile Cards */}
-              {featured.slice(1).map((profile, idx) => (
+              {/* Background Profile Cards — only when we have at least 2 items */}
+              {(featured ?? []).slice(1).map((profile, idx) => (
                 <motion.div
                   key={profile.id}
                   initial={{ opacity: 0, scale: 0.8 }}

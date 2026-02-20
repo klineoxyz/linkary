@@ -154,3 +154,66 @@ These are the main in-app routes still reachable and intended to be functional:
 
 3. **Search:**  
    **Real search implemented** (Supabase-backed `/api/search`, GlobalSearch wired with debounce; mock and tier gate removed). Search was not removed.
+
+---
+
+## Appendix: SQL view definitions (for privacy & ordering check)
+
+Current view definitions (from `supabase/migrations/20260227000000_public_layout.sql`) so you can verify privacy and `updated_at` ordering.
+
+### public_profile_view
+
+```sql
+DROP VIEW IF EXISTS public.public_profile_view;
+CREATE VIEW public.public_profile_view AS
+SELECT
+  p.id,
+  p.username,
+  p.display_name,
+  p.bio,
+  p.avatar_url,
+  p.website,
+  p.twitter_username,
+  p.location,
+  p.published,
+  p.followers_total,
+  p.avg_engagement_rate,
+  p.xscore,
+  p.public_layout,
+  p.created_at,
+  p.updated_at
+FROM public.profiles p
+WHERE p.published = true AND p.username IS NOT NULL AND p.username <> '';
+```
+
+- **Privacy:** Only rows with `published = true` and non-empty `username`. No private/unpublished profiles.
+- **Ordering:** `updated_at` is selected; `.order("updated_at", { ascending: false })` works.
+
+### public_org_view
+
+```sql
+DROP VIEW IF EXISTS public.public_org_view;
+CREATE VIEW public.public_org_view AS
+SELECT
+  o.id,
+  o.slug,
+  o.name,
+  o.tagline,
+  o.website,
+  o.twitter_username,
+  o.logo_url,
+  o.org_type,
+  o.parent_org_id,
+  o.is_crypto_project,
+  o.has_token,
+  o.token_symbol,
+  o.dexscreener_url,
+  o.xscore,
+  o.public_layout,
+  o.created_at,
+  o.updated_at
+FROM public.orgs o;
+```
+
+- **Privacy:** No `WHERE`; every org row is visible. If you need “public only” orgs, add a filter (e.g. a `published` or `listed` column on `orgs`).
+- **Ordering:** `updated_at` is selected; ordering by `updated_at` works.

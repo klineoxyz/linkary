@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getPublicEntityByUsername } from "@/lib/publicData";
+import { resolvePublicEntity, getIdentifierKind } from "@/lib/entityResolver";
 import { isReservedPath } from "@/lib/reservedPaths";
 import AppWithProviders from "../../AppWithProviders";
 import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
@@ -7,21 +7,36 @@ import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
 type Props = { params: Promise<{ username: string }> };
 
 /**
- * Clean public URL: /[username] (e.g. /muazxinthi).
+ * Public URL: /[identifier] — accepts slug, UUID, X handle, or wallet address.
+ * Examples: /muazxinthi (slug/handle), /550e8400-e29b-41d4-a716-446655440000 (UUID), /0x1234... (wallet).
  * Reserved paths (dashboard, profile, etc.) use their own app routes.
- * This dynamic route matches when no static segment matches, so we get real usernames.
  */
 export default async function PublicUsernamePage({ params }: Props) {
   const { username } = await params;
-  const segment = (username ?? "").trim().toLowerCase().replace(/^@/, "");
+  const segment = (username ?? "").trim();
   if (!segment) notFound();
 
-  if (isReservedPath(segment)) {
+  const segmentLower = segment.toLowerCase().replace(/^@/, "");
+  if (isReservedPath(segmentLower)) {
     return <AppWithProviders />;
   }
 
-  const entity = await getPublicEntityByUsername(segment);
+  let serviceSupabase = null;
+  if (getIdentifierKind(segment) === "wallet") {
+    try {
+      const { createServiceSupabase } = await import("@/lib/x-analytics-server");
+      serviceSupabase = createServiceSupabase();
+    } catch {
+      /* no service key; wallet resolution skipped */
+    }
+  }
+
+  const entity = await resolvePublicEntity(segment, { serviceSupabase: serviceSupabase ?? undefined });
   if (!entity) notFound();
 
-  return <PublicOnePagerWrapper entity={entity} username={segment} />;
+  const canonicalSlug =
+    entity.type === "profile"
+      ? (entity.profile?.username ?? entity.profile?.twitter_username ?? "").replace(/^@/, "").toLowerCase()
+      : (entity.org?.slug ?? "").toLowerCase();
+  return <PublicOnePagerWrapper entity={entity} username={canonicalSlug || segmentLower} />;
 }

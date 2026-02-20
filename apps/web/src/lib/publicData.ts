@@ -1,7 +1,8 @@
 /**
- * Public one-pager data: fetch by username (profile or org slug).
- * Uses anon client; RLS and public views expose only safe fields.
+ * Public one-pager data: fetch by username (profile or org slug), UUID, or wallet.
+ * Uses anon client; RLS and public views expose only safe fields. Wallet resolution needs service-role client.
  */
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { computeLinkaryPower, computeLinkaryInfluence } from "./linkaryScore";
 
@@ -108,7 +109,7 @@ async function getSubscriptionTier(ownerType: "profile" | "org", ownerId: string
   return tier === "pro" || tier === "host" || tier === "brand" || tier === "venture" ? "pro" : "free";
 }
 
-/** Resolve username to profile or org. Tries profile by username, then by twitter_username, then org by slug. */
+/** Resolve username/slug to profile or org. Tries profile by username, then by twitter_username, then org by slug. */
 export async function getPublicEntityByUsername(username: string): Promise<PublicEntity | null> {
   const norm = username.trim().toLowerCase().replace(/^@/, "");
   if (!norm) return null;
@@ -125,6 +126,31 @@ export async function getPublicEntityByUsername(username: string): Promise<Publi
   if (profile) return buildPublicProfileEntity(profile, norm);
   if (org) return buildPublicOrgEntity(org, norm);
   return null;
+}
+
+/** Resolve UUID (profile.id or org.id) to public entity. */
+export async function getPublicEntityById(id: string): Promise<PublicEntity | null> {
+  const uuid = id.trim();
+  if (!uuid) return null;
+  const [profileRes, orgRes] = await Promise.all([
+    supabase.from("public_profile_view").select("*").eq("id", uuid).maybeSingle(),
+    supabase.from("public_org_view").select("*").eq("id", uuid).maybeSingle(),
+  ]);
+  const profile = profileRes.data as PublicProfile | null;
+  const org = orgRes.data as PublicOrg | null;
+  if (profile) return buildPublicProfileEntity(profile, "");
+  if (org) return buildPublicOrgEntity(org, "");
+  return null;
+}
+
+/** Resolve wallet address to profile via wallet_identities. Requires service-role client (RLS blocks anon). */
+export async function getPublicEntityByWallet(address: string, serviceSupabase: SupabaseClient): Promise<PublicEntity | null> {
+  const addr = address.trim();
+  if (!addr) return null;
+  const { data: wi } = await serviceSupabase.from("wallet_identities").select("user_id").ilike("address", addr).maybeSingle();
+  const userId = (wi as { user_id?: string } | null)?.user_id;
+  if (!userId) return null;
+  return getPublicEntityById(userId);
 }
 
 async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): Promise<PublicEntity> {

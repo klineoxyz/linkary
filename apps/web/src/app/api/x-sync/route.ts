@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
 const twitterApiKey = process.env.TWITTERAPI_API_KEY;
 
 const COOLDOWN_HOURS = 24;
@@ -183,6 +184,35 @@ async function handleSync(request: NextRequest) {
   });
   if (baselineErr && baselineErr.code !== "23505") {
     // log but don't fail the sync
+  }
+
+  // Write today into x_daily_snapshots and enqueue backfill so Analytics shows 7D/30D/90D (worker fills history)
+  if (supabaseServiceKey) {
+    const service = createClient(supabaseUrl, supabaseServiceKey);
+    const today = new Date().toISOString().slice(0, 10);
+    await service.from("x_daily_snapshots").upsert(
+      {
+        owner_type: "profile",
+        owner_id: user.id,
+        day: today,
+        followers: followers,
+        engagement_rate: avgEngagement,
+        raw: { from_sync: true },
+      },
+      { onConflict: "owner_type,owner_id,day" }
+    );
+    const { count } = await service.from("x_daily_snapshots").select("id", { count: "exact", head: true }).eq("owner_type", "profile").eq("owner_id", user.id);
+    if ((count ?? 0) < 7) {
+      const now = new Date().toISOString();
+      await service.from("analytics_jobs").insert({
+        job_type: "x_backfill_90d",
+        owner_type: "profile",
+        owner_id: user.id,
+        run_after: now,
+        status: "queued",
+        payload: { username: normalizedUsername || userName, user_id: user.id },
+      });
+    }
   }
 
   return NextResponse.json({

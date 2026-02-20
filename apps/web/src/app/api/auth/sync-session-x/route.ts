@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  const identity = extractTwitterIdentity(user as Parameters<typeof extractTwitterIdentity>[0]);
+  const identity = extractTwitterIdentity(user as unknown as Parameters<typeof extractTwitterIdentity>[0]);
   if (!identity) {
     return NextResponse.json({ ok: true, synced: false });
   }

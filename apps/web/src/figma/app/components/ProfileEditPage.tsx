@@ -39,6 +39,11 @@ export default function ProfileEditPage({
   const [professions, setProfessions] = useState<Profession[]>([]);
   const [headerMediaType, setHeaderMediaType] = useState<HeaderMediaType>("NONE");
   const [headerMediaUrl, setHeaderMediaUrl] = useState("");
+  const [xscore, setXscore] = useState<string>("");
+  const [xUrl, setXUrl] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [telegramUrl, setTelegramUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,22 +51,31 @@ export default function ProfileEditPage({
   const load = useCallback(async () => {
     if (!me?.id) return;
     setLoading(true);
-    const [profResult, mediaData] = await Promise.all([
+    const [profResult, mediaData, socialsData] = await Promise.all([
       getProfileProfessions(me.id),
       supabase.from("profile_media").select("header_media_type, header_media_url").eq("profile_id", me.id).maybeSingle(),
+      supabase.from("profile_socials").select("x_url, linkedin_url, youtube_url, website_url, telegram_url").eq("profile_id", me.id).maybeSingle(),
     ]);
     setLoading(false);
     if (me.display_name != null) setDisplayName(me.display_name);
     if (me.bio != null) setBio(me.bio);
     if (me.website != null) setWebsite(me.website);
     if (me.location != null) setLocation(me.location);
+    if (me.xscore != null && Number.isFinite(me.xscore)) setXscore(String(me.xscore));
     if (profResult?.data?.length) setProfessions(profResult.data);
     if (mediaData?.data) {
       const t = mediaData.data.header_media_type as HeaderMediaType;
       setHeaderMediaType(t === "IMAGE" || t === "VIDEO" ? t : "NONE");
       setHeaderMediaUrl(mediaData.data.header_media_url ?? "");
     }
-  }, [me?.id, me?.display_name, me?.bio, me?.website, me?.location]);
+    if (socialsData?.data) {
+      const s = socialsData.data as { x_url?: string | null; linkedin_url?: string | null; youtube_url?: string | null; website_url?: string | null; telegram_url?: string | null };
+      setXUrl(s.x_url ?? "");
+      setLinkedinUrl(s.linkedin_url ?? "");
+      setYoutubeUrl(s.youtube_url ?? "");
+      setTelegramUrl(s.telegram_url ?? "");
+    }
+  }, [me?.id, me?.display_name, me?.bio, me?.website, me?.location, me?.xscore]);
 
   useEffect(() => {
     load();
@@ -72,11 +86,13 @@ export default function ProfileEditPage({
     if (!me?.id) return;
     setError(null);
     setSaving(true);
+    const xscoreNum = xscore.trim() === "" ? null : parseInt(xscore.trim(), 10);
     const { error: profileErr } = await updateMyProfile(me.id, {
       display_name: displayName.trim() || null,
       bio: bio.trim() || null,
       website: website.trim() || null,
       location: location.trim() || null,
+      xscore: xscoreNum != null && Number.isFinite(xscoreNum) ? Math.min(1000, Math.max(0, xscoreNum)) : null,
     });
     if (profileErr) {
       setSaving(false);
@@ -89,18 +105,36 @@ export default function ProfileEditPage({
       setError(profErr);
       return;
     }
-    const { error: mediaErr } = await supabase.from("profile_media").upsert(
-      {
-        profile_id: me.id,
-        header_media_type: headerMediaType,
-        header_media_url: headerMediaType !== "NONE" ? headerMediaUrl.trim() || null : null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "profile_id" }
-    );
+    const [mediaRes, socialsRes] = await Promise.all([
+      supabase.from("profile_media").upsert(
+        {
+          profile_id: me.id,
+          header_media_type: headerMediaType,
+          header_media_url: headerMediaType !== "NONE" ? headerMediaUrl.trim() || null : null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "profile_id" }
+      ),
+      supabase.from("profile_socials").upsert(
+        {
+          profile_id: me.id,
+          x_url: xUrl.trim() || null,
+          linkedin_url: linkedinUrl.trim() || null,
+          youtube_url: youtubeUrl.trim() || null,
+          website_url: website.trim() || null,
+          telegram_url: telegramUrl.trim() || null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "profile_id" }
+      ),
+    ]);
     setSaving(false);
-    if (mediaErr) {
-      setError(mediaErr.message);
+    if (mediaRes.error) {
+      setError(mediaRes.error.message);
+      return;
+    }
+    if (socialsRes.error) {
+      setError(socialsRes.error.message);
       return;
     }
     onSaved?.();
@@ -131,8 +165,8 @@ export default function ProfileEditPage({
       >
         ← Back to profile
       </button>
-      <h1 className="text-2xl font-bold text-zinc-900 mb-2">Edit profile</h1>
-      <p className="text-zinc-600 text-sm mb-6">Update how you appear on linkary.xyz/{me.username || "you"}.</p>
+      <h1 className="text-2xl font-bold text-zinc-900 mb-2">Profile Builder</h1>
+      <p className="text-zinc-600 text-sm mb-6">Fill in the fields below to control what appears on your public page (linkary.xyz/{me.username || "you"}).</p>
 
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
@@ -168,6 +202,53 @@ export default function ProfileEditPage({
             value={website}
             onChange={(e) => setWebsite(e.target.value)}
             placeholder="https://..."
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Social links</label>
+          <p className="text-xs text-zinc-500 mb-2">Shown on your public profile.</p>
+          <div className="space-y-2">
+            <input
+              type="url"
+              value={xUrl}
+              onChange={(e) => setXUrl(e.target.value)}
+              placeholder="X (Twitter) URL"
+              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+            />
+            <input
+              type="url"
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              placeholder="LinkedIn URL"
+              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+            />
+            <input
+              type="url"
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              placeholder="YouTube URL"
+              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+            />
+            <input
+              type="url"
+              value={telegramUrl}
+              onChange={(e) => setTelegramUrl(e.target.value)}
+              placeholder="Telegram URL"
+              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">XScore (0–1000)</label>
+          <p className="text-xs text-zinc-500 mb-2">Copy from Wallchain X Score extension.</p>
+          <input
+            type="number"
+            min={0}
+            max={1000}
+            value={xscore}
+            onChange={(e) => setXscore(e.target.value)}
+            placeholder="0–1000"
             className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
           />
         </div>

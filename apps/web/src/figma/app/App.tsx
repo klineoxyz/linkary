@@ -932,6 +932,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
         <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
           <NavLink name="profile" icon={Users} label="My Profile" />
+          <NavLink name="profileEdit" icon={FileText} label="Profile Builder" />
           <NavLink name="creatorProfile" icon={Users} label="Creator Demo" />
           <NavLink name="brandProfile" icon={Building2} label="Project Demo" />
         </div>

@@ -88,7 +88,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   };
 
   const isConnected = Boolean(
-    profile?.twitter_connected_at ?? profile?.twitter_user_id
+    profile?.twitter_connected_at ?? profile?.twitter_user_id ?? (profile?.twitter_username && String(profile.twitter_username).trim().length > 0)
   );
   const handle = profile?.twitter_username ?? profile?.twitter_username_candidate ?? null;
   const avatar = profile?.avatar_url ?? null;

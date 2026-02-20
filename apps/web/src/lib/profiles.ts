@@ -21,6 +21,8 @@ export type Profile = {
   intents: string[];
   followers_total: number;
   avg_engagement_rate: number;
+  /** XScore 0–1000 (e.g. from Wallchain extension). */
+  xscore?: number | null;
   created_at: string;
   updated_at: string;
   /** X analytics ingestion (cron / manual sync) */
@@ -111,6 +113,7 @@ export async function updateMyProfile(
     onboarding_completed_at?: string | null;
     followers_total?: number;
     avg_engagement_rate?: number;
+    xscore?: number | null;
   }
 ): Promise<{ error: string | null }> {
   const updates: Record<string, unknown> = { ...payload };

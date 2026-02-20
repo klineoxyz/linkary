@@ -93,11 +93,13 @@ type Baseline = {
   reach_proxy_30d?: number | null;
 } | null;
 
+type SnapshotPoint = { snapshot_date: string; followers_total: number | null };
 type XAnalyticsData = {
   profile: { followers_total?: number; avg_engagement_rate?: number; x_last_profile_sync_at?: string | null; x_last_tweets_sync_at?: string | null; twitter_username?: string | null };
   rollup: Record<string, unknown> | null;
   topDrivers: Array<{ tweet_id: string; tweeted_at: string | null; like_count: number; reply_count: number; repost_count: number; engagement_score: number }>;
   baseline: Baseline;
+  snapshots?: SnapshotPoint[];
 };
 
 export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) => void }) {
@@ -117,7 +119,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     const res = await fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return;
     const json = await res.json().catch(() => ({}));
-    setXAnalyticsData({ profile: json.profile ?? {}, rollup: json.rollup ?? null, topDrivers: json.topDrivers ?? [], baseline: json.baseline ?? null });
+    setXAnalyticsData({
+      profile: json.profile ?? {},
+      rollup: json.rollup ?? null,
+      topDrivers: json.topDrivers ?? [],
+      baseline: json.baseline ?? null,
+      snapshots: Array.isArray(json.snapshots) ? json.snapshots : [],
+    });
   }, []);
 
   useEffect(() => {
@@ -191,66 +199,111 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     return `${sign}${pct.toFixed(1)}% since joining`;
   };
 
-  // X KPIs: from DB (twitterapi.io → worker → rollups) when available; selected period drives values
+  const snapshots = (xAnalyticsData?.snapshots ?? []).filter((s) => s.snapshot_date);
+  const snapshotsAsc = [...snapshots].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
+  const getSnapshotAt = (daysAgo: number): number | null => {
+    const target = new Date();
+    target.setDate(target.getDate() - daysAgo);
+    const targetStr = target.toISOString().slice(0, 10);
+    const onOrBefore = snapshotsAsc.filter((s) => s.snapshot_date <= targetStr);
+    const point = onOrBefore.length ? onOrBefore[onOrBefore.length - 1] : null;
+    if (!point) return null;
+    const v = point.followers_total;
+    return v != null && Number.isFinite(v) ? Number(v) : null;
+  };
+  const latestFollowerCount = snapshotsAsc.length
+    ? (snapshotsAsc[snapshotsAsc.length - 1].followers_total ?? followersTotal)
+    : followersTotal;
+  const pctDelta = (current: number, past: number | null): number | null => {
+    if (past == null || past === 0 || !Number.isFinite(current)) return null;
+    return ((current - past) / past) * 100;
+  };
+  const realDelta7 = pctDelta(latestFollowerCount, getSnapshotAt(7));
+  const realDelta30 = pctDelta(latestFollowerCount, getSnapshotAt(30));
+  const realDelta90 = pctDelta(latestFollowerCount, getSnapshotAt(90));
+  const followerSparklineFromSnapshots =
+    snapshotsAsc.length >= 2
+      ? snapshotsAsc.map((s) => (s.followers_total != null && Number.isFinite(s.followers_total) ? Number(s.followers_total) : 0))
+      : undefined;
+  const hasRealFollowerHistory = snapshots.length >= 2;
+
+  // Real deltas from baseline for rollup-backed KPIs (when we have both rollup and baseline)
+  const engagementDelta30 = baselineEngagement > 0 && Number.isFinite(engagementRateByPeriod)
+    ? ((engagementRateByPeriod - baselineEngagement) / baselineEngagement) * 100
+    : null;
+  const likesDelta30 = baselineLikes30 > 0 && Number.isFinite(avgLikesByPeriod)
+    ? ((avgLikesByPeriod - baselineLikes30) / baselineLikes30) * 100
+    : null;
+  const repliesDelta30 = baselineReplies30 > 0 && Number.isFinite(avgRepliesByPeriod)
+    ? ((avgRepliesByPeriod - baselineReplies30) / baselineReplies30) * 100
+    : null;
+  const postsDelta30 = baselinePosts30 > 0 && Number.isFinite(postsByPeriod)
+    ? ((postsByPeriod - baselinePosts30) / baselinePosts30) * 100
+    : null;
+  const reachDelta30 = baselineReach30 > 0 && Number.isFinite(reachProxyByPeriod)
+    ? ((reachProxyByPeriod - baselineReach30) / baselineReach30) * 100
+    : null;
+
+  // X KPIs: real data when available; no fake deltas or sparklines
   const xKPIs: KPITile[] = [
     {
       id: "followers",
       label: "Followers",
       value: xAnalyticsData ? followersTotal.toLocaleString() : "—",
-      delta7D: 2.3,
-      delta30D: 12.4,
-      delta90D: 20.0,
+      delta7D: hasRealFollowerHistory && realDelta7 != null ? realDelta7 : 0,
+      delta30D: hasRealFollowerHistory && realDelta30 != null ? realDelta30 : 0,
+      delta90D: hasRealFollowerHistory && realDelta90 != null ? realDelta90 : 0,
       signal: "good",
-      insight: "From X profile sync",
-      sparklineData: [20, 22, 21, 23, 24, 24, 25],
+      insight: hasRealFollowerHistory ? "From X profile sync" : "Sync from Integrations to see trends",
+      sparklineData: followerSparklineFromSnapshots,
       sinceJoining: baseline && baselineFollowers > 0 ? pctSince(followersTotal, baselineFollowers) : undefined,
     },
     {
       id: "engagement",
       label: "Engagement Rate",
       value: xAnalyticsData ? `${Number(engagementRateByPeriod).toFixed(2)}%` : "—",
-      delta7D: 0.2,
-      delta30D: 0.6,
-      delta90D: 1.0,
+      delta7D: 0,
+      delta30D: engagementDelta30 ?? 0,
+      delta90D: 0,
       signal: "good",
-      insight: "From rollup for selected period",
-      sparklineData: [3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8],
+      insight: rollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
+      sparklineData: undefined,
       sinceJoining: baseline && baselineEngagement >= 0 ? pctSince(engagementRateByPeriod, baselineEngagement || 0.01) : undefined,
     },
     {
       id: "likes",
       label: "Avg Likes/Post",
       value: xAnalyticsData ? String(Math.round(avgLikesByPeriod)) : "—",
-      delta7D: 8.5,
-      delta30D: 18.2,
-      delta90D: 25.0,
+      delta7D: 0,
+      delta30D: likesDelta30 ?? 0,
+      delta90D: 0,
       signal: "good",
-      insight: "From rollup for selected period",
-      sparklineData: [280, 290, 310, 320, 330, 340, 342],
+      insight: rollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
+      sparklineData: undefined,
       sinceJoining: baseline && (baselineLikes30 > 0 || avgLikesByPeriod > 0) ? pctSince(avgLikesByPeriod, baselineLikes30 || 1) : undefined,
     },
     {
       id: "replies",
       label: "Avg Replies/Post",
       value: xAnalyticsData ? String(Math.round(avgRepliesByPeriod)) : "—",
-      delta7D: 12.0,
-      delta30D: 22.0,
-      delta90D: 30.0,
+      delta7D: 0,
+      delta30D: repliesDelta30 ?? 0,
+      delta90D: 0,
       signal: "good",
-      insight: "From rollup for selected period",
-      sparklineData: [20, 21, 23, 24, 26, 27, 28],
+      insight: rollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
+      sparklineData: undefined,
       sinceJoining: baseline && (baselineReplies30 > 0 || avgRepliesByPeriod > 0) ? pctSince(avgRepliesByPeriod, baselineReplies30 || 1) : undefined,
     },
     {
       id: "frequency",
       label: `Posts (${periodLabel})`,
       value: xAnalyticsData ? String(postsByPeriod) : "—",
-      delta7D: -15.0,
-      delta30D: -40.0,
-      delta90D: -50.0,
+      delta7D: 0,
+      delta30D: postsDelta30 ?? 0,
+      delta90D: 0,
       signal: "good",
-      insight: "From rollup for selected period",
-      sparklineData: [120, 115, 105, 95, 90, 85, 84],
+      insight: rollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
+      sparklineData: undefined,
       sinceJoining: baseline && (baselinePosts30 > 0 || postsByPeriod > 0) ? pctSince(postsByPeriod, baselinePosts30 || 1) : undefined,
     },
     {
@@ -259,46 +312,28 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       value: xAnalyticsData
         ? (reachProxyByPeriod >= 1e6 ? `${(reachProxyByPeriod / 1e6).toFixed(1)}M` : reachProxyByPeriod >= 1e3 ? `${(reachProxyByPeriod / 1e3).toFixed(1)}K` : String(Math.round(reachProxyByPeriod)))
         : "—",
-      delta7D: 5.2,
-      delta30D: 15.8,
-      delta90D: 25.0,
+      delta7D: 0,
+      delta30D: reachDelta30 ?? 0,
+      delta90D: 0,
       signal: "good",
-      insight: "From rollup for selected period",
-      sparklineData: [0.9, 1.0, 1.05, 1.1, 1.15, 1.18, 1.2],
+      insight: rollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
+      sparklineData: undefined,
       sinceJoining: baseline && (baselineReach30 > 0 || reachProxyByPeriod > 0) ? pctSince(reachProxyByPeriod, baselineReach30 || 1) : undefined,
     },
   ];
 
-  const signals: Signal[] = [
-    {
-      id: "1",
-      type: "good",
-      title: "Engagement up +18% in 7D, driven by higher replies/post (+22%).",
-      metric: "Engagement Rate: 3.8% (↑ 0.6%)",
-      timestamp: "Detected 2 hours ago",
-    },
-    {
-      id: "2",
-      type: "risk",
-      title: "Posting frequency dropped 40% this month, growth slowed accordingly.",
-      metric: "Posts: 84 (↓ 40% from 140)",
-      timestamp: "Detected 1 day ago",
-    },
-    {
-      id: "3",
-      type: "good",
-      title: "Follower growth spiked on Feb 12-14, correlated with 2 high-performing posts.",
-      metric: "Followers gained: +487 in 3 days",
-      timestamp: "Detected 3 days ago",
-    },
-    {
-      id: "4",
-      type: "watch",
-      title: "Repost rate falling for 3 weeks, content may be too narrow.",
-      metric: "Avg Reposts: 64 (↓ 12%)",
-      timestamp: "Detected 5 days ago",
-    },
-  ];
+  const hasRealInsights = Boolean(rollup || hasRealFollowerHistory);
+  const signals: Signal[] = hasRealInsights
+    ? []
+    : [
+        {
+          id: "no-data",
+          type: "watch" as SignalType,
+          title: "Connect X and sync from Integrations to see insights here.",
+          metric: "Data is collected from the day you connect and sync.",
+          timestamp: "",
+        },
+      ];
 
   const topDrivers: TopDriver[] =
     xAnalyticsData?.topDrivers?.length > 0
@@ -310,13 +345,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           reposts: t.repost_count ?? 0,
           engagementRate: followersTotal > 0 ? Math.round((Number(t.engagement_score) / followersTotal) * 1000) / 10 : 0,
         }))
-      : [
-          { date: "Feb 12, 2026", postType: "thread" as const, likes: 1247, replies: 89, reposts: 234, engagementRate: 6.8, growthContribution: "+187 followers" },
-          { date: "Feb 14, 2026", postType: "media" as const, likes: 1089, replies: 67, reposts: 198, engagementRate: 5.9, growthContribution: "+142 followers" },
-          { date: "Feb 10, 2026", postType: "text" as const, likes: 892, replies: 54, reposts: 167, engagementRate: 4.7, growthContribution: "+98 followers" },
-          { date: "Feb 8, 2026", postType: "media" as const, likes: 734, replies: 43, reposts: 128, engagementRate: 4.2, growthContribution: "+67 followers" },
-          { date: "Feb 6, 2026", postType: "thread" as const, likes: 678, replies: 38, reposts: 112, engagementRate: 3.9, growthContribution: "+54 followers" },
-        ];
+      : [];
+  const hasTopDrivers = topDrivers.length > 0;
 
   const getSignalColor = (signal: SignalType) => {
     switch (signal) {
@@ -692,7 +722,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             </div>
           </div>
 
-          {/* Table */}
+          {/* Table or empty state */}
+          {hasTopDrivers ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -757,18 +788,23 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                       {driver.engagementRate}%
                     </td>
                     <td className="py-4 text-right text-sm font-semibold text-primary">
-                      {driver.growthContribution}
+                      {driver.growthContribution ?? "\u2014"}
                     </td>
                   </motion.tr>
                 ))}
               </tbody>
             </table>
           </div>
+          ) : (
+            <p className="text-sm text-gray-600 py-6">
+              No top drivers yet. Sync from Integrations to populate. Data is collected from the day you connect X.
+            </p>
+          )}
         </motion.div>
 
         {/* E) Trend Explorer (Secondary Charts) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Follower Growth Chart */}
+          {/* Follower Growth Chart: real data from snapshots when available */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -785,7 +821,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   <button
                     key={range}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      range === "30D"
+                      range === timePeriod
                         ? "bg-accent text-primary border border-border"
                         : "text-gray-600 hover:text-gray-900 border border-white/10"
                     }`}
@@ -796,59 +832,48 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               </div>
             </div>
 
-            {/* Chart with axes */}
+            {snapshotsAsc.length >= 2 ? (
             <div className="flex gap-3">
-              {/* Y-axis */}
               <div className="flex flex-col justify-between text-xs text-gray-500 py-2">
-                <span>30K</span>
-                <span>25K</span>
-                <span>20K</span>
-                <span>15K</span>
-                <span>10K</span>
+                {(() => {
+                  const vals = snapshotsAsc.map((s) => Number(s.followers_total ?? 0));
+                  const max = Math.max(...vals, 1);
+                  return [1, 0.75, 0.5, 0.25, 0].map((pct) => Math.round(max * pct).toLocaleString());
+                })()}
               </div>
-
-              {/* Chart area */}
               <div className="flex-1">
-                <div className="relative h-48 flex items-end gap-2 border-l border-b border-white/10">
-                  {/* Grid lines */}
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="absolute left-0 right-0 border-t border-white/5"
-                      style={{ bottom: `${i * 25}%` }}
-                    />
-                  ))}
-
-                  {/* Bars */}
-                  {Array.from({ length: 30 }).map((_, i) => {
-                    const height = 30 + Math.random() * 70;
+                <div className="relative h-48 flex items-end gap-0.5 border-l border-b border-white/10">
+                  {snapshotsAsc.map((s, i) => {
+                    const val = Number(s.followers_total ?? 0);
+                    const max = Math.max(...snapshotsAsc.map((x) => Number(x.followers_total ?? 0)), 1);
+                    const heightPct = (val / max) * 100;
                     return (
                       <motion.div
-                        key={i}
-                        className="flex-1 rounded-t-md bg-gradient-to-t from-chart-1/80 to-chart-1/40 border-t border-chart-1/50 relative group"
+                        key={s.snapshot_date}
+                        className="flex-1 min-w-[4px] rounded-t-md bg-gradient-to-t from-chart-1/80 to-chart-1/40 border-t border-chart-1/50 relative group"
                         initial={{ height: 0 }}
-                        animate={{ height: `${height}%` }}
-                        transition={{ duration: 0.6, delay: i * 0.02 }}
+                        animate={{ height: `${heightPct}%` }}
+                        transition={{ duration: 0.3, delay: i * 0.02 }}
+                        title={`${s.snapshot_date}: ${val.toLocaleString()}`}
                       >
-                        {/* Tooltip on hover */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          Day {i + 1}: {Math.round(20000 + (height / 100) * 10000).toLocaleString()}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                          {s.snapshot_date}: {val.toLocaleString()}
                         </div>
                       </motion.div>
                     );
                   })}
                 </div>
-
-                {/* X-axis labels */}
                 <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
-                  <span>Day 1</span>
-                  <span>Day 7</span>
-                  <span>Day 14</span>
-                  <span>Day 21</span>
-                  <span>Day 30</span>
+                  <span>{snapshotsAsc[0]?.snapshot_date ?? ""}</span>
+                  <span>{snapshotsAsc[snapshotsAsc.length - 1]?.snapshot_date ?? ""}</span>
                 </div>
               </div>
             </div>
+            ) : (
+              <p className="text-sm text-gray-600 py-8">
+                Sync from Integrations to see follower growth. Data is collected from the day you connect X.
+              </p>
+            )}
           </motion.div>
 
           {/* Engagement Rate Chart */}

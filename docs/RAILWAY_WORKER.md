@@ -50,6 +50,8 @@ Ensure env vars are set (e.g. `.env` in `apps/worker` or export in the shell). T
 
 If the `x_tweets` table is missing, the weekly script exits with a message to run the migration `supabase/migrations/20260220000000_x_analytics_ingestion.sql`.
 
+**Note:** The cron runs for all profiles with X connected. To give users the best experience, analytics are collected from the day they connect and sync. Future: the cron could prioritize profiles that are recently logged in or were viewed by a super user in the Linkary ecosystem.
+
 ## Railway setup
 
 1. Create a **new service** in your Railway project (e.g. “worker”).

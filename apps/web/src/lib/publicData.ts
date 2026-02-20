@@ -5,6 +5,11 @@
 import { supabase } from "./supabase";
 import { computeLinkaryPower, computeLinkaryInfluence } from "./linkaryScore";
 
+export type PublicLayoutConfig = {
+  order?: string[];
+  hidden?: string[];
+};
+
 export type PublicProfile = {
   id: string;
   username: string | null;
@@ -18,6 +23,7 @@ export type PublicProfile = {
   followers_total: number;
   avg_engagement_rate: number;
   xscore: number | null;
+  public_layout?: PublicLayoutConfig | null;
   created_at: string;
   updated_at: string;
 };
@@ -37,6 +43,7 @@ export type PublicOrg = {
   token_symbol: string | null;
   dexscreener_url: string | null;
   xscore: number | null;
+  public_layout?: PublicLayoutConfig | null;
   created_at: string;
   updated_at: string;
 };
@@ -68,6 +75,7 @@ export type PublicEntity = {
   type: "profile" | "org";
   profile?: PublicProfile;
   org?: PublicOrg;
+  publicLayout?: PublicLayoutConfig | null;
   socials?: ProfileSocials | null;
   headerMedia?: HeaderMedia | null;
   analyticsSnapshot?: AnalyticsSnapshot | null;
@@ -180,6 +188,7 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
   return {
     type: "profile",
     profile,
+    publicLayout: profile.public_layout ?? null,
     socials: socialsRow.data ? (socialsRow.data as ProfileSocials) : null,
     headerMedia: mediaRow.data ? (mediaRow.data as HeaderMedia) : null,
     analyticsSnapshot: snapshot
@@ -242,6 +251,7 @@ async function buildPublicOrgEntity(org: PublicOrg, _norm: string): Promise<Publ
   return {
     type: "org",
     org,
+    publicLayout: org.public_layout ?? null,
     headerMedia: mediaRow.data ? (mediaRow.data as HeaderMedia) : null,
     analyticsSnapshot: snapshot
       ? {

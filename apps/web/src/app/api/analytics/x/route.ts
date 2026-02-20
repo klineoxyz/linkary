@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  const [profileRes, rollupRes, driversRes, baselineRes] = await Promise.all([
+  const [profileRes, rollupRes, driversRes, baselineRes, snapshotsRes] = await Promise.all([
     supabase
       .from("profiles")
       .select("followers_total, avg_engagement_rate, x_last_profile_sync_at, x_last_tweets_sync_at, x_sync_status, twitter_username")
@@ -40,6 +40,13 @@ export async function GET(request: NextRequest) {
       .eq("profile_id", user.id)
       .eq("platform", "x")
       .maybeSingle(),
+    supabase
+      .from("analytics_snapshots")
+      .select("snapshot_date, followers_total")
+      .eq("profile_id", user.id)
+      .eq("platform", "x")
+      .order("snapshot_date", { ascending: false })
+      .limit(90),
   ]);
 
   const profile = profileRes.data as {
@@ -69,10 +76,14 @@ export async function GET(request: NextRequest) {
     reach_proxy_30d?: number | null;
   } | null;
 
+  type SnapshotRow = { snapshot_date: string; followers_total?: number | null };
+  const snapshots = (snapshotsRes.data ?? []) as SnapshotRow[];
+
   return NextResponse.json({
     profile: profile ?? {},
     rollup: rollup ?? null,
     topDrivers,
     baseline: baseline ?? null,
+    snapshots: snapshots.map((s) => ({ snapshot_date: s.snapshot_date, followers_total: s.followers_total ?? null })),
   });
 }

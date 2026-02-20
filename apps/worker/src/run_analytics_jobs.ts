@@ -39,7 +39,9 @@ async function main() {
   const job = jobs?.[0];
   if (!job) {
     console.log("No queued jobs.");
-    process.exit(0);
+    // Brief delay so open handles (Supabase/fetch) can close; avoids Windows libuv assertion on exit
+    setTimeout(() => process.exit(0), 100);
+    return;
   }
 
   const { error: markErr } = await supabase

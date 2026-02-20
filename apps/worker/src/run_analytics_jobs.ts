@@ -1,7 +1,20 @@
 /**
  * Process one analytics_job (x_backfill_90d). Run via: pnpm run run:jobs
  * Railway cron can run this every 5–10 min to drain the queue.
+ * Loads .env from repo root, apps/worker, or apps/web (Next.js .env.local) so local runs pick up vars.
  */
+import { config } from "dotenv";
+import { fileURLToPath } from "url";
+import { resolve, dirname } from "path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+// dist/ is inside apps/worker, so repo root is three levels up
+const repoRoot = resolve(__dirname, "../../..");
+config({ path: resolve(repoRoot, ".env") });
+config({ path: resolve(repoRoot, ".env.local") });
+config({ path: resolve(__dirname, "../.env") });
+config({ path: resolve(repoRoot, "apps/web/.env.local") });
+
 import { getSupabaseAdmin } from "./lib/supabase.js";
 import { runXBackfill90d } from "./jobs/xBackfill90d.js";
 

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Copy, Check, Wallet as WalletIcon } from "lucide-react";
 import WalletSidebar from "./WalletSidebar";
+import BalancePanel from "./panels/BalancePanel";
 import LinkProfilePanel from "./panels/LinkProfilePanel";
 import MfaPanel from "./panels/MfaPanel";
 import SendTxPanel from "./panels/SendTxPanel";
@@ -31,6 +32,7 @@ type WalletStatus = {
 };
 
 type PanelId =
+  | "balance"
   | "link-profile"
   | "mfa"
   | "send-tx"
@@ -43,7 +45,7 @@ export default function WalletShell() {
   const [status, setStatus] = useState<WalletStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [panel, setPanel] = useState<PanelId>("link-profile");
+  const [panel, setPanel] = useState<PanelId>("balance");
   const [copyDone, setCopyDone] = useState(false);
 
   const getToken = useCallback(async () => {
@@ -187,6 +189,7 @@ export default function WalletShell() {
         </aside>
         <main className="flex-1 min-w-0">
           <div className="rounded-xl border border-border bg-card backdrop-blur-xl p-6">
+            {panel === "balance" && <BalancePanel getToken={getToken} />}
             {panel === "link-profile" && <LinkProfilePanel />}
             {panel === "mfa" && <MfaPanel getToken={getToken} onUpdated={fetchStatus} />}
             {panel === "send-tx" && <SendTxPanel address={address} getToken={getToken} />}

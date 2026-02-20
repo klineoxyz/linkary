@@ -5,13 +5,22 @@ import { Send, ExternalLink } from "lucide-react";
 
 const cn = (...a: (string | undefined)[]) => a.filter(Boolean).join(" ");
 
+function looksLikeAddress(input: string): boolean {
+  const t = input.trim();
+  if (t.startsWith("0x") && t.length === 42) return true;
+  if (t.length >= 32 && t.length <= 44 && !t.startsWith("0x")) return true;
+  return false;
+}
+
 interface SendTxPanelProps {
   address: string | null;
   getToken: () => Promise<string | null>;
 }
 
 export default function SendTxPanel({ address, getToken }: SendTxPanelProps) {
-  const [toAddress, setToAddress] = useState("");
+  const [toInput, setToInput] = useState("");
+  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
   const [amount, setAmount] = useState("");
   const [asset, setAsset] = useState<"ETH" | "USDC">("ETH");
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -19,10 +28,53 @@ export default function SendTxPanel({ address, getToken }: SendTxPanelProps) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const toAddress = resolvedAddress ?? (looksLikeAddress(toInput) ? toInput.trim() : null);
+  const isHandle = toInput.trim() && !looksLikeAddress(toInput.trim());
+
+  const resolveHandle = async (): Promise<string | null> => {
+    const raw = toInput.trim().toLowerCase().replace(/^@/, "");
+    if (!raw) {
+      setResolvedAddress(null);
+      return null;
+    }
+    if (looksLikeAddress(raw)) {
+      setResolvedAddress(raw);
+      return raw;
+    }
+    setResolving(true);
+    setError(null);
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/wallet/resolve?username=${encodeURIComponent(raw)}`);
+      const j = await res.json();
+      if (res.ok && j.address) {
+        setResolvedAddress(j.address);
+        return j.address;
+      }
+      setResolvedAddress(null);
+      setError(j.error || "Handle not found");
+      return null;
+    } catch {
+      setResolvedAddress(null);
+      setError("Could not resolve handle");
+      return null;
+    } finally {
+      setResolving(false);
+    }
+  };
+
   const handleSend = async () => {
     setError(null);
     setTxHash(null);
     setExplorerUrl(null);
+    let to: string | null = looksLikeAddress(toInput) ? toInput.trim() : resolvedAddress;
+    if (!to && toInput.trim()) {
+      to = await resolveHandle();
+    }
+    if (!to) {
+      setError("Enter a Linkary handle (@username) or a wallet address");
+      return;
+    }
     setSending(true);
     try {
       const token = await getToken();
@@ -34,12 +86,7 @@ export default function SendTxPanel({ address, getToken }: SendTxPanelProps) {
         setError("No wallet address");
         return;
       }
-      const to = toAddress.trim();
       const value = amount.trim();
-      if (!to || !/^0x[a-fA-F0-9]{40}$/.test(to)) {
-        setError("Enter a valid 0x address");
-        return;
-      }
       if (!value || Number.isNaN(Number(value)) || Number(value) <= 0) {
         setError("Enter a valid amount");
         return;
@@ -74,18 +121,31 @@ export default function SendTxPanel({ address, getToken }: SendTxPanelProps) {
     <div className="space-y-4">
       <h3 className="text-base font-semibold">Send test transaction</h3>
       <p className="text-sm text-muted-foreground">
-        Send a test transaction. Signing is done in your wallet or via CDP SDK; this form is for reference.
+        Send to a Linkary handle (e.g. @muazxinthi) or to any wallet address. Signing is done in your wallet or via CDP SDK.
       </p>
       <div className="space-y-3">
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">To address</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">
+            To (Linkary handle or wallet address)
+          </label>
           <input
             type="text"
-            placeholder="0x..."
-            value={toAddress}
-            onChange={(e) => setToAddress(e.target.value)}
+            placeholder="@username or 0x..."
+            value={toInput}
+            onChange={(e) => {
+              setToInput(e.target.value);
+              setResolvedAddress(null);
+              setError(null);
+            }}
+            onBlur={() => {
+              if (isHandle && toInput.trim()) resolveHandle();
+            }}
             className="h-10 w-full rounded-lg border border-border bg-input-background px-3 text-sm"
           />
+          {resolving && <p className="text-xs text-muted-foreground mt-1">Resolving handle…</p>}
+          {resolvedAddress && isHandle && (
+            <p className="text-xs text-muted-foreground mt-1 font-mono">Resolved to: {resolvedAddress.slice(0, 10)}…{resolvedAddress.slice(-8)}</p>
+          )}
         </div>
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1">Amount</label>
@@ -125,7 +185,7 @@ export default function SendTxPanel({ address, getToken }: SendTxPanelProps) {
         )}
         <button
           type="button"
-          disabled={sending || !address}
+          disabled={sending || !address || (!toAddress && !toInput.trim())}
           onClick={handleSend}
           className={cn(
             "inline-flex items-center gap-2 rounded-lg font-medium h-10 px-4 text-sm",

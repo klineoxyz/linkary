@@ -8,11 +8,13 @@ import {
   Key,
   Wallet,
   ExternalLink,
+  LayoutDashboard,
 } from "lucide-react";
 
 const cn = (...a: (string | undefined)[]) => a.filter(Boolean).join(" ");
 
 export type PanelId =
+  | "balance"
   | "link-profile"
   | "mfa"
   | "send-tx"
@@ -21,6 +23,7 @@ export type PanelId =
   | "external-wallets";
 
 const ITEMS: { id: PanelId; label: string; icon: React.ElementType }[] = [
+  { id: "balance", label: "Balance", icon: LayoutDashboard },
   { id: "link-profile", label: "Link a profile", icon: Link2 },
   { id: "mfa", label: "Multi-factor authentication", icon: Shield },
   { id: "send-tx", label: "Send test transaction", icon: Send },

@@ -43,14 +43,35 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       setLoading(false);
       return;
     }
-    Promise.all([
-      getMyProfile(userId),
-      getXConnection(userId),
-    ]).then(([p, conn]) => {
+    (async () => {
+      const [p, conn] = await Promise.all([
+        getMyProfile(userId),
+        getXConnection(userId),
+      ]);
       setProfile(p ?? null);
-      setXFromDb(conn ? { username: conn.username ?? null } : null);
+      let resolvedConn = conn;
+      if (p && !conn && (p.twitter_username || p.twitter_connected_at)) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token;
+          if (token) {
+            const base = typeof window !== "undefined" ? window.location.origin : "";
+            const res = await fetch(`${base}/api/auth/ensure-social-from-profile`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+              const again = await getXConnection(userId);
+              resolvedConn = again ?? conn;
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      setXFromDb(resolvedConn ? { username: resolvedConn.username ?? null } : null);
       setLoading(false);
-    });
+    })();
   }, [userId]);
 
   const handleConnectX = async () => {

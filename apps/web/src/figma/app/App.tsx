@@ -149,6 +149,7 @@ import LoginPage from "./components/LoginPage";
 import OnboardingPage from "./components/OnboardingPage";
 import { supabase } from "@/lib/supabase";
 import { ensureProfileForSession, getMyProfile, updateMyProfile } from "@/lib/profiles";
+import { getXConnection } from "@/lib/xAuth";
 import { getProfileProfessions } from "@/lib/profileProfessions";
 import { listJobs, applyToJobAsProfile, applyToJobAsOrg, type JobWithOrg } from "@/lib/jobs";
 import { getOrCreateConversation, listConversationsForUser, listMessages, sendMessageAsProfile, sendMessageAsOrg } from "@/lib/messages";
@@ -626,19 +627,17 @@ function ScorePills({ ethos, xscore, reputationIndex, socialPower }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-        <Shield className="h-3.5 w-3.5 stroke-[1.75]" /> ETHOS {ethos}
+        <Shield className="h-3.5 w-3.5 stroke-[1.75]" /> ETHOS {ethos != null ? ethos : "—"}
       </span>
       <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-        <Zap className="h-3.5 w-3.5 stroke-[1.75]" /> XScore {xscore}
+        <Zap className="h-3.5 w-3.5 stroke-[1.75]" /> XScore {xscore != null ? xscore : "—"}
       </span>
       <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-        <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" /> Index {reputationIndex}
+        <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" /> Index {reputationIndex ?? "—"}
       </span>
-      {socialPower && (
-        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-          <Sparkles className="h-3.5 w-3.5 stroke-[1.75]" /> Power {socialPower}
-        </span>
-      )}
+      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+        <Sparkles className="h-3.5 w-3.5 stroke-[1.75]" /> Power {socialPower != null ? socialPower : "—"}
+      </span>
     </div>
   );
 }
@@ -2295,12 +2294,17 @@ function ProfilePage({ setRoute, me }) {
   const [csProofUrl, setCsProofUrl] = useState("");
   const [csSubmitting, setCsSubmitting] = useState(false);
   const [meStats, setMeStats] = useState<{ ethos: number | null; xscore: number | null; reputationIndex: number; socialPower: number; reviews: { avg: number; count: number } } | null>(null);
+  const [xHandle, setXHandle] = useState<string | null>(null);
 
   useEffect(() => {
     if (me?.id) getProfileProfessions(me.id).then(({ data }) => setProfileProfessions((data ?? []).map((p) => ({ id: p.id, name: p.name }))));
   }, [me?.id]);
   useEffect(() => {
     if (me?.id) listCaseStudiesForProfile(me.id).then(setCaseStudies);
+  }, [me?.id]);
+  useEffect(() => {
+    if (!me?.id) return;
+    getXConnection(me.id).then((conn) => setXHandle(conn?.username ?? null));
   }, [me?.id]);
   useEffect(() => {
     if (!me?.id) return;
@@ -2317,19 +2321,22 @@ function ProfilePage({ setRoute, me }) {
     })();
   }, [me?.id]);
 
+  const publicSlug = (me?.username || me?.twitter_username || xHandle || "").replace(/^@/, "").toLowerCase().trim();
+  const hasPublicSlug = publicSlug.length > 0;
+
   const roleTags = profileProfessions.length > 0 ? profileProfessions.map((p) => p.name) : demo.me.roleTags;
   const u = me
     ? {
         ...demo.me,
-        handle: me.username ?? me.twitter_username?.replace(/^@/, "") ?? demo.me.handle,
+        handle: me.username ?? me.twitter_username?.replace(/^@/, "") ?? xHandle ?? demo.me.handle,
         name: me.display_name ?? demo.me.name,
         bio: me.bio ?? demo.me.bio,
         location: me.location ?? demo.me.location,
         roleTags,
-        ethos: meStats?.ethos ?? demo.me.ethos,
-        xscore: meStats?.xscore ?? me.xscore ?? demo.me.xscore,
-        reputationIndex: meStats?.reputationIndex ?? demo.me.reputationIndex,
-        socialPower: meStats?.socialPower ?? demo.me.socialPower,
+        ethos: meStats?.ethos ?? null,
+        xscore: meStats?.xscore ?? me.xscore ?? null,
+        reputationIndex: meStats?.reputationIndex ?? 0,
+        socialPower: meStats?.socialPower ?? 0,
         reviews: meStats?.reviews ? { ...demo.me.reviews, avg: meStats.reviews.avg, count: meStats.reviews.count } : demo.me.reviews,
       }
     : demo.me;
@@ -2358,8 +2365,8 @@ function ProfilePage({ setRoute, me }) {
               <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "profileEdit" })}>
                 Edit profile
               </Button>
-              {(me?.username || me?.twitter_username) ? (
-                <Button variant="outline" className="flex items-center gap-2" onClick={async () => { const slug = (me.username || me.twitter_username || "").replace(/^@/, "").toLowerCase(); if (!slug) return; await updateMyProfile(me.id, { published: true }); window.location.href = "/" + encodeURIComponent(slug); }}>
+              {hasPublicSlug ? (
+                <Button variant="outline" className="flex items-center gap-2" onClick={async () => { if (!publicSlug) return; await updateMyProfile(me.id, { published: true }); window.location.href = "/" + encodeURIComponent(publicSlug); }}>
                   <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Public View
                 </Button>
               ) : (

@@ -30,10 +30,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ ethos: null, xscore: null, reputationIndex: 0, socialPower: 0, reviews: { avg: 0, count: 0 } });
   }
 
+  const handle = (profile.twitter_username as string)?.replace?.(/^@/, "")?.toLowerCase() ?? "";
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
   let ethosScore: number | null = null;
-  if (profile.twitter_username) {
-    const userkey = `service:x.com:username:${(profile.twitter_username as string).replace(/^@/, "").toLowerCase()}`;
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000";
+  if (handle) {
+    const userkey = `service:x.com:username:${handle}`;
     try {
       const res = await fetch(`${base}/api/ethos/score?userkey=${encodeURIComponent(userkey)}`, { next: { revalidate: 3600 } });
       if (res.ok) {
@@ -44,6 +46,20 @@ export async function GET(request: Request) {
       /* ignore */
     }
   }
+
+  let xscoreFromApi: number | null = null;
+  if (handle) {
+    try {
+      const res = await fetch(`${base}/api/xscore/score?username=${encodeURIComponent(handle)}`, { next: { revalidate: 3600 } });
+      if (res.ok) {
+        const j = await res.json();
+        xscoreFromApi = typeof j.xscore === "number" ? j.xscore : null;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  const xscore = xscoreFromApi ?? (profile.xscore as number | null) ?? null;
 
   const { data: reviewRows } = await supabase
     .from("reviews")
@@ -58,8 +74,8 @@ export async function GET(request: Request) {
     : 0;
 
   const { score100, score1000 } = computeLinkaryPower({
-    ethosScore: ethosScore ?? (profile.xscore as number | null) ?? undefined,
-    xscore: profile.xscore as number | null ?? undefined,
+    ethosScore: ethosScore ?? undefined,
+    xscore: xscore ?? undefined,
     followers: profile.followers_total ?? undefined,
     engagementRate: profile.avg_engagement_rate ?? undefined,
     verifiedReviewsCount: count,
@@ -68,7 +84,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ethos: ethosScore ?? null,
-    xscore: profile.xscore ?? null,
+    xscore,
     reputationIndex: Math.round(score100),
     socialPower: score1000,
     reviews: { avg: Math.round(avg * 10) / 10, count },

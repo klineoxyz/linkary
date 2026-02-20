@@ -148,7 +148,7 @@ import AffiliationAmbassadorSection from "./components/AffiliationAmbassadorSect
 import LoginPage from "./components/LoginPage";
 import OnboardingPage from "./components/OnboardingPage";
 import { supabase } from "@/lib/supabase";
-import { ensureProfileForSession, getMyProfile } from "@/lib/profiles";
+import { ensureProfileForSession, getMyProfile, updateMyProfile } from "@/lib/profiles";
 import { getProfileProfessions } from "@/lib/profileProfessions";
 import { listJobs, applyToJobAsProfile, applyToJobAsOrg, type JobWithOrg } from "@/lib/jobs";
 import { getOrCreateConversation, listConversationsForUser, listMessages, sendMessageAsProfile, sendMessageAsOrg } from "@/lib/messages";
@@ -2294,6 +2294,7 @@ function ProfilePage({ setRoute, me }) {
   const [csDescription, setCsDescription] = useState("");
   const [csProofUrl, setCsProofUrl] = useState("");
   const [csSubmitting, setCsSubmitting] = useState(false);
+  const [meStats, setMeStats] = useState<{ ethos: number | null; xscore: number | null; reputationIndex: number; socialPower: number; reviews: { avg: number; count: number } } | null>(null);
 
   useEffect(() => {
     if (me?.id) getProfileProfessions(me.id).then(({ data }) => setProfileProfessions((data ?? []).map((p) => ({ id: p.id, name: p.name }))));
@@ -2301,16 +2302,35 @@ function ProfilePage({ setRoute, me }) {
   useEffect(() => {
     if (me?.id) listCaseStudiesForProfile(me.id).then(setCaseStudies);
   }, [me?.id]);
+  useEffect(() => {
+    if (!me?.id) return;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/profile/me-stats`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const j = await res.json();
+        setMeStats({ ethos: j.ethos ?? null, xscore: j.xscore ?? null, reputationIndex: j.reputationIndex ?? 0, socialPower: j.socialPower ?? 0, reviews: j.reviews ?? { avg: 0, count: 0 } });
+      }
+    })();
+  }, [me?.id]);
 
   const roleTags = profileProfessions.length > 0 ? profileProfessions.map((p) => p.name) : demo.me.roleTags;
   const u = me
     ? {
         ...demo.me,
-        handle: me.username ?? demo.me.handle,
+        handle: me.username ?? me.twitter_username?.replace(/^@/, "") ?? demo.me.handle,
         name: me.display_name ?? demo.me.name,
         bio: me.bio ?? demo.me.bio,
         location: me.location ?? demo.me.location,
         roleTags,
+        ethos: meStats?.ethos ?? demo.me.ethos,
+        xscore: meStats?.xscore ?? me.xscore ?? demo.me.xscore,
+        reputationIndex: meStats?.reputationIndex ?? demo.me.reputationIndex,
+        socialPower: meStats?.socialPower ?? demo.me.socialPower,
+        reviews: meStats?.reviews ? { ...demo.me.reviews, avg: meStats.reviews.avg, count: meStats.reviews.count } : demo.me.reviews,
       }
     : demo.me;
 
@@ -2339,7 +2359,7 @@ function ProfilePage({ setRoute, me }) {
                 Edit profile
               </Button>
               {(me?.username || me?.twitter_username) ? (
-                <Button variant="outline" className="flex items-center gap-2" onClick={() => router.push("/" + encodeURIComponent((me.username || me.twitter_username || "").replace(/^@/, "")))}>
+                <Button variant="outline" className="flex items-center gap-2" onClick={async () => { const slug = (me.username || me.twitter_username || "").replace(/^@/, "").toLowerCase(); if (!slug) return; await updateMyProfile(me.id, { published: true }); window.location.href = "/" + encodeURIComponent(slug); }}>
                   <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Public View
                 </Button>
               ) : (

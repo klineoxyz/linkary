@@ -9,6 +9,18 @@ type LinkedProfile = {
   twitter_username: string | null;
 };
 
+/** Mask email for display: first 2 chars of local part + **** + @domain (e.g. xi****@gmail.com). */
+function maskEmail(email: string): string {
+  const t = email.trim();
+  if (!t) return "";
+  const at = t.indexOf("@");
+  if (at <= 0) return t.slice(0, 2) + "****";
+  const local = t.slice(0, at);
+  const domain = t.slice(at);
+  const show = local.length <= 2 ? local.slice(0, 1) + "****" : local.slice(0, 2) + "****";
+  return show + domain;
+}
+
 export default function LinkProfilePanel() {
   const [profile, setProfile] = useState<LinkedProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +69,7 @@ export default function LinkProfilePanel() {
               <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700" title="Email linked to this wallet">
                 <Check className="h-3.5 w-3.5 shrink-0" />
                 <Mail className="h-3.5 w-3.5" />
-                Email ({profile?.email ?? ""})
+                Email ({maskEmail(profile?.email ?? "")})
               </span>
             )}
             {hasX && (

@@ -68,16 +68,18 @@ export default function SendTxPanel({ address, getToken }: SendTxPanelProps) {
   };
 
   const handleSend = async () => {
-    setError(null);
     setTxHash(null);
     setExplorerUrl(null);
     let to: string | null = looksLikeAddress(toInput) ? toInput.trim() : resolvedAddress;
     if (!to && toInput.trim()) {
+      setError(null);
       to = await resolveHandle();
-    }
-    if (!to) {
+      if (!to) return;
+    } else if (!to) {
       setError("Enter a Linkary handle (@username) or a wallet address");
       return;
+    } else {
+      setError(null);
     }
     setSending(true);
     try {
@@ -153,6 +155,11 @@ export default function SendTxPanel({ address, getToken }: SendTxPanelProps) {
           {isHandle && !resolvedAddress && !resolving && !error && (
             <p className="text-xs text-muted-foreground mt-1">Not on Linkary? Enter their wallet address (0x...) to send.</p>
           )}
+          {error && isHandle && (
+            <div className="mt-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
+              {error}
+            </div>
+          )}
         </div>
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1">Amount</label>
@@ -175,7 +182,7 @@ export default function SendTxPanel({ address, getToken }: SendTxPanelProps) {
             <option value="USDC">USDC</option>
           </select>
         </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && !isHandle && <p className="text-sm text-destructive">{error}</p>}
         {txHash && explorerUrl && (
           <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
             <p className="font-mono text-xs break-all">{txHash}</p>

@@ -102,14 +102,22 @@ export async function GET(request: NextRequest) {
       ? snapshotsFromDaily
       : legacySnapshots.map((s) => ({ snapshot_date: s.snapshot_date, followers_total: s.followers_total ?? null }));
 
-  const windowRows = (windowAggsRes.data ?? []) as Array<Record<string, unknown>>;
+  type WindowAgg = {
+    window_days?: number;
+    posts_count?: unknown;
+    avg_likes_per_post?: unknown;
+    avg_replies_per_post?: unknown;
+    avg_engagement_rate?: unknown;
+    reach_avg?: unknown;
+  };
+  const windowRows = (windowAggsRes.data ?? []) as WindowAgg[];
   const byWindow = windowRows.reduce(
     (acc, r) => {
       const w = Number(r.window_days);
       if (!(w in acc)) acc[w] = r;
       return acc;
     },
-    {} as Record<number, Record<string, unknown>>
+    {} as Record<number, WindowAgg>
   );
   const w7 = byWindow[7];
   const w30 = byWindow[30];

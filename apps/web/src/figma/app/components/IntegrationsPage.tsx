@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getMyProfile, disconnectTwitter } from "@/lib/profiles";
+import { getXConnection } from "@/lib/xAuth";
 import { syncProfileFromX } from "@/lib/x-sync";
 import type { Profile } from "@/lib/profiles";
 
@@ -24,6 +25,7 @@ function formatSyncTime(iso: string): string {
 
 export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [xFromDb, setXFromDb] = useState<{ username: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -41,8 +43,12 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       setLoading(false);
       return;
     }
-    getMyProfile(userId).then((p) => {
+    Promise.all([
+      getMyProfile(userId),
+      getXConnection(userId),
+    ]).then(([p, conn]) => {
       setProfile(p ?? null);
+      setXFromDb(conn ? { username: conn.username ?? null } : null);
       setLoading(false);
     });
   }, [userId]);
@@ -77,20 +83,22 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     if (!userId) return;
     setError(null);
     setDisconnecting(true);
+    await supabase.from("social_accounts").update({ revoked_at: new Date().toISOString(), status: "revoked", updated_at: new Date().toISOString() }).eq("user_id", userId).eq("provider", "x");
     const result = await disconnectTwitter(userId);
     setDisconnecting(false);
     if (result.error) {
       setError(result.error);
       return;
     }
+    setXFromDb(null);
     const updated = await getMyProfile(userId);
     setProfile(updated ?? null);
   };
 
   const isConnected = Boolean(
-    profile?.twitter_connected_at ?? profile?.twitter_user_id ?? (profile?.twitter_username && String(profile.twitter_username).trim().length > 0)
+    xFromDb ?? profile?.twitter_connected_at ?? profile?.twitter_user_id ?? (profile?.twitter_username && String(profile.twitter_username).trim().length > 0)
   );
-  const handle = profile?.twitter_username ?? profile?.twitter_username_candidate ?? null;
+  const handle = xFromDb?.username ?? profile?.twitter_username ?? profile?.twitter_username_candidate ?? null;
   const avatar = profile?.avatar_url ?? null;
 
   const handleSyncFromX = async () => {

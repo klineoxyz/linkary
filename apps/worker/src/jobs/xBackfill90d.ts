@@ -1,0 +1,172 @@
+/**
+ * Run one x_backfill_90d job: fetch tweets for last 90d, fill x_daily_snapshots, compute x_window_aggregates.
+ */
+import { SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "../lib/supabase.js";
+import { getUserInfo, getRecentTweets } from "../lib/twitterapi.js";
+import { sleep } from "../lib/utils.js";
+
+const MAX_TWEETS = 600;
+const DELAY_MS = 400;
+
+function toDay(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+export type JobRow = {
+  id: string;
+  job_type: string;
+  owner_type: string;
+  owner_id: string;
+  payload: { username?: string; user_id?: string } | null;
+};
+
+export async function runXBackfill90d(
+  supabase: SupabaseClient,
+  job: JobRow
+): Promise<{ ok: boolean; error?: string }> {
+  const username = job.payload?.username;
+  if (!username || job.owner_type !== "profile" || !job.owner_id) {
+    return { ok: false, error: "Missing username or owner" };
+  }
+
+  const handle = username.trim().replace(/^@/, "").toLowerCase();
+  if (!handle) return { ok: false, error: "Empty username" };
+
+  const userInfo = await getUserInfo(handle);
+  await sleep(200);
+  const followersToday = userInfo?.followers ?? null;
+
+  const tweets = await getRecentTweets(handle, MAX_TWEETS);
+  await sleep(DELAY_MS);
+
+  const dayMap = new Map<
+    string,
+    { tweets_count: number; likes_received: number; replies_received: number; retweets_received: number }
+  >();
+
+  const now = new Date();
+  const todayStr = toDay(now.toISOString());
+
+  for (const t of tweets) {
+    const createdAt = t.createdAt;
+    if (!createdAt) continue;
+    const d = new Date(createdAt);
+    if (isNaN(d.getTime())) continue;
+    const day = toDay(d.toISOString());
+    const existing = dayMap.get(day) ?? {
+      tweets_count: 0,
+      likes_received: 0,
+      replies_received: 0,
+      retweets_received: 0,
+    };
+    existing.tweets_count += 1;
+    existing.likes_received += Math.max(0, Number(t.likeCount) || 0);
+    existing.replies_received += Math.max(0, Number(t.replyCount) || 0);
+    existing.retweets_received += Math.max(0, Number(t.retweetCount) || 0);
+    dayMap.set(day, existing);
+  }
+
+  const days = Array.from(dayMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  for (const [day, agg] of days) {
+    const { error } = await supabase.from("x_daily_snapshots").upsert(
+      {
+        owner_type: "profile",
+        owner_id: job.owner_id,
+        day,
+        followers: day === todayStr ? followersToday : null,
+        tweets_count: agg.tweets_count,
+        likes_received: agg.likes_received,
+        replies_received: agg.replies_received,
+        retweets_received: agg.retweets_received,
+      },
+      { onConflict: "owner_type,owner_id,day" }
+    );
+    if (error) return { ok: false, error: error.message };
+  }
+
+  if (followersToday != null && todayStr) {
+    const { error: todayErr } = await supabase.from("x_daily_snapshots").upsert(
+      {
+        owner_type: "profile",
+        owner_id: job.owner_id,
+        day: todayStr,
+        followers: followersToday,
+        tweets_count: dayMap.get(todayStr)?.tweets_count ?? 0,
+        likes_received: dayMap.get(todayStr)?.likes_received ?? 0,
+        replies_received: dayMap.get(todayStr)?.replies_received ?? 0,
+        retweets_received: dayMap.get(todayStr)?.retweets_received ?? 0,
+      },
+      { onConflict: "owner_type,owner_id,day" }
+    );
+    if (todayErr) return { ok: false, error: todayErr.message };
+  }
+
+  const sortedDays = Array.from(dayMap.keys()).sort();
+  const asOf = sortedDays.length ? sortedDays[sortedDays.length - 1]! : todayStr;
+
+  for (const windowDays of [7, 30, 90]) {
+    const start = new Date(asOf);
+    start.setDate(start.getDate() - windowDays);
+    const startStr = toDay(start.toISOString());
+
+    const { data: rows } = await supabase
+      .from("x_daily_snapshots")
+      .select("day, followers, tweets_count, likes_received, replies_received, retweets_received")
+      .eq("owner_type", "profile")
+      .eq("owner_id", job.owner_id)
+      .gte("day", startStr)
+      .lte("day", asOf)
+      .order("day", { ascending: true });
+
+    const list = (rows ?? []) as Array<{
+      day: string;
+      followers: number | null;
+      tweets_count: number | null;
+      likes_received: number | null;
+      replies_received: number | null;
+      retweets_received: number | null;
+    }>;
+
+    let followersStart: number | null = null;
+    let followersEnd: number | null = null;
+    let totalLikes = 0;
+    let totalReplies = 0;
+    let totalRetweets = 0;
+    let totalPosts = 0;
+
+    for (const r of list) {
+      if (r.followers != null) {
+        if (followersStart == null) followersStart = r.followers;
+        followersEnd = r.followers;
+      }
+      totalLikes += r.likes_received ?? 0;
+      totalReplies += r.replies_received ?? 0;
+      totalRetweets += r.retweets_received ?? 0;
+      totalPosts += r.tweets_count ?? 0;
+    }
+
+    const agg = {
+      owner_type: "profile",
+      owner_id: job.owner_id,
+      window_days: windowDays,
+      as_of: asOf,
+      followers_start: followersStart,
+      followers_end: followersEnd,
+      followers_delta:
+        followersStart != null && followersEnd != null ? followersEnd - followersStart : null,
+      avg_likes_per_post: totalPosts > 0 ? totalLikes / totalPosts : null,
+      avg_replies_per_post: totalPosts > 0 ? totalReplies / totalPosts : null,
+      avg_retweets_per_post: totalPosts > 0 ? totalRetweets / totalPosts : null,
+      posts_count: totalPosts,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: aggErr } = await supabase.from("x_window_aggregates").upsert(agg, {
+      onConflict: "owner_type,owner_id,window_days,as_of",
+    });
+    if (aggErr) return { ok: false, error: aggErr.message };
+  }
+
+  return { ok: true };
+}

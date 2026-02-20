@@ -109,6 +109,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const [entityType, setEntityType] = useState<"creator" | "project" | "agency" | "company">("creator");
   const [visibility, setVisibility] = useState<VisibilityType>("public");
   const [xAnalyticsData, setXAnalyticsData] = useState<XAnalyticsData | null>(null);
+  const [windowSummary, setWindowSummary] = useState<{ windows: Record<string, Record<string, unknown> | null>; is_backfilling: boolean } | null>(null);
   const initialSyncTriggered = useRef(false);
 
   const fetchXAnalytics = React.useCallback(async () => {
@@ -116,16 +117,24 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     const token = session?.access_token;
     if (!token) return;
     const base = typeof window !== "undefined" ? window.location.origin : "";
-    const res = await fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) return;
-    const json = await res.json().catch(() => ({}));
-    setXAnalyticsData({
-      profile: json.profile ?? {},
-      rollup: json.rollup ?? null,
-      topDrivers: json.topDrivers ?? [],
-      baseline: json.baseline ?? null,
-      snapshots: Array.isArray(json.snapshots) ? json.snapshots : [],
-    });
+    const [res, summaryRes] = await Promise.all([
+      fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${base}/api/analytics/x/summary`, { headers: { Authorization: `Bearer ${token}` } }),
+    ]);
+    if (res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setXAnalyticsData({
+        profile: json.profile ?? {},
+        rollup: json.rollup ?? null,
+        topDrivers: json.topDrivers ?? [],
+        baseline: json.baseline ?? null,
+        snapshots: Array.isArray(json.snapshots) ? json.snapshots : [],
+      });
+    }
+    if (summaryRes.ok) {
+      const sum = await summaryRes.json().catch(() => ({}));
+      setWindowSummary({ windows: sum.windows ?? {}, is_backfilling: !!sum.is_backfilling });
+    }
   }, []);
 
   useEffect(() => {
@@ -218,9 +227,23 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     if (past == null || past === 0 || !Number.isFinite(current)) return null;
     return ((current - past) / past) * 100;
   };
+  const win7 = windowSummary?.windows?.["7"] as Record<string, unknown> | undefined;
+  const win30 = windowSummary?.windows?.["30"] as Record<string, unknown> | undefined;
+  const win90 = windowSummary?.windows?.["90"] as Record<string, unknown> | undefined;
+  const pctFromWindow = (w: Record<string, unknown> | undefined): number | null => {
+    if (!w || w.followers_delta == null || w.followers_start == null) return null;
+    const start = Number(w.followers_start);
+    const delta = Number(w.followers_delta);
+    if (start === 0 || !Number.isFinite(start)) return null;
+    return (delta / start) * 100;
+  };
   const realDelta7 = pctDelta(latestFollowerCount, getSnapshotAt(7));
   const realDelta30 = pctDelta(latestFollowerCount, getSnapshotAt(30));
   const realDelta90 = pctDelta(latestFollowerCount, getSnapshotAt(90));
+  const useWindowAggregates = win7 || win30 || win90;
+  const followersDelta7 = useWindowAggregates ? (pctFromWindow(win7) ?? realDelta7) : realDelta7;
+  const followersDelta30 = useWindowAggregates ? (pctFromWindow(win30) ?? realDelta30) : realDelta30;
+  const followersDelta90 = useWindowAggregates ? (pctFromWindow(win90) ?? realDelta90) : realDelta90;
   const followerSparklineFromSnapshots =
     snapshotsAsc.length >= 2
       ? snapshotsAsc.map((s) => (s.followers_total != null && Number.isFinite(s.followers_total) ? Number(s.followers_total) : 0))
@@ -250,9 +273,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       id: "followers",
       label: "Followers",
       value: xAnalyticsData ? followersTotal.toLocaleString() : "—",
-      delta7D: hasRealFollowerHistory && realDelta7 != null ? realDelta7 : 0,
-      delta30D: hasRealFollowerHistory && realDelta30 != null ? realDelta30 : 0,
-      delta90D: hasRealFollowerHistory && realDelta90 != null ? realDelta90 : 0,
+      delta7D: (hasRealFollowerHistory || useWindowAggregates) && followersDelta7 != null ? followersDelta7 : 0,
+      delta30D: (hasRealFollowerHistory || useWindowAggregates) && followersDelta30 != null ? followersDelta30 : 0,
+      delta90D: (hasRealFollowerHistory || useWindowAggregates) && followersDelta90 != null ? followersDelta90 : 0,
       signal: "good",
       insight: hasRealFollowerHistory ? "From X profile sync" : "Sync from Integrations to see trends",
       sparklineData: followerSparklineFromSnapshots,
@@ -414,6 +437,15 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           </motion.button>
         )}
 
+        {windowSummary?.is_backfilling && (profile?.twitter_username ?? "").toString().trim() ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground"
+          >
+            Backfilling your last 90 days. 7D/30D/90D windows will update when ready. You can sync from Integrations to refresh.
+          </motion.div>
+        ) : null}
         {/* A) Sticky Analytics Context Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}

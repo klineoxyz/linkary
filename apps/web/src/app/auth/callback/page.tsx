@@ -117,6 +117,23 @@ export default function AuthCallbackPage() {
                 ...(displayName != null ? { display_name: displayName } : {}),
               });
             }
+            const session = sessionData?.session as { provider_token?: string; provider_refresh_token?: string } | undefined;
+            try {
+              await fetch(`${window.location.origin}/api/auth/persist-social`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionData?.session?.access_token ?? ""}` },
+                body: JSON.stringify({
+                  provider: "x",
+                  provider_token: session?.provider_token ?? undefined,
+                  provider_refresh_token: session?.provider_refresh_token ?? undefined,
+                  provider_user_id: identity.id ?? identity.sub,
+                  username: identity.user_name ?? identity.preferred_username ?? identity.username,
+                  profile_json: { name: identity.name, avatar_url: identity.avatar_url },
+                }),
+              });
+            } catch {
+              /* non-blocking */
+            }
           }
           if (!cancelled) {
             setStatus("ok");
@@ -143,6 +160,23 @@ export default function AuthCallbackPage() {
                 const bio = identity.description?.trim() || null;
                 const displayName = identity.name?.trim() || null;
                 await updateMyProfile(session.user.id, { ...(bio != null ? { bio } : {}), ...(displayName != null ? { display_name: displayName } : {}) });
+              }
+              const sess = session as { provider_token?: string; provider_refresh_token?: string };
+              try {
+                await fetch(`${window.location.origin}/api/auth/persist-social`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+                  body: JSON.stringify({
+                    provider: "x",
+                    provider_token: sess?.provider_token ?? undefined,
+                    provider_refresh_token: sess?.provider_refresh_token ?? undefined,
+                    provider_user_id: identity.id ?? identity.sub,
+                    username: identity.user_name ?? identity.preferred_username ?? identity.username,
+                    profile_json: { name: identity.name, avatar_url: identity.avatar_url },
+                  }),
+                });
+              } catch {
+                /* non-blocking */
               }
             }
             if (!cancelled) {

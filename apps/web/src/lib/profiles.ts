@@ -187,13 +187,14 @@ export async function saveTwitterIdentityFromOAuth(
   return { error: null };
 }
 
-/** Disconnect X: clear twitter_connected_at and twitter_user_id (UI-level only). */
+/** Disconnect X: clear connection state so Integrations shows "Connect X" until user reconnects. */
 export async function disconnectTwitter(userId: string): Promise<{ error: string | null }> {
   const { error } = await supabase
     .from(PROFILES)
     .update({
       twitter_connected_at: null,
       twitter_user_id: null,
+      twitter_username: null,
     })
     .eq("id", userId);
   return { error: error?.message ?? null };

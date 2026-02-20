@@ -52,11 +52,15 @@ export default function SendTxPanel({ address, getToken }: SendTxPanelProps) {
         return j.address;
       }
       setResolvedAddress(null);
-      setError(j.error || "Handle not found");
+      setError(
+        "This handle is not registered on Linkary. Double-check the username or send to their wallet address (0x...) instead."
+      );
       return null;
     } catch {
       setResolvedAddress(null);
-      setError("Could not resolve handle");
+      setError(
+        "Could not look up this handle. Double-check the username or send to their wallet address (0x...) instead."
+      );
       return null;
     } finally {
       setResolving(false);
@@ -145,6 +149,9 @@ export default function SendTxPanel({ address, getToken }: SendTxPanelProps) {
           {resolving && <p className="text-xs text-muted-foreground mt-1">Resolving handle…</p>}
           {resolvedAddress && isHandle && (
             <p className="text-xs text-muted-foreground mt-1 font-mono">Resolved to: {resolvedAddress.slice(0, 10)}…{resolvedAddress.slice(-8)}</p>
+          )}
+          {isHandle && !resolvedAddress && !resolving && !error && (
+            <p className="text-xs text-muted-foreground mt-1">Not on Linkary? Enter their wallet address (0x...) to send.</p>
           )}
         </div>
         <div>

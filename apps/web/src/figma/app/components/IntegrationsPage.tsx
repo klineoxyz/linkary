@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getMyProfile, disconnectTwitter } from "@/lib/profiles";
-import { getXConnection, getXHandleFromSessionUser } from "@/lib/xAuth";
+import { getMyXConnection, type MyXConnectionStatus } from "@/lib/xConnection";
 import { syncProfileFromX } from "@/lib/x-sync";
 import type { Profile } from "@/lib/profiles";
 
@@ -25,8 +25,7 @@ function formatSyncTime(iso: string): string {
 
 export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [xFromDb, setXFromDb] = useState<{ username: string | null } | null>(null);
-  const [sessionXHandle, setSessionXHandle] = useState<string | null>(null);
+  const [xStatus, setXStatus] = useState<MyXConnectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -40,75 +39,61 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     setProfile(p ?? null);
   };
 
-  useEffect(() => {
+  const loadIntegrations = async (isRetry = false) => {
     if (!userId) {
       setLoading(false);
       return;
     }
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const handleFromSession = getXHandleFromSessionUser(session?.user ?? null);
-      setSessionXHandle(handleFromSession);
+    setError(null);
+    const { data: { user } } = await supabase.auth.getUser();
+    const [p, status] = await Promise.all([
+      getMyProfile(userId),
+      getMyXConnection(userId, user ?? undefined),
+    ]);
+    setProfile(p ?? null);
+    setXStatus(status);
 
-      const [p, conn] = await Promise.all([
-        getMyProfile(userId),
-        getXConnection(userId),
-      ]);
-      setProfile(p ?? null);
-      let resolvedConn = conn;
-
-      const hasProfileX = !!(p?.twitter_username || p?.twitter_connected_at || p?.twitter_user_id);
-      if (!resolvedConn && (hasProfileX || handleFromSession)) {
-        try {
-          const token = session?.access_token;
-          if (token) {
-            const base = typeof window !== "undefined" ? window.location.origin : "";
-            const res = await fetch(`${base}/api/auth/sync-session-x`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (res.ok) {
-              const body = await res.json().catch(() => ({}));
-              setTwitterUsernameConflict(Boolean(body?.twitterUsernameConflict));
-              const again = await getXConnection(userId);
-              resolvedConn = again ?? null;
-              const updated = await getMyProfile(userId);
-              setProfile(updated ?? null);
-            }
+    if (status.connected && status.profileStale && user?.id) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (token) {
+          const base = typeof window !== "undefined" ? window.location.origin : "";
+          const res = await fetch(`${base}/api/auth/sync-session-x`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const body = await res.json().catch(() => ({}));
+            setTwitterUsernameConflict(Boolean(body?.twitterUsernameConflict));
+            const [updatedProfile, updatedStatus] = await Promise.all([
+              getMyProfile(userId),
+              getMyXConnection(userId, user),
+            ]);
+            setProfile(updatedProfile ?? null);
+            setXStatus(updatedStatus);
           }
-        } catch {
-          /* ignore */
         }
+      } catch {
+        /* non-blocking */
       }
-      if (!resolvedConn && hasProfileX) {
-        try {
-          const token = session?.access_token;
-          if (token) {
-            const base = typeof window !== "undefined" ? window.location.origin : "";
-            const res = await fetch(`${base}/api/auth/ensure-social-from-profile`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (res.ok) {
-              const again = await getXConnection(userId);
-              resolvedConn = again ?? resolvedConn;
-            }
-          }
-        } catch {
-          /* ignore */
-        }
-      }
+    }
 
-      setXFromDb(resolvedConn ? { username: resolvedConn.username ?? null } : null);
+    if (!isRetry && !status.connected) {
+      setTimeout(() => loadIntegrations(true), 500);
       setLoading(false);
-    })();
+      return;
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadIntegrations();
   }, [userId]);
 
   const handleConnectX = async () => {
     setError(null);
     setConnecting(true);
-    // Use exact callback URL (no query) so it matches Supabase Redirect URLs allow list.
-    const redirectTo = AUTH_CALLBACK;
     try {
       sessionStorage.setItem("linkary_oauth_next", "/settings/integrations");
     } catch {
@@ -116,7 +101,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     }
     const { data, error: err } = await supabase.auth.signInWithOAuth({
       provider: "x",
-      options: { redirectTo },
+      options: { redirectTo: AUTH_CALLBACK },
     });
     setConnecting(false);
     if (err) {
@@ -134,39 +119,65 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     if (!userId) return;
     setError(null);
     setDisconnecting(true);
-    await supabase.from("social_accounts").update({ revoked_at: new Date().toISOString(), status: "revoked", updated_at: new Date().toISOString() }).eq("user_id", userId).eq("provider", "x");
-    const result = await disconnectTwitter(userId);
+    try {
+      await supabase
+        .from("social_accounts")
+        .update({
+          revoked_at: new Date().toISOString(),
+          status: "revoked",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId)
+        .eq("provider", "x");
+
+      const { data: identities } = await supabase.auth.getUserIdentities();
+      const xIdentity = identities?.identities?.find(
+        (i) => (i.provider ?? "").toLowerCase() === "twitter" || (i.provider ?? "").toLowerCase() === "x"
+      );
+      if (xIdentity && (identities?.identities?.length ?? 0) >= 2) {
+        await supabase.auth.unlinkIdentity(xIdentity);
+      }
+    } catch {
+      /* unlink may fail if only one identity; we still clear DB */
+    }
+
+    const result = await disconnectTwitter(userId, { clearUsername: false });
     setDisconnecting(false);
     if (result.error) {
       setError(result.error);
       return;
     }
     setTwitterUsernameConflict(false);
-    setXFromDb(null);
+    const { data: user } = (await supabase.auth.getUser()).data;
+    const status = await getMyXConnection(userId, user ?? undefined);
+    setXStatus(status);
     const updated = await getMyProfile(userId);
     setProfile(updated ?? null);
   };
 
-  const isConnected = Boolean(
-    sessionXHandle ??
-    xFromDb ??
-    profile?.twitter_connected_at ??
-    profile?.twitter_user_id ??
-    (profile?.twitter_username && String(profile.twitter_username).trim().length > 0)
-  );
-  const handle = xFromDb?.username ?? profile?.twitter_username ?? profile?.twitter_username_candidate ?? sessionXHandle ?? null;
+  const isConnected = xStatus?.connected ?? false;
+  const handle = xStatus?.username ?? profile?.twitter_username ?? profile?.twitter_username_candidate ?? null;
   const avatar = profile?.avatar_url ?? null;
+  const profileStale = xStatus?.profileStale ?? false;
 
   const handleSyncFromX = async () => {
     setSyncing(true);
     setError(null);
     const res = await syncProfileFromX();
     setSyncing(false);
-    if (res.ok) await refreshProfile();
-    else {
+    if (res.ok) {
+      await refreshProfile();
+      const { data: user } = (await supabase.auth.getUser()).data;
+      const status = await getMyXConnection(userId!, user ?? undefined);
+      setXStatus(status);
+    } else {
       const resObj = res as Record<string, unknown>;
       const errMsg = typeof resObj?.error === "string" ? resObj.error : "Sync failed";
-      setError(errMsg === "USERNAME_TAKEN_VERIFIED" ? "That X handle is already taken by a verified account. Your profile was updated; you can keep a different handle or contact support." : errMsg);
+      setError(
+        errMsg === "USERNAME_TAKEN_VERIFIED"
+          ? "That X handle is already taken by a verified account. Your profile was updated; you can keep a different handle or contact support."
+          : errMsg
+      );
     }
   };
 
@@ -184,7 +195,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
         <button
           type="button"
           onClick={goToLogin}
-          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90"
+          className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white font-medium"
         >
           Sign in
         </button>
@@ -194,7 +205,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
 
   return (
     <div className="max-w-2xl mx-auto p-6">
-        <button type="button" onClick={goToPreferences} className="text-sm text-zinc-500 hover:text-zinc-700 mb-6">
+      <button type="button" onClick={goToPreferences} className="text-sm text-zinc-500 hover:text-zinc-700 mb-6">
         {"\u2190"} Back to Preferences
       </button>
       <h1 className="text-2xl font-bold text-zinc-900 mb-2">Integrations</h1>
@@ -219,10 +230,21 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
               <div>
                 <h2 className="font-semibold text-zinc-900">X</h2>
                 <p className="text-sm text-zinc-500">
-                  {isConnected ? (handle != null ? "@" + String(handle).replace(/^@/, "") : "Connected") : "Connect for verification and profile link"}
+                  {loading
+                    ? "Loading…"
+                    : isConnected
+                      ? handle != null
+                        ? "@" + String(handle).replace(/^@/, "")
+                        : "Connected"
+                      : "Connect for verification and profile link"}
                   {showLastSynced ? (
                     <span className="block mt-1 text-xs text-zinc-400">
                       Synced {lastSyncedProfile !== "\u2014" ? lastSyncedProfile : lastSyncedTweets}
+                    </span>
+                  ) : null}
+                  {isConnected && profileStale && !loading ? (
+                    <span className="block mt-1 text-xs text-amber-600 dark:text-amber-400">
+                      Profile data out of sync. Use &quot;Sync X data&quot; below.
                     </span>
                   ) : null}
                 </p>
@@ -230,20 +252,35 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {isConnected ? (
+            {loading ? null : isConnected ? (
               <>
                 {avatar != null ? (
                   <img src={avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
                 ) : null}
-                <button type="button" onClick={handleSyncFromX} disabled={syncing} className="px-4 py-2 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50">
-                  {syncing ? "Syncing…" : "Sync from X"}
+                <button
+                  type="button"
+                  onClick={handleSyncFromX}
+                  disabled={syncing}
+                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+                >
+                  {syncing ? "Syncing…" : profileStale ? "Sync X data" : "Sync from X"}
                 </button>
-                <button type="button" onClick={handleDisconnectX} disabled={disconnecting} className="px-4 py-2 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50">
+                <button
+                  type="button"
+                  onClick={handleDisconnectX}
+                  disabled={disconnecting}
+                  className="px-4 py-2 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50"
+                >
                   {disconnecting ? "Disconnecting…" : "Disconnect"}
                 </button>
               </>
             ) : (
-              <button type="button" onClick={handleConnectX} disabled={connecting} className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 disabled:opacity-50">
+              <button
+                type="button"
+                onClick={handleConnectX}
+                disabled={connecting}
+                className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:opacity-90 disabled:opacity-50"
+              >
                 {connecting ? "Connecting…" : "Connect X"}
               </button>
             )}

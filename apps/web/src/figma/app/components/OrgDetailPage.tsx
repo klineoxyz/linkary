@@ -38,7 +38,7 @@ export default function OrgDetailPage({
   data,
 }: {
   setRoute: (r: { name: string; data?: any }) => void;
-  data?: { orgId?: string; slug?: string };
+  data?: { orgId?: string; slug?: string; showConnectXBanner?: boolean };
 }) {
   const orgId = data?.orgId ?? data?.slug;
   const [org, setOrg] = useState<Org | null>(null);

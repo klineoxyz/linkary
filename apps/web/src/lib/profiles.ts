@@ -199,15 +199,17 @@ export async function saveTwitterIdentityFromOAuth(
   return { error: null };
 }
 
-/** Disconnect X: clear connection state so Integrations shows "Connect X" until user reconnects. */
-export async function disconnectTwitter(userId: string): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from(PROFILES)
-    .update({
-      twitter_connected_at: null,
-      twitter_user_id: null,
-      twitter_username: null,
-    })
-    .eq("id", userId);
+/** Disconnect X: clear connection state. Does NOT clear twitter_username unless clearUsername is true (user may want to keep handle). */
+export async function disconnectTwitter(
+  userId: string,
+  options?: { clearUsername?: boolean }
+): Promise<{ error: string | null }> {
+  const updates: Record<string, unknown> = {
+    twitter_connected_at: null,
+    twitter_user_id: null,
+    twitter_username_candidate: null,
+  };
+  if (options?.clearUsername) updates.twitter_username = null;
+  const { error } = await supabase.from(PROFILES).update(updates).eq("id", userId);
   return { error: error?.message ?? null };
 }

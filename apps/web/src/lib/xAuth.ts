@@ -1,29 +1,13 @@
 /**
- * X (Twitter) connection state from DB and session. Use for "connected" everywhere.
+ * X (Twitter) connection state. Uses DB + identity truth from xConnection.
  */
-import { supabase } from "./supabase";
+import { getMyXConnection, getUserXIdentity } from "./xConnection";
+import type { User } from "@supabase/supabase-js";
 
-/** Extract X handle from Supabase auth user (session). Use so Integrations shows Connected when user signed in with X even if DB is not yet synced. */
+/** Extract X handle from Supabase auth user. Prefer getUserXIdentity from xConnection for full truth. */
 export function getXHandleFromSessionUser(user: unknown): string | null {
-  if (!user || typeof user !== "object") return null;
-  const u = user as { identities?: unknown[]; user_metadata?: Record<string, unknown> };
-  const identities = u.identities ?? [];
-  const twitter = identities.find((i) => {
-    const item = i as Record<string, unknown>;
-    const p = (item.provider as string)?.toLowerCase();
-    return p === "twitter" || p === "x";
-  }) as Record<string, unknown> | undefined;
-  const raw = (twitter ? (twitter.identity_data ?? twitter) : {}) as Record<string, unknown>;
-  const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
-  const isX = !!twitter || ["twitter", "x"].includes((meta.provider as string)?.toLowerCase());
-  if (!isX && Object.keys(raw).length === 0) return null;
-  const merged = { ...meta, ...raw };
-  const keys = ["user_name", "preferred_username", "username", "screen_name", "nickname"];
-  for (const k of keys) {
-    const v = merged[k];
-    if (typeof v === "string" && v.trim()) return v.trim().replace(/^@/, "");
-  }
-  return null;
+  const identity = getUserXIdentity(user as User | null);
+  return identity?.username ?? null;
 }
 
 export type XConnectionRow = {
@@ -38,8 +22,9 @@ export type XConnectionRow = {
   updated_at: string;
 };
 
-/** Get X connection from DB for current user. Use this to decide "connected" state. */
+/** Legacy: get X connection from social_accounts. Prefer getMyXConnection for "is connected" truth. */
 export async function getXConnection(userId: string): Promise<XConnectionRow | null> {
+  const { supabase } = await import("./supabase"); // dynamic to avoid circular deps if supabase ever imports xAuth
   const { data, error } = await supabase
     .from("social_accounts")
     .select("id, user_id, provider, provider_user_id, username, status, revoked_at, connected_at, updated_at")
@@ -52,17 +37,15 @@ export async function getXConnection(userId: string): Promise<XConnectionRow | n
   return row;
 }
 
-/** Check if user has X connected (DB truth). */
+/** Is X connected? Uses single source of truth (identity OR profile OR social_accounts). */
 export async function isXConnected(userId: string): Promise<boolean> {
-  const conn = await getXConnection(userId);
-  return !!conn;
+  const status = await getMyXConnection(userId);
+  return status.connected;
 }
 
 /**
- * Ensure X token is valid. If expired and refresh_token exists, refresh and update social_accounts.
- * Supabase does not expose a generic OAuth refresh for X; if we stored provider_refresh_token
- * we would need to call X's token endpoint. For now we only persist connection state;
- * token refresh can be added when X OAuth refresh flow is implemented.
+ * Ensure X token is valid. Supabase does not expose generic OAuth refresh for X.
+ * For now we only persist connection state.
  */
 export async function ensureValidXToken(_userId: string): Promise<{ valid: boolean; error?: string }> {
   return { valid: true };

@@ -40,8 +40,15 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     }
     setError(null);
     const base = typeof window !== "undefined" ? window.location.origin : "";
+
+    let token: string | null = null;
     const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    token = session?.access_token ?? null;
+    if (!token && typeof window !== "undefined") {
+      await new Promise((r) => setTimeout(r, 600));
+      const { data: { session: s2 } } = await supabase.auth.getSession();
+      token = s2?.access_token ?? null;
+    }
 
     const [p, clientSocial] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
     setProfile(p ?? null);
@@ -75,6 +82,14 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   useEffect(() => {
     loadIntegrations();
   }, [loadIntegrations]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) loadIntegrations();
+    });
+    return () => subscription?.unsubscribe();
+  }, [userId, loadIntegrations]);
 
   const handleConnectX = async () => {
     setError(null);

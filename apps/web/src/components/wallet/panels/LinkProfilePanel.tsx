@@ -121,7 +121,7 @@ export default function LinkProfilePanel() {
     if (handledOAuthSuccessRef.current) return;
     handledOAuthSuccessRef.current = true;
     setRecoveryError(null);
-    callMarkLinkedAndRefetch();
+    callMarkLinkedAndRefetch().finally(() => setRecoveryLinking(false));
   }, [oauthState?.status, oauthState, callMarkLinkedAndRefetch]);
 
   useEffect(() => {
@@ -181,13 +181,13 @@ export default function LinkProfilePanel() {
               type="button"
               onClick={async () => {
                 setRecoveryError(null);
+                handledOAuthSuccessRef.current = false;
                 setRecoveryLinking(true);
                 try {
                   await linkOAuth("x");
-                  await callMarkLinkedAndRefetch();
+                  // Success is handled in useEffect (oauthState.status === "success"); may redirect.
                 } catch {
                   setRecoveryError("Something went wrong. Please try again.");
-                } finally {
                   setRecoveryLinking(false);
                 }
               }}

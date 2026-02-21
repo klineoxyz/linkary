@@ -147,25 +147,49 @@ export default function AuthCallbackPage() {
             }
             const session = sessionData?.session as { provider_token?: string; provider_refresh_token?: string } | undefined;
             const token = sessionData?.session?.access_token ?? "";
-            try {
-              await fetch(`${window.location.origin}/api/auth/persist-social`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({
-                  provider: "x",
-                  provider_token: session?.provider_token ?? undefined,
-                  provider_refresh_token: session?.provider_refresh_token ?? undefined,
-                  provider_user_id: identity.id ?? identity.sub,
-                  username: identity.user_name ?? identity.preferred_username ?? identity.username,
-                  profile_json: { name: identity.name, avatar_url: identity.avatar_url },
-                }),
-              });
-            } catch {
-              /* non-blocking */
-            }
             if (token) {
+              const persistBody = {
+                provider: "x",
+                provider_token: session?.provider_token ?? undefined,
+                provider_refresh_token: session?.provider_refresh_token ?? undefined,
+                provider_user_id: identity.id ?? identity.sub,
+                username: identity.user_name ?? identity.preferred_username ?? identity.username,
+                profile_json: { name: identity.name, avatar_url: identity.avatar_url },
+              };
+              let persistOk = false;
+              for (let attempt = 0; attempt < 2 && !persistOk; attempt++) {
+                try {
+                  const persistRes = await fetch(`${window.location.origin}/api/auth/persist-social`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify(persistBody),
+                  });
+                  if (persistRes.ok) persistOk = true;
+                } catch {
+                  /* retry once below */
+                }
+              }
+              try {
+                await fetch(`${window.location.origin}/api/auth/ensure-social-x`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+              } catch {
+                /* non-blocking */
+              }
               fetch(`${window.location.origin}/api/analytics/ensure-backfill`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
-              fetch(`${window.location.origin}/api/auth/ensure-social-x`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+            }
+            if (!cancelled) {
+              setStatus("ok");
+              setMessage("Redirecting…");
+              let redirectUrl = redirectTo + (redirectTo.includes("?") ? "&" : "?") + "x_connected=1";
+              try {
+                if (sessionStorage.getItem("linkary_oauth_fallback") === "1") {
+                  sessionStorage.removeItem("linkary_oauth_fallback");
+                  redirectUrl += "&x_fallback=1";
+                }
+              } catch {
+                /* ignore */
+              }
+              window.location.href = redirectUrl;
+              return;
             }
           }
           if (!cancelled) {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getMyProfile, disconnectTwitter } from "@/lib/profiles";
 import { getMySocialAccountX } from "@/lib/socialAccounts";
@@ -24,6 +25,7 @@ function formatSyncTime(iso: string): string {
 }
 
 export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageProps) {
+  const searchParams = useSearchParams();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [socialX, setSocialX] = useState<Awaited<ReturnType<typeof getMySocialAccountX>> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,8 +34,9 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [twitterUsernameConflict, setTwitterUsernameConflict] = useState(false);
+  const [showFallbackNotice, setShowFallbackNotice] = useState(false);
 
-  // X "connected": GET /api/auth/social-x is source of truth. Fallback: getMySocialAccountX (RPC then table).
+  // X "connected": only trust GET /api/auth/social-x. Keep trying to get token so we never show "Connect X" before the API has run.
   const loadIntegrations = useCallback(async () => {
     if (!userId) {
       setLoading(false);
@@ -43,11 +46,11 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     const base = typeof window !== "undefined" ? window.location.origin : "";
 
     let token: string | null = null;
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 12; i++) {
       const { data: { session } } = await supabase.auth.getSession();
       token = session?.access_token ?? null;
       if (token) break;
-      if (typeof window !== "undefined" && i < 2) await new Promise((r) => setTimeout(r, 800));
+      if (typeof window !== "undefined") await new Promise((r) => setTimeout(r, 500));
     }
 
     const [p, clientSocial] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
@@ -60,15 +63,34 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
         /* non-blocking */
       }
       try {
-        const res = await fetch(`${base}/api/auth/social-x`, { headers: { Authorization: `Bearer ${t}` }, credentials: "include" });
+        let res = await fetch(`${base}/api/auth/social-x`, { headers: { Authorization: `Bearer ${t}` }, credentials: "include" });
         if (res.ok) {
           const apiSocial = await res.json();
-          setSocialX({
-            connected: !!apiSocial.connected,
-            username: apiSocial.username ?? null,
-            provider_user_id: apiSocial.provider_user_id ?? null,
-          });
-          return true;
+          if (apiSocial.connected) {
+            setSocialX({
+              connected: true,
+              username: apiSocial.username ?? null,
+              provider_user_id: apiSocial.provider_user_id ?? null,
+            });
+            return true;
+          }
+          try {
+            await fetch(`${base}/api/auth/sync-session-x`, { method: "POST", headers: { Authorization: `Bearer ${t}` } });
+            res = await fetch(`${base}/api/auth/social-x`, { headers: { Authorization: `Bearer ${t}` }, credentials: "include" });
+            if (res.ok) {
+              const again = await res.json();
+              if (again.connected) {
+                setSocialX({
+                  connected: true,
+                  username: again.username ?? null,
+                  provider_user_id: again.provider_user_id ?? null,
+                });
+                return true;
+              }
+            }
+          } catch {
+            /* ignore */
+          }
         }
       } catch {
         /* ignore */
@@ -79,16 +101,6 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     if (token && (await tryApi(token))) {
       setLoading(false);
       return;
-    }
-
-    if (!token && typeof window !== "undefined") {
-      await new Promise((r) => setTimeout(r, 1200));
-      const { data: { session } } = await supabase.auth.getSession();
-      token = session?.access_token ?? null;
-      if (token && (await tryApi(token))) {
-        setLoading(false);
-        return;
-      }
     }
 
     setSocialX((prev) => (prev?.connected ? prev : clientSocial));
@@ -107,6 +119,41 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     return () => subscription?.unsubscribe();
   }, [userId, loadIntegrations]);
 
+  useEffect(() => {
+    if (searchParams.get("x_fallback") === "1") {
+      setShowFallbackNotice(true);
+      if (typeof window !== "undefined" && window.history.replaceState) {
+        const u = new URL(window.location.href);
+        u.searchParams.delete("x_fallback");
+        window.history.replaceState({}, "", u.pathname + (u.search || ""));
+      }
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get("x_connected") !== "1" || !userId) return;
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    (async () => {
+      await supabase.auth.refreshSession();
+      if (cancelled) return;
+      await new Promise((r) => setTimeout(r, 500));
+      if (cancelled) return;
+      loadIntegrations();
+      timers.push(setTimeout(() => { if (!cancelled) loadIntegrations(); }, 1200));
+      timers.push(setTimeout(() => { if (!cancelled) loadIntegrations(); }, 2400));
+      if (typeof window !== "undefined" && window.history.replaceState) {
+        const u = new URL(window.location.href);
+        u.searchParams.delete("x_connected");
+        window.history.replaceState({}, "", u.pathname + (u.search || ""));
+      }
+    })();
+    return () => {
+      cancelled = true;
+      timers.forEach((t) => clearTimeout(t));
+    };
+  }, [searchParams, userId, loadIntegrations]);
+
   const handleConnectX = async () => {
     setError(null);
     setConnecting(true);
@@ -115,10 +162,37 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     } catch {
       /* ignore */
     }
-    const { data, error: err } = await supabase.auth.signInWithOAuth({
-      provider: "x",
-      options: { redirectTo: AUTH_CALLBACK },
-    });
+    // Supabase Auth uses provider "twitter" for X/Twitter OAuth
+    const oauthOpts = { provider: "twitter" as const, options: { redirectTo: AUTH_CALLBACK } };
+    const auth = supabase.auth as { linkIdentity?: (opts: { provider: string; options?: { redirectTo?: string } }) => Promise<{ data: { url?: string }; error: { message: string } | null }>; signInWithOAuth: (opts: { provider: string; options?: { redirectTo?: string } }) => Promise<{ data: { url?: string }; error: { message: string } | null }> };
+    let data: { url?: string } | null = null;
+    let err: { message: string } | null = null;
+    if (userId && auth.linkIdentity) {
+      const result = await auth.linkIdentity(oauthOpts);
+      data = result.data;
+      err = result.error;
+      if (err) {
+        try {
+          sessionStorage.setItem("linkary_oauth_fallback", "1");
+        } catch {
+          /* ignore */
+        }
+        const { data: fallbackData, error: fallbackErr } = await supabase.auth.signInWithOAuth(oauthOpts);
+        if (!fallbackErr && fallbackData?.url) {
+          window.location.href = fallbackData.url;
+          return;
+        }
+        try {
+          sessionStorage.removeItem("linkary_oauth_fallback");
+        } catch {
+          /* ignore */
+        }
+      }
+    } else {
+      const result = await supabase.auth.signInWithOAuth(oauthOpts);
+      data = result.data;
+      err = result.error;
+    }
     setConnecting(false);
     if (err) {
       setError(err.message);
@@ -128,7 +202,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       window.location.href = data.url;
       return;
     }
-    setError("Could not start X sign-in. Check that Twitter is enabled in Supabase Auth.");
+    setError("Could not start X connection. Try again.");
   };
 
   const handleDisconnectX = async () => {
@@ -256,6 +330,14 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
           {error}
         </div>
       ) : null}
+      {showFallbackNotice ? (
+        <div className="mb-6 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-sm flex items-start justify-between gap-2">
+          <p>
+            You signed in with X instead of linking to this account. To have one account for CDP and X, enable <strong>Allow manual linking</strong> in Supabase Dashboard → Authentication → User Signups, then click Connect X again here.
+          </p>
+          <button type="button" onClick={() => setShowFallbackNotice(false)} className="shrink-0 text-amber-700 hover:text-amber-900 font-medium" aria-label="Dismiss">Dismiss</button>
+        </div>
+      ) : null}
       {twitterUsernameConflict ? (
         <div className="mb-6 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-sm">
           Your connected X account differs from your stored handle. We kept your existing handle; the connected account is saved as a suggestion. You can disconnect and reconnect with the correct account, or keep your current handle.
@@ -311,16 +393,30 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
                 </button>
               </>
             ) : (
-              <button
-                type="button"
-                onClick={handleConnectX}
-                disabled={connecting}
-                className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:opacity-90 disabled:opacity-50"
-              >
-                {connecting ? "Connecting…" : "Connect X"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleConnectX}
+                  disabled={connecting}
+                  className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:opacity-90 disabled:opacity-50"
+                >
+                  {connecting ? "Connecting…" : "Connect X"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setLoading(true); loadIntegrations(); }}
+                  className="px-3 py-2 rounded-lg border border-zinc-300 text-zinc-600 text-sm font-medium hover:bg-zinc-50"
+                >
+                  Refresh
+                </button>
+              </div>
             )}
           </div>
+          {!loading && !isConnected && (
+            <p className="mt-3 text-xs text-zinc-500">
+              To keep X connected when you sign in with CDP or email, enable <strong>Allow manual linking</strong> in Supabase Dashboard → Authentication → User Signups, then connect again.
+            </p>
+          )}
         </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-6 opacity-90">
           <div className="flex items-center justify-between gap-4 flex-wrap">

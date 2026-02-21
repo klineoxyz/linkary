@@ -5,16 +5,20 @@ import { Mail, Link2, Check, Phone, Smartphone } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type RecoveryMethods = {
-  email: boolean;
-  phone: boolean;
-  google: boolean;
-  x: boolean;
+  email?: boolean;
+  wallet_email?: boolean;
+  phone?: boolean;
+  google?: boolean;
+  x?: boolean;
 };
 
 type CdpStatus = {
   walletAddress?: string;
   address?: string;
   recoveryMethods?: RecoveryMethods;
+  profile_email_masked?: string;
+  wallet_email_masked?: string;
+  twitter_username?: string;
 };
 
 /** Mask email for display: first 2 chars of local part + **** + @domain. */
@@ -44,43 +48,57 @@ export default function LinkProfilePanel() {
 
   useEffect(() => {
     (async () => {
-      const { data: session } = await supabase.auth.getSession();
-      const token = session?.session?.access_token;
-      const uid = session?.session?.user?.id;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const uid = session?.user?.id;
       if (!token || !uid) {
         setLoading(false);
         return;
       }
       const base = typeof window !== "undefined" ? window.location.origin : "";
-      const res = await fetch(`${base}/api/wallet/cdp/status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const json = await res.json();
+      const [apiRes, profileRes] = await Promise.all([
+        fetch(`${base}/api/wallet/cdp/status`, { headers: { Authorization: `Bearer ${token}` } }),
+        supabase.from("profiles").select("email, twitter_username, twitter_username_candidate").eq("id", uid).maybeSingle(),
+      ]);
+      const r = profileRes.data as { email?: string | null; twitter_username?: string | null; twitter_username_candidate?: string | null } | null;
+      const profileEmailVal = (r?.email ?? "")?.toString().trim() || null;
+      const profileHandle = (r?.twitter_username ?? r?.twitter_username_candidate ?? "").toString().replace(/^@/, "").trim() || null;
+      if (apiRes.ok) {
+        const json = await apiRes.json();
         setStatus(json as CdpStatus);
+        const j = json as CdpStatus & { twitter_username?: string; profile_email_masked?: string };
+        setProfileEmail(j.profile_email_masked ?? profileEmailVal);
+        setXHandle((j.twitter_username ? String(j.twitter_username).replace(/^@/, "").trim() : null) ?? profileHandle);
+      } else {
+        setProfileEmail(profileEmailVal);
+        setXHandle(profileHandle);
+        const isWalletEmail = profileEmailVal && (profileEmailVal.includes("@wallet.") || /^0x[a-f0-9]+@/i.test(profileEmailVal));
+        setStatus({
+          recoveryMethods: {
+            email: !!profileEmailVal && !isWalletEmail,
+            wallet_email: !!isWalletEmail,
+            phone: false,
+            google: false,
+            x: !!profileHandle,
+          },
+          wallet_email_masked: isWalletEmail && profileEmailVal ? (profileEmailVal.slice(0, 6) + "…" + (profileEmailVal.includes("@") ? profileEmailVal.slice(profileEmailVal.indexOf("@")) : "")) : undefined,
+        });
       }
-      const { data: row } = await supabase
-        .from("profiles")
-        .select("email, twitter_username, twitter_username_candidate")
-        .eq("id", uid)
-        .maybeSingle();
-      const r = row as { email?: string | null; twitter_username?: string | null; twitter_username_candidate?: string | null } | null;
-      setProfileEmail((r?.email ?? "")?.toString().trim() || null);
-      const handle = (r?.twitter_username ?? r?.twitter_username_candidate ?? "").toString().replace(/^@/, "").trim();
-      setXHandle(handle || null);
       setLoading(false);
     })();
   }, []);
 
-  const methods = status?.recoveryMethods ?? { email: false, phone: false, google: false, x: false };
+  const methods = status?.recoveryMethods ?? {};
   const walletAddress = status?.walletAddress ?? status?.address ?? null;
-  const hasAny = methods.email || methods.phone || methods.google || methods.x || !!walletAddress;
+  const hasWalletEmail = !!methods.wallet_email;
+  const hasAny = !!methods.email || !!methods.phone || !!methods.google || !!methods.x || !!walletAddress || hasWalletEmail;
+  const needsMore = hasAny && (!methods.email || !methods.x);
 
   return (
     <div className="space-y-4">
       <h3 className="text-base font-semibold">Link a profile</h3>
       <p className="text-sm text-muted-foreground">
-        Wallet is from Coinbase CDP. Add recovery methods in Settings → Integrations to claim and recover this wallet.
+        Wallet is from Coinbase CDP. Recovery methods below help you claim and recover this wallet.
       </p>
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -96,10 +114,16 @@ export default function LinkProfilePanel() {
               </span>
             )}
             {methods.email && (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700" title="Email linked">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700" title="Recovery email linked">
                 <Check className="h-3.5 w-3.5 shrink-0" />
                 <Mail className="h-3.5 w-3.5" />
                 Email{profileEmail ? ` (${maskEmail(profileEmail)})` : ""}
+              </span>
+            )}
+            {hasWalletEmail && (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground" title="Wallet email (from CDP)">
+                <Mail className="h-3.5 w-3.5 shrink-0" />
+                Wallet email{(status as CdpStatus & { wallet_email_masked?: string })?.wallet_email_masked ? ` (${(status as CdpStatus & { wallet_email_masked?: string }).wallet_email_masked})` : ""}
               </span>
             )}
             {methods.phone && (
@@ -125,9 +149,11 @@ export default function LinkProfilePanel() {
               <span className="text-xs text-muted-foreground">No recovery methods linked yet.</span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground pt-1">
-            Add X and email in Settings → Integrations to improve account recovery.
-          </p>
+          {needsMore && (
+            <p className="text-xs text-muted-foreground pt-1">
+              Add a recovery email and X in Settings → Integrations to improve account recovery.
+            </p>
+          )}
         </div>
       )}
     </div>

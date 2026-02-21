@@ -77,6 +77,14 @@ export default function OrgDetailPage({
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [dismissConnectXBanner, setDismissConnectXBanner] = useState(false);
+  const [membersWithProfiles, setMembersWithProfiles] = useState<Array<OrgMember & { profile?: { username: string | null; display_name: string | null; avatar_url: string | null } | null }>>([]);
+  const [membersLoadError, setMembersLoadError] = useState<string | null>(null);
+  const [memberUsername, setMemberUsername] = useState("");
+  const [memberRole, setMemberRole] = useState<"member" | "admin" | "owner">("member");
+  const [addMemberLoading, setAddMemberLoading] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  const [removeLoading, setRemoveLoading] = useState<Record<string, boolean>>({});
+  const [roleChangeLoading, setRoleChangeLoading] = useState<Record<string, boolean>>({});
 
   useEffect(() => void loadSession(), []);
   function loadSession() {
@@ -124,6 +132,119 @@ export default function OrgDetailPage({
       setLoading(false);
     })();
   }, [orgId, data?.orgId, userId]);
+
+  const fetchMembersWithProfiles = async () => {
+    if (!org?.id) return;
+    setMembersLoadError(null);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setMembersWithProfiles(members);
+      return;
+    }
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${origin}/api/orgs/${org.id}/members`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setMembersLoadError((err as { error?: string }).error ?? "Failed to load members");
+      setMembersWithProfiles(members);
+      return;
+    }
+    const data = await res.json();
+    setMembersWithProfiles(data.members ?? members);
+  };
+
+  useEffect(() => {
+    if (!org?.id || tab !== "members") return;
+    setMembersWithProfiles(members.map((m) => ({ ...m, profile: null })));
+    fetchMembersWithProfiles();
+  }, [org?.id, tab, members.length]);
+
+  const handleAddMember = async () => {
+    if (!org?.id || !memberUsername.trim()) return;
+    setMembersError(null);
+    setAddMemberLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setMembersError("Not signed in");
+      setAddMemberLoading(false);
+      return;
+    }
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${origin}/api/orgs/${org.id}/members`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ username: memberUsername.trim(), role: memberRole }),
+    });
+    const out = await res.json().catch(() => ({}));
+    setAddMemberLoading(false);
+    if (!res.ok) {
+      setMembersError((out as { error?: string }).error ?? "Failed to add member");
+      return;
+    }
+    setMemberUsername("");
+    setMembersError(null);
+    await fetchMembersWithProfiles();
+    await listOrgMembers(org.id).then(setMembers);
+  };
+
+  const handleRemoveMember = async (targetUserId: string) => {
+    if (!org?.id) return;
+    setRemoveLoading((prev) => ({ ...prev, [targetUserId]: true }));
+    setMembersError(null);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setMembersError("Not signed in");
+      setRemoveLoading((prev) => ({ ...prev, [targetUserId]: false }));
+      return;
+    }
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${origin}/api/orgs/${org.id}/members/${targetUserId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const out = await res.json().catch(() => ({}));
+    setRemoveLoading((prev) => ({ ...prev, [targetUserId]: false }));
+    if (!res.ok) {
+      setMembersError((out as { error?: string }).error ?? "Failed to remove");
+      return;
+    }
+    setMembersError(null);
+    await fetchMembersWithProfiles();
+    await listOrgMembers(org.id).then(setMembers);
+  };
+
+  const handleChangeRole = async (targetUserId: string, newRole: "member" | "admin" | "owner") => {
+    if (!org?.id) return;
+    setRoleChangeLoading((prev) => ({ ...prev, [targetUserId]: true }));
+    setMembersError(null);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setMembersError("Not signed in");
+      setRoleChangeLoading((prev) => ({ ...prev, [targetUserId]: false }));
+      return;
+    }
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${origin}/api/orgs/${org.id}/members/${targetUserId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ role: newRole }),
+    });
+    const out = await res.json().catch(() => ({}));
+    setRoleChangeLoading((prev) => ({ ...prev, [targetUserId]: false }));
+    if (!res.ok) {
+      setMembersError((out as { error?: string }).error ?? "Failed to update role");
+      return;
+    }
+    setMembersError(null);
+    await fetchMembersWithProfiles();
+    await listOrgMembers(org.id).then(setMembers);
+  };
 
   const handleInvite = async (type: "affiliate" | "ambassador") => {
     const handle = type === "affiliate" ? affiliateHandle.trim() : ambassadorHandle.trim();
@@ -245,16 +366,95 @@ export default function OrgDetailPage({
 
         <div className="p-6">
           {tab === "members" && (
-            <div className="space-y-3">
-              {members.length === 0 ? (
+            <div className="space-y-4">
+              {membersLoadError && (
+                <p className="text-sm text-destructive">{membersLoadError}</p>
+              )}
+              {admin && (
+                <div className="flex flex-wrap items-end gap-2 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+                  <div className="min-w-[140px]">
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">Username or @handle</label>
+                    <input
+                      type="text"
+                      value={memberUsername}
+                      onChange={(e) => { setMemberUsername(e.target.value); setMembersError(null); }}
+                      placeholder="alice"
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">Role</label>
+                    <select
+                      value={memberRole}
+                      onChange={(e) => setMemberRole(e.target.value as "member" | "admin" | "owner")}
+                      className="px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
+                    >
+                      <option value="member">Member</option>
+                      <option value="admin">Admin</option>
+                      <option value="owner">Owner</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddMember}
+                    disabled={addMemberLoading || !memberUsername.trim()}
+                    className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm disabled:opacity-50"
+                  >
+                    {addMemberLoading ? "Adding…" : "Add member"}
+                  </button>
+                  {membersError && <p className="text-sm text-destructive w-full">{membersError}</p>}
+                </div>
+              )}
+              {membersWithProfiles.length === 0 && !membersLoadError ? (
                 <p className="text-zinc-500 text-sm">No members yet.</p>
               ) : (
-                members.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-                    <span className="font-mono text-sm text-zinc-600 dark:text-zinc-400">{m.user_id}</span>
-                    <span className="text-xs px-2 py-1 rounded-full bg-accent text-primary">{m.role}</span>
-                  </div>
-                ))
+                <ul className="space-y-0">
+                  {membersWithProfiles.map((m) => (
+                    <li key={m.id} className="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0 gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {m.profile?.avatar_url ? (
+                          <img src={m.profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                            {m.profile?.display_name || m.profile?.username || m.user_id}
+                          </p>
+                          <p className="text-xs text-zinc-500 truncate">
+                            {m.profile?.username ? `@${m.profile.username}` : m.user_id}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {admin ? (
+                          <select
+                            value={m.role}
+                            onChange={(e) => handleChangeRole(m.user_id, e.target.value as "member" | "admin" | "owner")}
+                            disabled={roleChangeLoading[m.user_id]}
+                            className="text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                          >
+                            <option value="member">Member</option>
+                            <option value="admin">Admin</option>
+                            <option value="owner">Owner</option>
+                          </select>
+                        ) : (
+                          <span className="text-xs px-2 py-1 rounded-full bg-accent text-primary">{m.role}</span>
+                        )}
+                        {(admin || userId === m.user_id) && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMember(m.user_id)}
+                            disabled={removeLoading[m.user_id]}
+                            className="text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-50"
+                          >
+                            {removeLoading[m.user_id] ? "…" : userId === m.user_id ? "Leave" : "Remove"}
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           )}

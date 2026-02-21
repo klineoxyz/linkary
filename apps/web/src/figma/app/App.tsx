@@ -932,23 +932,10 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="profileEdit" icon={FileText} label="Profile Builder" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Discover</span>
-        <div className="flex flex-col gap-1.5 lg:gap-2">
-          <NavLink name="explore" icon={Globe} label="Explore" />
-          <NavLink name="leaderboards" icon={Trophy} label="Leaderboards" />
-        </div>
-
         <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Work</span>
         <div className="flex flex-col gap-1.5 lg:gap-2">
-          <NavLink name="market" icon={Briefcase} label="Jobs & Sprints" badge="3" />
-          <NavLink name="messages" icon={MessageSquare} label="Messages" badge="2" />
-        </div>
-
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Circles & Networks</span>
-        <div className="flex flex-col gap-1.5 lg:gap-2">
-          <NavLink name="circles" icon={Target} label="Circles" />
-          <NavLink name="kolLists" icon={Users} label="KOL Lists" />
-          <NavLink name="capitalPartners" icon={Briefcase} label="Capital Partners" />
+          <NavLink name="market" icon={Briefcase} label="Jobs & Sprints" />
+          <NavLink name="messages" icon={MessageSquare} label="Messages" />
         </div>
 
         <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Analytics & Data</span>
@@ -1107,35 +1094,6 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
   );
 }
 
-// Lightweight overlay when a feature is not available — back button returns to previous route
-function routeToLabel(name) {
-  const labels = { overview: "Overview", landing: "Home", explore: "Explore", market: "Jobs & Sprints", profile: "My Profile", dashboard: "My Dashboard", calendar: "Calendar", leaderboards: "Leaderboards", messages: "Messages", circles: "Circles", analytics: "Analytics", verification: "Verification", privacy: "Privacy & Data", plansBilling: "Plans & Billing", hostDashboard: "X Spaces Hub", availability: "Availability" };
-  return labels[name] || name;
-}
-function ComingSoonModal({ onClose, previousRoute, setRoute }) {
-  const safePrevious = previousRoute?.name ? previousRoute : { name: "overview" };
-  const goBack = () => {
-    setRoute(safePrevious);
-    onClose();
-  };
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative rounded-2xl border border-border bg-card from-accent to-muted backdrop-blur-xl p-8 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-xl font-semibold text-zinc-900 mb-2">Not available yet</h2>
-        <p className="text-zinc-600 text-sm mb-6">This feature is not available in this release.</p>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={goBack} className="flex-1">
-            Back to {routeToLabel(safePrevious.name)}
-          </Button>
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // -----------------------------
 // Pages
 // -----------------------------
@@ -1165,7 +1123,7 @@ function OverviewPage({ setRoute, headerMedia }) {
             >
               <Users className="h-4 w-4 stroke-[1.75]" /> View Public Profile
             </Button>
-            <Button className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
+            <Button className="flex items-center gap-2" onClick={() => setRoute({ name: "overview" })}>
               <Plus className="h-4 w-4 stroke-[1.75]" /> New Sprint
             </Button>
             <Button variant="outline" onClick={() => setRoute({ name: "market" })}>
@@ -1276,7 +1234,7 @@ function OverviewPage({ setRoute, headerMedia }) {
               <p className="font-semibold line-clamp-2 mb-2" style={{ color: '#000000' }}>{e.title}</p>
               <div className="flex items-center justify-between">
                 <p className="text-xs" style={{ color: '#000000' }}>Host: {e.host}</p>
-                <Button size="sm" variant="outline" className="h-7 text-xs bg-black/20 border-black/30 hover:bg-black/30" style={{ color: '#000000' }} onClick={() => setRoute({ name: "comingSoon" })}>Join</Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs bg-black/20 border-black/30 hover:bg-black/30" style={{ color: '#000000' }} onClick={() => setRoute({ name: "overview" })}>Join</Button>
               </div>
               </div>
             </div>
@@ -1512,7 +1470,7 @@ function ExplorePage({ setRoute }) {
           <Filter className="h-4 w-4 stroke-[1.75]" /> Filters
         </Button>
         {tab === "blog" && (
-          <Button className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
+          <Button className="flex items-center gap-2" onClick={() => setRoute({ name: "overview" })}>
             <Plus className="h-4 w-4 stroke-[1.75]" /> Write Article
           </Button>
         )}
@@ -1611,7 +1569,7 @@ function ExplorePage({ setRoute }) {
               <FileText className="h-12 w-12 text-white mx-auto mb-4 stroke-[1.75]" />
               <h3 className="text-2xl font-bold text-white mb-2">Share Your Knowledge</h3>
               <p className="text-white/90 mb-6">Selected contributors can publish rich articles with images and reach thousands in the Web3 community</p>
-              <Button className="bg-white text-primary hover:bg-white/90" onClick={() => setRoute({ name: "comingSoon" })}>
+              <Button className="bg-white text-primary hover:bg-white/90" onClick={() => setRoute({ name: "overview" })}>
                 Apply to Write
               </Button>
             </div>
@@ -1660,7 +1618,7 @@ function ExplorePage({ setRoute }) {
                   <Stars value={c.reviews?.avg || 5} />
                   <span className="text-xs" style={{ color: '#404040' }}>({c.reviews?.count || 0})</span>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => setRoute({ name: "comingSoon" })}>Connect</Button>
+                <Button size="sm" variant="outline" onClick={() => setRoute({ name: "overview" })}>Connect</Button>
               </div>
             </Card>
           ))}
@@ -1742,12 +1700,8 @@ function MarketplacePage({ setRoute }) {
   }, []);
 
   const agencyOrgs = myOrgs.filter((o) => o.org_type === "agency");
-  const jobs = dbJobs.length > 0
-    ? dbJobs.filter((j) => j.type === "job" && (j.title + (j.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()))
-    : demo.marketplace.jobs.filter((x) => (x.title + x.org).toLowerCase().includes(q.toLowerCase()));
-  const sprints = dbJobs.length > 0
-    ? dbJobs.filter((j) => j.type === "sprint" && (j.title + (j.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()))
-    : demo.marketplace.sprints.filter((x) => (x.title + x.org).toLowerCase().includes(q.toLowerCase()));
+  const jobs = dbJobs.filter((j) => j.type === "job" && (j.title + (j.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()));
+  const sprints = dbJobs.filter((j) => j.type === "sprint" && (j.title + (j.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()));
 
   const handleApplySubmit = async () => {
     if (!applyJob || !userId || !profileId) return;
@@ -1809,6 +1763,11 @@ function MarketplacePage({ setRoute }) {
         </div>
       </div>
 
+      {(jobs.length === 0 && sprints.length === 0) ? (
+        <Card className="p-8 text-center">
+          <p className="text-zinc-600">No jobs or sprints yet. Check back later or create one from your org dashboard.</p>
+        </Card>
+      ) : (
       <div className="grid gap-6 lg:grid-cols-2">
         {(view === "all" || view === "jobs") && jobs.length > 0 && (
           <Card>
@@ -1838,7 +1797,7 @@ function MarketplacePage({ setRoute }) {
                       <p className="text-xs text-white/80">{(j.org?.name ?? j.org)} · {j.budget ?? ""} · {j.type ?? "job"}</p>
                       <p className="mt-2 text-xs text-white/70">{j.applicants != null ? j.applicants + " applicants" : ""}</p>
                     </div>
-                    <Button size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => (j.org_id ? setApplyJob(j) : setRoute({ name: "comingSoon" }))}>Apply</Button>
+                    <Button size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => (j.org_id ? setApplyJob(j) : setRoute({ name: "overview" }))}>Apply</Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(Array.isArray(j.tags) ? j.tags : []).map((t) => (
@@ -1904,7 +1863,7 @@ function MarketplacePage({ setRoute }) {
                       <p className="text-xs text-white/80">{(s.org?.name ?? s.org)} · {s.budget ?? ""} · {s.duration ?? ""}</p>
                       <p className="mt-2 text-xs text-white/70">{s.applicants != null ? s.applicants + " applicants" : ""}</p>
                     </div>
-                    <Button size="sm" variant="outline" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => (s.org_id ? setApplyJob(s) : setRoute({ name: "comingSoon" }))}>Apply</Button>
+                    <Button size="sm" variant="outline" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => (s.org_id ? setApplyJob(s) : setRoute({ name: "overview" }))}>Apply</Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(Array.isArray(s.tags) ? s.tags : []).map((t) => (
@@ -1921,6 +1880,7 @@ function MarketplacePage({ setRoute }) {
           </Card>
         )}
       </div>
+      )}
 
       {applyJob && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -2140,11 +2100,7 @@ function MessagesPage({ setRoute, initialConversationId }) {
     setSending(false);
   };
 
-  const fallbackConvs = [
-    { id: "1", name: "MatrixPay", last: "Great! Let's finalize the deliverables", time: "2m ago", unread: 1 },
-    { id: "2", name: "Gemini Labs", last: "When can you start?", time: "1h ago", unread: 0 },
-  ];
-  const list = conversations.length > 0 ? conversations : fallbackConvs;
+  const list = conversations;
 
   return (
     <div className="space-y-6">
@@ -2153,6 +2109,9 @@ function MessagesPage({ setRoute, initialConversationId }) {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card>
           <h3 className="font-semibold mb-4" style={{ color: '#000000' }}>Conversations</h3>
+          {list.length === 0 ? (
+            <p className="text-sm text-zinc-500 py-4">No conversations yet. Apply to a job or sprint to start one.</p>
+          ) : (
           <div className="space-y-2">
             {list.map((conv, idx) => {
               const bgImages = ['1557683316-973673baf926', '1579546929518-9e396f3cc809', '1557683311-eac922347aa1'];
@@ -2173,6 +2132,7 @@ function MessagesPage({ setRoute, initialConversationId }) {
               );
             })}
           </div>
+          )}
         </Card>
 
         <Card className="lg:col-span-2">
@@ -2323,10 +2283,10 @@ function ProfilePage({ setRoute, me }) {
               )}
             </>
           )}
-          <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
+          <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "overview" })}>
             <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Share
           </Button>
-          <Button className="flex items-center gap-2" onClick={() => setRoute({ name: "comingSoon" })}>
+          <Button className="flex items-center gap-2" onClick={() => setRoute({ name: "overview" })}>
             <UserPlus className="h-4 w-4" /> Connect
           </Button>
         </div>
@@ -2433,7 +2393,7 @@ function ProfilePage({ setRoute, me }) {
             <Card>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold" style={{ color: '#000000' }}>Featured Work</h3>
-                <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "comingSoon" })}>Add</Button>
+                <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "overview" })}>Add</Button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {u.featuredWork.map((work, idx) => (
@@ -2551,7 +2511,7 @@ function ProfilePage({ setRoute, me }) {
                   Received: {u.reviews.count} · Given: {u.reviews.given}
                 </p>
               </div>
-              <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "comingSoon" })}>Leave Review</Button>
+              <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "overview" })}>Leave Review</Button>
             </div>
             <div className="space-y-3">
               {u.reviews.items.map((r, idx) => (
@@ -2606,7 +2566,6 @@ export default function LinkaryApp() {
   const [previousRoute, setPreviousRoute] = useState({ name: "overview" });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreateCircle, setShowCreateCircle] = useState(false);
-  const [comingSoonOpen, setComingSoonOpen] = useState(false);
   const [authBootstrapped, setAuthBootstrapped] = useState(false);
   const [me, setMe] = useState(null);
   const [authUserId, setAuthUserId] = useState(null);
@@ -2623,8 +2582,7 @@ export default function LinkaryApp() {
 
   const setRoute = useCallback((r: { name: string; data?: any; handle?: string }) => {
     if (r.name === "comingSoon") {
-      setComingSoonOpen(true);
-      return;
+      r = { name: "overview" };
     }
     setPreviousRoute(route);
     setRouteState(r);
@@ -2735,6 +2693,13 @@ export default function LinkaryApp() {
   // Redirect removed routes (verification stubs) to overview
   useEffect(() => {
     if (route.name === "verification" || route.name === "verificationInbox") {
+      setRoute({ name: "overview" });
+    }
+  }, [route.name]);
+
+  const MOCK_ROUTES_REDIRECT_TO_OVERVIEW = ["circles", "circleDetail", "kolLists", "capitalPartners", "calendar", "leaderboards", "explore", "createCircle"];
+  useEffect(() => {
+    if (MOCK_ROUTES_REDIRECT_TO_OVERVIEW.includes(route.name)) {
       setRoute({ name: "overview" });
     }
   }, [route.name]);
@@ -3205,10 +3170,8 @@ export default function LinkaryApp() {
                 className="relative z-[10]"
               >
                 {route.name === "overview" && <OverviewPage setRoute={setRoute} headerMedia={headerMedia} />}
-                {route.name === "explore" && <ExplorePage setRoute={setRoute} />}
+                {["explore", "leaderboards", "calendar"].includes(route.name) && <OverviewPage setRoute={setRoute} headerMedia={headerMedia} />}
                 {route.name === "market" && <MarketplacePage setRoute={setRoute} />}
-                {route.name === "calendar" && <CalendarPage events={demo.events} />}
-                {route.name === "leaderboards" && <LeaderboardsPage setRoute={setRoute} />}
                 {route.name === "messages" && <MessagesPage setRoute={setRoute} initialConversationId={route.data?.conversationId} />}
                 {route.name === "login" && (
                   <LoginPage
@@ -3252,10 +3215,7 @@ export default function LinkaryApp() {
                 {route.name === "publicCreator" && <PublicStandalonePage profileType="individual" />}
                 {route.name === "publicProject" && <PublicStandalonePage profileType="project" />}
                 {route.name === "publicCompany" && <PublicProfileDemo type="company" />}
-                {route.name === "circles" && <CirclesOverviewPage setRoute={setRoute} />}
-                {route.name === "circleDetail" && <CircleDetailPage setRoute={setRoute} circleData={route.data} />}
-                {route.name === "kolLists" && <KOLListsPage setRoute={setRoute} />}
-                {route.name === "capitalPartners" && <CapitalPartnersPage setRoute={setRoute} />}
+                {["circles", "circleDetail", "kolLists", "capitalPartners"].includes(route.name) && <OverviewPage setRoute={setRoute} headerMedia={headerMedia} />}
                 {route.name === "monetizationShowcase" && <MonetizationShowcase setRoute={setRoute} />}
                 {route.name === "monetizationFlowShowcase" && <MonetizationFlowShowcase setRoute={setRoute} />}
                 {(route.name === "pricing" || route.name === "pricingRefined" || route.name === "billing" || route.name === "plansBilling") && (
@@ -3280,13 +3240,6 @@ export default function LinkaryApp() {
       )}
 
       {/* Not-available overlay — Back returns to previous route */}
-      {comingSoonOpen && (
-        <ComingSoonModal
-          onClose={() => setComingSoonOpen(false)}
-          previousRoute={previousRoute}
-          setRoute={(r) => { setRouteState(r); setComingSoonOpen(false); }}
-        />
-      )}
     </div>
   );
 }

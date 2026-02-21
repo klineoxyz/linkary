@@ -230,7 +230,7 @@ export default function UserProfilePage({
         title={u.name}
         right={
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute?.({ name: "comingSoon" })}>
+            <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute?.({ name: "overview" })}>
               <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Share
             </Button>
             <Button className="flex items-center gap-2" onClick={() => setRoute?.({ name: "profile" })}>

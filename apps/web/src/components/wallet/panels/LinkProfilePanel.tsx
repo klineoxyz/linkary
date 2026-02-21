@@ -76,9 +76,9 @@ export default function LinkProfilePanel() {
     const token = session?.access_token;
     if (!token) return;
     const apiRes = await fetch("/api/wallet/cdp/status", { headers: { Authorization: `Bearer ${token}` } });
-    if (apiRes.ok) {
-      const json = await apiRes.json();
-      applyStatusPayload(json as CdpStatus);
+    const json = await apiRes.json().catch(() => ({}));
+    if (json?.ok === true && json?.status) {
+      applyStatusPayload(json.status as CdpStatus);
     } else {
       applyStatusPayload(null);
     }
@@ -101,9 +101,9 @@ export default function LinkProfilePanel() {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.ok) {
-      const payload = (await res.json()) as CdpStatus;
-      applyStatusPayload(payload);
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json?.ok === true && json?.status) {
+      applyStatusPayload(json.status as CdpStatus);
     }
   }, [applyStatusPayload]);
 

@@ -14,7 +14,7 @@ function getToken(request: Request): string | null {
 export async function GET(request: Request) {
   const token = getToken(request);
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -22,14 +22,14 @@ export async function GET(request: Request) {
   });
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
   if (userError || !user?.id) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    return NextResponse.json({ ok: false, error: "Invalid session" }, { status: 401 });
   }
 
   try {
     const status = await buildCdpStatus(supabase, { id: user.id, email: user.email });
-    return NextResponse.json(status);
+    return NextResponse.json({ ok: true, status });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Profile lookup failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

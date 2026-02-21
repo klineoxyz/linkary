@@ -20,7 +20,7 @@ function getToken(request: Request): string | null {
 export async function POST(request: Request) {
   const token = getToken(request);
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -43,14 +43,14 @@ export async function POST(request: Request) {
   );
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
   try {
     const status = await buildCdpStatus(supabase, { id: user.id, email: user.email });
-    return NextResponse.json(status);
+    return NextResponse.json({ ok: true, status });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Status build failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

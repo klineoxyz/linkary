@@ -38,7 +38,7 @@ export async function buildCdpStatus(
     throw new Error("Profile lookup failed");
   }
 
-  const address = (profile?.cdp_wallet_address as string) ?? null;
+  const profileWalletAddress = (profile?.cdp_wallet_address as string) ?? null;
   const chain = (profile?.cdp_wallet_chain as string) ?? "base";
 
   const { data: cdpWalletRow } = await supabase
@@ -47,9 +47,12 @@ export async function buildCdpStatus(
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const cdpAddress = (cdpWalletRow as { wallet_address?: string } | null)?.wallet_address ?? address;
+  // Prefer cdp_wallets.wallet_address, fallback profiles.cdp_wallet_address
+  const walletAddress =
+    (cdpWalletRow as { wallet_address?: string } | null)?.wallet_address ?? profileWalletAddress;
   const recoveryVerifiedAt = (cdpWalletRow as { recovery_verified_at?: string | null } | null)?.recovery_verified_at ?? null;
 
+  // Active X/twitter: social_accounts with status=connected, not revoked
   const { data: socialRows } = await supabase
     .from("social_accounts")
     .select("username, status, revoked_at")
@@ -60,44 +63,51 @@ export async function buildCdpStatus(
     .limit(1);
 
   const socialX = Array.isArray(socialRows) ? socialRows[0] : socialRows;
+  const socialActive = socialX && (socialX as { status?: string }).status === "connected";
   const hasX =
-    !!(socialX && (socialX as { status?: string }).status === "connected") ||
+    !!socialActive ||
     !!(
       (profile?.twitter_username as string)?.trim() ||
       (profile?.twitter_username_candidate as string)?.trim()
     );
-  const authEmail = (user.email ?? "").toString().trim();
-  const profileEmail = (profile?.email as string) ?? "";
-  const isWalletLikeEmail = (e: string) => e.includes("@wallet.") || /^0x[a-f0-9]+@/i.test(e);
-  const hasRealEmail = !!(authEmail || profileEmail) && !isWalletLikeEmail(authEmail || profileEmail);
-  const displayEmail = (authEmail || profileEmail).trim();
-  const maskEmail = (e: string) => {
-    if (!e) return "";
-    const at = e.indexOf("@");
-    if (at <= 0) return e.slice(0, 2) + "****";
-    return e.slice(0, Math.min(2, at)) + "****" + e.slice(at);
-  };
-  const xUsername =
-    (socialX as { username?: string } | null)?.username?.replace(/^@/, "").trim() ||
+  // twitter_username order: social_accounts (active) -> profiles.twitter_username -> profiles.twitter_username_candidate
+  const xUsername = socialActive
+    ? (socialX as { username?: string } | null)?.username?.replace(/^@/, "").trim() || ""
+    : "";
+  const xUsernameResolved =
+    xUsername ||
     (profile?.twitter_username as string)?.replace(/^@/, "").trim() ||
     (profile?.twitter_username_candidate as string)?.replace(/^@/, "").trim() ||
     "";
 
+  const authEmail = (user.email ?? "").toString().trim();
+  const profileEmailRaw = (profile?.email as string) ?? "";
+  const displayEmailRaw = (authEmail || profileEmailRaw).trim();
+  const isWalletLikeEmail = (e: string) => !e || e.includes("@wallet.") || /^0x[a-f0-9]+@/i.test(e);
+  const hasRealEmail = !!displayEmailRaw && displayEmailRaw.includes("@") && !isWalletLikeEmail(displayEmailRaw);
+  const maskEmail = (e: string) => {
+    if (!e || !e.includes("@")) return "";
+    const at = e.indexOf("@");
+    if (at <= 0) return e.slice(0, 2) + "****";
+    return e.slice(0, Math.min(2, at)) + "****" + e.slice(at);
+  };
+  const profile_email_masked = hasRealEmail ? maskEmail(displayEmailRaw) : undefined;
+
   return {
     enabled: true,
     chain,
-    address: cdpAddress ?? address ?? undefined,
-    needsCreate: !address && !cdpAddress,
-    walletAddress: (cdpAddress ?? address) ?? undefined,
+    address: walletAddress ?? undefined,
+    needsCreate: !walletAddress,
+    walletAddress: walletAddress ?? undefined,
     recoveryMethods: {
       email: hasRealEmail,
       phone: false,
       google: false,
       x: hasX,
-      wallet: !!(address || cdpAddress),
+      wallet: !!walletAddress,
     },
     recovery_verified_at: recoveryVerifiedAt ?? undefined,
-    profile_email_masked: hasRealEmail ? maskEmail(displayEmail) : undefined,
-    twitter_username: hasX && xUsername ? xUsername : undefined,
+    profile_email_masked,
+    twitter_username: hasX && xUsernameResolved ? xUsernameResolved : undefined,
   };
 }

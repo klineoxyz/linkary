@@ -76,7 +76,7 @@ function LinkProfilePanelWithCdp() {
   const linkOAuth = linkResult.linkOAuth;
   const oauthState = linkResult.oauthState ?? signInResult.oauthState;
 
-  const hasCdpUser = currentUser != null || !!evmAddress;
+  const hasCdpUser = h.useCurrentUser ? (currentUser != null) : !!evmAddress;
 
   const [status, setStatus] = useState<CdpStatus | null>(null);
   const [profileEmail, setProfileEmail] = useState<string | null>(null);
@@ -88,6 +88,7 @@ function LinkProfilePanelWithCdp() {
   const [cdpAuthError, setCdpAuthError] = useState<string | null>(null);
   const [cdpSignInFailCount, setCdpSignInFailCount] = useState(0);
   const handledOAuthSuccessRef = useRef(false);
+  const lastOAuthActionRef = useRef<"signin" | "link" | null>(null);
 
   const applyStatusPayload = useCallback((payload: CdpStatus | null) => {
     if (!payload) {
@@ -139,6 +140,7 @@ function LinkProfilePanelWithCdp() {
 
   useEffect(() => {
     if (oauthState?.status === "error") {
+      lastOAuthActionRef.current = null;
       setRecoveryError("Linking was cancelled or failed. Please try again.");
       setRecoveryLinking(false);
       setCdpAuthError("CDP sign-in failed. Please try again.");
@@ -148,10 +150,12 @@ function LinkProfilePanelWithCdp() {
       return;
     }
     if (oauthState?.status !== "success") return;
+    if (lastOAuthActionRef.current !== "link") return;
     const provider = (oauthState as { providerType?: string })?.providerType;
     if (provider && provider !== "x") return;
     if (handledOAuthSuccessRef.current) return;
     handledOAuthSuccessRef.current = true;
+    lastOAuthActionRef.current = null;
     setRecoveryError(null);
     setCdpAuthError(null);
     callMarkLinked().finally(() => {
@@ -203,6 +207,7 @@ function LinkProfilePanelWithCdp() {
                   onClick={async () => {
                     setCdpAuthError(null);
                     setCdpAuthLoading(true);
+                    lastOAuthActionRef.current = "signin";
                     try {
                       await signInWithOAuth("x");
                     } catch (e) {
@@ -238,6 +243,7 @@ function LinkProfilePanelWithCdp() {
               onClick={async () => {
                 setRecoveryError(null);
                 handledOAuthSuccessRef.current = false;
+                lastOAuthActionRef.current = "link";
                 setRecoveryLinking(true);
                 try {
                   await linkOAuth("x");

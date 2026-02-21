@@ -29,7 +29,7 @@ import {
   type OrgAffiliation,
   type OrgAmbassador,
 } from "@/lib/orgs";
-import { listJobs, createJob } from "@/lib/jobs";
+import { listJobs, createJob, listApplicationsForJobs, type Application } from "@/lib/jobs";
 import { listCaseStudiesForOrg, createCaseStudyForOrg, type CaseStudy } from "@/lib/caseStudies";
 import { Briefcase } from "lucide-react";
 
@@ -49,6 +49,9 @@ export default function OrgDetailPage({
   const [ambassadors, setAmbassadors] = useState<OrgAmbassador[]>([]);
   const [metrics, setMetrics] = useState<{ combined_followers: number; avg_engagement_rate: number; potential_reach: number } | null>(null);
   const [orgJobs, setOrgJobs] = useState<any[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [acceptLoading, setAcceptLoading] = useState<string | null>(null);
+  const [closeJobLoading, setCloseJobLoading] = useState<string | null>(null);
   const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [admin, setAdmin] = useState(false);
@@ -122,7 +125,10 @@ export default function OrgDetailPage({
         setAffiliations(a);
         setAmbassadors(am);
         setMetrics(met ? { combined_followers: met.combined_followers, avg_engagement_rate: met.avg_engagement_rate, potential_reach: met.potential_reach } : null);
-        setOrgJobs((jobsAll ?? []).filter((j) => j.org_id === o.id));
+        const jobsForOrg = (jobsAll ?? []).filter((j: { org_id: string }) => j.org_id === o.id);
+        setOrgJobs(jobsForOrg);
+        const appList = jobsForOrg.length ? await listApplicationsForJobs(jobsForOrg.map((j: { id: string }) => j.id)) : [];
+        setApplications(appList);
         setCaseStudies(cs ?? []);
         if (userId) {
           const isAdmin = await isOrgAdmin(userId, o.id);
@@ -534,7 +540,7 @@ export default function OrgDetailPage({
           )}
 
           {tab === "jobs" && (
-            <div className="space-y-3">
+            <div className="space-y-6">
               {admin && (
                 <button
                   type="button"
@@ -547,21 +553,108 @@ export default function OrgDetailPage({
               {orgJobs.length === 0 ? (
                 <p className="text-zinc-500 text-sm">No jobs yet.</p>
               ) : (
-                orgJobs.map((j) => (
-                  <div key={j.id} className="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-                    <div>
-                      <p className="font-medium text-zinc-900 dark:text-zinc-100">{j.title}</p>
-                      <p className="text-xs text-zinc-500">{j.type} · {j.status}</p>
+                orgJobs.map((j) => {
+                  const jobApps = applications.filter((a) => a.job_id === j.id);
+                  const pending = jobApps.filter((a) => a.status === "pending");
+                  const accepted = jobApps.filter((a) => a.status === "accepted");
+                  const isOpen = j.status === "open";
+                  return (
+                    <div key={j.id} className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-3">
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div>
+                          <p className="font-medium text-zinc-900 dark:text-zinc-100">{j.title}</p>
+                          <p className="text-xs text-zinc-500">{j.type} · {j.status}{j.budget ? ` · ${j.budget}` : ""}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setRoute({ name: "market", data: { highlightJobId: j.id } })}
+                            className="text-sm text-primary hover:opacity-90"
+                          >
+                            View in Marketplace
+                          </button>
+                          {admin && isOpen && (
+                            <button
+                              type="button"
+                              disabled={!!closeJobLoading}
+                              onClick={async () => {
+                                if (!org?.id || !userId) return;
+                                setCloseJobLoading(j.id);
+                                try {
+                                  const { data: session } = await supabase.auth.getSession();
+                                  const token = session?.session?.access_token;
+                                  const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                  const res = await fetch(`${origin}/api/orgs/${org.id}/jobs/${j.id}`, {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                    body: JSON.stringify({ status: "completed" }),
+                                  });
+                                  if (res.ok) {
+                                    const all = await listJobs();
+                                    setOrgJobs((all ?? []).filter((job: { org_id: string }) => job.org_id === org.id));
+                                    const jobsForOrg = (all ?? []).filter((job: { org_id: string }) => job.org_id === org.id);
+                                    const appList = jobsForOrg.length ? await listApplicationsForJobs(jobsForOrg.map((job: { id: string }) => job.id)) : [];
+                                    setApplications(appList);
+                                  }
+                                } finally {
+                                  setCloseJobLoading(null);
+                                }
+                              }}
+                              className="text-sm px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-50"
+                            >
+                              {closeJobLoading === j.id ? "…" : "Close job"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {jobApps.length > 0 && (
+                        <div className="text-xs font-medium text-zinc-500 mt-2">Applicants ({pending.length} pending, {accepted.length} accepted)</div>
+                      )}
+                      {jobApps.map((app) => (
+                        <div key={app.id} className="flex items-center justify-between py-2 pl-3 border-l-2 border-zinc-200 dark:border-zinc-700">
+                          <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                            {app.applicant_type === "profile" ? `Profile ${app.applicant_profile_id ?? ""}` : `Org ${app.applicant_org_id ?? ""}`}
+                            {app.message ? ` · "${app.message.slice(0, 40)}${app.message.length > 40 ? "…" : ""}"` : ""}
+                          </span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{app.status}</span>
+                          {admin && app.status === "pending" && isOpen && (
+                            <button
+                              type="button"
+                              disabled={!!acceptLoading}
+                              onClick={async () => {
+                                if (!userId) return;
+                                setAcceptLoading(app.id);
+                                try {
+                                  const { data: session } = await supabase.auth.getSession();
+                                  const token = session?.session?.access_token;
+                                  const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                  const res = await fetch(`${origin}/api/applications/${app.id}/accept`, {
+                                    method: "POST",
+                                    headers: { Authorization: `Bearer ${token}` },
+                                  });
+                                  const json = await res.json().catch(() => ({}));
+                                  if (res.ok && json?.deal) {
+                                    const all = await listJobs();
+                                    setOrgJobs((all ?? []).filter((job: { org_id: string }) => job.org_id === org?.id));
+                                    const jobsForOrg = (all ?? []).filter((job: { org_id: string }) => job.org_id === org?.id);
+                                    const appList = jobsForOrg.length ? await listApplicationsForJobs(jobsForOrg.map((job: { id: string }) => job.id)) : [];
+                                    setApplications(appList);
+                                    if (json.deal?.id && setRoute) setRoute({ name: "dealDetail", data: { dealId: json.deal.id } });
+                                  }
+                                } finally {
+                                  setAcceptLoading(null);
+                                }
+                              }}
+                              className="text-xs px-2 py-1 rounded bg-primary text-white hover:opacity-90 disabled:opacity-50"
+                            >
+                              {acceptLoading === app.id ? "…" : "Accept"}
+                            </button>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setRoute({ name: "market", data: { highlightJobId: j.id } })}
-                      className="text-sm text-primary hover:opacity-90"
-                    >
-                      View in Marketplace
-                    </button>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
@@ -869,7 +962,10 @@ export default function OrgDetailPage({
                   setJobSaving(false);
                   if (!error) {
                     const all = await listJobs();
-                    setOrgJobs((all ?? []).filter((j) => j.org_id === org.id));
+                    const jobsForOrg = (all ?? []).filter((j) => j.org_id === org.id);
+                    setOrgJobs(jobsForOrg);
+                    const appList = jobsForOrg.length ? await listApplicationsForJobs(jobsForOrg.map((j) => j.id)) : [];
+                    setApplications(appList);
                     setShowCreateJobModal(false);
                     setJobTitle("");
                     setJobBudget("");

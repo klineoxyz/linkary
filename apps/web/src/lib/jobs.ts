@@ -117,3 +117,26 @@ export async function applyToJobAsOrg(
   if (error) return { data: null, error: error.message };
   return { data: { applicationId: (data as { id: string }).id }, error: null };
 }
+
+export type Application = {
+  id: string;
+  job_id: string;
+  applicant_type: "profile" | "org";
+  applicant_profile_id: string | null;
+  applicant_org_id: string | null;
+  message: string | null;
+  status: string;
+  created_at: string;
+};
+
+/** List applications for given job IDs (e.g. org's jobs). RLS: applications_select_public. */
+export async function listApplicationsForJobs(jobIds: string[]): Promise<Application[]> {
+  if (jobIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from(APPLICATIONS)
+    .select("id, job_id, applicant_type, applicant_profile_id, applicant_org_id, message, status, created_at")
+    .in("job_id", jobIds)
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  return (data ?? []) as Application[];
+}

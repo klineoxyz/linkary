@@ -141,6 +141,7 @@ import ComponentShowcase from "./components/ComponentShowcase";
 import CalendarPage from "./components/CalendarPage";
 import DashboardPage from "./components/DashboardPage";
 import OrgDetailPage from "./components/OrgDetailPage";
+import DealDetailPage from "./components/DealDetailPage";
 import AffiliationAmbassadorSection from "./components/AffiliationAmbassadorSection";
 import LoginPage from "./components/LoginPage";
 import OnboardingPage from "./components/OnboardingPage";
@@ -2693,7 +2694,7 @@ export default function LinkaryApp() {
   const ALLOWED_ROUTES = new Set([
     "landing", "overview", "dashboard", "profile", "profileEdit", "userProfile", "market", "messages",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding",
-    "orgDetail", "brandProfile", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
+    "orgDetail", "brandProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
   ]);
   useEffect(() => {
     if (!ALLOWED_ROUTES.has(route.name)) {
@@ -3200,6 +3201,7 @@ export default function LinkaryApp() {
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}
                 {route.name === "dashboard" && <DashboardPage setRoute={setRoute} />}
                 {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
+                {route.name === "dealDetail" && <DealDetailPage setRoute={setRoute} dealId={route.data?.dealId} />}
                 {route.name === "analytics" && <AnalyticsPage />}
                 {route.name === "privacy" && <PrivacyDataPage userId={authUserId} refreshMe={refreshMe} />}
                 {route.name === "terms" && <TermsOfServicePage setRoute={setRoute} />}

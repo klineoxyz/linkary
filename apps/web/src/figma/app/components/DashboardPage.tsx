@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "@/lib/supabase";
 import { listOrgsForUser, type Org } from "@/lib/orgs";
+import { listMyDeals, type Deal } from "@/lib/deals";
 import CreateOrgModal from "./CreateOrgModal";
 import {
   TrendingUp,
@@ -538,14 +539,20 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
   const [myOrgs, setMyOrgs] = useState<Org[]>([]);
   const [lastCreateOrgError, setLastCreateOrgError] = useState<string | null>(null);
   const [lastCreatedOrgId, setLastCreatedOrgId] = useState<string | null>(null);
+  const [myDeals, setMyDeals] = useState<Deal[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const uid = session?.user?.id ?? null;
       setUserId(uid);
       setUserEmail(session?.user?.email ?? null);
-      if (uid) listOrgsForUser(uid).then(setMyOrgs);
-      else setMyOrgs([]);
+      if (uid) {
+        listOrgsForUser(uid).then(setMyOrgs);
+        listMyDeals().then(setMyDeals);
+      } else {
+        setMyOrgs([]);
+        setMyDeals([]);
+      }
     });
   }, []);
 
@@ -748,6 +755,48 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
           </div>
         </div>
       </GlassCard>
+
+      {/* Active Deals */}
+      {userId && (
+        <GlassCard>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-primary stroke-[1.75]" />
+                Active Deals
+              </h3>
+              {myDeals.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setRoute && setRoute({ name: "market" })}
+                  className="text-sm text-primary hover:opacity-90"
+                >
+                  Jobs & Sprints
+                </button>
+              )}
+            </div>
+            {myDeals.length === 0 ? (
+              <p className="text-sm text-gray-600">No active deals. Apply to jobs in the marketplace.</p>
+            ) : (
+              <ul className="space-y-2">
+                {myDeals.slice(0, 10).map((deal) => (
+                  <li key={deal.id}>
+                    <button
+                      type="button"
+                      onClick={() => setRoute && setRoute({ name: "dealDetail", data: { dealId: deal.id } })}
+                      className="w-full text-left p-3 rounded-xl border border-border bg-card hover:border-border transition-all flex items-center justify-between gap-2"
+                    >
+                      <span className="text-sm font-medium text-gray-900 truncate">Deal {deal.id.slice(0, 8)}…</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-foreground shrink-0">{deal.status}</span>
+                      <ArrowRight className="w-4 h-4 text-gray-400 shrink-0" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </GlassCard>
+      )}
       
       {/* Profile Showcase */}
       <GlassCard>

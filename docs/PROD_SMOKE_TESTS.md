@@ -154,3 +154,23 @@ WHERE id = '<org_id>';
 
 - Direct visit or link to a **non-production** route (e.g. `/explore`, `/calendar`, `/circles`, `/showcase`) should redirect to **Overview**.
 - Only the routes in `docs/PRODUCTION_ROUTES_FINAL.md` (final list) should render real content; all others redirect to Overview.
+
+---
+
+## Marketplace (Phase 1) smoke tests
+
+1. **Org posts job** → Appears in org Jobs tab and in Marketplace (Jobs & Sprints) list.
+2. **Creator applies** → From Market, apply to job as profile; org sees applicant in Org detail → Jobs tab (pending).
+3. **Org accepts** → In Jobs tab, click Accept on one pending applicant → deal created, job status `accepted`, application status `accepted`; redirect to deal detail or dashboard.
+4. **Both sides view deal** → Creator: Dashboard “Active Deals” → click deal → Deal detail. Org: same (deals where user is org member).
+5. **Completion flow** → Creator marks delivered → org marks accepted → deal status `completed`; review flow still works (one review per side).
+6. **Close job (no hire)** → Org admin: Jobs tab → “Close job” on an open job → job status `completed`; no deal created.
+
+**SQL (recent deals)**
+
+```sql
+SELECT id, profile_id, org_id, job_id, status, delivered_at, accepted_at, completed_at, created_at
+FROM public.deals
+ORDER BY created_at DESC
+LIMIT 20;
+```

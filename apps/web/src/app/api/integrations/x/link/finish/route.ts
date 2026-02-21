@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  const identities = (currentUser as { identities?: Array<Record<string, unknown>> }).identities ?? [];
+  const identities = (currentUser as unknown as { identities?: Array<Record<string, unknown>> }).identities ?? [];
   const xIdentity = identities.find((i) => isXProvider(i.provider)) as Record<string, unknown> | undefined;
   if (!xIdentity) {
     return NextResponse.json(

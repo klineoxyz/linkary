@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
   const { data: socialRows, error: listError } = await supabase
     .from("social_accounts")
     .select("user_id, username")
-    .eq("provider", "x")
+    .in("provider", ["x", "twitter"])
     .is("revoked_at", null)
     .eq("status", "connected")
     .limit(BATCH_SIZE);

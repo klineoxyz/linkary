@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     .from("social_accounts")
     .select("id")
     .eq("user_id", user.id)
-    .eq("provider", "x")
+    .in("provider", ["x", "twitter"])
     .maybeSingle();
   if (existing) {
     return NextResponse.json({ ok: true, created: false });
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   const { error: upsertErr } = await supabase.from("social_accounts").upsert(
     {
       user_id: user.id,
-      provider: "x",
+      provider: "twitter",
       provider_user_id: (profile as { twitter_user_id?: string })?.twitter_user_id ?? null,
       username,
       access_token: null,

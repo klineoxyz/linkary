@@ -55,11 +55,9 @@ export async function GET(request: Request) {
     );
   const authEmail = (user.email ?? "").toString().trim();
   const profileEmail = (profile?.email as string) ?? "";
-  const hasEmail = !!(authEmail || profileEmail);
-  const isWalletEmail = (e: string) => e.includes("@wallet.") || /^0x[a-f0-9]+@/i.test(e);
-  const hasRealEmail = hasEmail && !isWalletEmail(authEmail || profileEmail);
+  const isWalletLikeEmail = (e: string) => e.includes("@wallet.") || /^0x[a-f0-9]+@/i.test(e);
+  const hasRealEmail = !!(authEmail || profileEmail) && !isWalletLikeEmail(authEmail || profileEmail);
   const displayEmail = (authEmail || profileEmail).trim();
-  const isWallet = displayEmail && isWalletEmail(displayEmail);
   const maskEmail = (e: string) => {
     if (!e) return "";
     const at = e.indexOf("@");
@@ -80,13 +78,12 @@ export async function GET(request: Request) {
     walletAddress: address ?? undefined,
     recoveryMethods: {
       email: hasRealEmail,
-      wallet_email: !!isWallet,
       phone: false,
       google: false,
       x: hasX,
+      wallet: !!address,
     },
     profile_email_masked: hasRealEmail ? maskEmail(displayEmail) : undefined,
-    wallet_email_masked: isWallet ? maskEmail(displayEmail) : undefined,
     twitter_username: hasX && xUsername ? xUsername : undefined,
   });
 }

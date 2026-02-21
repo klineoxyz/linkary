@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   const { error: upsertErr } = await supabase.from("social_accounts").upsert(
     {
       user_id: user.id,
-      provider: "x",
+      provider: "twitter",
       provider_user_id: providerUserId,
       username: username,
       access_token: body.provider_token ?? null,

@@ -128,8 +128,32 @@ export async function GET(request: Request) {
   );
   const likelyUidMismatch = !hasActiveAsUser && !!matchingRowOtherUser;
 
+  const profileId = (profile as { id?: string } | null)?.id ?? null;
+  const profileMissing = profile == null;
+  const profileIdMismatch = profile != null && profileId !== authUid;
+  const devBanner = profileMissing || profileIdMismatch;
+
+  let otherUsersWithSameX: { user_id: string; provider_user_id: string | null; username: string | null; provider: string }[] = [];
+  if (supabaseServiceKey && socialX_as_service?.provider_user_id) {
+    const service = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: sameProviderUser } = await service
+      .from("social_accounts")
+      .select("user_id, provider_user_id, username, provider")
+      .eq("provider_user_id", socialX_as_service.provider_user_id)
+      .in("provider", ["x", "twitter"])
+      .is("revoked_at", null)
+      .eq("status", "connected");
+    const rows = (sameProviderUser ?? []) as { user_id: string; provider_user_id: string | null; username: string | null; provider: string }[];
+    otherUsersWithSameX = rows.filter((r) => r.user_id !== authUid);
+  }
+
   return NextResponse.json({
     auth: { authUid, authEmail },
+    profileId,
+    profileMissing,
+    profileIdMismatch,
+    devBanner,
+    otherUsersWithSameX,
     profile: profile
       ? {
           id: (profile as { id?: string }).id,
@@ -152,6 +176,9 @@ export async function GET(request: Request) {
       rlsBlocking,
       likelyUidMismatch,
       handleSource,
+      profileMissing,
+      profileIdMismatch,
+      devBanner,
       matchingRowOtherUser: matchingRowOtherUser
         ? { user_id: matchingRowOtherUser.user_id, username: matchingRowOtherUser.username, provider: matchingRowOtherUser.provider }
         : null,

@@ -6,10 +6,10 @@ import { supabase } from "@/lib/supabase";
 
 type RecoveryMethods = {
   email?: boolean;
-  wallet_email?: boolean;
   phone?: boolean;
   google?: boolean;
   x?: boolean;
+  wallet?: boolean;
 };
 
 type CdpStatus = {
@@ -17,7 +17,6 @@ type CdpStatus = {
   address?: string;
   recoveryMethods?: RecoveryMethods;
   profile_email_masked?: string;
-  wallet_email_masked?: string;
   twitter_username?: string;
 };
 
@@ -70,18 +69,16 @@ export default function LinkProfilePanel() {
         setProfileEmail(j.profile_email_masked ?? profileEmailVal);
         setXHandle((j.twitter_username ? String(j.twitter_username).replace(/^@/, "").trim() : null) ?? profileHandle);
       } else {
-        setProfileEmail(profileEmailVal);
+        setProfileEmail(profileEmailVal && !/^0x[a-f0-9]+@/i.test(profileEmailVal) && !profileEmailVal.includes("@wallet.") ? profileEmailVal : null);
         setXHandle(profileHandle);
-        const isWalletEmail = profileEmailVal && (profileEmailVal.includes("@wallet.") || /^0x[a-f0-9]+@/i.test(profileEmailVal));
         setStatus({
           recoveryMethods: {
-            email: !!profileEmailVal && !isWalletEmail,
-            wallet_email: !!isWalletEmail,
+            email: !!profileEmailVal && !profileEmailVal.includes("@wallet.") && !/^0x[a-f0-9]+@/i.test(profileEmailVal),
             phone: false,
             google: false,
             x: !!profileHandle,
+            wallet: false,
           },
-          wallet_email_masked: isWalletEmail && profileEmailVal ? (profileEmailVal.slice(0, 6) + "…" + (profileEmailVal.includes("@") ? profileEmailVal.slice(profileEmailVal.indexOf("@")) : "")) : undefined,
         });
       }
       setLoading(false);
@@ -90,8 +87,7 @@ export default function LinkProfilePanel() {
 
   const methods = status?.recoveryMethods ?? {};
   const walletAddress = status?.walletAddress ?? status?.address ?? null;
-  const hasWalletEmail = !!methods.wallet_email;
-  const hasAny = !!methods.email || !!methods.phone || !!methods.google || !!methods.x || !!walletAddress || hasWalletEmail;
+  const hasAny = !!methods.email || !!methods.phone || !!methods.google || !!methods.x || !!walletAddress;
   const needsMore = hasAny && (!methods.email || !methods.x);
 
   return (
@@ -116,14 +112,8 @@ export default function LinkProfilePanel() {
             {methods.email && (
               <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700" title="Recovery email linked">
                 <Check className="h-3.5 w-3.5 shrink-0" />
-                <Mail className="h-3.5 w-3.5" />
-                Email{profileEmail ? ` (${maskEmail(profileEmail)})` : ""}
-              </span>
-            )}
-            {hasWalletEmail && (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground" title="Wallet email (from CDP)">
                 <Mail className="h-3.5 w-3.5 shrink-0" />
-                Wallet email{(status as CdpStatus & { wallet_email_masked?: string })?.wallet_email_masked ? ` (${(status as CdpStatus & { wallet_email_masked?: string }).wallet_email_masked})` : ""}
+                Email{profileEmail ? ` (${maskEmail(profileEmail)})` : ""}
               </span>
             )}
             {methods.phone && (

@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     .from("social_accounts")
     .select("id, revoked_at, status")
     .eq("user_id", user.id)
-    .eq("provider", "x")
+    .in("provider", ["x", "twitter"])
     .is("revoked_at", null)
     .eq("status", "connected")
     .maybeSingle();
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     const { error: upsertErr } = await supabase.from("social_accounts").upsert(
       {
         user_id: user.id,
-        provider: "x",
+        provider: "twitter",
         provider_user_id: providerUserId || null,
         username: handle,
         status: "connected",
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
   const { error: upsertError } = await supabase.from("social_accounts").upsert(
     {
       user_id: user.id,
-      provider: "x",
+      provider: "twitter",
       provider_user_id: providerUserId || null,
       username: handle || null,
       connected_at: p?.twitter_connected_at ?? now,

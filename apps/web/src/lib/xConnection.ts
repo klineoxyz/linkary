@@ -97,7 +97,7 @@ export async function getMyXConnection(userId: string, userFromGetUser?: User | 
     .from("social_accounts")
     .select("username, status, revoked_at")
     .eq("user_id", userId)
-    .eq("provider", "x")
+    .in("provider", ["x", "twitter"])
     .maybeSingle();
   const hasSocial = !!(socialRow && socialRow.status === "connected" && !socialRow.revoked_at);
 

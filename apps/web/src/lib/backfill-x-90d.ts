@@ -35,7 +35,7 @@ export async function runBackfillX90d(
   const { data: socialRows } = await service
     .from("social_accounts")
     .select("user_id, username, provider_user_id")
-    .eq("provider", "x")
+    .in("provider", ["x", "twitter"])
     .is("revoked_at", null)
     .eq("status", "connected")
     .limit(limit * 2);

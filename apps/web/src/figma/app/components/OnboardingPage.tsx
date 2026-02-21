@@ -23,6 +23,8 @@ const LOCATION_REGIONS = [
   "Other",
 ] as const;
 
+type OnboardingStep = 1 | 2 | 3;
+
 export default function OnboardingPage({
   userId,
   onComplete,
@@ -32,6 +34,9 @@ export default function OnboardingPage({
   onComplete: () => void;
   setRoute: (r: { name: string }) => void;
 }) {
+  const [step, setStep] = useState<OnboardingStep>(1);
+  const [claimedUsername, setClaimedUsername] = useState<string | null>(null);
+  const [accountType, setAccountType] = useState<"individual" | "company" | null>(null);
   const [selectedProfessions, setSelectedProfessions] = useState<Profession[]>([]);
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -46,13 +51,22 @@ export default function OnboardingPage({
 
   const normalizedHandle = handle.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-");
 
-  // Pre-fill from profile and professions
+  // Pre-fill from profile and professions; if username already set, start at step 2 or 3
   useEffect(() => {
     let cancelled = false;
     Promise.all([getMyProfile(userId), getProfileProfessions(userId)]).then(([profile, { data: profs }]) => {
       if (cancelled) return;
       if (profile) {
-        if (profile.username) setHandle(profile.username);
+        if (profile.username) {
+          setHandle(profile.username);
+          setClaimedUsername(profile.username);
+          if ((profile as { account_type?: string })?.account_type) {
+            setAccountType((profile as { account_type: string }).account_type as "individual" | "company");
+            setStep(3);
+          } else {
+            setStep(2);
+          }
+        }
         if (profile.display_name) setDisplayName(profile.display_name);
         if (profile.bio) setBio(profile.bio);
       }
@@ -77,36 +91,87 @@ export default function OnboardingPage({
   }, [normalizedHandle, userId]);
 
   useEffect(() => {
+    if (step !== 1) return;
     const t = setTimeout(checkHandle, 400);
     return () => clearTimeout(t);
-  }, [checkHandle]);
+  }, [step, checkHandle]);
+
+  const getAccessToken = async (): Promise<string | null> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token ?? null;
+  };
+
+  const handleClaimUsername = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    const slug = normalizedHandle;
+    if (!slug || slug.length < 2) {
+      setError("Username must be at least 2 characters.");
+      setLoading(false);
+      return;
+    }
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Session expired. Please sign in again.");
+      setLoading(false);
+      return;
+    }
+    const res = await fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/onboarding/claim-username`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ username: slug }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setLoading(false);
+    if (!res.ok) {
+      setError((data as { message?: string }).message ?? (data as { error?: string }).error ?? "Could not claim username.");
+      return;
+    }
+    setClaimedUsername(slug);
+    setStep(2);
+  };
+
+  const handleSetAccountType = async (type: "individual" | "company") => {
+    setError(null);
+    setLoading(true);
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Session expired. Please sign in again.");
+      setLoading(false);
+      return;
+    }
+    const res = await fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/onboarding/set-account-type`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ account_type: type }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError((data as { error?: string }).error ?? "Could not set account type.");
+      return;
+    }
+    setAccountType(type);
+    setStep(3);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    const handleTrim = handle.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-");
-    if (!handleTrim) {
-      setError("Handle is required.");
-      setLoading(false);
-      return;
-    }
-
-    const { data: existing } = await supabase
-      .from("profiles")
-      .select("id")
-      .ilike("username", handleTrim)
-      .neq("id", userId)
-      .maybeSingle();
-    if (existing) {
-      setError("That handle is already taken.");
-      setLoading(false);
-      return;
+    const handleTrim = step === 1 ? normalizedHandle : (claimedUsername ?? handle.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-"));
+    if (step === 1 || !claimedUsername) {
+      if (!handleTrim) {
+        setError("Handle is required.");
+        setLoading(false);
+        return;
+      }
     }
 
     const { error: updateErr } = await updateMyProfile(userId, {
-      username: handleTrim,
+      ...(handleTrim ? { username: handleTrim } : {}),
       display_name: displayName.trim() || null,
       bio: bio.trim() || null,
       website: website.trim() || null,
@@ -126,7 +191,11 @@ export default function OnboardingPage({
       setError(profErr);
       return;
     }
-    onComplete();
+    if (accountType === "company") {
+      setRoute({ name: "orgs" });
+    } else {
+      onComplete();
+    }
   };
 
   const handleSkip = async () => {
@@ -142,6 +211,75 @@ export default function OnboardingPage({
     }
     onComplete();
   };
+
+  if (step === 1) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-lg w-full rounded-2xl border border-zinc-200 bg-white p-8 shadow-lg">
+          <h1 className="text-2xl font-bold text-zinc-900 mb-2">Claim your username</h1>
+          <p className="text-zinc-600 text-sm mb-6">This will be your linkary.xyz handle. You must claim it before continuing.</p>
+          <form onSubmit={handleClaimUsername} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Username *</label>
+              <input
+                type="text"
+                value={handle}
+                onChange={(e) => setHandle(e.target.value)}
+                placeholder="alice"
+                className={`w-full px-3 py-2 rounded-lg border bg-white text-zinc-900 ${
+                  handleStatus === "taken" ? "border-destructive" : handleStatus === "available" ? "border-primary" : "border-zinc-300"
+                }`}
+              />
+              <p className="text-xs text-zinc-500 mt-0.5">linkary.xyz/{normalizedHandle || "…"}</p>
+              {handleStatus === "checking" && <p className="text-xs text-zinc-500 mt-0.5">Checking availability…</p>}
+              {handleStatus === "available" && normalizedHandle && <p className="text-xs text-primary mt-0.5">✓ Available</p>}
+              {handleStatus === "taken" && (
+                <p className="text-xs text-destructive mt-0.5">✗ This handle is taken.</p>
+              )}
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading || !normalizedHandle || normalizedHandle.length < 2 || handleStatus === "taken"}
+              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {loading ? "Claiming…" : "Claim username"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 2) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-lg w-full rounded-2xl border border-zinc-200 bg-white p-8 shadow-lg">
+          <h1 className="text-2xl font-bold text-zinc-900 mb-2">Account type</h1>
+          <p className="text-zinc-600 text-sm mb-6">Are you signing up as an individual or a company?</p>
+          <div className="space-y-3">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleSetAccountType("individual")}
+              className="w-full py-3 px-4 rounded-lg border-2 border-zinc-200 text-zinc-800 font-medium hover:border-primary hover:bg-primary/5 disabled:opacity-50"
+            >
+              Individual
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleSetAccountType("company")}
+              className="w-full py-3 px-4 rounded-lg border-2 border-zinc-200 text-zinc-800 font-medium hover:border-primary hover:bg-primary/5 disabled:opacity-50"
+            >
+              Company
+            </button>
+          </div>
+          {error && <p className="text-sm text-destructive mt-4">{error}</p>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">

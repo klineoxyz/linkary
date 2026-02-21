@@ -29,7 +29,7 @@ export async function getXConnection(userId: string): Promise<XConnectionRow | n
     .from("social_accounts")
     .select("id, user_id, provider, provider_user_id, username, status, revoked_at, connected_at, updated_at")
     .eq("user_id", userId)
-    .eq("provider", "x")
+    .in("provider", ["x", "twitter"])
     .maybeSingle();
   if (error || !data) return null;
   const row = data as XConnectionRow;

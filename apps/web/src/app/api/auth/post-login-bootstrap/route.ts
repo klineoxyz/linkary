@@ -18,9 +18,9 @@ function isXProvider(p: unknown): boolean {
 }
 
 /**
- * POST /api/integrations/x/link/finish
- * Deterministic callback finalizer: write social_accounts for CURRENT auth.uid from linked X identity.
- * Call after OAuth code exchange when user used linkIdentity (Integrations Connect X).
+ * POST /api/auth/post-login-bootstrap
+ * Run once after X OAuth login: ensure profile row, upsert social_accounts from X identity, update profile mirror.
+ * So X connection is automatic on login; no separate "Connect X" needed for MVP.
  */
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -32,18 +32,35 @@ export async function POST(request: Request) {
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
-  const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !currentUser?.id) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  if (userError || !user?.id) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  const identities = (currentUser as unknown as { identities?: Array<Record<string, unknown>> }).identities ?? [];
+  const { data: existingProfile } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
+  if (!existingProfile) {
+    await supabase.from("profiles").insert({
+      id: user.id,
+      username: null,
+      display_name: null,
+      bio: null,
+      avatar_url: null,
+      website: null,
+      twitter_username: null,
+      onboarding_completed_at: null,
+      published: false,
+      location: null,
+      intents: [],
+      followers_total: 0,
+      avg_engagement_rate: 0,
+    });
+  }
+
+  const identities = (user as unknown as { identities?: Array<Record<string, unknown>> }).identities ?? [];
   const xIdentity = identities.find((i) => isXProvider(i.provider)) as Record<string, unknown> | undefined;
+
   if (!xIdentity) {
-    return NextResponse.json(
-      { error: "X identity not present after linking. Retry Connect X." },
-      { status: 400 }
-    );
+    return NextResponse.json({ ok: true, userId: user.id, username: null });
   }
 
   const raw = (xIdentity.identity_data ?? xIdentity) as Record<string, unknown>;
@@ -52,47 +69,24 @@ export async function POST(request: Request) {
   const handle = username ? String(username).replace(/^@/, "").trim() : null;
 
   if (!providerUserId) {
-    return NextResponse.json(
-      { error: "X identity missing provider user id. Retry Connect X." },
-      { status: 400 }
-    );
+    return NextResponse.json({ ok: true, userId: user.id, username: null });
   }
 
   const providerUserIdTrim = String(providerUserId).trim();
-
-  const { data: existingOther } = await supabase
-    .from("social_accounts")
-    .select("user_id")
-    .in("provider", ["x", "twitter"])
-    .eq("provider_user_id", providerUserIdTrim)
-    .is("revoked_at", null)
-    .eq("status", "connected")
-    .maybeSingle();
-
-  if (existingOther && (existingOther as { user_id: string }).user_id !== currentUser.id) {
-    return NextResponse.json(
-      {
-        error:
-          "This X account is already connected to another Linkary account. Disconnect it there first.",
-      },
-      { status: 409 }
-    );
-  }
-
   const now = new Date().toISOString();
+
   const { data: existingRow } = await supabase
     .from("social_accounts")
     .select("connected_at")
-    .eq("user_id", currentUser.id)
+    .eq("user_id", user.id)
     .in("provider", ["x", "twitter"])
     .maybeSingle();
 
-  const connectedAt =
-    (existingRow as { connected_at?: string } | null)?.connected_at ?? now;
+  const connectedAt = (existingRow as { connected_at?: string } | null)?.connected_at ?? now;
 
-  const { error: upsertErr } = await supabase.from("social_accounts").upsert(
+  await supabase.from("social_accounts").upsert(
     {
-      user_id: currentUser.id,
+      user_id: user.id,
       provider: "twitter",
       provider_user_id: providerUserIdTrim,
       username: handle,
@@ -105,14 +99,10 @@ export async function POST(request: Request) {
     { onConflict: "user_id,provider" }
   );
 
-  if (upsertErr) {
-    return NextResponse.json({ error: upsertErr.message }, { status: 500 });
-  }
-
   const { data: profileRow } = await supabase
     .from("profiles")
     .select("twitter_username, twitter_user_id")
-    .eq("id", currentUser.id)
+    .eq("id", user.id)
     .maybeSingle();
 
   const currentHandle = (profileRow as { twitter_username?: string | null })?.twitter_username?.trim();
@@ -127,13 +117,7 @@ export async function POST(request: Request) {
       updates.twitter_username = handle;
     }
   }
+  await supabase.from("profiles").update(updates).eq("id", user.id);
 
-  await supabase.from("profiles").update(updates).eq("id", currentUser.id);
-
-  return NextResponse.json({
-    ok: true,
-    connected: true,
-    userId: currentUser.id,
-    username: handle,
-  });
+  return NextResponse.json({ ok: true, userId: user.id, username: handle });
 }

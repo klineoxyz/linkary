@@ -2654,9 +2654,10 @@ export default function LinkaryApp() {
     await ensureProfileForSession(session.user.id);
     const profile = await getMyProfile(session.user.id);
     setMe(profile ?? null);
-    // Keep profile.email in sync with auth (so SQL has user emails; users can also update in Profile → Edit)
+    // Sync only real emails to profile; never store wallet address as email (wallet lives in cdp_wallet_address only)
     const authEmail = (session.user.email ?? "").toString().trim();
-    if (authEmail && profile?.id) {
+    const isWalletLikeEmail = (e: string) => e.includes("@wallet.") || /^0x[a-f0-9]+@/i.test(e);
+    if (authEmail && profile?.id && !isWalletLikeEmail(authEmail)) {
       updateMyProfile(session.user.id, { email: authEmail }).catch(() => {});
     }
     if (!profile?.onboarding_completed_at) {

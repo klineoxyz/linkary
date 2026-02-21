@@ -77,14 +77,14 @@ async function ensureBackfill(request: NextRequest) {
     .from("social_accounts")
     .select("username")
     .eq("user_id", targetProfileId)
-    .eq("provider", "x")
+    .in("provider", ["x", "twitter"])
     .is("revoked_at", null)
     .eq("status", "connected")
     .maybeSingle();
 
   const { data: profile, error: profileError } = await service
     .from("profiles")
-    .select("id, twitter_username, followers_total, avg_engagement_rate")
+    .select("id, twitter_username, twitter_username_candidate, followers_total, avg_engagement_rate")
     .eq("id", targetProfileId)
     .maybeSingle();
 
@@ -94,7 +94,8 @@ async function ensureBackfill(request: NextRequest) {
 
   let handleFromSocial = (socialX as { username?: string | null })?.username?.toString().trim().replace(/^@/, "");
   let handleFromProfile = (profile.twitter_username ?? "").toString().trim().replace(/^@/, "");
-  let username = (handleFromSocial || handleFromProfile || "").toLowerCase();
+  let handleCandidate = (profile as { twitter_username_candidate?: string | null }).twitter_username_candidate?.toString().trim().replace(/^@/, "") ?? "";
+  let username = (handleFromSocial || handleFromProfile || handleCandidate || "").toLowerCase();
 
   if (!username && targetProfileId === user.id && token) {
     try {
@@ -108,18 +109,19 @@ async function ensureBackfill(request: NextRequest) {
           .from("social_accounts")
           .select("username")
           .eq("user_id", targetProfileId)
-          .eq("provider", "x")
+          .in("provider", ["x", "twitter"])
           .is("revoked_at", null)
           .eq("status", "connected")
           .maybeSingle();
         const { data: profile2 } = await service
           .from("profiles")
-          .select("twitter_username")
+          .select("twitter_username, twitter_username_candidate")
           .eq("id", targetProfileId)
           .maybeSingle();
         handleFromSocial = (socialX2 as { username?: string | null })?.username?.toString().trim().replace(/^@/, "");
         handleFromProfile = (profile2?.twitter_username ?? "").toString().trim().replace(/^@/, "");
-        username = (handleFromSocial || handleFromProfile || "").toLowerCase();
+        handleCandidate = (profile2 as { twitter_username_candidate?: string | null })?.twitter_username_candidate?.toString().trim().replace(/^@/, "") ?? "";
+        username = (handleFromSocial || handleFromProfile || handleCandidate || "").toLowerCase();
       }
     } catch {
       /* non-blocking */

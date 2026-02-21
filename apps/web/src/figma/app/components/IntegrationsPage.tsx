@@ -36,6 +36,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   const [twitterUsernameConflict, setTwitterUsernameConflict] = useState(false);
   const [showFallbackNotice, setShowFallbackNotice] = useState(false);
   const [authUidChanged, setAuthUidChanged] = useState(false);
+  const [devBanner, setDevBanner] = useState<{ profileMissing?: boolean; profileIdMismatch?: boolean; otherUsersWithSameX?: { user_id: string; username: string | null }[] } | null>(null);
 
   // Connected = social_accounts only. If not connected, self-heal: call claim once (migrate X onto current user_id), then refetch.
   const loadIntegrations = useCallback(async () => {
@@ -117,6 +118,35 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       window.history.replaceState({}, "", u.pathname + (u.search || ""));
     }
   }, [searchParams, userId, loadIntegrations]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token || cancelled) return;
+      try {
+        const res = await fetch(
+          `${typeof window !== "undefined" ? window.location.origin : ""}/api/debug/x-connection`,
+          { headers: { Authorization: `Bearer ${session.access_token}` } }
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (data.devBanner && !cancelled) {
+          setDevBanner({
+            profileMissing: data.profileMissing,
+            profileIdMismatch: data.profileIdMismatch,
+            otherUsersWithSameX: (data.otherUsersWithSameX ?? []).map((r: { user_id: string; username: string | null }) => ({ user_id: r.user_id, username: r.username })),
+          });
+        } else {
+          setDevBanner(null);
+        }
+      } catch {
+        setDevBanner(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userId]);
 
   const handleConnectX = async () => {
     setError(null);
@@ -263,6 +293,16 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       <button type="button" onClick={goToPreferences} className="text-sm text-zinc-500 hover:text-zinc-700 mb-6">
         {"\u2190"} Back to Preferences
       </button>
+      {devBanner ? (
+        <div className="mb-6 p-4 rounded-lg bg-red-500/15 border-2 border-red-500 text-red-900 dark:text-red-200 text-sm font-medium">
+          <p className="font-bold uppercase tracking-wide mb-1">DEV: Identity mismatch</p>
+          <p>{devBanner.profileMissing ? "Profile row missing for auth.uid()." : ""} {devBanner.profileIdMismatch ? "profiles.id !== auth.uid()." : ""}</p>
+          {devBanner.otherUsersWithSameX?.length ? (
+            <p className="mt-1">Same X connected to other user_id(s): {devBanner.otherUsersWithSameX.map((r) => r.user_id).join(", ")}</p>
+          ) : null}
+          <p className="mt-1 text-xs">Check GET /api/debug/x-connection with Bearer token.</p>
+        </div>
+      ) : null}
       <h1 className="text-2xl font-bold text-zinc-900 mb-2">Integrations</h1>
       <p className="text-zinc-600 mb-8">Connect your accounts for verification and linking.</p>
       {authUidChanged ? (

@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     const { error: insertErr } = await service.from("social_accounts").upsert(
       {
         user_id: currentUid,
-        provider: "x",
+        provider: "twitter",
         provider_user_id: providerUserIdTrim,
         username,
         status: "connected",
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
   const { error: insertErr } = await service.from("social_accounts").upsert(
     {
       user_id: currentUid,
-      provider: "x",
+      provider: "twitter",
       provider_user_id: providerUserIdTrim,
       username: username ?? (rowByProviderUserId as { username?: string | null }).username,
       status: "connected",

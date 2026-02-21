@@ -129,8 +129,12 @@ export default function AuthCallbackPage() {
           }
           setMessage("Saving your X profile…");
           await ensureProfileForSession(user.id);
-          const identity = extractTwitterIdentity(user as unknown as Parameters<typeof extractTwitterIdentity>[0]);
           const token = sessionData?.session?.access_token ?? "";
+          await fetch(`${window.location.origin}/api/auth/post-login-bootstrap`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => {});
+          const identity = extractTwitterIdentity(user as unknown as Parameters<typeof extractTwitterIdentity>[0]);
           if (identity) {
             const { error: saveErr } = await saveTwitterIdentityFromOAuth(user.id, identity);
             if (saveErr && !cancelled) {

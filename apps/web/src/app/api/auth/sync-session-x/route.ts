@@ -90,7 +90,7 @@ export async function POST(request: Request) {
   await supabase.from("social_accounts").upsert(
     {
       user_id: user.id,
-      provider: "x",
+      provider: "twitter",
       provider_user_id: twitterUserId,
       username: normalizedHandle,
       access_token: null,

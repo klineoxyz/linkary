@@ -128,6 +128,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     setSocialX(updatedSocial);
   };
 
+  // X connected only when social_accounts has active row (user_id, provider x/twitter, revoked_at null, status connected)
   const isConnected = socialX?.connected ?? false;
   const handle = socialX?.username ?? profile?.twitter_username ?? profile?.twitter_username_candidate ?? null;
   const avatar = profile?.avatar_url ?? null;

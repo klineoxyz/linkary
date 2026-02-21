@@ -7,7 +7,7 @@ Backfill last 90 days of `analytics_snapshots` for X-connected profiles. Uses **
 - Profiles with an **active** `social_accounts` row (`provider = 'x'`, `revoked_at` IS NULL, `status = 'connected'`), or
 - Profiles with `x_connected = true` (legacy).
 
-Handle is taken from `social_accounts.username` or `profiles.twitter_username`.
+Handle is taken from `social_accounts.username` or `profiles.twitter_username`. Join key: `social_accounts.user_id` (no `owner_profile_id` or `profile_id`).
 
 ## How to run
 
@@ -113,5 +113,5 @@ Check app logs for `POST /api/admin/backfill-x-90d` and `POST /api/cron/backfill
 
 ## Notes
 
-- **Current snapshot only:** twitterapi.io user/info returns **current** follower counts. Backfill writes that same value for all 90 days as a reasonable proxy; true historical per-day data would require a different data source.
+- **Current snapshot only:** twitterapi.io user/info returns **current** follower counts. **Snapshots are synthetic for prior days when using user/info (current-only).** Backfill writes that same value for all 90 days as a reasonable proxy; true historical per-day data would require a different data source.
 - **Engagement:** `engagement_rate_proxy` is computed from `statusesCount` and `favouritesCount` (same as x-sync) when available; otherwise 0.

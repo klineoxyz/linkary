@@ -75,11 +75,13 @@ Use to confirm only X-verified orgs appear as published and in public search.
 
 ## 5. SQL: X-connected profiles count
 
+Join key for `social_accounts` is **`user_id`** (not `owner_profile_id` or `profile_id`). In our system `profiles.id = auth.uid() = social_accounts.user_id`.
+
 ```sql
 -- By profile flag (legacy)
 SELECT COUNT(*) AS x_connected_count FROM public.profiles WHERE x_connected = true;
 
--- By social_accounts (preferred)
+-- By social_accounts (preferred): use user_id
 SELECT COUNT(*) AS social_x_active
 FROM public.social_accounts
 WHERE provider = 'x' AND revoked_at IS NULL AND status = 'connected';
@@ -144,7 +146,7 @@ WHERE id = '<org_id>';
 | **Recent orgs** | `SELECT id, slug, name, owner_profile_id, published, is_x_verified, created_at FROM public.orgs ORDER BY created_at DESC LIMIT 20;` |
 | **Recent org_members (owners)** | `SELECT om.org_id, om.user_id, om.role, o.slug FROM public.org_members om JOIN public.orgs o ON o.id = om.org_id WHERE om.role = 'owner' ORDER BY om.id DESC LIMIT 20;` |
 | **Published + verified (public view)** | `SELECT id, slug, name, published, is_x_verified FROM public.public_org_view WHERE published = true AND is_x_verified = true LIMIT 20;` |
-| **Connected profiles (X)** | `SELECT COUNT(*) FROM public.social_accounts WHERE provider = 'x' AND revoked_at IS NULL AND status = 'connected';` |
+| **Connected profiles (X)** | `SELECT COUNT(*) FROM public.social_accounts WHERE provider = 'x' AND revoked_at IS NULL AND status = 'connected';` (join key: `user_id`) |
 
 ---
 

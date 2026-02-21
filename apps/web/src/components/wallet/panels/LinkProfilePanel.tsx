@@ -1,9 +1,18 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Mail, Link2, Check, Phone, Smartphone, Shield } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+
+function useLinkOAuthSafe() {
+  try {
+    const { useLinkOAuth } = require("@coinbase/cdp-hooks");
+    return useLinkOAuth();
+  } catch {
+    return { linkOAuth: null, oauthState: null };
+  }
+}
 
 type RecoveryMethods = {
   email?: boolean;
@@ -47,48 +56,80 @@ export default function LinkProfilePanel() {
   const [xHandle, setXHandle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoveryLinking, setRecoveryLinking] = useState(false);
+  const { linkOAuth, oauthState } = useLinkOAuthSafe();
+  const handledOAuthSuccessRef = useRef(false);
 
-  useEffect(() => {
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const uid = session?.user?.id;
-      if (!token || !uid) {
-        setLoading(false);
-        return;
-      }
-      const base = typeof window !== "undefined" ? window.location.origin : "";
-      const [apiRes, profileRes] = await Promise.all([
-        fetch(`${base}/api/wallet/cdp/status`, { headers: { Authorization: `Bearer ${token}` } }),
-        supabase.from("profiles").select("email, twitter_username, twitter_username_candidate").eq("id", uid).maybeSingle(),
-      ]);
-      const r = profileRes.data as { email?: string | null; twitter_username?: string | null; twitter_username_candidate?: string | null } | null;
-      const profileEmailVal = (r?.email ?? "")?.toString().trim() || null;
-      const profileHandle = (r?.twitter_username ?? r?.twitter_username_candidate ?? "").toString().replace(/^@/, "").trim() || null;
-      if (apiRes.ok) {
-        const json = await apiRes.json();
-        setStatus(json as CdpStatus);
-        const j = json as CdpStatus & { twitter_username?: string; profile_email_masked?: string };
-        setProfileEmail(j.profile_email_masked ?? profileEmailVal);
-        setXHandle((j.twitter_username ? String(j.twitter_username).replace(/^@/, "").trim() : null) ?? profileHandle);
-      } else {
-        setProfileEmail(profileEmailVal && !/^0x[a-f0-9]+@/i.test(profileEmailVal) && !profileEmailVal.includes("@wallet.") ? profileEmailVal : null);
-        setXHandle(profileHandle);
-        setStatus({
-          recoveryMethods: {
-            email: !!profileEmailVal && !profileEmailVal.includes("@wallet.") && !/^0x[a-f0-9]+@/i.test(profileEmailVal),
-            phone: false,
-            google: false,
-            x: !!profileHandle,
-            wallet: false,
-          },
-        });
-      }
-      setLoading(false);
-    })();
+  const fetchStatus = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const uid = session?.user?.id;
+    if (!token || !uid) return;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const [apiRes, profileRes] = await Promise.all([
+      fetch(`${base}/api/wallet/cdp/status`, { headers: { Authorization: `Bearer ${token}` } }),
+      supabase.from("profiles").select("email, twitter_username, twitter_username_candidate").eq("id", uid).maybeSingle(),
+    ]);
+    const r = profileRes.data as { email?: string | null; twitter_username?: string | null; twitter_username_candidate?: string | null } | null;
+    const profileEmailVal = (r?.email ?? "")?.toString().trim() || null;
+    const profileHandle = (r?.twitter_username ?? r?.twitter_username_candidate ?? "").toString().replace(/^@/, "").trim() || null;
+    if (apiRes.ok) {
+      const json = await apiRes.json();
+      setStatus(json as CdpStatus);
+      const j = json as CdpStatus & { twitter_username?: string; profile_email_masked?: string };
+      setProfileEmail(j.profile_email_masked ?? profileEmailVal);
+      setXHandle((j.twitter_username ? String(j.twitter_username).replace(/^@/, "").trim() : null) ?? profileHandle);
+    } else {
+      setProfileEmail(profileEmailVal && !/^0x[a-f0-9]+@/i.test(profileEmailVal) && !profileEmailVal.includes("@wallet.") ? profileEmailVal : null);
+      setXHandle(profileHandle);
+      setStatus((s) => s ? { ...s, recovery_verified_at: null } : null);
+    }
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await fetchStatus();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [fetchStatus]);
+
   const searchParams = useSearchParams();
+
+  const callMarkLinkedAndRefetch = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/wallet/cdp/recovery/mark-linked`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) await fetchStatus();
+  }, [fetchStatus]);
+
+  useEffect(() => {
+    if (oauthState?.status === "error") {
+      setRecoveryError("Linking was cancelled or failed. Please try again.");
+      setRecoveryLinking(false);
+      return;
+    }
+    if (oauthState?.status !== "success") return;
+    const provider = (oauthState as { providerType?: string })?.providerType;
+    if (provider && provider !== "x") return;
+    if (handledOAuthSuccessRef.current) return;
+    handledOAuthSuccessRef.current = true;
+    setRecoveryError(null);
+    callMarkLinkedAndRefetch();
+  }, [oauthState?.status, oauthState, callMarkLinkedAndRefetch]);
+
+  useEffect(() => {
+    if (oauthState?.status !== "pending" && oauthState?.status !== "success") {
+      handledOAuthSuccessRef.current = false;
+    }
+  }, [oauthState?.status]);
+
   useEffect(() => {
     const recovery = searchParams.get("recovery");
     const message = searchParams.get("message");
@@ -134,6 +175,32 @@ export default function LinkProfilePanel() {
             <Shield className="h-4 w-4 shrink-0" />
             Recovery enabled with X{xHandle ? ` (@${xHandle})` : ""}
           </p>
+        ) : linkOAuth ? (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={async () => {
+                setRecoveryError(null);
+                setRecoveryLinking(true);
+                try {
+                  await linkOAuth("x");
+                  await callMarkLinkedAndRefetch();
+                } catch {
+                  setRecoveryError("Something went wrong. Please try again.");
+                } finally {
+                  setRecoveryLinking(false);
+                }
+              }}
+              disabled={recoveryLinking}
+              className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              <Shield className="h-4 w-4 shrink-0" />
+              {recoveryLinking ? "Linking…" : "Secure wallet with X"}
+            </button>
+            <p className="text-xs text-muted-foreground">
+              Link X as a recovery method for this wallet (CDP).
+            </p>
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">
             Additional recovery options for this wallet are coming soon.

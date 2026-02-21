@@ -92,9 +92,40 @@ async function ensureBackfill(request: NextRequest) {
     return NextResponse.json({ enqueued: false, reason: "profile_not_found" });
   }
 
-  const handleFromSocial = (socialX as { username?: string | null })?.username?.toString().trim().replace(/^@/, "");
-  const handleFromProfile = (profile.twitter_username ?? "").toString().trim().replace(/^@/, "");
-  const username = (handleFromSocial || handleFromProfile || "").toLowerCase();
+  let handleFromSocial = (socialX as { username?: string | null })?.username?.toString().trim().replace(/^@/, "");
+  let handleFromProfile = (profile.twitter_username ?? "").toString().trim().replace(/^@/, "");
+  let username = (handleFromSocial || handleFromProfile || "").toLowerCase();
+
+  if (!username && targetProfileId === user.id && token) {
+    try {
+      const base = process.env.NEXT_PUBLIC_SITE_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+      const claimRes = await fetch(`${base}/api/integrations/x/claim`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (claimRes.ok) {
+        const { data: socialX2 } = await service
+          .from("social_accounts")
+          .select("username")
+          .eq("user_id", targetProfileId)
+          .eq("provider", "x")
+          .is("revoked_at", null)
+          .eq("status", "connected")
+          .maybeSingle();
+        const { data: profile2 } = await service
+          .from("profiles")
+          .select("twitter_username")
+          .eq("id", targetProfileId)
+          .maybeSingle();
+        handleFromSocial = (socialX2 as { username?: string | null })?.username?.toString().trim().replace(/^@/, "");
+        handleFromProfile = (profile2?.twitter_username ?? "").toString().trim().replace(/^@/, "");
+        username = (handleFromSocial || handleFromProfile || "").toLowerCase();
+      }
+    } catch {
+      /* non-blocking */
+    }
+  }
+
   if (!username) {
     const hasSocialRow = socialX != null;
     return NextResponse.json({

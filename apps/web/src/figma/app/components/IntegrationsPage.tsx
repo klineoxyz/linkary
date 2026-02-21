@@ -37,8 +37,9 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   const [showFallbackNotice, setShowFallbackNotice] = useState(false);
   const [authUidChanged, setAuthUidChanged] = useState(false);
 
-  // Connected = social_accounts only: row where user_id = auth.uid() AND provider='x' AND status='connected' AND revoked_at IS NULL. Do not require username.
+  // Connected = social_accounts only. If not connected, self-heal: call claim once (migrate X onto current user_id), then refetch.
   const loadIntegrations = useCallback(async () => {
+    const base = typeof window !== "undefined" ? window.location.origin : "";
     const { data: { session } } = await supabase.auth.getSession();
     const currentUid = session?.user?.id ?? userId ?? null;
     if (!currentUid) {
@@ -53,12 +54,27 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       sessionStorage.setItem("linkary_last_auth_uid", currentUid);
     }
     setError(null);
-    const [p, clientSocial] = await Promise.all([getMyProfile(currentUid), getMySocialAccountX(currentUid)]);
+    let [p, clientSocial] = await Promise.all([getMyProfile(currentUid), getMySocialAccountX(currentUid)]);
+    if (!clientSocial?.connected && session?.access_token) {
+      try {
+        const claimRes = await fetch(`${base}/api/integrations/x/claim`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (claimRes.ok) {
+          const [p2, social2] = await Promise.all([getMyProfile(currentUid), getMySocialAccountX(currentUid)]);
+          p = p2;
+          clientSocial = social2;
+        }
+      } catch {
+        /* non-blocking */
+      }
+    }
     setProfile(p ?? null);
     setSocialX(clientSocial);
     setLoading(false);
     if (session?.access_token) {
-      fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/auth/ensure-social-x`, {
+      fetch(`${base}/api/auth/ensure-social-x`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}` },
       }).catch(() => {});

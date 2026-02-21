@@ -48,9 +48,12 @@ export async function buildCdpStatus(
     .maybeSingle();
 
   // Prefer cdp_wallets.wallet_address, fallback profiles.cdp_wallet_address
-  const walletAddress =
-    (cdpWalletRow as { wallet_address?: string } | null)?.wallet_address ?? profileWalletAddress;
-  const recoveryVerifiedAt = (cdpWalletRow as { recovery_verified_at?: string | null } | null)?.recovery_verified_at ?? null;
+  const cdpRow = cdpWalletRow as { wallet_address?: string; recovery_provider?: string; recovery_verified_at?: string | null } | null;
+  const walletAddress = cdpRow?.wallet_address ?? profileWalletAddress;
+  const recoveryVerifiedAt = cdpRow?.recovery_verified_at ?? null;
+  const recoveryProvider = cdpRow?.recovery_provider ?? null;
+  // recoveryMethods.x = actual DB state (wallet recovery), not Linkary X handle
+  const recoveryXEnabled = !!recoveryVerifiedAt || recoveryProvider === "twitter";
 
   // Active X/twitter: social_accounts with status=connected, not revoked
   const { data: socialRows } = await supabase
@@ -103,7 +106,7 @@ export async function buildCdpStatus(
       email: hasRealEmail,
       phone: false,
       google: false,
-      x: hasX,
+      x: recoveryXEnabled,
       wallet: !!walletAddress,
     },
     recovery_verified_at: recoveryVerifiedAt ?? undefined,

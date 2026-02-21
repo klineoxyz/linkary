@@ -148,8 +148,9 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       return;
     }
     setTwitterUsernameConflict(false);
-    const { data: user } = (await supabase.auth.getUser()).data;
-    const status = await getMyXConnection(userId, user ?? undefined);
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData?.user ?? undefined;
+    const status = await getMyXConnection(userId, user);
     setXStatus(status);
     const updated = await getMyProfile(userId);
     setProfile(updated ?? null);
@@ -167,8 +168,9 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     setSyncing(false);
     if (res.ok) {
       await refreshProfile();
-      const { data: user } = (await supabase.auth.getUser()).data;
-      const status = await getMyXConnection(userId!, user ?? undefined);
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData?.user ?? undefined;
+      const status = await getMyXConnection(userId!, user);
       setXStatus(status);
     } else {
       const resObj = res as Record<string, unknown>;

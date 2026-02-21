@@ -22,6 +22,8 @@ All backend SQL is applied via migrations in this folder. Apply them **in filena
 | 14 | `20260228000000_social_accounts_and_analytics_backfill.sql` | social_accounts, x_daily_snapshots, x_window_aggregates, backfill job |
 | 15 | `20260229000000_ensure_supabase_schema.sql` | Idempotent: missing columns, ethos_scores, grants |
 | 16 | `20260230000000_superadmin_and_profile_email.sql` | superadmin_emails table (mmxinthi@gmail.com), profiles.email |
+| … | *(migrations 31–37 in folder)* | orgs, wallet CDP, analytics, profiles x_connected, etc. |
+| 17 | `20260238000000_social_accounts_get_my_social_x.sql` | RPC `get_my_social_x()` (SECURITY DEFINER) so Integrations can read own X connection reliably |
 
 ## How to apply
 

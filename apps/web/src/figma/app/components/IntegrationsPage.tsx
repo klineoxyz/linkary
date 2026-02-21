@@ -33,9 +33,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   const [error, setError] = useState<string | null>(null);
   const [twitterUsernameConflict, setTwitterUsernameConflict] = useState(false);
 
-  // X "connected" source of truth: our API GET /api/auth/social-x (reads Supabase social_accounts).
-  // Fallback: getMySocialAccountX (client Supabase, same table; can be false if RLS/session not ready).
-  // CDP = login/wallet only; twitterapi.io = sync data only. Neither returns connected.
+  // X "connected": prefer GET /api/auth/social-x (server). Fallback: getMySocialAccountX (uses RPC get_my_social_x then table).
   const loadIntegrations = useCallback(async () => {
     if (!userId) {
       setLoading(false);
@@ -45,12 +43,11 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     const base = typeof window !== "undefined" ? window.location.origin : "";
 
     let token: string | null = null;
-    const { data: { session } } = await supabase.auth.getSession();
-    token = session?.access_token ?? null;
-    if (!token && typeof window !== "undefined") {
-      await new Promise((r) => setTimeout(r, 600));
-      const { data: { session: s2 } } = await supabase.auth.getSession();
-      token = s2?.access_token ?? null;
+    for (let i = 0; i < 3; i++) {
+      const { data: { session } } = await supabase.auth.getSession();
+      token = session?.access_token ?? null;
+      if (token) break;
+      if (typeof window !== "undefined" && i < 2) await new Promise((r) => setTimeout(r, 800));
     }
 
     const [p, clientSocial] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
@@ -58,12 +55,12 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
 
     if (token) {
       try {
-        await fetch(`${base}/api/auth/ensure-social-x`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+        await fetch(`${base}/api/auth/ensure-social-x`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, credentials: "include" });
       } catch {
         /* non-blocking */
       }
       try {
-        const res = await fetch(`${base}/api/auth/social-x`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${base}/api/auth/social-x`, { headers: { Authorization: `Bearer ${token}` }, credentials: "include" });
         if (res.ok) {
           const apiSocial = await res.json();
           setSocialX({

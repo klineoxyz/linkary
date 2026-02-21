@@ -39,26 +39,36 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       return;
     }
     setError(null);
-    const [p, social] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
-    setProfile(p ?? null);
-    setSocialX(social);
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (token) {
-        const base = typeof window !== "undefined" ? window.location.origin : "";
-        await fetch(`${base}/api/auth/ensure-social-x`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const [updatedProfile, updatedSocial] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
-        setProfile(updatedProfile ?? null);
-        setSocialX(updatedSocial);
+    const [p, clientSocial] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
+    setProfile(p ?? null);
+
+    if (token) {
+      try {
+        await fetch(`${base}/api/auth/ensure-social-x`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      } catch {
+        /* non-blocking */
       }
-    } catch {
-      /* non-blocking */
+      try {
+        const res = await fetch(`${base}/api/auth/social-x`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const apiSocial = await res.json();
+          setSocialX({
+            connected: !!apiSocial.connected,
+            username: apiSocial.username ?? null,
+            provider_user_id: apiSocial.provider_user_id ?? null,
+          });
+          setLoading(false);
+          return;
+        }
+      } catch {
+        /* fallback to client result */
+      }
     }
+    setSocialX(clientSocial);
     setLoading(false);
   }, [userId]);
 
@@ -125,6 +135,20 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     setTwitterUsernameConflict(false);
     const [updatedProfile, updatedSocial] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
     setProfile(updatedProfile ?? null);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (token) {
+      try {
+        const res = await fetch(typeof window !== "undefined" ? `${window.location.origin}/api/auth/social-x` : "", { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const apiSocial = await res.json();
+          setSocialX({ connected: !!apiSocial.connected, username: apiSocial.username ?? null, provider_user_id: apiSocial.provider_user_id ?? null });
+          return;
+        }
+      } catch {
+        /* fallback */
+      }
+    }
     setSocialX(updatedSocial);
   };
 
@@ -139,9 +163,23 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     const res = await syncProfileFromX();
     setSyncing(false);
     if (res.ok) {
-      const [updatedProfile, updatedSocial] = await Promise.all([getMyProfile(userId!), getMySocialAccountX(userId!)]);
+      const updatedProfile = await getMyProfile(userId!);
       setProfile(updatedProfile ?? null);
-      setSocialX(updatedSocial);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (token) {
+        try {
+          const sxRes = await fetch(typeof window !== "undefined" ? `${window.location.origin}/api/auth/social-x` : "", { headers: { Authorization: `Bearer ${token}` } });
+          if (sxRes.ok) {
+            const apiSocial = await sxRes.json();
+            setSocialX({ connected: !!apiSocial.connected, username: apiSocial.username ?? null, provider_user_id: apiSocial.provider_user_id ?? null });
+            return;
+          }
+        } catch {
+          /* fallback */
+        }
+      }
+      setSocialX(await getMySocialAccountX(userId!));
     } else {
       const resObj = res as Record<string, unknown>;
       const errMsg = typeof resObj?.error === "string" ? resObj.error : "Sync failed";

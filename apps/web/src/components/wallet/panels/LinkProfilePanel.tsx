@@ -59,30 +59,30 @@ export default function LinkProfilePanel() {
   const { linkOAuth, oauthState } = useLinkOAuthSafe();
   const handledOAuthSuccessRef = useRef(false);
 
+  const applyStatusPayload = useCallback((payload: CdpStatus | null) => {
+    if (!payload) {
+      setStatus(null);
+      setProfileEmail(null);
+      setXHandle(null);
+      return;
+    }
+    setStatus(payload);
+    setProfileEmail(payload.profile_email_masked ?? null);
+    setXHandle(payload.twitter_username ? String(payload.twitter_username).replace(/^@/, "").trim() || null : null);
+  }, []);
+
   const fetchStatus = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
-    const uid = session?.user?.id;
-    if (!token || !uid) return;
-    const [apiRes, profileRes] = await Promise.all([
-      fetch("/api/wallet/cdp/status", { headers: { Authorization: `Bearer ${token}` } }),
-      supabase.from("profiles").select("email, twitter_username, twitter_username_candidate").eq("id", uid).maybeSingle(),
-    ]);
-    const r = profileRes.data as { email?: string | null; twitter_username?: string | null; twitter_username_candidate?: string | null } | null;
-    const profileEmailVal = (r?.email ?? "")?.toString().trim() || null;
-    const profileHandle = (r?.twitter_username ?? r?.twitter_username_candidate ?? "").toString().replace(/^@/, "").trim() || null;
+    if (!token) return;
+    const apiRes = await fetch("/api/wallet/cdp/status", { headers: { Authorization: `Bearer ${token}` } });
     if (apiRes.ok) {
       const json = await apiRes.json();
-      setStatus(json as CdpStatus);
-      const j = json as CdpStatus & { twitter_username?: string; profile_email_masked?: string };
-      setProfileEmail(j.profile_email_masked ?? profileEmailVal);
-      setXHandle((j.twitter_username ? String(j.twitter_username).replace(/^@/, "").trim() : null) ?? profileHandle);
+      applyStatusPayload(json as CdpStatus);
     } else {
-      setProfileEmail(profileEmailVal && !/^0x[a-f0-9]+@/i.test(profileEmailVal) && !profileEmailVal.includes("@wallet.") ? profileEmailVal : null);
-      setXHandle(profileHandle);
-      setStatus((s) => s ? { ...s, recovery_verified_at: null } : null);
+      applyStatusPayload(null);
     }
-  }, []);
+  }, [applyStatusPayload]);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,7 +93,7 @@ export default function LinkProfilePanel() {
     return () => { cancelled = true; };
   }, [fetchStatus]);
 
-  const callMarkLinkedAndRefetch = useCallback(async () => {
+  const callMarkLinked = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     if (!token) return;
@@ -101,8 +101,11 @@ export default function LinkProfilePanel() {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.ok) await fetchStatus();
-  }, [fetchStatus]);
+    if (res.ok) {
+      const payload = (await res.json()) as CdpStatus;
+      applyStatusPayload(payload);
+    }
+  }, [applyStatusPayload]);
 
   useEffect(() => {
     if (oauthState?.status === "error") {
@@ -116,8 +119,8 @@ export default function LinkProfilePanel() {
     if (handledOAuthSuccessRef.current) return;
     handledOAuthSuccessRef.current = true;
     setRecoveryError(null);
-    callMarkLinkedAndRefetch().finally(() => setRecoveryLinking(false));
-  }, [oauthState?.status, oauthState, callMarkLinkedAndRefetch]);
+    callMarkLinked().finally(() => setRecoveryLinking(false));
+  }, [oauthState?.status, oauthState, callMarkLinked]);
 
   const methods = status?.recoveryMethods ?? {};
   const walletAddress = status?.walletAddress ?? status?.address ?? null;

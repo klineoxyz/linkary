@@ -32,6 +32,8 @@ export default function BalancePanel({ getToken }: BalancePanelProps) {
   const fetchBalances = useCallback(async () => {
     const token = await getToken();
     if (!token) {
+      setError("Please sign in to view balances.");
+      setData(null);
       setLoading(false);
       return;
     }
@@ -42,15 +44,19 @@ export default function BalancePanel({ getToken }: BalancePanelProps) {
       const res = await fetch(`${base}/api/wallet/balances`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError("Failed to load balances");
+        const msg = res.status === 401
+          ? "Please sign in again to view balances."
+          : (typeof j?.error === "string" ? j.error : "Failed to load balances. Try again.");
+        setError(msg);
         setData(null);
+        setLoading(false);
         return;
       }
-      const j = await res.json();
       setData({ wallets: j.wallets ?? [], totalUsd: j.totalUsd ?? 0 });
     } catch {
-      setError("Failed to load balances");
+      setError("Failed to load balances. Check your connection and try again.");
       setData(null);
     } finally {
       setLoading(false);

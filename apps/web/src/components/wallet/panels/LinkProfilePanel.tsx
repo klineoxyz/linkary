@@ -106,12 +106,14 @@ export default function LinkProfilePanel() {
               </span>
             )}
             {!hasX && !hasRealEmail && !hasWalletEmail && (
-              <span className="text-xs text-muted-foreground">Connect X and email in Settings → Integrations.</span>
+              <span className="text-xs text-muted-foreground">No recovery methods linked yet.</span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground pt-1">
-            Additional recovery methods (phone, Google, Apple) may be available in a future configuration.
-          </p>
+          {!hasX || !hasRealEmail ? (
+            <p className="text-xs text-muted-foreground pt-1">
+              Add X and email in Settings → Integrations to improve account recovery.
+            </p>
+          ) : null}
         </div>
       )}
     </div>

@@ -16,6 +16,8 @@ export type Profile = {
   twitter_user_id?: string | null;
   twitter_connected_at?: string | null;
   twitter_username_candidate?: string | null;
+  /** Canonical DB truth: true when twitter_username or twitter_user_id is set. UI must use this, not identities. */
+  x_connected?: boolean;
   onboarding_completed_at: string | null;
   published: boolean;
   /** Controls whether analytics (followers_total, avg_engagement_rate, xscore) are exposed on public views. */

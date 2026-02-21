@@ -165,6 +165,7 @@ export default function AuthCallbackPage() {
             }
             if (token) {
               fetch(`${window.location.origin}/api/analytics/ensure-backfill`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+              fetch(`${window.location.origin}/api/auth/ensure-x-connection`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
             }
           }
           if (!cancelled) {
@@ -211,9 +212,13 @@ export default function AuthCallbackPage() {
                 /* non-blocking */
               }
             }
-            // Ensure 90d analytics backfill on every login when session exists (e.g. return visit with X connected)
+            // Ensure 90d analytics backfill and canonical X connection in DB on every login
             if (session?.access_token) {
               fetch(`${window.location.origin}/api/analytics/ensure-backfill`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              }).catch(() => {});
+              fetch(`${window.location.origin}/api/auth/ensure-x-connection`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${session.access_token}` },
               }).catch(() => {});

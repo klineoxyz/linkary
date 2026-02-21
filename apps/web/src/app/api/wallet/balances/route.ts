@@ -52,98 +52,102 @@ type WalletBalance = {
 };
 
 export async function GET(request: Request) {
-  const token = getToken(request);
-  if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !user?.id) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 401 });
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("cdp_wallet_address")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const { data: externalRows } = await supabase
-    .from("external_wallets")
-    .select("chain, address, label")
-    .eq("profile_id", user.id);
-
-  const wallets: { address: string; chain: string; label: string | null; source: "cdp" | "external" }[] = [];
-  const cdpAddress = (profile as { cdp_wallet_address?: string } | null)?.cdp_wallet_address;
-  if (cdpAddress && /^0x[a-fA-F0-9]{40}$/.test(cdpAddress)) {
-    wallets.push({ address: cdpAddress, chain: "base", label: "CDP wallet", source: "cdp" });
-  }
-  for (const row of externalRows ?? []) {
-    const r = row as { chain: string; address: string; label: string | null };
-    if (r.chain === "base" && /^0x[a-fA-F0-9]{40}$/.test(r.address)) {
-      wallets.push({
-        address: r.address,
-        chain: "base",
-        label: r.label,
-        source: "external",
-      });
-    }
-  }
-
-  let ethPriceUsd = 0;
-  let usdcPriceUsd = 1;
   try {
-    const priceRes = await fetch(
-      "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,usd-coin&vs_currencies=usd",
-      { next: { revalidate: 60 } }
-    );
-    if (priceRes.ok) {
-      const p = (await priceRes.json()) as { ethereum?: { usd?: number }; "usd-coin"?: { usd?: number } };
-      ethPriceUsd = p.ethereum?.usd ?? 0;
-      usdcPriceUsd = p["usd-coin"]?.usd ?? 1;
+    const token = getToken(request);
+    if (!token || !supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json({ error: "Unauthorized", code: "auth" }, { status: 401 });
     }
-  } catch {
-    /* use defaults */
-  }
 
-  const results: WalletBalance[] = [];
-  for (const w of wallets) {
-    const assets: AssetRow[] = [];
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user?.id) {
+      return NextResponse.json({ error: "Invalid session", code: "auth" }, { status: 401 });
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("cdp_wallet_address")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const { data: externalRows } = await supabase
+      .from("external_wallets")
+      .select("chain, address, label")
+      .eq("profile_id", user.id);
+
+    const wallets: { address: string; chain: string; label: string | null; source: "cdp" | "external" }[] = [];
+    const cdpAddress = (profile as { cdp_wallet_address?: string } | null)?.cdp_wallet_address;
+    if (cdpAddress && /^0x[a-fA-F0-9]{40}$/.test(cdpAddress)) {
+      wallets.push({ address: cdpAddress, chain: "base", label: "CDP wallet", source: "cdp" });
+    }
+    for (const row of externalRows ?? []) {
+      const r = row as { chain: string; address: string; label: string | null };
+      if (r.chain === "base" && /^0x[a-fA-F0-9]{40}$/.test(r.address)) {
+        wallets.push({
+          address: r.address,
+          chain: "base",
+          label: r.label,
+          source: "external",
+        });
+      }
+    }
+
+    let ethPriceUsd = 0;
+    let usdcPriceUsd = 1;
     try {
-      const [ethWei, usdcRaw] = await Promise.all([
-        getEthBalance(w.address),
-        getUsdcBalance(w.address),
-      ]);
-      const ethBalance = Number(ethWei) / 1e18;
-      const usdcBalance = Number(usdcRaw) / 1e6;
-      const ethUsd = ethBalance * ethPriceUsd;
-      const usdcUsd = usdcBalance * usdcPriceUsd;
-      assets.push({ symbol: "ETH", balance: ethBalance.toFixed(6), balanceUsd: ethUsd });
-      assets.push({ symbol: "USDC", balance: usdcBalance.toFixed(2), balanceUsd: usdcUsd });
-      const totalUsd = ethUsd + usdcUsd;
-      results.push({
-        address: w.address,
-        chain: w.chain,
-        label: w.label,
-        source: w.source,
-        assets,
-        totalUsd,
-      });
-    } catch (e) {
-      results.push({
-        address: w.address,
-        chain: w.chain,
-        label: w.label,
-        source: w.source,
-        assets: [],
-        totalUsd: 0,
-      });
+      const priceRes = await fetch(
+        "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,usd-coin&vs_currencies=usd",
+        { next: { revalidate: 60 } }
+      );
+      if (priceRes.ok) {
+        const p = (await priceRes.json()) as { ethereum?: { usd?: number }; "usd-coin"?: { usd?: number } };
+        ethPriceUsd = p.ethereum?.usd ?? 0;
+        usdcPriceUsd = p["usd-coin"]?.usd ?? 1;
+      }
+    } catch {
+      /* use defaults */
     }
-  }
 
-  const totalUsd = results.reduce((s, w) => s + w.totalUsd, 0);
-  return NextResponse.json({ wallets: results, totalUsd });
+    const results: WalletBalance[] = [];
+    for (const w of wallets) {
+      const assets: AssetRow[] = [];
+      try {
+        const [ethWei, usdcRaw] = await Promise.all([
+          getEthBalance(w.address),
+          getUsdcBalance(w.address),
+        ]);
+        const ethBalance = Number(ethWei) / 1e18;
+        const usdcBalance = Number(usdcRaw) / 1e6;
+        const ethUsd = ethBalance * ethPriceUsd;
+        const usdcUsd = usdcBalance * usdcPriceUsd;
+        assets.push({ symbol: "ETH", balance: ethBalance.toFixed(6), balanceUsd: ethUsd });
+        assets.push({ symbol: "USDC", balance: usdcBalance.toFixed(2), balanceUsd: usdcUsd });
+        const totalUsd = ethUsd + usdcUsd;
+        results.push({
+          address: w.address,
+          chain: w.chain,
+          label: w.label,
+          source: w.source,
+          assets,
+          totalUsd,
+        });
+      } catch {
+        results.push({
+          address: w.address,
+          chain: w.chain,
+          label: w.label,
+          source: w.source,
+          assets: [],
+          totalUsd: 0,
+        });
+      }
+    }
+
+    const totalUsd = results.reduce((s, w) => s + w.totalUsd, 0);
+    return NextResponse.json({ wallets: results, totalUsd });
+  } catch {
+    return NextResponse.json({ error: "Unable to load balances", code: "server" }, { status: 500 });
+  }
 }

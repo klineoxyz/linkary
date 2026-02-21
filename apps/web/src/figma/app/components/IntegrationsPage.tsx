@@ -75,7 +75,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
         /* fallback to client result */
       }
     }
-    setSocialX(clientSocial);
+    setSocialX((prev) => (prev?.connected ? prev : clientSocial));
     setLoading(false);
   }, [userId]);
 

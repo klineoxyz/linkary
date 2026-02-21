@@ -24,7 +24,7 @@ export type XIdentityResult = { username: string | null; user_id: string };
 /** Extract X identity from Supabase user (identities or user_metadata). Returns null only if no X linked. */
 export function getUserXIdentity(user: User | null | undefined): XIdentityResult | null {
   if (!user || typeof user !== "object") return null;
-  const u = user as { identities?: Array<Record<string, unknown>>; user_metadata?: Record<string, unknown> };
+  const u = user as unknown as { identities?: Array<Record<string, unknown>>; user_metadata?: Record<string, unknown> };
   const identities = u.identities ?? [];
   const twitter = identities.find((i) => isXProvider(i.provider)) as Record<string, unknown> | undefined;
   const raw = (twitter ? (twitter.identity_data ?? twitter) : {}) as Record<string, unknown>;

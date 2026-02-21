@@ -39,8 +39,8 @@ export async function listJobs(opts?: { status?: string }): Promise<JobWithOrg[]
   });
 }
 
-/** Create a job (caller must be org owner/admin via RLS). */
-export async function createJob(
+/** Create a job via client insert (caller must be org owner/admin via RLS). Prefer POST /api/orgs/[orgId]/jobs in UI. */
+export async function createJobClient(
   orgId: string,
   payload: { type: "job" | "sprint"; title: string; budget?: string; duration?: string; tags?: string[] }
 ): Promise<{ data: Job | null; error: string | null }> {

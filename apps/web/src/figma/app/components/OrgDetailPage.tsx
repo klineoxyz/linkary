@@ -29,7 +29,7 @@ import {
   type OrgAffiliation,
   type OrgAmbassador,
 } from "@/lib/orgs";
-import { listJobs, createJob, listApplicationsForJobs, type Application } from "@/lib/jobs";
+import { listJobs, listApplicationsForJobs, type Application } from "@/lib/jobs";
 import { listCaseStudiesForOrg, createCaseStudyForOrg, type CaseStudy } from "@/lib/caseStudies";
 import { Briefcase } from "lucide-react";
 
@@ -581,8 +581,8 @@ export default function OrgDetailPage({
                                 if (!org?.id || !userId) return;
                                 setCloseJobLoading(j.id);
                                 try {
-                                  const { data: session } = await supabase.auth.getSession();
-                                  const token = session?.session?.access_token;
+                                  const { data: { session } } = await supabase.auth.getSession();
+                                  const token = session?.access_token;
                                   const origin = typeof window !== "undefined" ? window.location.origin : "";
                                   const res = await fetch(`${origin}/api/orgs/${org.id}/jobs/${j.id}`, {
                                     method: "PATCH",
@@ -625,8 +625,8 @@ export default function OrgDetailPage({
                                 if (!userId) return;
                                 setAcceptLoading(app.id);
                                 try {
-                                  const { data: session } = await supabase.auth.getSession();
-                                  const token = session?.session?.access_token;
+                                  const { data: { session } } = await supabase.auth.getSession();
+                                  const token = session?.access_token;
                                   const origin = typeof window !== "undefined" ? window.location.origin : "";
                                   const res = await fetch(`${origin}/api/applications/${app.id}/accept`, {
                                     method: "POST",
@@ -952,15 +952,24 @@ export default function OrgDetailPage({
                 onClick={async () => {
                   setJobSaving(true);
                   const tags = jobTagsStr.split(",").map((t) => t.trim()).filter(Boolean);
-                  const { error } = await createJob(org.id, {
-                    type: jobType,
-                    title: jobTitle.trim(),
-                    budget: jobBudget.trim() || undefined,
-                    duration: jobDuration.trim() || undefined,
-                    tags,
-                  });
+                  const origin = typeof window !== "undefined" ? window.location.origin : "";
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const token = session?.access_token;
+                  const res = token
+                    ? await fetch(`${origin}/api/orgs/${org.id}/jobs`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({
+                          type: jobType,
+                          title: jobTitle.trim(),
+                          budget: jobBudget.trim() || undefined,
+                          duration: jobDuration.trim() || undefined,
+                          tags,
+                        }),
+                      })
+                    : { ok: false };
                   setJobSaving(false);
-                  if (!error) {
+                  if (res?.ok) {
                     const all = await listJobs();
                     const jobsForOrg = (all ?? []).filter((j) => j.org_id === org.id);
                     setOrgJobs(jobsForOrg);

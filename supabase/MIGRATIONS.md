@@ -24,6 +24,7 @@ All backend SQL is applied via migrations in this folder. Apply them **in filena
 | 16 | `20260230000000_superadmin_and_profile_email.sql` | superadmin_emails table (mmxinthi@gmail.com), profiles.email |
 | … | *(migrations 31–37 in folder)* | orgs, wallet CDP, analytics, profiles x_connected, etc. |
 | 17 | `20260238000000_social_accounts_get_my_social_x.sql` | RPC `get_my_social_x()` (SECURITY DEFINER) so Integrations can read own X connection reliably |
+| 18 | `20260239000000_applications_rls_and_job_admin.sql` | applications RLS private (applicant + job org admin only); `is_job_org_admin()`; duplicate-application unique indexes |
 
 ## How to apply
 

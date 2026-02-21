@@ -80,6 +80,13 @@ export default function AuthCallbackPage() {
             /* ignore */
           }
         }
+        let oauthOrgId: string | null = null;
+        try {
+          oauthOrgId = sessionStorage.getItem("linkary_oauth_org_id");
+          if (oauthOrgId) sessionStorage.removeItem("linkary_oauth_org_id");
+        } catch {
+          /* ignore */
+        }
         next = next ?? REDIRECT_AFTER;
         setRedirectPath(next);
         const redirectTo = next.startsWith("/") ? `${SITE_URL.replace(/\/$/, "")}${next}` : `${SITE_URL}/${next}`;
@@ -98,6 +105,27 @@ export default function AuthCallbackPage() {
             setStatus("error");
             setMessage("No session after exchange. Try again.");
             return;
+          }
+          if (oauthOrgId) {
+            setMessage("Verifying org X account…");
+            const token = sessionData?.session?.access_token ?? "";
+            const res = await fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/orgs/connect-x-callback`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ orgId: oauthOrgId }),
+            });
+            if (!res.ok && !cancelled) {
+              const err = await res.json().catch(() => ({}));
+              setStatus("error");
+              setMessage((err as { error?: string }).error ?? "Failed to verify org X account.");
+              return;
+            }
+            if (!cancelled) {
+              setStatus("ok");
+              setMessage("Redirecting…");
+              window.location.href = redirectTo;
+              return;
+            }
           }
           setMessage("Saving your X profile…");
           await ensureProfileForSession(user.id);

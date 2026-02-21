@@ -545,10 +545,10 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
     });
   }, []);
 
-  const handleOrgCreated = (_orgId: string, _slug?: string) => {
+  const handleOrgCreated = (orgId: string, _slug?: string) => {
     if (userId) listOrgsForUser(userId).then(setMyOrgs);
     setShowCreateOrg(false);
-    if (setRoute) setRoute({ name: "orgDetail", data: { orgId: _orgId } });
+    if (setRoute) setRoute({ name: "orgDetail", data: { orgId, showConnectXBanner: true } });
   };
 
   return (

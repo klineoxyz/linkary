@@ -27,7 +27,14 @@ export type Org = {
   /** Whether this org is publicly listed on Linkary public pages/search. */
   published?: boolean;
   public_layout?: unknown;
-};
+  /** Owner user id; used for RLS. */
+  owner_profile_id?: string | null;
+  /** X verification (required for publish). */
+  x_account_username?: string | null;
+  x_account_user_id?: string | null;
+  x_connected_at?: string | null;
+  is_x_verified?: boolean;
+}
 
 export type OrgMember = {
   id: string;
@@ -70,11 +77,40 @@ const ORG_AMBASSADORS = "org_ambassadors";
 const ORG_METRICS = "org_metrics";
 const PROFILES = "profiles";
 
-/** Create org and add current user as owner. Returns org or error. */
+/** Sanitize slug for URL: lowercase, replace spaces with -, remove invalid chars. */
+export function sanitizeSlug(slug: string): string {
+  return slug
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9\-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/** Check if a slug is taken. Returns { available: boolean, suggested?: string } if taken. */
+export async function checkSlugAvailable(slug: string): Promise<{ available: boolean; suggested?: string }> {
+  const s = sanitizeSlug(slug);
+  if (s.length < 2) return { available: false };
+  const { data: existing } = await supabase
+    .from(ORGS)
+    .select("id")
+    .ilike("slug", s)
+    .maybeSingle();
+  if (!existing) return { available: true };
+  for (let n = 2; n <= 99; n++) {
+    const candidate = s + "-" + n;
+    const { data: taken } = await supabase.from(ORGS).select("id").ilike("slug", candidate).maybeSingle();
+    if (!taken) return { available: false, suggested: candidate };
+  }
+  return { available: false, suggested: s + "-" + Date.now().toString(36) };
+}
+
+/** Create org via RPC (atomic: org + membership). Org is unverified and unpublished until X is connected. */
 export async function createOrg(
   userId: string,
   payload: {
-    slug: string;
+    slug?: string;
     name: string;
     tagline?: string;
     website?: string;
@@ -84,33 +120,21 @@ export async function createOrg(
     parent_org_id?: string | null;
   }
 ): Promise<{ data: Org | null; error: string | null }> {
-  const slugLower = payload.slug.trim().toLowerCase();
-  const { data: org, error: orgError } = await supabase
-    .from(ORGS)
-    .insert({
-      slug: slugLower,
+  const slugInput = payload.slug?.trim() ? sanitizeSlug(payload.slug) : "";
+  const { data: raw, error } = await supabase.rpc("create_org_and_membership", {
+    payload: {
       name: payload.name.trim(),
-      tagline: payload.tagline?.trim() || null,
-      website: payload.website?.trim() || null,
-      twitter_username: payload.twitter_username?.trim() || null,
-      logo_url: payload.logo_url?.trim() || null,
       org_type: payload.org_type,
-      parent_org_id: payload.parent_org_id ?? null,
-      created_by: userId,
-    })
-    .select()
-    .single();
-
-  if (orgError) return { data: null, error: orgError.message };
-  if (!org) return { data: null, error: "Failed to create org" };
-
-  const { error: memberError } = await supabase.from(ORG_MEMBERS).insert({
-    org_id: (org as Org).id,
-    user_id: userId,
-    role: "owner",
+      slug: slugInput || undefined,
+      tagline: payload.tagline?.trim() || undefined,
+      website: payload.website?.trim() || undefined,
+      twitter_username: payload.twitter_username?.trim()?.replace(/^@/, "") || undefined,
+      logo_url: payload.logo_url?.trim() || undefined,
+      parent_org_id: payload.parent_org_id ?? undefined,
+    },
   });
-
-  if (memberError) return { data: null, error: memberError.message };
+  if (error) return { data: null, error: error.message };
+  const org = Array.isArray(raw) ? raw[0] : raw;
   return { data: org as Org, error: null };
 }
 

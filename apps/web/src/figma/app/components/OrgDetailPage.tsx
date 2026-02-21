@@ -73,8 +73,10 @@ export default function OrgDetailPage({
   const [tokenSymbol, setTokenSymbol] = useState("");
   const [dexscreenerUrl, setDexscreenerUrl] = useState("");
   const [published, setPublished] = useState(false);
+  const [connectXLoading, setConnectXLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [dismissConnectXBanner, setDismissConnectXBanner] = useState(false);
 
   useEffect(() => void loadSession(), []);
   function loadSession() {
@@ -393,20 +395,71 @@ export default function OrgDetailPage({
 
           {tab === "settings" && (
             <div className="space-y-6 max-w-lg">
+              {admin && org && !org.is_x_verified && data?.showConnectXBanner && !dismissConnectXBanner && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 flex items-start justify-between gap-2">
+                  <p className="text-sm text-zinc-700 dark:text-zinc-300">Org created. Connect X to verify before publishing.</p>
+                  <button type="button" onClick={() => setDismissConnectXBanner(true)} className="text-zinc-500 hover:text-zinc-700 shrink-0" aria-label="Dismiss">×</button>
+                </div>
+              )}
               {!admin ? (
                 <p className="text-zinc-500 text-sm">Only org admins can edit settings.</p>
               ) : (
                 <>
                   <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3">X verification</h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+                      {org.is_x_verified ? (
+                        <>Verified · @{org.x_account_username ?? "X"}</>
+                      ) : (
+                        <>Unverified · Connect the org&apos;s X account to enable public listing</>
+                      )}
+                    </p>
+                    {!org.is_x_verified && (
+                      <button
+                        type="button"
+                        disabled={connectXLoading}
+                        onClick={async () => {
+                          if (!org?.id || !userId) return;
+                          setConnectXLoading(true);
+                          try {
+                            const origin = typeof window !== "undefined" ? window.location.origin : "";
+                            const callback = `${origin}/auth/callback`;
+                            sessionStorage.setItem("linkary_oauth_org_id", org.id);
+                            sessionStorage.setItem("linkary_oauth_next", "/dashboard");
+                            const { data, error: err } = await supabase.auth.signInWithOAuth({
+                              provider: "x",
+                              options: { redirectTo: callback },
+                            });
+                            if (err) {
+                              setSettingsError(err.message);
+                              return;
+                            }
+                            if (data?.url) window.location.href = data.url;
+                            else setSettingsError("Could not start X sign-in.");
+                          } finally {
+                            setConnectXLoading(false);
+                          }
+                        }}
+                        className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                      >
+                        {connectXLoading ? "Redirecting…" : "Connect org X account"}
+                      </button>
+                    )}
+                  </div>
+                  <div>
                     <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3">Public listing</h3>
-                    <label className="flex items-center gap-2 mb-4">
+                    <label className={`flex items-center gap-2 mb-4 ${!org.is_x_verified ? "opacity-70" : ""}`}>
                       <input
                         type="checkbox"
                         checked={published}
                         onChange={(e) => setPublished(e.target.checked)}
+                        disabled={!org.is_x_verified}
                         className="rounded border-zinc-300"
                       />
-                      <span className="text-sm text-zinc-700 dark:text-zinc-300">Show this org on Linkary search and landing (public listing)</span>
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                        Show this org on Linkary search and landing (public listing)
+                        {!org.is_x_verified && " · Connect X first"}
+                      </span>
                     </label>
                   </div>
                   <div>
@@ -474,8 +527,10 @@ export default function OrgDetailPage({
                         dexscreener_url: hasToken && dexscreenerUrl.trim() ? dexscreenerUrl.trim() : null,
                       });
                       setSettingsSaving(false);
-                      if (error) setSettingsError(error);
-                      else setOrg({ ...org, published, is_crypto_project: isCryptoProject, has_token: hasToken, token_symbol: tokenSymbol.trim() || null, dexscreener_url: dexscreenerUrl.trim() || null });
+                      if (error) {
+                        setSettingsError(error.includes("published") || error.includes("x_verified") ? "Connect the org X account first to enable public listing." : error);
+                        if (error.includes("published") || error.includes("x_verified")) setPublished(false);
+                      } else setOrg({ ...org, published, is_crypto_project: isCryptoProject, has_token: hasToken, token_symbol: tokenSymbol.trim() || null, dexscreener_url: dexscreenerUrl.trim() || null });
                     }}
                     className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm disabled:opacity-50"
                   >

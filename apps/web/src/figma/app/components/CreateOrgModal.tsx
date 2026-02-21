@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
 import type { OrgType } from "@/lib/orgs";
-import { createOrg } from "@/lib/orgs";
+import { createOrg, checkSlugAvailable, sanitizeSlug } from "@/lib/orgs";
 
 const ORG_TYPES: { value: OrgType; label: string }[] = [
   { value: "company", label: "Company" },
@@ -29,14 +29,47 @@ export default function CreateOrgModal({
   const [logo_url, setLogoUrl] = useState("");
   const [org_type, setOrgType] = useState<OrgType>("brand");
   const [loading, setLoading] = useState(false);
+  const [slugChecking, setSlugChecking] = useState(false);
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const [suggestedSlug, setSuggestedSlug] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const effectiveSlug = slug.trim() ? sanitizeSlug(slug) : "";
+  const slugToCheck = effectiveSlug || (name.trim() ? sanitizeSlug(name.trim().toLowerCase().replace(/\s+/g, "-")) : "");
+
+  const checkSlug = async () => {
+    if (slugToCheck.length < 2) {
+      setSlugError(null);
+      setSuggestedSlug(null);
+      return;
+    }
+    setSlugChecking(true);
+    setSlugError(null);
+    setSuggestedSlug(null);
+    const result = await checkSlugAvailable(slugToCheck);
+    setSlugChecking(false);
+    if (!result.available) {
+      setSlugError("Slug already taken.");
+      if (result.suggested) setSuggestedSlug(result.suggested);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSlugError(null);
+    setSuggestedSlug(null);
+    if (slugToCheck.length >= 2) {
+      const result = await checkSlugAvailable(slugToCheck);
+      if (!result.available) {
+        setSlugError("Slug already taken. Try: " + (result.suggested ?? slugToCheck + "-2"));
+        if (result.suggested) setSuggestedSlug(result.suggested);
+        return;
+      }
+    }
     setLoading(true);
     const { data, error: err } = await createOrg(userId, {
-      slug: slug.trim() || name.trim().toLowerCase().replace(/\s+/g, "-"),
+      slug: effectiveSlug || undefined,
       name: name.trim(),
       tagline: tagline.trim() || undefined,
       website: website.trim() || undefined,
@@ -49,8 +82,10 @@ export default function CreateOrgModal({
       setError(err);
       return;
     }
-    if (data) onSuccess(data.id, data.slug ?? data.id);
-    onClose();
+    if (data) {
+      onSuccess(data.id, data.slug ?? data.id);
+      onClose();
+    }
   };
 
   const inputClass =
@@ -118,11 +153,23 @@ export default function CreateOrgModal({
                 <input
                   type="text"
                   value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
+                  onChange={(e) => { setSlug(e.target.value); setSlugError(null); setSuggestedSlug(null); }}
+                  onBlur={checkSlug}
                   placeholder="acme-inc"
                   className={inputClass}
                 />
                 <p className="text-xs text-zinc-500 mt-1">URL-friendly, unique. Leave blank to use name.</p>
+                {slugChecking && <p className="text-xs text-zinc-500 mt-1">Checking…</p>}
+                {slugError && (
+                  <p className="text-sm text-destructive mt-1">
+                    {slugError}
+                    {suggestedSlug && (
+                      <>
+                        {" "}Try: <button type="button" className="underline font-medium" onClick={() => { setSlug(suggestedSlug); setSlugError(null); setSuggestedSlug(null); }}>{suggestedSlug}</button>
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
               <div>
                 <label className={labelClass}>Tagline</label>

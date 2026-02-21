@@ -46,7 +46,6 @@ export default function LinkProfilePanel() {
   const [profileEmail, setProfileEmail] = useState<string | null>(null);
   const [xHandle, setXHandle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [recoverySecuring, setRecoverySecuring] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -101,36 +100,6 @@ export default function LinkProfilePanel() {
     }
   }, [searchParams]);
 
-  const handleSecureWithX = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    if (!token) return;
-    setRecoverySecuring(true);
-    setRecoveryError(null);
-    try {
-      const base = typeof window !== "undefined" ? window.location.origin : "";
-      const res = await fetch(`${base}/api/wallet/cdp/recovery/x/start`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setRecoveryError((data as { error?: string }).error ?? "Could not start recovery.");
-        setRecoverySecuring(false);
-        return;
-      }
-      const url = (data as { recoveryUrl?: string }).recoveryUrl;
-      if (url) {
-        window.location.href = url;
-        return;
-      }
-      setRecoverySecuring(false);
-    } catch {
-      setRecoveryError("Something went wrong.");
-      setRecoverySecuring(false);
-    }
-  };
-
   const methods = status?.recoveryMethods ?? {};
   const walletAddress = status?.walletAddress ?? status?.address ?? null;
   const hasAny = !!methods.email || !!methods.phone || !!methods.google || !!methods.x || !!walletAddress;
@@ -139,9 +108,14 @@ export default function LinkProfilePanel() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-base font-semibold">Link a profile</h3>
+      <h3 className="text-base font-semibold">Wallet (CDP) & account</h3>
+      {xHandle && (
+        <p className="text-sm text-muted-foreground">
+          Signed in with X: @{xHandle}
+        </p>
+      )}
       <p className="text-sm text-muted-foreground">
-        Wallet is from Coinbase CDP. Recovery methods below help you claim and recover this wallet.
+        Your wallet is from Coinbase CDP. App login is via X (above); wallet access can also use X (CDP).
       </p>
       {walletAddress && (
         <p className="text-sm text-muted-foreground">
@@ -154,41 +128,29 @@ export default function LinkProfilePanel() {
         </div>
       )}
       <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-        <p className="text-xs font-medium text-muted-foreground">Recovery</p>
+        <p className="text-xs font-medium text-muted-foreground">Wallet recovery</p>
         {recoveryVerifiedAt ? (
           <p className="inline-flex items-center gap-1.5 text-sm text-green-700">
             <Shield className="h-4 w-4 shrink-0" />
             Recovery enabled with X{xHandle ? ` (@${xHandle})` : ""}
           </p>
         ) : (
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">Secure this wallet with your X account so you can recover it later.</p>
-            <button
-              type="button"
-              disabled={recoverySecuring || !methods.x}
-              onClick={handleSecureWithX}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              <Shield className="h-4 w-4 shrink-0" />
-              {recoverySecuring ? "Redirecting…" : "Secure wallet with X"}
-            </button>
-            {!methods.x && (
-              <p className="text-xs text-muted-foreground mt-1">Connect X in Integrations first.</p>
-            )}
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Additional recovery options for this wallet are coming soon.
+          </p>
         )}
       </div>
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
         <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-          <p className="text-xs font-medium text-muted-foreground">Recovery methods</p>
+          <p className="text-xs font-medium text-muted-foreground">Status</p>
           <div className="flex flex-wrap gap-2">
             {methods.x && (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700" title="X linked">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700" title="App login">
                 <Check className="h-3.5 w-3.5 shrink-0" />
                 <Link2 className="h-3.5 w-3.5" />
-                X{xHandle ? ` (@${xHandle})` : ""}
+                Signed in with X{xHandle ? ` (@${xHandle})` : ""}
               </span>
             )}
             {methods.email && (
@@ -213,17 +175,17 @@ export default function LinkProfilePanel() {
               </span>
             )}
             {walletAddress && (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground" title="CDP wallet">
-                Wallet — CDP ({shortAddr(walletAddress)})
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground" title="Wallet (CDP)">
+                Wallet (CDP) {shortAddr(walletAddress)}
               </span>
             )}
             {!hasAny && (
-              <span className="text-xs text-muted-foreground">No recovery methods linked yet.</span>
+              <span className="text-xs text-muted-foreground">No wallet or login methods shown.</span>
             )}
           </div>
           {needsMore && (
             <p className="text-xs text-muted-foreground pt-1">
-              Add a recovery email and X in Settings → Integrations to improve account recovery.
+              X is your app login (Integrations). Wallet recovery options coming soon.
             </p>
           )}
         </div>

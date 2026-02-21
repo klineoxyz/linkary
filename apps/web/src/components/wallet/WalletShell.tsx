@@ -92,7 +92,7 @@ export default function WalletShell() {
     setCreating(true);
     try {
       const base = typeof window !== "undefined" ? window.location.origin : "";
-      const res = await fetch(`${base}/api/wallet/cdp/get-or-create`, {
+      const res = await fetch(`${base}/api/wallet/cdp/ensure`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ address: addr }),
@@ -129,8 +129,8 @@ export default function WalletShell() {
           <h2 className="text-lg font-semibold mb-2">Create wallet</h2>
           <p className="text-sm text-muted-foreground mb-4">
             {evmAddress
-              ? "Link your Coinbase wallet to your account. It will be used as your embedded wallet."
-              : "Sign in with your Coinbase wallet to create your embedded wallet. Use the sign-in option that supports wallet creation, then return here."}
+              ? "Link this wallet to your account. It will be stored as your Wallet (CDP)."
+              : "Get wallet access via X (CDP) to create your embedded wallet, then return here to save it."}
           </p>
           <button
             type="button"
@@ -156,10 +156,10 @@ export default function WalletShell() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="inline-flex items-center rounded-lg border border-border bg-accent px-2.5 py-1 text-xs font-medium">
-            {status?.chain ?? "base"}
+            Wallet (CDP) · {status?.chain ?? "base"}
           </span>
           {address && (
             <span className="font-mono text-sm text-muted-foreground">

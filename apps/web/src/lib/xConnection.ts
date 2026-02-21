@@ -87,7 +87,7 @@ export async function getMyXConnection(userId: string, userFromGetUser?: User | 
     const { data: identitiesData } = await supabase.auth.getUserIdentities();
     const list = identitiesData?.identities ?? [];
     const xRow = list.find((i: { provider?: string }) => isXProvider(i?.provider));
-    if (xRow) identity = identityFromApiRow(xRow as Record<string, unknown>);
+    if (xRow) identity = identityFromApiRow(xRow as unknown as Record<string, unknown>);
   }
 
   const hasProfileX =

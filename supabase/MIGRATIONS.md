@@ -27,6 +27,7 @@ All backend SQL is applied via migrations in this folder. Apply them **in filena
 | 18 | `20260239000000_applications_rls_and_job_admin.sql` | applications RLS private (applicant + job org admin only); `is_job_org_admin()`; duplicate-application unique indexes |
 | 19 | `20260240000000_social_accounts_grants_and_rpc.sql` | GRANT on social_accounts for authenticated/anon; ensure get_my_social_x() for Integrations |
 | 20 | `20260241000000_social_accounts_x_connect_forever.sql` | One active X per user; one X account per Linkary user (partial unique indexes); RLS verification |
+| 21 | `20260242000000_social_accounts_rls_explicit.sql` | RLS policies explicit (SELECT/INSERT/UPDATE by user_id = auth.uid()); fixes row visible in DB but not to user |
 
 ## How to apply
 

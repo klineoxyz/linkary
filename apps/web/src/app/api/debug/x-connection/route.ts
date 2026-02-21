@@ -13,14 +13,25 @@ function isDevAllowed(request: Request): boolean {
     const authHeader = request.headers.get("authorization");
     const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     if (!token) return false;
-    return true; // check after getUser
+    return true;
   }
   return true;
 }
 
+type SocialRow = {
+  user_id: string;
+  provider: string;
+  username: string | null;
+  status: string;
+  revoked_at: string | null;
+  connected_at: string | null;
+  provider_user_id: string | null;
+};
+
 /**
  * GET /api/debug/x-connection
- * DEV ONLY (or allowed emails in prod). Returns full X connection audit for current user.
+ * Definitive "who am I" + "what can I see" debug for X connection.
+ * Returns auth.uid, row as seen by user (RLS), row as seen by service (DB truth), recent active X rows, and diagnostic flags.
  */
 export async function GET(request: Request) {
   if (!isDevAllowed(request)) {
@@ -33,10 +44,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
-  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  const { data: { user }, error: userError } = await supabaseUser.auth.getUser(token);
   if (userError || !user?.id) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
@@ -49,75 +60,82 @@ export async function GET(request: Request) {
     }
   }
 
-  const uid = user.id;
-  const email = user.email ?? null;
+  const authUid = user.id;
+  const authEmail = user.email ?? null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, twitter_username, twitter_user_id, x_connected, updated_at")
-    .eq("id", uid)
+  // 1) Direct select USING THE SAME USER TOKEN (subject to RLS)
+  const { data: socialXAsUser, error: userSelectError } = await supabaseUser
+    .from("social_accounts")
+    .select("user_id, provider, username, status, revoked_at, connected_at, provider_user_id")
+    .eq("user_id", authUid)
+    .eq("provider", "x")
+    .is("revoked_at", null)
     .maybeSingle();
 
-  const { data: socialXRows } = await supabase
-    .from("social_accounts")
-    .select("user_id, provider_user_id, username, status, revoked_at, connected_at")
-    .eq("user_id", uid)
-    .in("provider", ["x", "twitter"]);
-
-  const activeSocialX = (socialXRows ?? []).find(
-    (r: { status?: string; revoked_at?: string | null }) => r.status === "connected" && !r.revoked_at
-  );
-  const socialXAll = socialXRows ?? [];
-
-  const profileIdMatchesAuthUid = profile?.id === uid;
-  const hasActiveSocialX = !!activeSocialX;
-  const hasProfileMirror = !!(
-    (profile as { twitter_user_id?: string | null } | undefined)?.twitter_user_id ||
-    (profile as { twitter_username?: string | null } | undefined)?.twitter_username
-  );
-  const computedConnected = hasActiveSocialX || (!hasActiveSocialX && hasProfileMirror);
-
-  let xConnectedOnDifferentUser: {
-    provider_user_id: string;
-    other_user_id: string;
-    username: string | null;
-    status: string;
-    connected_at: string | null;
-  } | null = null;
-
-  const xProviderUserId =
-    (activeSocialX as { provider_user_id?: string | null })?.provider_user_id ??
-    (user.identities as Array<{ provider?: string; identity_data?: { id?: string; sub?: string } }>)?.find(
-      (i) => (i.provider ?? "").toLowerCase() === "twitter" || (i.provider ?? "").toLowerCase() === "x"
-    )?.identity_data?.id ??
-    (user.identities as Array<{ provider?: string; identity_data?: { id?: string; sub?: string } }>)?.find(
-      (i) => (i.provider ?? "").toLowerCase() === "twitter" || (i.provider ?? "").toLowerCase() === "x"
-    )?.identity_data?.sub;
-
-  if (xProviderUserId && supabaseServiceKey) {
-    const service = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: otherRows } = await service
-      .from("social_accounts")
-      .select("user_id, provider_user_id, username, status, revoked_at, connected_at")
-      .in("provider", ["x", "twitter"])
-      .is("revoked_at", null)
-      .eq("status", "connected")
-      .eq("provider_user_id", String(xProviderUserId).trim());
-
-    const other = (otherRows ?? []).find((r: { user_id: string }) => r.user_id !== uid);
-    if (other) {
-      xConnectedOnDifferentUser = {
-        provider_user_id: (other as { provider_user_id?: string }).provider_user_id ?? "",
-        other_user_id: (other as { user_id: string }).user_id,
-        username: (other as { username?: string | null }).username ?? null,
-        status: (other as { status?: string }).status ?? "",
-        connected_at: (other as { connected_at?: string | null }).connected_at ?? null,
-      };
-    }
+  const socialX_as_user = socialXAsUser as SocialRow | null;
+  if (userSelectError) {
+    // return it so we can see RLS or other errors
   }
 
+  // 2) Service-role select for same user_id (proves row exists in DB for this user)
+  let socialX_as_service: SocialRow | null = null;
+  let recentActiveX: SocialRow[] = [];
+  if (supabaseServiceKey) {
+    const service = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: rowAsService } = await service
+      .from("social_accounts")
+      .select("user_id, provider, username, status, revoked_at, connected_at, provider_user_id")
+      .eq("user_id", authUid)
+      .eq("provider", "x")
+      .is("revoked_at", null)
+      .maybeSingle();
+    socialX_as_service = rowAsService as SocialRow | null;
+
+    const { data: recentRows } = await service
+      .from("social_accounts")
+      .select("user_id, provider, username, status, revoked_at, connected_at, provider_user_id")
+      .eq("provider", "x")
+      .eq("status", "connected")
+      .is("revoked_at", null)
+      .not("username", "is", null)
+      .order("connected_at", { ascending: false })
+      .limit(20);
+    recentActiveX = (recentRows ?? []) as SocialRow[];
+  }
+
+  const socialRowVisibleToUser = socialX_as_user != null;
+  const socialRowExistsInDB = socialX_as_service != null;
+  const uidMismatch = socialRowExistsInDB && socialX_as_service !== null && socialX_as_service.user_id !== authUid;
+  const rlsBlocking = socialRowExistsInDB && !socialRowVisibleToUser;
+
+  const { data: profile } = await supabaseUser
+    .from("profiles")
+    .select("id, twitter_username, twitter_user_id, x_connected, updated_at")
+    .eq("id", authUid)
+    .maybeSingle();
+
+  const expectedHandle = (
+    (profile as { twitter_username?: string | null })?.twitter_username ??
+    socialX_as_service?.username ??
+    ""
+  )
+    .toString()
+    .trim()
+    .replace(/^@/, "")
+    .toLowerCase();
+  const rowWithHandleDifferentUser = recentActiveX.find(
+    (r) =>
+      r.user_id !== authUid &&
+      (r.username ?? "").toString().trim().replace(/^@/, "").toLowerCase() === expectedHandle
+  );
+  const userMismatch = !!expectedHandle && !!rowWithHandleDifferentUser;
+
   return NextResponse.json({
-    auth: { uid, email },
+    auth: { authUid, authEmail },
+    socialX_as_user: socialX_as_user ?? null,
+    socialX_as_service: socialX_as_service ?? null,
+    userSelectError: userSelectError ? { message: userSelectError.message, code: userSelectError.code } : null,
+    recentActiveX,
     profile: profile
       ? {
           id: (profile as { id?: string }).id,
@@ -127,14 +145,17 @@ export async function GET(request: Request) {
           updated_at: (profile as { updated_at?: string }).updated_at,
         }
       : null,
-    socialXActive: activeSocialX ?? null,
-    socialXAll,
     flags: {
-      profileIdMatchesAuthUid,
-      hasActiveSocialX,
-      hasProfileMirror,
-      computedConnected,
+      authUid,
+      socialRowVisibleToUser,
+      socialRowExistsInDB,
+      uidMismatch,
+      rlsBlocking,
+      userMismatch,
+      rowWithHandleDifferentUser: rowWithHandleDifferentUser
+        ? { user_id: rowWithHandleDifferentUser.user_id, username: rowWithHandleDifferentUser.username }
+        : null,
     },
-    X_CONNECTED_ON_DIFFERENT_USER: xConnectedOnDifferentUser,
+    computedConnected: socialRowVisibleToUser && socialX_as_user?.status === "connected" && !socialX_as_user?.revoked_at,
   });
 }

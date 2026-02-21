@@ -96,7 +96,14 @@ async function ensureBackfill(request: NextRequest) {
   const handleFromProfile = (profile.twitter_username ?? "").toString().trim().replace(/^@/, "");
   const username = (handleFromSocial || handleFromProfile || "").toLowerCase();
   if (!username) {
-    return NextResponse.json({ enqueued: false, reason: "no_x_handle" });
+    const hasSocialRow = socialX != null;
+    return NextResponse.json({
+      enqueued: false,
+      reason: "no_x_handle",
+      debugHint: hasSocialRow
+        ? "Row exists but username is null; store handle on next X fetch or set profile.twitter_username."
+        : "No active social_accounts row for this user_id. If row exists in DB, auth.uid may differ from social_accounts.user_id or RLS blocking - check GET /api/debug/x-connection.",
+    });
   }
 
   const today = new Date().toISOString().slice(0, 10);

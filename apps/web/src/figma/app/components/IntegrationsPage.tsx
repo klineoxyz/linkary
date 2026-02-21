@@ -35,19 +35,28 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   const [error, setError] = useState<string | null>(null);
   const [twitterUsernameConflict, setTwitterUsernameConflict] = useState(false);
   const [showFallbackNotice, setShowFallbackNotice] = useState(false);
+  const [authUidChanged, setAuthUidChanged] = useState(false);
 
-  // Connected = social_accounts only (getMySocialAccountX / get_my_social_x). Never use identities for "connected".
+  // Connected = social_accounts only: row where user_id = auth.uid() AND provider='x' AND status='connected' AND revoked_at IS NULL. Do not require username.
   const loadIntegrations = useCallback(async () => {
-    if (!userId) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentUid = session?.user?.id ?? userId ?? null;
+    if (!currentUid) {
       setLoading(false);
       return;
     }
+    if (typeof window !== "undefined") {
+      const last = sessionStorage.getItem("linkary_last_auth_uid");
+      if (last && last !== currentUid) {
+        setAuthUidChanged(true);
+      }
+      sessionStorage.setItem("linkary_last_auth_uid", currentUid);
+    }
     setError(null);
-    const [p, clientSocial] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
+    const [p, clientSocial] = await Promise.all([getMyProfile(currentUid), getMySocialAccountX(currentUid)]);
     setProfile(p ?? null);
     setSocialX(clientSocial);
     setLoading(false);
-    const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token) {
       fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/auth/ensure-social-x`, {
         method: "POST",
@@ -172,8 +181,8 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     setSocialX(updatedSocial);
   };
 
-  // X connected only when social_accounts has active row (user_id, provider x/twitter, revoked_at null, status connected)
-  const isConnected = socialX?.connected ?? false;
+  // Connected = exists social_accounts where user_id = auth.uid() AND provider in ('x','twitter') AND status='connected' AND revoked_at IS NULL. Do not require username.
+  const isConnected = !!(socialX?.connected === true);
   const handle = socialX?.username ?? profile?.twitter_username ?? profile?.twitter_username_candidate ?? null;
   const avatar = profile?.avatar_url ?? null;
 
@@ -240,6 +249,14 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       </button>
       <h1 className="text-2xl font-bold text-zinc-900 mb-2">Integrations</h1>
       <p className="text-zinc-600 mb-8">Connect your accounts for verification and linking.</p>
+      {authUidChanged ? (
+        <div className="mb-6 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-sm flex items-start justify-between gap-2">
+          <p>
+            Auth user changed; integrations may appear disconnected. Check <strong>/api/debug/x-connection</strong> (with Bearer token) for authUid vs social_accounts.user_id and rlsBlocking.
+          </p>
+          <button type="button" onClick={() => setAuthUidChanged(false)} className="shrink-0 font-medium" aria-label="Dismiss">Dismiss</button>
+        </div>
+      ) : null}
       {error != null ? (
         <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-border text-foreground text-sm">
           {error}

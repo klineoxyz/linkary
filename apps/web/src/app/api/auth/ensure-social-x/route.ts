@@ -44,10 +44,11 @@ export async function POST(request: Request) {
     .select("id, revoked_at, status")
     .eq("user_id", user.id)
     .eq("provider", "x")
+    .is("revoked_at", null)
+    .eq("status", "connected")
     .maybeSingle();
 
-  const active = existingSocial && !(existingSocial as { revoked_at?: string | null }).revoked_at && (existingSocial as { status?: string }).status === "connected";
-  if (active) {
+  if (existingSocial) {
     return NextResponse.json({ ok: true, connected: true });
   }
 

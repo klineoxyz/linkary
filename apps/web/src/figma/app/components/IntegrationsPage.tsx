@@ -132,16 +132,18 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
 
   useEffect(() => {
     if (searchParams.get("x_connected") !== "1" || !userId) return;
+    setLoading(true);
     let cancelled = false;
     const timers: ReturnType<typeof setTimeout>[] = [];
     (async () => {
       await supabase.auth.refreshSession();
       if (cancelled) return;
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 800));
       if (cancelled) return;
       loadIntegrations();
-      timers.push(setTimeout(() => { if (!cancelled) loadIntegrations(); }, 1200));
-      timers.push(setTimeout(() => { if (!cancelled) loadIntegrations(); }, 2400));
+      timers.push(setTimeout(() => { if (!cancelled) loadIntegrations(); }, 1500));
+      timers.push(setTimeout(() => { if (!cancelled) loadIntegrations(); }, 3000));
+      timers.push(setTimeout(() => { if (!cancelled) loadIntegrations(); }, 4500));
       if (typeof window !== "undefined" && window.history.replaceState) {
         const u = new URL(window.location.href);
         u.searchParams.delete("x_connected");
@@ -162,30 +164,24 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     } catch {
       /* ignore */
     }
-    // Supabase Auth uses provider "twitter" for X/Twitter OAuth
-    const oauthOpts = { provider: "twitter" as const, options: { redirectTo: AUTH_CALLBACK } };
+    // X / Twitter (OAuth 2.0) in Supabase uses provider "x"; "twitter" is the deprecated OAuth 1.0a provider
+    const oauthOpts = { provider: "x" as const, options: { redirectTo: AUTH_CALLBACK } };
     const auth = supabase.auth as { linkIdentity?: (opts: { provider: string; options?: { redirectTo?: string } }) => Promise<{ data: { url?: string }; error: { message: string } | null }>; signInWithOAuth: (opts: { provider: string; options?: { redirectTo?: string } }) => Promise<{ data: { url?: string }; error: { message: string } | null }> };
     let data: { url?: string } | null = null;
     let err: { message: string } | null = null;
+    // Prefer linkIdentity so X is linked to this account and connection persists after re-login with CDP
     if (userId && auth.linkIdentity) {
       const result = await auth.linkIdentity(oauthOpts);
       data = result.data;
       err = result.error;
       if (err) {
-        try {
-          sessionStorage.setItem("linkary_oauth_fallback", "1");
-        } catch {
-          /* ignore */
-        }
-        const { data: fallbackData, error: fallbackErr } = await supabase.auth.signInWithOAuth(oauthOpts);
-        if (!fallbackErr && fallbackData?.url) {
-          window.location.href = fallbackData.url;
+        const msg = (err?.message ?? "").toLowerCase();
+        if (msg.includes("manual linking") || msg.includes("linking is disabled") || msg.includes("identity already")) {
+          setConnecting(false);
+          setError(
+            "To connect X to this account (and keep it connected when you sign in with CDP), enable Allow manual linking in Supabase Dashboard → Authentication → User Signups, then try Connect X again."
+          );
           return;
-        }
-        try {
-          sessionStorage.removeItem("linkary_oauth_fallback");
-        } catch {
-          /* ignore */
         }
       }
     } else {
@@ -195,6 +191,13 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     }
     setConnecting(false);
     if (err) {
+      const msg = (err?.message ?? "").toLowerCase();
+      if (msg.includes("provider is not enabled") || msg.includes("unsupported provider")) {
+        setError(
+          "X (Twitter) sign-in is not enabled in your Supabase project. In Supabase Dashboard go to Authentication → Providers → Twitter, turn it ON, and add your API Key and Secret from the X Developer Portal (developer.x.com)."
+        );
+        return;
+      }
       setError(err.message);
       return;
     }

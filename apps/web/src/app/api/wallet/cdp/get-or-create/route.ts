@@ -68,6 +68,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Valid EVM address required" }, { status: 400 });
   }
 
+  const normalAddress = address.toLowerCase();
+
   const { data: existing } = await supabase
     .from("profiles")
     .select("cdp_wallet_address")
@@ -75,11 +77,38 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if ((existing as { cdp_wallet_address?: string } | null)?.cdp_wallet_address) {
-    return NextResponse.json({
-      address: (existing as { cdp_wallet_address: string }).cdp_wallet_address,
-      chain: "base",
-      walletType: "smart_account",
-    });
+    const current = String((existing as { cdp_wallet_address: string }).cdp_wallet_address ?? "").trim().toLowerCase();
+    if (current === normalAddress) {
+      return NextResponse.json({
+        address: (existing as { cdp_wallet_address: string }).cdp_wallet_address,
+        chain: "base",
+        walletType: "smart_account",
+      });
+    }
+  }
+
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
+  if (serviceKey) {
+    const service = createClient(supabaseUrl, serviceKey);
+    const { data: other } = await service
+      .from("profiles")
+      .select("id, cdp_wallet_address")
+      .not("cdp_wallet_address", "is", null)
+      .neq("id", user.id)
+      .limit(100);
+    const rows = (other ?? []) as Array<{ id: string; cdp_wallet_address?: string }>;
+    const withSameWallet = rows.filter(
+      (r) => String(r.cdp_wallet_address ?? "").trim().toLowerCase() === normalAddress
+    );
+    if (withSameWallet.length > 0) {
+      return NextResponse.json(
+        {
+          error: "This wallet is already linked to another Linkary account. Sign in with that account to use it, or disconnect the wallet there first.",
+          code: "WALLET_ALREADY_LINKED",
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const { error: updateError } = await supabase

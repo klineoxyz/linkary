@@ -33,6 +33,9 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   const [error, setError] = useState<string | null>(null);
   const [twitterUsernameConflict, setTwitterUsernameConflict] = useState(false);
 
+  // X "connected" source of truth: our API GET /api/auth/social-x (reads Supabase social_accounts).
+  // Fallback: getMySocialAccountX (client Supabase, same table; can be false if RLS/session not ready).
+  // CDP = login/wallet only; twitterapi.io = sync data only. Neither returns connected.
   const loadIntegrations = useCallback(async () => {
     if (!userId) {
       setLoading(false);

@@ -32,6 +32,17 @@ export async function GET(request: Request) {
 
   const address = (profile?.cdp_wallet_address as string) ?? null;
   if (address) {
+    const now = new Date().toISOString();
+    await supabase.from("cdp_wallets").upsert(
+      {
+        user_id: user.id,
+        wallet_address: address,
+        wallet_chain: (profile?.cdp_wallet_chain as string) ?? "base",
+        cdp_wallet_id: null,
+        updated_at: now,
+      },
+      { onConflict: "user_id" }
+    );
     return NextResponse.json({
       address,
       chain: (profile?.cdp_wallet_chain as string) ?? "base",
@@ -111,19 +122,31 @@ export async function POST(request: Request) {
     }
   }
 
+  const now = new Date().toISOString();
   const { error: updateError } = await supabase
     .from("profiles")
     .update({
       cdp_wallet_address: address,
       cdp_wallet_chain: "base",
       cdp_wallet_type: "smart_account",
-      cdp_wallet_created_at: new Date().toISOString(),
+      cdp_wallet_created_at: now,
     })
     .eq("id", user.id);
 
   if (updateError) {
     return NextResponse.json({ error: "Failed to save wallet" }, { status: 500 });
   }
+
+  await supabase.from("cdp_wallets").upsert(
+    {
+      user_id: user.id,
+      wallet_address: address,
+      wallet_chain: "base",
+      cdp_wallet_id: null,
+      updated_at: now,
+    },
+    { onConflict: "user_id" }
+  );
 
   const { data: profile } = await supabase
     .from("profiles")

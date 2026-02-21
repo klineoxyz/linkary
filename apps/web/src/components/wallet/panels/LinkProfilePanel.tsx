@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Mail, Link2, Check, Phone, Smartphone } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Mail, Link2, Check, Phone, Smartphone, Shield } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type RecoveryMethods = {
@@ -16,6 +17,7 @@ type CdpStatus = {
   walletAddress?: string;
   address?: string;
   recoveryMethods?: RecoveryMethods;
+  recovery_verified_at?: string | null;
   profile_email_masked?: string;
   twitter_username?: string;
 };
@@ -44,6 +46,8 @@ export default function LinkProfilePanel() {
   const [profileEmail, setProfileEmail] = useState<string | null>(null);
   const [xHandle, setXHandle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recoverySecuring, setRecoverySecuring] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -85,10 +89,53 @@ export default function LinkProfilePanel() {
     })();
   }, []);
 
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const recovery = searchParams.get("recovery");
+    const message = searchParams.get("message");
+    if (recovery === "error" && message === "x_account_mismatch") {
+      setRecoveryError("X account mismatch. The X account you used does not match the one linked to this profile.");
+    } else if (recovery === "enabled") {
+      setRecoveryError(null);
+      setStatus((s) => (s ? { ...s, recovery_verified_at: new Date().toISOString() } : null));
+    }
+  }, [searchParams]);
+
+  const handleSecureWithX = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    setRecoverySecuring(true);
+    setRecoveryError(null);
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/wallet/cdp/recovery/x/start`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRecoveryError((data as { error?: string }).error ?? "Could not start recovery.");
+        setRecoverySecuring(false);
+        return;
+      }
+      const url = (data as { recoveryUrl?: string }).recoveryUrl;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      setRecoverySecuring(false);
+    } catch {
+      setRecoveryError("Something went wrong.");
+      setRecoverySecuring(false);
+    }
+  };
+
   const methods = status?.recoveryMethods ?? {};
   const walletAddress = status?.walletAddress ?? status?.address ?? null;
   const hasAny = !!methods.email || !!methods.phone || !!methods.google || !!methods.x || !!walletAddress;
   const needsMore = hasAny && (!methods.email || !methods.x);
+  const recoveryVerifiedAt = status?.recovery_verified_at ?? null;
 
   return (
     <div className="space-y-4">
@@ -96,6 +143,41 @@ export default function LinkProfilePanel() {
       <p className="text-sm text-muted-foreground">
         Wallet is from Coinbase CDP. Recovery methods below help you claim and recover this wallet.
       </p>
+      {walletAddress && (
+        <p className="text-sm text-muted-foreground">
+          Wallet (CDP) {shortAddr(walletAddress)}
+        </p>
+      )}
+      {recoveryError && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {recoveryError}
+        </div>
+      )}
+      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+        <p className="text-xs font-medium text-muted-foreground">Recovery</p>
+        {recoveryVerifiedAt ? (
+          <p className="inline-flex items-center gap-1.5 text-sm text-green-700">
+            <Shield className="h-4 w-4 shrink-0" />
+            Recovery enabled with X{xHandle ? ` (@${xHandle})` : ""}
+          </p>
+        ) : (
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">Secure this wallet with your X account so you can recover it later.</p>
+            <button
+              type="button"
+              disabled={recoverySecuring || !methods.x}
+              onClick={handleSecureWithX}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              <Shield className="h-4 w-4 shrink-0" />
+              {recoverySecuring ? "Redirecting…" : "Secure wallet with X"}
+            </button>
+            {!methods.x && (
+              <p className="text-xs text-muted-foreground mt-1">Connect X in Integrations first.</p>
+            )}
+          </div>
+        )}
+      </div>
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (

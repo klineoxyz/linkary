@@ -37,6 +37,15 @@ export async function GET(request: Request) {
   const address = (profile?.cdp_wallet_address as string) ?? null;
   const chain = (profile?.cdp_wallet_chain as string) ?? "base";
 
+  const { data: cdpWalletRow } = await supabase
+    .from("cdp_wallets")
+    .select("wallet_address, recovery_provider, recovery_provider_user_id, recovery_verified_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const cdpAddress = (cdpWalletRow as { wallet_address?: string } | null)?.wallet_address ?? address;
+  const recoveryVerifiedAt = (cdpWalletRow as { recovery_verified_at?: string | null } | null)?.recovery_verified_at ?? null;
+
   const { data: socialRows } = await supabase
     .from("social_accounts")
     .select("username, status, revoked_at")
@@ -73,16 +82,17 @@ export async function GET(request: Request) {
   return NextResponse.json({
     enabled: true,
     chain,
-    address,
-    needsCreate: !address,
-    walletAddress: address ?? undefined,
+    address: cdpAddress ?? address,
+    needsCreate: !address && !cdpAddress,
+    walletAddress: (cdpAddress ?? address) ?? undefined,
     recoveryMethods: {
       email: hasRealEmail,
       phone: false,
       google: false,
       x: hasX,
-      wallet: !!address,
+      wallet: !!(address || cdpAddress),
     },
+    recovery_verified_at: recoveryVerifiedAt ?? undefined,
     profile_email_masked: hasRealEmail ? maskEmail(displayEmail) : undefined,
     twitter_username: hasX && xUsername ? xUsername : undefined,
   });

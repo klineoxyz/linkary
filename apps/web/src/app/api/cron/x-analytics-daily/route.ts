@@ -63,6 +63,19 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
+    const currentHandleFromApi = (info.userName ?? "").toString().trim().replace(/^@/, "").toLowerCase();
+    const storedHandle = userName.toLowerCase();
+    if (currentHandleFromApi && currentHandleFromApi !== storedHandle) {
+      await supabase
+        .from("social_accounts")
+        .update({
+          username: currentHandleFromApi,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", row.user_id)
+        .in("provider", ["x", "twitter"]);
+    }
+
     const followers = typeof info.followers === "number" ? info.followers : 0;
     const statusesCount = typeof info.statusesCount === "number" ? info.statusesCount : 0;
     const favouritesCount = typeof info.favouritesCount === "number" ? info.favouritesCount : 0;

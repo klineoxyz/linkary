@@ -2667,8 +2667,12 @@ export default function LinkaryApp() {
       setRouteState((prev) => (prev.name === "login" ? { name: "overview" } : prev));
       if (p === "/login") router.push("/overview");
     }
-    // Ensure 90d analytics backfill is enqueued when user has X (so Analytics has 7D/30D/90D without manual sync)
-    if (session?.access_token && profile?.twitter_username && typeof window !== "undefined") {
+    // Post-login repair and analytics: ensure-social-x (repair from identity/profile), then ensure-backfill (today snapshot + 90d job). social_accounts is source of truth.
+    if (session?.access_token && typeof window !== "undefined") {
+      fetch(`${window.location.origin}/api/auth/ensure-social-x`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }).catch(() => {});
       fetch(`${window.location.origin}/api/analytics/ensure-backfill`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}` },

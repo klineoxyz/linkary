@@ -26,6 +26,7 @@ All backend SQL is applied via migrations in this folder. Apply them **in filena
 | 17 | `20260238000000_social_accounts_get_my_social_x.sql` | RPC `get_my_social_x()` (SECURITY DEFINER) so Integrations can read own X connection reliably |
 | 18 | `20260239000000_applications_rls_and_job_admin.sql` | applications RLS private (applicant + job org admin only); `is_job_org_admin()`; duplicate-application unique indexes |
 | 19 | `20260240000000_social_accounts_grants_and_rpc.sql` | GRANT on social_accounts for authenticated/anon; ensure get_my_social_x() for Integrations |
+| 20 | `20260241000000_social_accounts_x_connect_forever.sql` | One active X per user; one X account per Linkary user (partial unique indexes); RLS verification |
 
 ## How to apply
 

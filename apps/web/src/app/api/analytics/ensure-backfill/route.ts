@@ -73,6 +73,15 @@ async function ensureBackfill(request: NextRequest) {
     /* body parse failed; use self */
   }
 
+  const { data: socialX } = await service
+    .from("social_accounts")
+    .select("username")
+    .eq("user_id", targetProfileId)
+    .eq("provider", "x")
+    .is("revoked_at", null)
+    .eq("status", "connected")
+    .maybeSingle();
+
   const { data: profile, error: profileError } = await service
     .from("profiles")
     .select("id, twitter_username, followers_total, avg_engagement_rate")
@@ -83,12 +92,35 @@ async function ensureBackfill(request: NextRequest) {
     return NextResponse.json({ enqueued: false, reason: "profile_not_found" });
   }
 
-  const username = (profile.twitter_username ?? "").toString().trim().replace(/^@/, "").toLowerCase();
+  const handleFromSocial = (socialX as { username?: string | null })?.username?.toString().trim().replace(/^@/, "");
+  const handleFromProfile = (profile.twitter_username ?? "").toString().trim().replace(/^@/, "");
+  const username = (handleFromSocial || handleFromProfile || "").toLowerCase();
   if (!username) {
     return NextResponse.json({ enqueued: false, reason: "no_x_handle" });
   }
 
-  // Already have 90D window data → no need to enqueue
+  const today = new Date().toISOString().slice(0, 10);
+  const followers = typeof profile.followers_total === "number" ? profile.followers_total : null;
+  const engagementRate =
+    typeof profile.avg_engagement_rate === "number" ? profile.avg_engagement_rate : null;
+
+  // Always upsert today's snapshot on login so Analytics stays current
+  const { error: snapshotErr } = await service.from("x_daily_snapshots").upsert(
+    {
+      owner_type: "profile",
+      owner_id: profile.id,
+      day: today,
+      followers,
+      engagement_rate: engagementRate,
+      raw: { from_ensure_backfill: true },
+    },
+    { onConflict: "owner_type,owner_id,day" }
+  );
+  if (snapshotErr) {
+    // Non-fatal
+  }
+
+  // Already have 90D window data → no need to enqueue backfill job
   const { data: window90Rows } = await service
     .from("x_window_aggregates")
     .select("id")
@@ -115,27 +147,6 @@ async function ensureBackfill(request: NextRequest) {
 
   if (recentJobs?.length) {
     return NextResponse.json({ enqueued: false, reason: "job_pending" });
-  }
-
-  const today = new Date().toISOString().slice(0, 10);
-  const followers = typeof profile.followers_total === "number" ? profile.followers_total : null;
-  const engagementRate =
-    typeof profile.avg_engagement_rate === "number" ? profile.avg_engagement_rate : null;
-
-  // Write today's snapshot immediately so Analytics shows at least current stats before worker runs
-  const { error: snapshotErr } = await service.from("x_daily_snapshots").upsert(
-    {
-      owner_type: "profile",
-      owner_id: profile.id,
-      day: today,
-      followers,
-      engagement_rate: engagementRate,
-      raw: { from_ensure_backfill: true },
-    },
-    { onConflict: "owner_type,owner_id,day" }
-  );
-  if (snapshotErr) {
-    // Non-fatal; still enqueue job
   }
 
   const now = new Date().toISOString();

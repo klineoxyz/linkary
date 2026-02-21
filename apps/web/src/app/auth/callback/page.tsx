@@ -130,6 +130,7 @@ export default function AuthCallbackPage() {
           setMessage("Saving your X profile…");
           await ensureProfileForSession(user.id);
           const identity = extractTwitterIdentity(user as unknown as Parameters<typeof extractTwitterIdentity>[0]);
+          const token = sessionData?.session?.access_token ?? "";
           if (identity) {
             const { error: saveErr } = await saveTwitterIdentityFromOAuth(user.id, identity);
             if (saveErr && !cancelled) {
@@ -145,45 +146,35 @@ export default function AuthCallbackPage() {
                 ...(displayName != null ? { display_name: displayName } : {}),
               });
             }
-            const session = sessionData?.session as { provider_token?: string; provider_refresh_token?: string } | undefined;
-            const token = sessionData?.session?.access_token ?? "";
             if (token) {
-              const persistBody = {
-                provider: "x",
-                provider_token: session?.provider_token ?? undefined,
-                provider_refresh_token: session?.provider_refresh_token ?? undefined,
-                provider_user_id: identity.id ?? identity.sub,
-                username: identity.user_name ?? identity.preferred_username ?? identity.username,
-                profile_json: { name: identity.name, avatar_url: identity.avatar_url },
-              };
-              let persistOk = false;
-              for (let attempt = 0; attempt < 2 && !persistOk; attempt++) {
-                try {
-                  const persistRes = await fetch(`${window.location.origin}/api/auth/persist-social`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                    body: JSON.stringify(persistBody),
-                  });
-                  if (persistRes.ok) persistOk = true;
-                } catch {
-                  /* retry once below */
+              const finishRes = await fetch(`${window.location.origin}/api/integrations/x/link/finish`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (!finishRes.ok && !cancelled) {
+                const errBody = await finishRes.json().catch(() => ({}));
+                const errMsg = (errBody as { error?: string }).error ?? "Could not finalize X connection.";
+                if (finishRes.status === 409) {
+                  setMessage("This X account is already connected to another Linkary account. Disconnect it there first.");
+                } else {
+                  setMessage(errMsg);
                 }
-              }
-              try {
-                await fetch(`${window.location.origin}/api/auth/ensure-social-x`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
-              } catch {
-                /* non-blocking */
+                setStatus("error");
+                return;
               }
               fetch(`${window.location.origin}/api/analytics/ensure-backfill`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
             }
             if (!cancelled) {
               setStatus("ok");
               setMessage("Redirecting…");
-              let redirectUrl = redirectTo + (redirectTo.includes("?") ? "&" : "?") + "x_connected=1";
+              let redirectUrl =
+                next === "/settings/integrations" || next?.includes("integrations")
+                  ? redirectTo + (redirectTo.includes("?") ? "&" : "?") + "x_connected=1"
+                  : redirectTo;
               try {
                 if (sessionStorage.getItem("linkary_oauth_fallback") === "1") {
                   sessionStorage.removeItem("linkary_oauth_fallback");
-                  redirectUrl += "&x_fallback=1";
+                  redirectUrl = redirectUrl + (redirectUrl.includes("?") ? "&" : "?") + "x_fallback=1";
                 }
               } catch {
                 /* ignore */

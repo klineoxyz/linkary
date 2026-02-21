@@ -4,9 +4,25 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+function firstStr(obj: Record<string, unknown>, ...keys: string[]): string | undefined {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return undefined;
+}
+
+function isXProvider(p: unknown): boolean {
+  const s = (p as string)?.toLowerCase();
+  return s === "twitter" || s === "x";
+}
+
 /**
- * POST: Ensure social_accounts has an active X row from profile mirror (no identities).
- * Call on Integrations load so legacy users get a stable row; CDP login does not set identities.
+ * POST: Repair-only. Ensure social_accounts has an active X row for current user.
+ * - If active social_accounts row exists, do nothing.
+ * - Else try to create from user.identities (X), then update profile (never overwrite non-empty twitter_username; use twitter_username_candidate).
+ * - Else create from profile mirror (twitter_username / twitter_user_id).
+ * Call on login callback and/or dashboard boot. Never creates a new auth user.
  */
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -32,6 +48,48 @@ export async function POST(request: Request) {
 
   const active = existingSocial && !(existingSocial as { revoked_at?: string | null }).revoked_at && (existingSocial as { status?: string }).status === "connected";
   if (active) {
+    return NextResponse.json({ ok: true, connected: true });
+  }
+
+  const identities = (user as { identities?: Array<Record<string, unknown>> }).identities ?? [];
+  const xIdentity = identities.find((i) => isXProvider(i.provider)) as Record<string, unknown> | undefined;
+  if (xIdentity) {
+    const raw = (xIdentity.identity_data ?? xIdentity) as Record<string, unknown>;
+    const providerUserId = firstStr(raw, "id", "sub") ?? (raw.id as string) ?? (raw.sub as string) ?? "";
+    const username = firstStr(raw, "user_name", "preferred_username", "username", "screen_name", "nickname");
+    const handle = username ? String(username).replace(/^@/, "").trim() : null;
+    const now = new Date().toISOString();
+    const { error: upsertErr } = await supabase.from("social_accounts").upsert(
+      {
+        user_id: user.id,
+        provider: "x",
+        provider_user_id: providerUserId || null,
+        username: handle,
+        status: "connected",
+        revoked_at: null,
+        connected_at: now,
+        updated_at: now,
+        profile_json: raw,
+      },
+      { onConflict: "user_id,provider" }
+    );
+    if (upsertErr) {
+      return NextResponse.json({ error: upsertErr.message }, { status: 500 });
+    }
+    const { data: profileRow } = await supabase.from("profiles").select("twitter_username, twitter_user_id").eq("id", user.id).maybeSingle();
+    const currentHandle = (profileRow as { twitter_username?: string | null })?.twitter_username?.trim();
+    const updates: Record<string, unknown> = {
+      twitter_user_id: providerUserId || null,
+      twitter_connected_at: now,
+    };
+    if (handle) {
+      if (currentHandle && currentHandle !== handle) {
+        updates.twitter_username_candidate = handle;
+      } else if (!currentHandle) {
+        updates.twitter_username = handle;
+      }
+    }
+    await supabase.from("profiles").update(updates).eq("id", user.id);
     return NextResponse.json({ ok: true, connected: true });
   }
 

@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { getMyProfile, disconnectTwitter } from "@/lib/profiles";
+import { getMyProfile } from "@/lib/profiles";
 import { getMySocialAccountX } from "@/lib/socialAccounts";
 import { syncProfileFromX } from "@/lib/x-sync";
 import type { Profile } from "@/lib/profiles";
@@ -36,75 +36,24 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   const [twitterUsernameConflict, setTwitterUsernameConflict] = useState(false);
   const [showFallbackNotice, setShowFallbackNotice] = useState(false);
 
-  // X "connected": only trust GET /api/auth/social-x. Keep trying to get token so we never show "Connect X" before the API has run.
+  // Connected = social_accounts only (getMySocialAccountX / get_my_social_x). Never use identities for "connected".
   const loadIntegrations = useCallback(async () => {
     if (!userId) {
       setLoading(false);
       return;
     }
     setError(null);
-    const base = typeof window !== "undefined" ? window.location.origin : "";
-
-    let token: string | null = null;
-    for (let i = 0; i < 12; i++) {
-      const { data: { session } } = await supabase.auth.getSession();
-      token = session?.access_token ?? null;
-      if (token) break;
-      if (typeof window !== "undefined") await new Promise((r) => setTimeout(r, 500));
-    }
-
     const [p, clientSocial] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
     setProfile(p ?? null);
-
-    const tryApi = async (t: string): Promise<boolean> => {
-      try {
-        await fetch(`${base}/api/auth/ensure-social-x`, { method: "POST", headers: { Authorization: `Bearer ${t}` }, credentials: "include" });
-      } catch {
-        /* non-blocking */
-      }
-      try {
-        let res = await fetch(`${base}/api/auth/social-x`, { headers: { Authorization: `Bearer ${t}` }, credentials: "include" });
-        if (res.ok) {
-          const apiSocial = await res.json();
-          if (apiSocial.connected) {
-            setSocialX({
-              connected: true,
-              username: apiSocial.username ?? null,
-              provider_user_id: apiSocial.provider_user_id ?? null,
-            });
-            return true;
-          }
-          try {
-            await fetch(`${base}/api/auth/sync-session-x`, { method: "POST", headers: { Authorization: `Bearer ${t}` } });
-            res = await fetch(`${base}/api/auth/social-x`, { headers: { Authorization: `Bearer ${t}` }, credentials: "include" });
-            if (res.ok) {
-              const again = await res.json();
-              if (again.connected) {
-                setSocialX({
-                  connected: true,
-                  username: again.username ?? null,
-                  provider_user_id: again.provider_user_id ?? null,
-                });
-                return true;
-              }
-            }
-          } catch {
-            /* ignore */
-          }
-        }
-      } catch {
-        /* ignore */
-      }
-      return false;
-    };
-
-    if (token && (await tryApi(token))) {
-      setLoading(false);
-      return;
-    }
-
-    setSocialX((prev) => (prev?.connected ? prev : clientSocial));
+    setSocialX(clientSocial);
     setLoading(false);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/auth/ensure-social-x`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }).catch(() => {});
+    }
   }, [userId]);
 
   useEffect(() => {
@@ -133,27 +82,15 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   useEffect(() => {
     if (searchParams.get("x_connected") !== "1" || !userId) return;
     setLoading(true);
-    let cancelled = false;
-    const timers: ReturnType<typeof setTimeout>[] = [];
     (async () => {
       await supabase.auth.refreshSession();
-      if (cancelled) return;
-      await new Promise((r) => setTimeout(r, 800));
-      if (cancelled) return;
       loadIntegrations();
-      timers.push(setTimeout(() => { if (!cancelled) loadIntegrations(); }, 1500));
-      timers.push(setTimeout(() => { if (!cancelled) loadIntegrations(); }, 3000));
-      timers.push(setTimeout(() => { if (!cancelled) loadIntegrations(); }, 4500));
-      if (typeof window !== "undefined" && window.history.replaceState) {
-        const u = new URL(window.location.href);
-        u.searchParams.delete("x_connected");
-        window.history.replaceState({}, "", u.pathname + (u.search || ""));
-      }
     })();
-    return () => {
-      cancelled = true;
-      timers.forEach((t) => clearTimeout(t));
-    };
+    if (typeof window !== "undefined" && window.history.replaceState) {
+      const u = new URL(window.location.href);
+      u.searchParams.delete("x_connected");
+      window.history.replaceState({}, "", u.pathname + (u.search || ""));
+    }
   }, [searchParams, userId, loadIntegrations]);
 
   const handleConnectX = async () => {
@@ -164,34 +101,26 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     } catch {
       /* ignore */
     }
-    // X / Twitter (OAuth 2.0) in Supabase uses provider "x"; "twitter" is the deprecated OAuth 1.0a provider
     const oauthOpts = { provider: "x" as const, options: { redirectTo: AUTH_CALLBACK } };
-    const auth = supabase.auth as { linkIdentity?: (opts: { provider: string; options?: { redirectTo?: string } }) => Promise<{ data: { url?: string }; error: { message: string } | null }>; signInWithOAuth: (opts: { provider: string; options?: { redirectTo?: string } }) => Promise<{ data: { url?: string }; error: { message: string } | null }> };
-    let data: { url?: string } | null = null;
-    let err: { message: string } | null = null;
-    // Prefer linkIdentity so X is linked to this account and connection persists after re-login with CDP
-    if (userId && auth.linkIdentity) {
-      const result = await auth.linkIdentity(oauthOpts);
-      data = result.data;
-      err = result.error;
-      if (err) {
-        const msg = (err?.message ?? "").toLowerCase();
-        if (msg.includes("manual linking") || msg.includes("linking is disabled") || msg.includes("identity already")) {
-          setConnecting(false);
-          setError(
-            "To connect X to this account (and keep it connected when you sign in with CDP), enable Allow manual linking in Supabase Dashboard → Authentication → User Signups, then try Connect X again."
-          );
-          return;
-        }
-      }
-    } else {
-      const result = await supabase.auth.signInWithOAuth(oauthOpts);
-      data = result.data;
-      err = result.error;
-    }
+    const auth = supabase.auth as { linkIdentity: (opts: { provider: string; options?: { redirectTo?: string } }) => Promise<{ data: { url?: string }; error: { message: string } | null }> };
+    const result = await auth.linkIdentity(oauthOpts);
+    const data = result.data;
+    const err = result.error;
     setConnecting(false);
     if (err) {
       const msg = (err?.message ?? "").toLowerCase();
+      if (msg.includes("manual linking") || msg.includes("linking is disabled")) {
+        setError(
+          "Enable Allow manual linking in Supabase Auth settings, then retry Connect X."
+        );
+        return;
+      }
+      if (msg.includes("identity already") || msg.includes("already been linked") || msg.includes("belongs to another")) {
+        setError(
+          "This X account is already connected to another Linkary account. Disconnect it there first."
+        );
+        return;
+      }
       if (msg.includes("provider is not enabled") || msg.includes("unsupported provider")) {
         setError(
           "X (Twitter) sign-in is not enabled in your Supabase project. In Supabase Dashboard go to Authentication → Providers → Twitter, turn it ON, and add your API Key and Secret from the X Developer Portal (developer.x.com)."
@@ -212,51 +141,34 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     if (!userId) return;
     setError(null);
     setDisconnecting(true);
-    try {
-      await supabase
-        .from("social_accounts")
-        .update({
-          revoked_at: new Date().toISOString(),
-          status: "revoked",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", userId)
-        .eq("provider", "x");
-
-      const { data: identities } = await supabase.auth.getUserIdentities();
-      const xIdentity = identities?.identities?.find(
-        (i) => (i.provider ?? "").toLowerCase() === "twitter" || (i.provider ?? "").toLowerCase() === "x"
-      );
-      if (xIdentity && (identities?.identities?.length ?? 0) >= 2) {
-        await supabase.auth.unlinkIdentity(xIdentity);
-      }
-    } catch {
-      /* unlink may fail; we still clear DB */
-    }
-
-    const result = await disconnectTwitter(userId, { clearUsername: false });
-    setDisconnecting(false);
-    if (result.error) {
-      setError(result.error);
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setDisconnecting(false);
+      setError("Not signed in.");
       return;
     }
+    try {
+      const res = await fetch(`${base}/api/integrations/x/disconnect`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setError((err as { error?: string }).error ?? "Disconnect failed.");
+        setDisconnecting(false);
+        return;
+      }
+    } catch {
+      setError("Disconnect failed.");
+      setDisconnecting(false);
+      return;
+    }
+    setDisconnecting(false);
     setTwitterUsernameConflict(false);
     const [updatedProfile, updatedSocial] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
     setProfile(updatedProfile ?? null);
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    if (token) {
-      try {
-        const res = await fetch(typeof window !== "undefined" ? `${window.location.origin}/api/auth/social-x` : "", { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const apiSocial = await res.json();
-          setSocialX({ connected: !!apiSocial.connected, username: apiSocial.username ?? null, provider_user_id: apiSocial.provider_user_id ?? null });
-          return;
-        }
-      } catch {
-        /* fallback */
-      }
-    }
     setSocialX(updatedSocial);
   };
 

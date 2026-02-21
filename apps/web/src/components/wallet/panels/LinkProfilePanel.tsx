@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { Mail, Link2, Check, Phone, Smartphone, Shield } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -65,9 +64,8 @@ export default function LinkProfilePanel() {
     const token = session?.access_token;
     const uid = session?.user?.id;
     if (!token || !uid) return;
-    const base = typeof window !== "undefined" ? window.location.origin : "";
     const [apiRes, profileRes] = await Promise.all([
-      fetch(`${base}/api/wallet/cdp/status`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch("/api/wallet/cdp/status", { headers: { Authorization: `Bearer ${token}` } }),
       supabase.from("profiles").select("email, twitter_username, twitter_username_candidate").eq("id", uid).maybeSingle(),
     ]);
     const r = profileRes.data as { email?: string | null; twitter_username?: string | null; twitter_username_candidate?: string | null } | null;
@@ -95,14 +93,11 @@ export default function LinkProfilePanel() {
     return () => { cancelled = true; };
   }, [fetchStatus]);
 
-  const searchParams = useSearchParams();
-
   const callMarkLinkedAndRefetch = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     if (!token) return;
-    const base = typeof window !== "undefined" ? window.location.origin : "";
-    const res = await fetch(`${base}/api/wallet/cdp/recovery/mark-linked`, {
+    const res = await fetch("/api/wallet/cdp/recovery/mark-linked", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -123,23 +118,6 @@ export default function LinkProfilePanel() {
     setRecoveryError(null);
     callMarkLinkedAndRefetch().finally(() => setRecoveryLinking(false));
   }, [oauthState?.status, oauthState, callMarkLinkedAndRefetch]);
-
-  useEffect(() => {
-    if (oauthState?.status !== "pending" && oauthState?.status !== "success") {
-      handledOAuthSuccessRef.current = false;
-    }
-  }, [oauthState?.status]);
-
-  useEffect(() => {
-    const recovery = searchParams.get("recovery");
-    const message = searchParams.get("message");
-    if (recovery === "error" && message === "x_account_mismatch") {
-      setRecoveryError("X account mismatch. The X account you used does not match the one linked to this profile.");
-    } else if (recovery === "enabled") {
-      setRecoveryError(null);
-      setStatus((s) => (s ? { ...s, recovery_verified_at: new Date().toISOString() } : null));
-    }
-  }, [searchParams]);
 
   const methods = status?.recoveryMethods ?? {};
   const walletAddress = status?.walletAddress ?? status?.address ?? null;
@@ -213,11 +191,18 @@ export default function LinkProfilePanel() {
         <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
           <p className="text-xs font-medium text-muted-foreground">Status</p>
           <div className="flex flex-wrap gap-2">
-            {methods.x && (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700" title="App login">
+            {xHandle && (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700" title="App login (Supabase)">
                 <Check className="h-3.5 w-3.5 shrink-0" />
                 <Link2 className="h-3.5 w-3.5" />
-                Signed in with X{xHandle ? ` (@${xHandle})` : ""}
+                App login: X (@{xHandle})
+              </span>
+            )}
+            {methods.x && (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700" title="Wallet recovery (CDP)">
+                <Check className="h-3.5 w-3.5 shrink-0" />
+                <Shield className="h-3.5 w-3.5" />
+                Wallet recovery: X available
               </span>
             )}
             {methods.email && (

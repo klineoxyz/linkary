@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { getMyProfile, disconnectTwitter } from "@/lib/profiles";
+import { getMySocialAccountX } from "@/lib/socialAccounts";
 import { syncProfileFromX } from "@/lib/x-sync";
 import type { Profile } from "@/lib/profiles";
 
@@ -22,17 +23,9 @@ function formatSyncTime(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-/** DB-only truth: connected when profile has x_connected or twitter_username or twitter_user_id. */
-function isXConnectedFromProfile(profile: Profile | null): boolean {
-  if (!profile) return false;
-  if (profile.x_connected === true) return true;
-  const hasHandle = !!(profile.twitter_username && String(profile.twitter_username).trim());
-  const hasUserId = !!(profile.twitter_user_id && String(profile.twitter_user_id).trim());
-  return hasHandle || hasUserId;
-}
-
 export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [socialX, setSocialX] = useState<Awaited<ReturnType<typeof getMySocialAccountX>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -46,20 +39,22 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       return;
     }
     setError(null);
-    const p = await getMyProfile(userId);
+    const [p, social] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
     setProfile(p ?? null);
+    setSocialX(social);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (token) {
         const base = typeof window !== "undefined" ? window.location.origin : "";
-        await fetch(`${base}/api/auth/ensure-x-connection`, {
+        await fetch(`${base}/api/auth/ensure-social-x`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
-        const updated = await getMyProfile(userId);
-        setProfile(updated ?? null);
+        const [updatedProfile, updatedSocial] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
+        setProfile(updatedProfile ?? null);
+        setSocialX(updatedSocial);
       }
     } catch {
       /* non-blocking */
@@ -128,12 +123,13 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       return;
     }
     setTwitterUsernameConflict(false);
-    const updated = await getMyProfile(userId);
-    setProfile(updated ?? null);
+    const [updatedProfile, updatedSocial] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
+    setProfile(updatedProfile ?? null);
+    setSocialX(updatedSocial);
   };
 
-  const isConnected = isXConnectedFromProfile(profile);
-  const handle = profile?.twitter_username ?? profile?.twitter_username_candidate ?? null;
+  const isConnected = socialX?.connected ?? false;
+  const handle = socialX?.username ?? profile?.twitter_username ?? profile?.twitter_username_candidate ?? null;
   const avatar = profile?.avatar_url ?? null;
 
   const handleSyncFromX = async () => {
@@ -142,8 +138,9 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     const res = await syncProfileFromX();
     setSyncing(false);
     if (res.ok) {
-      const updated = await getMyProfile(userId!);
-      setProfile(updated ?? null);
+      const [updatedProfile, updatedSocial] = await Promise.all([getMyProfile(userId!), getMySocialAccountX(userId!)]);
+      setProfile(updatedProfile ?? null);
+      setSocialX(updatedSocial);
     } else {
       const resObj = res as Record<string, unknown>;
       const errMsg = typeof resObj?.error === "string" ? resObj.error : "Sync failed";

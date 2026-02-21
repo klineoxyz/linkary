@@ -78,13 +78,13 @@ export default function LinkProfilePanel() {
     <div className="space-y-4">
       <h3 className="text-base font-semibold">Link a profile</h3>
       <p className="text-sm text-muted-foreground">
-        The email and X account below are linked to this wallet so you can claim and recover it.
+        Wallet is from Coinbase CDP (sign-in). X and email are from Settings → Integrations and are used to claim and recover this wallet.
       </p>
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
         <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-          <p className="text-xs font-medium text-muted-foreground">Linked to your account</p>
+          <p className="text-xs font-medium text-muted-foreground">Recovery methods</p>
           <div className="flex flex-wrap gap-2">
             {hasX && (
               <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 text-xs text-green-700" title="X linked to this wallet">
@@ -101,8 +101,8 @@ export default function LinkProfilePanel() {
               </span>
             )}
             {hasWalletEmail && (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground" title="Wallet used to sign in">
-                Wallet ({shortWallet(rawEmail)})
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground" title="Coinbase CDP wallet (sign-in)">
+                Wallet — CDP ({shortWallet(rawEmail)})
               </span>
             )}
             {!hasX && !hasRealEmail && !hasWalletEmail && (

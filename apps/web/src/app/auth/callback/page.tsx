@@ -165,7 +165,7 @@ export default function AuthCallbackPage() {
             }
             if (token) {
               fetch(`${window.location.origin}/api/analytics/ensure-backfill`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
-              fetch(`${window.location.origin}/api/auth/ensure-x-connection`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+              fetch(`${window.location.origin}/api/auth/ensure-social-x`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
             }
           }
           if (!cancelled) {
@@ -218,7 +218,7 @@ export default function AuthCallbackPage() {
                 method: "POST",
                 headers: { Authorization: `Bearer ${session.access_token}` },
               }).catch(() => {});
-              fetch(`${window.location.origin}/api/auth/ensure-x-connection`, {
+              fetch(`${window.location.origin}/api/auth/ensure-social-x`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${session.access_token}` },
               }).catch(() => {});

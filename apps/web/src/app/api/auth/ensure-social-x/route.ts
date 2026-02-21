@@ -52,7 +52,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, connected: true });
   }
 
-  const identities = (user as unknown as { identities?: Array<Record<string, unknown>> }).identities ?? [];
+  const userAny = user as unknown;
+  const identities: Array<Record<string, unknown>> = (userAny as { identities?: Array<Record<string, unknown>> }).identities ?? [];
   const xIdentity = identities.find((i) => isXProvider(i.provider)) as Record<string, unknown> | undefined;
   if (xIdentity) {
     const raw = (xIdentity.identity_data ?? xIdentity) as Record<string, unknown>;

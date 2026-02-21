@@ -168,7 +168,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               Daily drop: New verified profiles today: <span className="text-primary font-bold">24</span>
             </span>
             <button
-              onClick={() => setRoute({ name: "explore" })}
+              onClick={() => setRoute({ name: "overview" })}
               className="text-sm text-primary hover:opacity-90 font-medium flex items-center gap-1 transition-colors"
             >
               See today
@@ -219,7 +219,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform stroke-[2]" />
                 </button>
                 <button
-                  onClick={() => setRoute({ name: "explore" })}
+                  onClick={() => setRoute({ name: "overview" })}
                   className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl border-2 border-gray-300 bg-white text-gray-900 font-semibold text-lg hover:border-gray-400 hover:bg-gray-50 transition-all"
                 >
                   <Search className="w-5 h-5 stroke-[1.75]" />
@@ -730,7 +730,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
 
           <div className="text-center mt-12">
             <button
-              onClick={() => setRoute({ name: "explore" })}
+              onClick={() => setRoute({ name: "overview" })}
               className="text-primary hover:opacity-90 font-semibold flex items-center gap-2 mx-auto"
             >
               Compare all features
@@ -750,7 +750,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
 
             <div className="flex items-center gap-8 flex-wrap justify-center">
               <button
-                onClick={() => setRoute({ name: "explore" })}
+                onClick={() => setRoute({ name: "overview" })}
                 className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
               >
                 Explore

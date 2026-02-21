@@ -534,22 +534,37 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [myOrgs, setMyOrgs] = useState<Org[]>([]);
+  const [lastCreateOrgError, setLastCreateOrgError] = useState<string | null>(null);
+  const [lastCreatedOrgId, setLastCreatedOrgId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const uid = session?.user?.id ?? null;
       setUserId(uid);
+      setUserEmail(session?.user?.email ?? null);
       if (uid) listOrgsForUser(uid).then(setMyOrgs);
       else setMyOrgs([]);
     });
   }, []);
 
   const handleOrgCreated = (orgId: string, _slug?: string) => {
+    setLastCreatedOrgId(orgId);
+    setLastCreateOrgError(null);
     if (userId) listOrgsForUser(userId).then(setMyOrgs);
     setShowCreateOrg(false);
     if (setRoute) setRoute({ name: "orgDetail", data: { orgId, showConnectXBanner: true } });
   };
+
+  const isDevDiagVisible =
+    process.env.NEXT_PUBLIC_ENV !== "production" ||
+    (typeof userEmail === "string" &&
+      (process.env.NEXT_PUBLIC_DEV_DIAG_EMAILS ?? "")
+        .split(",")
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+        .includes(userEmail.toLowerCase()));
 
   return (
     <div className="space-y-10 pb-12">
@@ -558,7 +573,19 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
           userId={userId}
           onClose={() => setShowCreateOrg(false)}
           onSuccess={handleOrgCreated}
+          onError={setLastCreateOrgError}
         />
+      )}
+      {isDevDiagVisible && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-xs font-mono text-amber-900">
+          <div className="font-semibold mb-2">Dev diagnostics</div>
+          <div>User ID: {userId ?? "—"}</div>
+          <div>Last create org error: {lastCreateOrgError ?? "—"}</div>
+          <div>Last created org ID: {lastCreatedOrgId ?? "—"}</div>
+          <div>
+            Org in list: {lastCreatedOrgId ? (myOrgs.some((o) => o.id === lastCreatedOrgId) ? "yes" : "no") : "—"}
+          </div>
+        </div>
       )}
       {/* Universal Search Bar */}
       <GlassCard>
@@ -731,7 +758,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
             <span className="text-xs px-2 py-1 rounded-full bg-accent text-primary border border-border font-medium ml-2">Demo</span>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <button onClick={() => setRoute && setRoute({ name: "creatorProfile" })} className="p-5 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
+            <button onClick={() => setRoute && setRoute({ name: "overview" })} className="p-5 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-xl bg-accent border border-border"><Users className="w-5 h-5 text-primary stroke-[1.75]" /></div>
                 <h4 className="font-semibold text-gray-900">Creator</h4>
@@ -747,7 +774,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               <p className="text-xs text-gray-600 mb-2">Web3 projects & protocols</p>
               <div className="flex items-center gap-2 text-xs text-primary"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
             </button>
-            <button onClick={() => setRoute && setRoute({ name: "agencyProfile" })} className="p-5 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
+            <button onClick={() => setRoute && setRoute({ name: "overview" })} className="p-5 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-xl bg-accent border border-border"><Briefcase className="w-5 h-5 text-primary stroke-[1.75]" /></div>
                 <h4 className="font-semibold text-gray-900">Agency</h4>

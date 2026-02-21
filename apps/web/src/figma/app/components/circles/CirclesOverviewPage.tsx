@@ -126,7 +126,7 @@ export default function CirclesOverviewPage({ setRoute }: { setRoute?: (route: a
   });
 
   const handleCreateCircle = () => {
-    setRoute?.({ name: "createCircle" });
+    setRoute?.({ name: "overview" });
   };
 
   const handleViewCircle = (circle: any) => {

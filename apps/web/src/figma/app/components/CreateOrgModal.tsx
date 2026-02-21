@@ -15,10 +15,12 @@ const ORG_TYPES: { value: OrgType; label: string }[] = [
 export default function CreateOrgModal({
   onClose,
   onSuccess,
+  onError,
   userId,
 }: {
   onClose: () => void;
   onSuccess: (orgId: string, slug: string) => void;
+  onError?: (message: string) => void;
   userId: string;
 }) {
   const [slug, setSlug] = useState("");
@@ -79,7 +81,17 @@ export default function CreateOrgModal({
     });
     setLoading(false);
     if (err) {
-      setError(err);
+      const msg = String(err);
+      const slugTaken = /slug|unique|23505|duplicate/i.test(msg);
+      const rlsDenied = /policy|permission|rls|42501|denied/i.test(msg);
+      const displayMsg =
+        slugTaken
+          ? "That slug is already taken. Try a different one or use the suggestion above."
+          : rlsDenied
+            ? "Permission denied. You may not have access to create orgs."
+            : msg || "Unknown error. Try again or contact support.";
+      setError(displayMsg);
+      onError?.(msg);
       return;
     }
     if (data) {

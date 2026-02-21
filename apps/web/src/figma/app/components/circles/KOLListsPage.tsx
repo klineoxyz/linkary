@@ -136,7 +136,7 @@ export default function KOLListsPage({ setRoute }: any) {
       <div className="border-b border-zinc-200 bg-white">
         <div className="max-w-[1600px] mx-auto px-8 py-6">
           <button
-            onClick={() => setRoute({ name: "circles" })}
+            onClick={() => setRoute({ name: "overview" })}
             className="flex items-center gap-2 text-zinc-600 hover:text-zinc-900 transition-colors mb-4"
           >
             <ArrowLeft className="h-4 w-4" />

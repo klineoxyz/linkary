@@ -144,7 +144,7 @@ export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: 
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4">
           <button
-            onClick={() => setRoute?.({ name: "circles" })}
+            onClick={() => setRoute?.({ name: "overview" })}
             className="h-10 w-10 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 flex items-center justify-center text-zinc-700 transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />

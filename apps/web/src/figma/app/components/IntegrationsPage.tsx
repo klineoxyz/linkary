@@ -155,7 +155,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   const showLastSynced = isConnected && (profile?.x_last_profile_sync_at ?? profile?.x_last_tweets_sync_at);
   const lastSyncedProfile = profile?.x_last_profile_sync_at ? formatSyncTime(profile.x_last_profile_sync_at) : "\u2014";
   const lastSyncedTweets = profile?.x_last_tweets_sync_at ? formatSyncTime(profile.x_last_tweets_sync_at) : "\u2014";
-  const goToPreferences = () => setRoute({ name: "preferences" });
+  const goToPreferences = () => setRoute({ name: "overview" });
   const goToLogin = () => setRoute({ name: "login" });
 
   if (!userId) {

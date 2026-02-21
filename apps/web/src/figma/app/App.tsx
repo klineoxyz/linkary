@@ -164,7 +164,6 @@ import { MediaHeader } from "@/components/public/MediaHeader";
 
 // Import Circles system components
 import CirclesOverviewPage from "./components/circles/CirclesOverviewPage";
-import CreateCircleFlow from "./components/circles/CreateCircleFlow";
 import CircleDetailPage from "./components/circles/CircleDetailPage";
 import KOLListsPage from "./components/circles/KOLListsPage";
 import CapitalPartnersPage from "./components/circles/CapitalPartnersPage";
@@ -1049,8 +1048,8 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
           <Input
             placeholder="Search creators, projects, gigs..."
             className="pl-10 pr-20"
-            onFocus={() => setRoute({ name: "explore" })}
-            onKeyDown={(e) => { if (e.key === "Enter") setRoute({ name: "explore" }); }}
+            onFocus={() => setRoute({ name: "overview" })}
+            onKeyDown={(e) => { if (e.key === "Enter") setRoute({ name: "overview" }); }}
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             <span className="hidden md:inline text-xs font-medium text-zinc-600 rounded px-2 py-1 bg-zinc-200">⌘K</span>
@@ -1068,7 +1067,7 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
         </button>
         <button
           type="button"
-          onClick={() => setRoute({ name: "notifications" })}
+          onClick={() => setRoute({ name: "overview" })}
           className="relative p-2 rounded-lg transition-colors hover:bg-accent"
         >
           <Bell className="h-5 w-5 text-zinc-600" />
@@ -1211,7 +1210,7 @@ function OverviewPage({ setRoute, headerMedia }) {
             <h3 className="font-semibold" style={{ color: '#000000' }}>Featured Events</h3>
             <p className="mt-1 text-sm" style={{ color: '#1a1a1a' }}>Upcoming X Spaces, podcasts, and community calls</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setRoute({ name: "calendar" })} style={{ color: '#000000' }}>
+          <Button variant="outline" size="sm" onClick={() => setRoute({ name: "overview" })} style={{ color: '#000000' }}>
             View All
           </Button>
         </div>
@@ -1250,7 +1249,7 @@ function OverviewPage({ setRoute, headerMedia }) {
             <h3 className="font-semibold" style={{ color: '#000000' }}>Featured Creators</h3>
             <p className="mt-1 text-sm" style={{ color: '#1a1a1a' }}>Top-rated individuals with elite reputation scores</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setRoute({ name: "explore" })} style={{ color: '#000000' }}>
+          <Button variant="outline" size="sm" onClick={() => setRoute({ name: "overview" })} style={{ color: '#000000' }}>
             View All
           </Button>
         </div>
@@ -1315,7 +1314,7 @@ function OverviewPage({ setRoute, headerMedia }) {
             <h3 className="font-semibold" style={{ color: '#000000' }}>Featured Projects</h3>
             <p className="mt-1 text-sm" style={{ color: '#1a1a1a' }}>Top Web3 brands actively hiring and building</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setRoute({ name: "explore" })} style={{ color: '#000000' }}>
+          <Button variant="outline" size="sm" onClick={() => setRoute({ name: "overview" })} style={{ color: '#000000' }}>
             View All
           </Button>
         </div>
@@ -2417,7 +2416,7 @@ function ProfilePage({ setRoute, me }) {
                   <h3 className="font-semibold" style={{ color: '#000000' }}>Upcoming Events</h3>
                   <p className="mt-1 text-sm" style={{ color: '#1a1a1a' }}>X Spaces and podcasts</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setRoute({ name: "calendar" })} style={{ color: '#000000' }}>
+                <Button variant="outline" size="sm" onClick={() => setRoute({ name: "overview" })} style={{ color: '#000000' }}>
                   View All
                 </Button>
               </div>
@@ -2664,8 +2663,8 @@ export default function LinkaryApp() {
     } else {
       const p = pathname ?? "/";
       // Only redirect to Explore when coming from /login (post-login). Do NOT redirect when on "/" so Home stays on landing.
-      setRouteState((prev) => (prev.name === "login" ? { name: "explore" } : prev));
-      if (p === "/login") router.push("/explore");
+      setRouteState((prev) => (prev.name === "login" ? { name: "overview" } : prev));
+      if (p === "/login") router.push("/overview");
     }
     // Ensure 90d analytics backfill is enqueued when user has X (so Analytics has 7D/30D/90D without manual sync)
     if (session?.access_token && profile?.twitter_username && typeof window !== "undefined") {
@@ -2690,16 +2689,14 @@ export default function LinkaryApp() {
     runAuthGate();
   }, [authBootstrapped]);
 
-  // Redirect removed routes (verification stubs) to overview
+  // Production route lockdown: only allowed routes are reachable; everything else redirects to Overview
+  const ALLOWED_ROUTES = new Set([
+    "landing", "overview", "dashboard", "profile", "profileEdit", "userProfile", "market", "messages",
+    "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding",
+    "orgDetail", "brandProfile", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
+  ]);
   useEffect(() => {
-    if (route.name === "verification" || route.name === "verificationInbox") {
-      setRoute({ name: "overview" });
-    }
-  }, [route.name]);
-
-  const MOCK_ROUTES_REDIRECT_TO_OVERVIEW = ["circles", "circleDetail", "kolLists", "capitalPartners", "calendar", "leaderboards", "explore", "createCircle"];
-  useEffect(() => {
-    if (MOCK_ROUTES_REDIRECT_TO_OVERVIEW.includes(route.name)) {
+    if (!ALLOWED_ROUTES.has(route.name)) {
       setRoute({ name: "overview" });
     }
   }, [route.name]);
@@ -3169,8 +3166,7 @@ export default function LinkaryApp() {
                 transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
                 className="relative z-[10]"
               >
-                {route.name === "overview" && <OverviewPage setRoute={setRoute} headerMedia={headerMedia} />}
-                {["explore", "leaderboards", "calendar"].includes(route.name) && <OverviewPage setRoute={setRoute} headerMedia={headerMedia} />}
+                {(route.name === "overview" || !ALLOWED_ROUTES.has(route.name)) && <OverviewPage setRoute={setRoute} headerMedia={headerMedia} />}
                 {route.name === "market" && <MarketplacePage setRoute={setRoute} />}
                 {route.name === "messages" && <MessagesPage setRoute={setRoute} initialConversationId={route.data?.conversationId} />}
                 {route.name === "login" && (
@@ -3186,7 +3182,7 @@ export default function LinkaryApp() {
                     onComplete={async () => {
                       const p = await getMyProfile(authUserId);
                       setMe(p ?? null);
-                      setRoute({ name: "explore" });
+                      setRoute({ name: "overview" });
                     }}
                   />
                 )}
@@ -3201,30 +3197,16 @@ export default function LinkaryApp() {
                     username={route.handle ?? route.data?.username ?? undefined}
                   />
                 )}
-                {route.name === "creatorProfile" && <CreatorProfilePage setRoute={setRoute} />}
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}
-                {route.name === "agencyProfile" && <AgencyProfilePage />}
                 {route.name === "dashboard" && <DashboardPage setRoute={setRoute} />}
                 {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
-                {route.name === "discovery" && <ExplorePage setRoute={setRoute} />}
                 {route.name === "analytics" && <AnalyticsPage />}
                 {route.name === "privacy" && <PrivacyDataPage userId={authUserId} refreshMe={refreshMe} />}
                 {route.name === "terms" && <TermsOfServicePage setRoute={setRoute} />}
                 {route.name === "privacyPolicy" && <PrivacyPolicyPage setRoute={setRoute} />}
-                {route.name === "showcase" && <ComponentShowcase />}
-                {route.name === "publicCreator" && <PublicStandalonePage profileType="individual" />}
-                {route.name === "publicProject" && <PublicStandalonePage profileType="project" />}
-                {route.name === "publicCompany" && <PublicProfileDemo type="company" />}
-                {["circles", "circleDetail", "kolLists", "capitalPartners"].includes(route.name) && <OverviewPage setRoute={setRoute} headerMedia={headerMedia} />}
-                {route.name === "monetizationShowcase" && <MonetizationShowcase setRoute={setRoute} />}
-                {route.name === "monetizationFlowShowcase" && <MonetizationFlowShowcase setRoute={setRoute} />}
-                {(route.name === "pricing" || route.name === "pricingRefined" || route.name === "billing" || route.name === "plansBilling") && (
-                <PlansAndBillingPage setRoute={setRoute} initialTab={route.name === "billing" ? "billing" : "plans"} />
-              )}
-                {route.name === "calendarRefined" && <CalendarRefined userPlan="free" />}
-                {route.name === "enhancedCalendar" && <EnhancedCalendarPage setRoute={setRoute} userPlan="free" />}
-                {route.name === "hostDashboard" && <HostDashboard setRoute={setRoute} />}
-                {route.name === "availability" && <AvailabilitySettings />}
+                {(route.name === "pricing" || route.name === "billing" || route.name === "plansBilling") && (
+                  <PlansAndBillingPage setRoute={setRoute} initialTab={route.name === "billing" ? "billing" : "plans"} />
+                )}
                 {route.name === "integrations" && <IntegrationsPage setRoute={setRoute} userId={authUserId} />}
                 {route.name === "rolesSkills" && <RolesSkillsPage setRoute={setRoute} userId={authUserId} />}
                 {route.name === "wallet" && <WalletShell />}
@@ -3234,12 +3216,6 @@ export default function LinkaryApp() {
         </main>
       </div>
 
-      {/* Create Circle Modal */}
-      {route.name === "createCircle" && (
-        <CreateCircleFlow onClose={() => setRoute({ name: "circles" })} setRoute={setRoute} />
-      )}
-
-      {/* Not-available overlay — Back returns to previous route */}
     </div>
   );
 }

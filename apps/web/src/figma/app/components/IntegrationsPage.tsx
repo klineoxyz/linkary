@@ -33,7 +33,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   const [error, setError] = useState<string | null>(null);
   const [twitterUsernameConflict, setTwitterUsernameConflict] = useState(false);
 
-  // X "connected": prefer GET /api/auth/social-x (server). Fallback: getMySocialAccountX (uses RPC get_my_social_x then table).
+  // X "connected": GET /api/auth/social-x is source of truth. Fallback: getMySocialAccountX (RPC then table).
   const loadIntegrations = useCallback(async () => {
     if (!userId) {
       setLoading(false);
@@ -53,14 +53,14 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     const [p, clientSocial] = await Promise.all([getMyProfile(userId), getMySocialAccountX(userId)]);
     setProfile(p ?? null);
 
-    if (token) {
+    const tryApi = async (t: string): Promise<boolean> => {
       try {
-        await fetch(`${base}/api/auth/ensure-social-x`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, credentials: "include" });
+        await fetch(`${base}/api/auth/ensure-social-x`, { method: "POST", headers: { Authorization: `Bearer ${t}` }, credentials: "include" });
       } catch {
         /* non-blocking */
       }
       try {
-        const res = await fetch(`${base}/api/auth/social-x`, { headers: { Authorization: `Bearer ${token}` }, credentials: "include" });
+        const res = await fetch(`${base}/api/auth/social-x`, { headers: { Authorization: `Bearer ${t}` }, credentials: "include" });
         if (res.ok) {
           const apiSocial = await res.json();
           setSocialX({
@@ -68,13 +68,29 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
             username: apiSocial.username ?? null,
             provider_user_id: apiSocial.provider_user_id ?? null,
           });
-          setLoading(false);
-          return;
+          return true;
         }
       } catch {
-        /* fallback to client result */
+        /* ignore */
+      }
+      return false;
+    };
+
+    if (token && (await tryApi(token))) {
+      setLoading(false);
+      return;
+    }
+
+    if (!token && typeof window !== "undefined") {
+      await new Promise((r) => setTimeout(r, 1200));
+      const { data: { session } } = await supabase.auth.getSession();
+      token = session?.access_token ?? null;
+      if (token && (await tryApi(token))) {
+        setLoading(false);
+        return;
       }
     }
+
     setSocialX((prev) => (prev?.connected ? prev : clientSocial));
     setLoading(false);
   }, [userId]);

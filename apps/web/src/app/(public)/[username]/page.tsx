@@ -34,9 +34,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
   let title = "Linkary";
   let description = "Link-in-bio and credibility hub.";
+  let published = true;
   const url = `${baseUrl()}/${encodeURIComponent(segment)}`;
   if (kind === "slug") {
     const result = await getPublicDTOByUsername(segment, { serviceSupabase: serviceSupabase ?? undefined });
+    published = result.ok;
     if (result.ok) {
       const d = result.dto;
       const name = d.type === "profile" ? (d.display_name || d.username || d.twitter_username || segment) : d.name;
@@ -57,23 +59,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       if (bio && typeof bio === "string") {
         description = bio.length > 160 ? bio.slice(0, 157) + "…" : bio;
       }
+    } else {
+      published = false;
     }
   }
   const ogImage = `${baseUrl()}/api/og?username=${encodeURIComponent(segment)}`;
+  const trimmedTitle = (title ?? "Linkary").trim().slice(0, 100);
+  const trimmedDesc = (description ?? "Link-in-bio and credibility hub.").trim().slice(0, 160);
+
   return {
-    title,
-    description,
+    title: trimmedTitle,
+    description: trimmedDesc,
+    alternates: { canonical: url },
+    robots: published ? undefined : { index: false, follow: false },
     openGraph: {
-      title,
-      description,
+      title: trimmedTitle,
+      description: trimmedDesc,
       url,
       siteName: "Linkary",
-      images: [{ url: ogImage, width: 1200, height: 630, alt: title }],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: trimmedTitle }],
     },
     twitter: {
       card: "summary_large_image",
-      title,
-      description,
+      title: trimmedTitle,
+      description: trimmedDesc,
       images: [ogImage],
     },
   };

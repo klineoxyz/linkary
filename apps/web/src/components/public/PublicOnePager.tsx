@@ -3,14 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { BadgeCheck, ExternalLink, Globe, GripVertical, Save, X } from "lucide-react";
+import { BadgeCheck, ExternalLink, Globe, GripVertical, Link2, Save, Share2, X } from "lucide-react";
 import type { PublicEntity } from "@/lib/publicData";
 import type { PublicEntityView } from "@/lib/publicProfileDTO";
 import { getProfileSectionOrder, getOrgSectionOrder } from "@/lib/publicLayoutDefaults";
+import dynamic from "next/dynamic";
 import { PublicHeader } from "./PublicHeader";
 import { MetricCard } from "./MetricCard";
-import { StickyClaimBar } from "./StickyClaimBar";
 import { CaseStudyCard } from "./CaseStudyCard";
+
+const StickyClaimBar = dynamic(
+  () => import("./StickyClaimBar").then((m) => ({ default: m.StickyClaimBar })),
+  { ssr: false }
+);
 import { EcosystemSections } from "./EcosystemSections";
 import { DexScreenerEmbed } from "./DexScreenerEmbed";
 import { MediaHeader } from "./MediaHeader";
@@ -188,6 +193,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
   const [savingLayout, setSavingLayout] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [usernameCopied, setUsernameCopied] = useState(false);
+  const [viewerLinkCopied, setViewerLinkCopied] = useState(false);
 
   const handleCopyProfileLink = useCallback(() => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -197,6 +203,30 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
       setTimeout(() => setUsernameCopied(false), 2000);
     });
   }, [username]);
+
+  const publicUrl = typeof window !== "undefined" ? `${window.location.origin}/${encodeURIComponent(username)}` : "";
+  const shareOnXUrl = publicUrl
+    ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Found this reputation profile on Linkary: ${publicUrl}`)}`
+    : "";
+  const handleViewerCopyLink = useCallback(() => {
+    if (!publicUrl) return;
+    navigator.clipboard.writeText(publicUrl).then(() => {
+      setViewerLinkCopied(true);
+      setTimeout(() => setViewerLinkCopied(false), 2000);
+    });
+  }, [publicUrl]);
+
+  const lastUpdatedRelative = (() => {
+    const dates: string[] = [];
+    entity.caseStudies?.forEach((c) => c.created_at && dates.push(c.created_at));
+    entity.reviews?.forEach((r) => (r as { created_at?: string }).created_at && dates.push((r as { created_at: string }).created_at));
+    if (dates.length === 0) return null;
+    const latest = new Date(Math.max(...dates.map((d) => new Date(d).getTime())));
+    const now = new Date();
+    const diffMs = now.getTime() - latest.getTime();
+    const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    return diffDays === 0 ? "today" : diffDays === 1 ? "yesterday" : diffDays < 30 ? `${diffDays}d ago` : latest.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  })();
 
   const handleSaveLayout = useCallback(async () => {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
@@ -346,6 +376,19 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
             </span>
           </div>
 
+          {/* Trust sentence (micro content) */}
+          <p className="mt-3 text-sm text-muted-foreground">
+            {hasXConnected && analyticsInitialized && (
+              <>90-day activity <span className="text-primary">verified</span>. Followers tracked since Linkary connection.</>
+            )}
+            {hasXConnected && !analyticsInitialized && (
+              <>Building 90-day activity <span className="text-primary">verification</span> now. This takes a few minutes.</>
+            )}
+            {!hasXConnected && (
+              <>Connect X to activate <span className="text-primary">verified</span> analytics and reputation signals.</>
+            )}
+          </p>
+
           {/* Socials under profile */}
           {(hasSocials || orgWebsite || orgTwitter) && (
             <nav className="mt-6 flex flex-wrap items-center gap-2 sm:gap-3" aria-label="Social links">
@@ -377,10 +420,13 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
 
           {/* Reputation Signals */}
           <div className="mt-6 border-b border-border pb-6" aria-label="Reputation Signals">
-            <p className="mb-4 text-sm font-semibold text-foreground">
-              <span className="text-primary" aria-hidden>● </span>
-              Reputation Signals
-            </p>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-foreground">
+                <span className="text-primary" aria-hidden>● </span>
+                Reputation
+              </p>
+              <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Signals</span>
+            </div>
             <div className="flex flex-wrap items-baseline gap-6 sm:gap-8">
               {isProfile && (
                 <>
@@ -411,8 +457,36 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                 </>
               )}
             </div>
+            <p className="mt-3 text-xs text-muted-foreground">Signals update automatically as your activity and proof grows.</p>
           </div>
         </section>
+
+        {/* Share row for viewers (viral hooks) */}
+        {!isOwner && (
+          <div className="flex flex-wrap items-center gap-2 py-4 border-b border-border">
+            <button
+              type="button"
+              onClick={handleViewerCopyLink}
+              className="inline-flex items-center gap-1.5 rounded-md bg-muted/80 px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label={viewerLinkCopied ? "Link copied" : "Copy link"}
+            >
+              <Link2 className="h-4 w-4" />
+              {viewerLinkCopied ? "Copied" : "Copy link"}
+            </button>
+            {shareOnXUrl && (
+              <a
+                href={shareOnXUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md bg-muted/80 px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                aria-label="Share on X"
+              >
+                <Share2 className="h-4 w-4" />
+                Share on X
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Reorderable sections (order from public_layout or default) */}
         {orderedSectionIds.map((sectionId, index) => {
@@ -507,10 +581,19 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                 return null;
               case "caseStudies":
                 if (caseStudies.length === 0) return null;
+                const caseStudyCount = entity.caseStudies.length;
+                const verifiedReviewCount = entity.reviews.length;
+                const proofParts: string[] = [];
+                if (caseStudyCount > 0) proofParts.push(`Proof: ${caseStudyCount} case ${caseStudyCount === 1 ? "study" : "studies"}`);
+                if (verifiedReviewCount > 0) proofParts.push(`Verified: ${verifiedReviewCount} collaboration${verifiedReviewCount === 1 ? "" : "s"}`);
+                if (lastUpdatedRelative) proofParts.push(`Updated: ${lastUpdatedRelative}`);
                 return (
                   <section className="py-6 border-t border-border">
                     <FadeInSection>
                       <SectionTitle>Case Studies</SectionTitle>
+                      {proofParts.length > 0 && (
+                        <p className="mb-2 text-xs text-muted-foreground">{proofParts.join(" · ")}</p>
+                      )}
                       <p className="mb-4 text-sm text-muted-foreground">Verified outcomes and collaborations.</p>
                       <div className="space-y-3">
                         {caseStudies.map((cs) => (
@@ -645,31 +728,21 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
           return <div key={sectionId}>{sectionContent}</div>;
         })}
 
-        {/* Last updated: from latest case study or review (no DTO change) */}
-        {(() => {
-          const dates: string[] = [];
-          entity.caseStudies?.forEach((c) => c.created_at && dates.push(c.created_at));
-          entity.reviews?.forEach((r) => (r as { created_at?: string }).created_at && dates.push((r as { created_at: string }).created_at));
-          if (dates.length === 0) return null;
-          const latest = new Date(Math.max(...dates.map((d) => new Date(d).getTime())));
-          const now = new Date();
-          const diffMs = now.getTime() - latest.getTime();
-          const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-          const relative = diffDays === 0 ? "today" : diffDays === 1 ? "yesterday" : diffDays < 30 ? `${diffDays}d ago` : latest.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-          return (
-            <p className="mt-8 text-center text-xs text-muted-foreground">
-              Profile updated {relative}
-            </p>
-          );
-        })()}
+        {/* Last updated */}
+        {lastUpdatedRelative && (
+          <p className="mt-8 text-center text-xs text-muted-foreground">
+            Profile updated {lastUpdatedRelative}
+          </p>
+        )}
 
         {/* Viewer CTA: authority footer for non-owners */}
         {!isOwner && (
           <section className="py-10 border-t border-border">
             <div className="text-center">
               <p className="text-sm font-medium text-foreground sm:text-base">
-                Build your public reputation profile
+                Create your public reputation profile
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">Verified links, proof, and credibility in one page.</p>
               <Link
                 href="/login"
                 className="mt-4 inline-block rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"

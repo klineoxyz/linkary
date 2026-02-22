@@ -65,11 +65,12 @@ export async function GET(request: NextRequest) {
       { width: 1200, height: 630 }
     );
   }
-  const name = result.ok
+  const nameRaw = result.ok
     ? result.dto.type === "profile"
       ? result.dto.display_name || result.dto.username || result.dto.twitter_username || segment
       : result.dto.name
     : segment;
+  const name = (nameRaw && String(nameRaw).trim()) ? String(nameRaw).trim() : `@${segment}`;
   const handle = result.ok && result.dto.type === "profile"
     ? (result.dto.username || result.dto.twitter_username || segment)
     : result.ok && result.dto.type === "org"
@@ -87,6 +88,9 @@ export async function GET(request: NextRequest) {
   const ethos = result.ok && result.dto.type === "profile" ? result.dto.ethosScore : result.ok ? result.dto.xscore : null;
   const xscore = result.ok ? result.dto.xscore : null;
   const linkary = result.ok && result.dto.type === "profile" ? result.dto.linkaryPower : result.ok ? result.dto.linkaryInfluence : null;
+  const safeEthos = ethos != null && Number.isFinite(Number(ethos)) ? Number(ethos) : null;
+  const safeXscore = xscore != null && Number.isFinite(Number(xscore)) ? Number(xscore) : null;
+  const safeLinkary = linkary != null && Number.isFinite(Number(linkary)) ? Number(linkary) : null;
 
   return new ImageResponse(
     (
@@ -128,12 +132,12 @@ export async function GET(request: NextRequest) {
           </div>
         </div>
         <div style={{ display: "flex", gap: 32, fontSize: 20, color: "#cbd5e1" }}>
-          {ethos != null && <span>ETHOS {ethos}</span>}
-          {xscore != null && <span>XScore {xscore}</span>}
-          {linkary != null && <span>Linkary {linkary}</span>}
+          {safeEthos != null && <span>ETHOS {safeEthos}</span>}
+          {safeXscore != null && <span>XScore {safeXscore}</span>}
+          {safeLinkary != null && <span>Linkary {safeLinkary}</span>}
         </div>
-        <div style={{ position: "absolute", bottom: 24, right: 24, fontSize: 18, color: "#64748b" }}>
-          linkary.xyz
+        <div style={{ position: "absolute", bottom: 24, right: 24, fontSize: 16, color: "#64748b" }}>
+          Linkary
         </div>
       </div>
     ),

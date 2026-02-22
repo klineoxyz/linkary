@@ -69,7 +69,7 @@ export async function GET(
     });
   }
 
-  if (result.unpublished) {
+  if ("unpublished" in result && result.unpublished) {
     logDev("unpublished_404", { username: norm });
   } else {
     logDev("not_found", { username: norm });

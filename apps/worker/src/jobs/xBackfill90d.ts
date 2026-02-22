@@ -111,7 +111,7 @@ export async function runXBackfill90d(
 
   for (const windowDays of [7, 30, 90]) {
     const start = new Date(now);
-    start.setDate(start.getDate() - windowDays);
+    start.setDate(start.getDate() - (windowDays - 1));
     const startStr = toDay(start.toISOString());
 
     const { data: rows } = await supabase

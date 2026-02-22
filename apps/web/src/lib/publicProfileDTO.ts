@@ -206,11 +206,8 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
   throw new Error("Invalid entity");
 }
 
-/**
- * Build an entity-like view from DTO for the public one-pager component. No profile.id or org.id.
- * Safe to serialize and send to client. Includes analytics meta for banners.
- */
-export function dtoToEntityView(dto: PublicPageDTO): {
+/** View shape returned by dtoToEntityView; no profile.id or org.id. Safe for client. */
+export type PublicEntityView = {
   type: "profile" | "org";
   analyticsSource: "worker" | "partial" | "fallback";
   analyticsInitialized: boolean;
@@ -250,7 +247,13 @@ export function dtoToEntityView(dto: PublicPageDTO): {
   subsidiaries: Array<{ id: string; slug: string; name: string; logo_url: string | null }>;
   dexscreenerUrl?: string | null;
   tokenSymbol?: string | null;
-} {
+};
+
+/**
+ * Build an entity-like view from DTO for the public one-pager component. No profile.id or org.id.
+ * Safe to serialize and send to client. Includes analytics meta for banners.
+ */
+export function dtoToEntityView(dto: PublicPageDTO): PublicEntityView {
   if (dto.type === "profile") {
     const snap = dto.analytics.snapshot;
     return {

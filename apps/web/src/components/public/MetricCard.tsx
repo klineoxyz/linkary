@@ -9,7 +9,7 @@ type MetricCardProps = {
 
 export function MetricCard({ label, value, delta, status }: MetricCardProps) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-muted/30 p-4">
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
       <div className="mt-1 text-2xl font-semibold text-foreground">{value}</div>
       {(delta != null || status) && (

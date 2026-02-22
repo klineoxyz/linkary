@@ -3,11 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { PublicOnePager } from "@/components/public/PublicOnePager";
+import type { PublicEntityView } from "@/lib/publicProfileDTO";
 
 const ENSURE_BACKFILL_COOLDOWN_KEY = "linkary_ensure_backfill_ts";
 const ENSURE_BACKFILL_COOLDOWN_MS = 10 * 60 * 1000;
-
-export type EntityView = ReturnType<typeof import("@/lib/publicProfileDTO").dtoToEntityView>;
 
 export function PublicOnePagerWrapper({
   entityView,
@@ -16,7 +15,7 @@ export function PublicOnePagerWrapper({
   analyticsInitialized,
   hasXConnected,
 }: {
-  entityView: EntityView;
+  entityView: PublicEntityView;
   username: string;
   analyticsSource: "worker" | "partial" | "fallback";
   analyticsInitialized: boolean;

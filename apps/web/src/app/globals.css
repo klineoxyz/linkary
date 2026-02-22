@@ -1,13 +1,30 @@
 @import "tailwindcss";
 
+/* Linkary design system: #FFFFFF, #130600, #1B0D03, #FF5300 only */
 :root {
   --background: #ffffff;
   --foreground: #130600;
+  --primary: #FF5300;
+  --primary-foreground: #ffffff;
+  --muted: rgba(19, 6, 0, 0.06);
+  --muted-foreground: rgba(19, 6, 0, 0.62);
+  --accent: rgba(255, 83, 0, 0.10);
+  --accent-foreground: #130600;
+  --border: rgba(19, 6, 0, 0.12);
+  --card: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-card: var(--card);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -16,13 +33,19 @@
   :root {
     --background: #130600;
     --foreground: #ffffff;
+    --muted: rgba(255, 255, 255, 0.08);
+    --muted-foreground: rgba(255, 255, 255, 0.65);
+    --accent: rgba(255, 255, 255, 0.08);
+    --accent-foreground: #ffffff;
+    --border: rgba(255, 255, 255, 0.12);
+    --card: #130600;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
 /* Next.js dev overlay portal (dev only). Force 0,0 and 0x0 so it doesn’t affect layout.

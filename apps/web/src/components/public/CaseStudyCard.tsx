@@ -23,7 +23,7 @@ export function CaseStudyCard({
 }: CaseStudyCardProps) {
   const dateLabel = createdAt ? new Date(createdAt).toLocaleDateString(undefined, { month: "short", year: "numeric" }) : null;
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-md border border-border/60 bg-muted/30 p-4">
       <div className="flex items-start gap-3">
         {projectLogo && (
           <img

@@ -27,7 +27,7 @@ export function StickyClaimBar() {
         </p>
         <Link
           href="/login"
-          className="shrink-0 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/20"
+          className="shrink-0 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
         >
           Create yours
         </Link>

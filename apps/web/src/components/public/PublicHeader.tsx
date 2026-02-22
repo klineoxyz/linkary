@@ -81,7 +81,7 @@ export function PublicHeader({ entity, username, isLoggedIn, isOwner = false }: 
                 <button
                   type="button"
                   onClick={handleCopyLink}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
+                  className="inline-flex items-center gap-2 rounded-md bg-muted/80 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
                   title="Copy link"
                 >
                   <Link2 className="h-4 w-4" />
@@ -92,7 +92,7 @@ export function PublicHeader({ entity, username, isLoggedIn, isOwner = false }: 
                     href={shareOnXUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
+                    className="inline-flex items-center gap-2 rounded-md bg-muted/80 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
                     title="Share on X"
                   >
                     <Share2 className="h-4 w-4" />
@@ -105,7 +105,7 @@ export function PublicHeader({ entity, username, isLoggedIn, isOwner = false }: 
               <button
                 type="button"
                 onClick={() => setSendOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+                className="inline-flex items-center gap-2 rounded-md bg-muted/80 px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
               >
                 <Send className="h-4 w-4 stroke-[1.75]" />
                 Send
@@ -114,14 +114,14 @@ export function PublicHeader({ entity, username, isLoggedIn, isOwner = false }: 
             {!isLoggedIn ? (
               <Link
                 href="/login"
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
               >
                 Claim Your Linkary Profile
               </Link>
             ) : !isOwner ? (
               <Link
                 href="/dashboard"
-                className="rounded-lg border border-border bg-muted/50 px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+                className="rounded-md bg-muted/80 px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
               >
                 View Analytics
               </Link>

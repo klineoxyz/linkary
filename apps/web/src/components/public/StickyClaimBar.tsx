@@ -23,7 +23,7 @@ export function StickyClaimBar() {
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
         <p className="text-sm text-muted-foreground">
-          Create your verified link-in-bio on Linkary
+          Build your verified reputation profile
         </p>
         <Link
           href="/login"

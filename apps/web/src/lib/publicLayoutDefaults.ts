@@ -4,8 +4,8 @@ export const DEFAULT_PROFILE_SECTION_ORDER = [
   "hero",
   "socials",
   "analytics",
-  "affiliates",
   "caseStudies",
+  "affiliates",
   "reviews",
   "ethos",
 ] as const;

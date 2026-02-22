@@ -22,6 +22,16 @@ export function CaseStudyCard({
   engagementDeltaPercent,
 }: CaseStudyCardProps) {
   const dateLabel = createdAt ? new Date(createdAt).toLocaleDateString(undefined, { month: "short", year: "numeric" }) : null;
+  const firstMetric = metrics && Object.keys(metrics).length > 0
+    ? Object.entries(metrics).find(([, v]) => v != null && v !== "")
+    : null;
+  const resultValue = engagementDeltaPercent != null && Number.isFinite(engagementDeltaPercent)
+    ? `${engagementDeltaPercent > 0 ? "+" : ""}${engagementDeltaPercent}%`
+    : firstMetric ? String(firstMetric[1]) : null;
+  const resultLabel = engagementDeltaPercent != null && Number.isFinite(engagementDeltaPercent)
+    ? "Engagement delta"
+    : firstMetric ? firstMetric[0] : null;
+
   return (
     <div className="rounded-md border border-border/60 bg-muted/30 p-4">
       <div className="flex items-start gap-3">
@@ -37,15 +47,14 @@ export function CaseStudyCard({
           {dateLabel && (
             <p className="text-xs text-muted-foreground">{dateLabel}</p>
           )}
-          {(description || impactSummary) && (
-            <p className="mt-2 text-sm text-foreground">
-              {impactSummary ?? description}
+          {resultValue != null && resultLabel && (
+            <p className="mt-2 text-xl font-bold tabular-nums text-foreground">
+              {resultValue}
             </p>
           )}
-          {engagementDeltaPercent != null && Number.isFinite(engagementDeltaPercent) && (
-            <p className="mt-1 text-xs text-primary">
-              Engagement delta: {engagementDeltaPercent > 0 ? "+" : ""}
-              {engagementDeltaPercent}%
+          {(description || impactSummary) && (
+            <p className="mt-1 text-sm text-foreground">
+              {impactSummary ?? description}
             </p>
           )}
           {proofUrl && (
@@ -53,20 +62,21 @@ export function CaseStudyCard({
               href={proofUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
+              className="mt-2 inline-block text-xs text-muted-foreground hover:text-primary hover:underline"
             >
-              Proof
+              View proof
             </a>
           )}
-          {metrics && Object.keys(metrics).length > 0 && (
+          {metrics && Object.keys(metrics).length > 1 && (
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-              {Object.entries(metrics).map(([k, v]) =>
-                v != null && v !== "" ? (
+              {Object.entries(metrics)
+                .filter(([, v]) => v != null && v !== "")
+                .slice(1)
+                .map(([k, v]) => (
                   <span key={k}>
                     {k}: {String(v)}
                   </span>
-                ) : null
-              )}
+                ))}
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { BadgeCheck, ExternalLink, Globe, GripVertical, Save, X } from "lucide-react";
@@ -15,6 +15,46 @@ import { EcosystemSections } from "./EcosystemSections";
 import { DexScreenerEmbed } from "./DexScreenerEmbed";
 import { MediaHeader } from "./MediaHeader";
 import { supabase } from "@/lib/supabase";
+
+/** Minimal fade-in on scroll (once). */
+function useFadeIn() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (e?.isIntersecting) setVisible(true);
+      },
+      { threshold: 0.05, rootMargin: "0px 0px -40px 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return { ref, visible };
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="mb-2 flex items-center gap-3 text-lg font-semibold text-foreground">
+      <span className="h-5 w-0.5 shrink-0 self-stretch rounded-full bg-primary" aria-hidden />
+      {children}
+    </h2>
+  );
+}
+
+function FadeInSection({ children, className }: { children: React.ReactNode; className?: string }) {
+  const { ref, visible } = useFadeIn();
+  return (
+    <div
+      ref={ref}
+      className={`transition-all duration-500 ease-out ${visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"} ${className ?? ""}`}
+    >
+      {children}
+    </div>
+  );
+}
 
 type Props = {
   entity: PublicEntity | PublicEntityView;
@@ -78,7 +118,7 @@ function SocialIcon({ name, url }: { name: string; url: string }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center justify-center rounded-md p-2 text-foreground hover:bg-accent hover:text-primary min-h-[2.25rem] min-w-[2.25rem]"
+      className="inline-flex items-center justify-center rounded-md p-2 text-foreground hover:bg-accent hover:text-primary min-h-[2.25rem] min-w-[2.25rem] transition-transform duration-200 hover:scale-[1.02]"
       aria-label={name}
     >
       {icon}
@@ -266,6 +306,21 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
             </div>
           </div>
 
+          {/* Identity Bar: verified + credibility line */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>
+              {hasXConnected ? (
+                <span className="inline-flex items-center gap-1">
+                  <BadgeCheck className="h-3.5 w-3.5 text-primary" aria-hidden />
+                  Verified via X
+                </span>
+              ) : null}
+            </span>
+            <span>
+              {hasXConnected && analyticsInitialized ? "Verified analytics & credibility" : "Public reputation profile"}
+            </span>
+          </div>
+
           {/* Socials under profile */}
           {(hasSocials || orgWebsite || orgTwitter) && (
             <nav className="mt-6 flex flex-wrap items-center gap-2 sm:gap-3" aria-label="Social links">
@@ -275,7 +330,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                   href={orgWebsite}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-primary"
+                  className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-primary transition-transform duration-200 hover:scale-[1.02]"
                 >
                   Website
                 </a>
@@ -285,7 +340,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                   href={`https://x.com/${orgTwitter.replace(/^@/, "")}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-primary"
+                  className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-primary transition-transform duration-200 hover:scale-[1.02]"
                 >
                   X
                 </a>
@@ -293,20 +348,20 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
             </nav>
           )}
 
-          {/* Highlights under profile: ETHOS, XScore, Linkary */}
-          <div className="mt-6 flex flex-wrap items-baseline gap-6 sm:gap-8 border-b border-border pb-6" aria-label="Highlights">
+          {/* Reputation Signals */}
+          <div className="mt-6 flex flex-wrap items-baseline gap-6 sm:gap-8 border-b border-border pb-6" aria-label="Reputation Signals">
             {isProfile && (
               <>
                 <div className="min-w-0">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETHOS</div>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Community credibility score">ETHOS</div>
                   <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{entity.ethosScore ?? "—"}</div>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">XScore</div>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>
                   <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile?.xscore ?? "—"}</div>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linkary</div>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Overall profile strength">Linkary</div>
                   <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{entity.linkaryPower ?? "—"}</div>
                 </div>
               </>
@@ -314,11 +369,11 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
             {!isProfile && org && (
               <>
                 <div className="min-w-0">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">XScore</div>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>
                   <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{org.xscore ?? "—"}</div>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linkary</div>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Overall profile strength">Linkary</div>
                   <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{entity.linkaryInfluence ?? "—"}</div>
                 </div>
               </>
@@ -338,14 +393,17 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                 if (!hasXConnected) {
                   return (
                     <section className="py-6 border-t border-border">
-                      <p className="text-sm text-muted-foreground">Connect X to enable analytics</p>
+                      <FadeInSection>
+                        <p className="text-sm text-muted-foreground">Connect X to enable analytics</p>
+                      </FadeInSection>
                     </section>
                   );
                 }
                 if (!snap && !analyticsInitialized) {
                   return (
                     <section className="py-6 border-t border-border">
-                      <h2 className="mb-4 text-lg font-semibold text-foreground">30d Activity</h2>
+                      <FadeInSection>
+                        <SectionTitle>30d Activity</SectionTitle>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {[1, 2, 3, 4, 5, 6].map((i) => (
                           <div key={i} className="rounded-md bg-muted/40 p-4 animate-pulse">
@@ -354,18 +412,20 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                           </div>
                         ))}
                       </div>
+                      </FadeInSection>
                     </section>
                   );
                 }
                 const showPartialBanner = hasXConnected && (analyticsSource === "partial" || analyticsSource === "fallback");
                 return (
                   <section className="py-6 border-t border-border">
+                    <FadeInSection>
                     {showPartialBanner && (
                       <p className="mb-4 text-sm text-muted-foreground">
                         90-day history is building. Activity history is real; follower growth tracked since connection.
                       </p>
                     )}
-                    <h2 className="mb-4 text-lg font-semibold text-foreground">30d Activity</h2>
+                    <SectionTitle>30d Activity</SectionTitle>
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       <MetricCard label="Average Reach" value={snap?.reach_avg != null ? Number(snap.reach_avg).toLocaleString() : "—"} status={snap ? labelForDelta(snap.reach_avg) : null} />
                       <MetricCard label="Engagement Rate" value={snap?.engagement_rate != null ? `${(Number(snap.engagement_rate) * 100).toFixed(2)}%` : "—"} status={snap ? labelForDelta(snap.engagement_rate) : null} />
@@ -374,36 +434,39 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                       <MetricCard label="X Spaces Hosted" value={snap?.spaces_count ?? "—"} />
                       <MetricCard label="Followers Growth" value={snap?.followers_delta != null ? `${snap.followers_delta > 0 ? "+" : ""}${snap.followers_delta}` : "—"} status={snap ? labelForDelta(snap.followers_delta) : null} />
                     </div>
+                    </FadeInSection>
                   </section>
                 );
               case "affiliates":
                 if (isProfile && (entity.affiliate || entity.ambassadors.length > 0)) {
                   return (
                     <section className="py-6 border-t border-border">
-                      <h2 className="mb-2 text-lg font-semibold text-foreground">Partners & programs</h2>
-                      <p className="mb-4 text-sm text-muted-foreground">Affiliates and ambassador programs</p>
-                      <ul className="space-y-3">
-                        {entity.affiliate && (
-                          <li className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0">
-                            {entity.affiliate.logo_url && <img src={entity.affiliate.logo_url} alt="" className="h-10 w-10 rounded-md object-cover" />}
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium text-foreground">{entity.affiliate.org_name}</div>
-                              <div className="text-xs text-muted-foreground">Affiliate{entity.affiliate.since_date ? ` since ${entity.affiliate.since_date}` : ""}</div>
-                            </div>
-                            <BadgeCheck className="h-5 w-5 shrink-0 text-primary" />
-                          </li>
-                        )}
-                        {entity.ambassadors.map((amb) => (
-                          <li key={amb.org_id} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0">
-                            {amb.logo_url && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover" />}
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium text-foreground">{amb.org_name}</div>
-                              <div className="text-xs text-muted-foreground">Ambassador{amb.since_date ? ` since ${amb.since_date}` : ""}</div>
-                            </div>
-                            <BadgeCheck className="h-5 w-5 shrink-0 text-primary" />
-                          </li>
-                        ))}
-                      </ul>
+                      <FadeInSection>
+                        <SectionTitle>Partners & programs</SectionTitle>
+                        <p className="mb-4 text-sm text-muted-foreground">Affiliates and ambassador programs</p>
+                        <ul className="space-y-3">
+                          {entity.affiliate && (
+                            <li className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0 transition-transform duration-200 hover:scale-[1.02]">
+                              {entity.affiliate.logo_url && <img src={entity.affiliate.logo_url} alt="" className="h-10 w-10 rounded-md object-cover" />}
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium text-foreground">{entity.affiliate.org_name}</div>
+                                <div className="text-xs text-muted-foreground">Affiliate{entity.affiliate.since_date ? ` since ${entity.affiliate.since_date}` : ""}</div>
+                              </div>
+                              <BadgeCheck className="h-5 w-5 shrink-0 text-primary" />
+                            </li>
+                          )}
+                          {entity.ambassadors.map((amb) => (
+                            <li key={amb.org_id} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0 transition-transform duration-200 hover:scale-[1.02]">
+                              {amb.logo_url && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover" />}
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium text-foreground">{amb.org_name}</div>
+                                <div className="text-xs text-muted-foreground">Ambassador{amb.since_date ? ` since ${amb.since_date}` : ""}</div>
+                              </div>
+                              <BadgeCheck className="h-5 w-5 shrink-0 text-primary" />
+                            </li>
+                          ))}
+                        </ul>
+                      </FadeInSection>
                     </section>
                   );
                 }
@@ -413,20 +476,25 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                 if (caseStudies.length === 0) return null;
                 return (
                   <section className="py-6 border-t border-border">
-                    <h2 className="mb-2 text-lg font-semibold text-foreground">Case Studies</h2>
-                    <p className="mb-4 text-sm text-muted-foreground">Proof and results</p>
-                    <div className="space-y-3">
-                      {caseStudies.map((cs) => (
-                        <CaseStudyCard key={cs.id} title={cs.title} description={cs.description} proofUrl={cs.proof_url} metrics={cs.metrics} createdAt={cs.created_at} />
-                      ))}
-                    </div>
-                    {tier === "pro" && entity.caseStudies.length > 3 && <p className="mt-2 text-sm text-muted-foreground">View all on profile.</p>}
+                    <FadeInSection>
+                      <SectionTitle>Case Studies</SectionTitle>
+                      <p className="mb-4 text-sm text-muted-foreground">Verified outcomes and collaborations.</p>
+                      <div className="space-y-3">
+                        {caseStudies.map((cs) => (
+                          <div key={cs.id} className="transition-transform duration-200 hover:scale-[1.02]">
+                            <CaseStudyCard title={cs.title} description={cs.description} proofUrl={cs.proof_url} metrics={(cs as { metrics?: Record<string, unknown> }).metrics} createdAt={cs.created_at} />
+                          </div>
+                        ))}
+                      </div>
+                      {tier === "pro" && entity.caseStudies.length > 3 && <p className="mt-2 text-sm text-muted-foreground">View all on profile.</p>}
+                    </FadeInSection>
                   </section>
                 );
               case "reviews":
                 return (
                   <section className="py-6 border-t border-border">
-                    <h2 className="mb-2 text-lg font-semibold text-foreground">Reviews</h2>
+                    <FadeInSection>
+                      <SectionTitle>Reviews</SectionTitle>
                     {avgRating != null && <p className="mb-4 text-sm text-muted-foreground">{avgRating.toFixed(1)} average · {entity.reviews.length} verified reviews</p>}
                     <ul className="space-y-0">
                       {reviews.map((r) => (
@@ -436,18 +504,21 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                         </li>
                       ))}
                     </ul>
+                    </FadeInSection>
                   </section>
                 );
               case "ethos":
                 if (!entity.ethosResults || Object.keys(entity.ethosResults).length === 0) return null;
                 return (
                   <section className="py-6 border-t border-border">
-                    <h2 className="mb-4 text-lg font-semibold text-foreground">Ethos Results</h2>
+                    <FadeInSection>
+                      <SectionTitle>Ethos Results</SectionTitle>
                     <ul className="list-inside list-disc space-y-1 text-sm text-foreground">
                       {Object.entries(entity.ethosResults).map(([key, value]) => (
                         <li key={key}>{key}: {typeof value === "object" ? JSON.stringify(value) : String(value)}</li>
                       ))}
                     </ul>
+                    </FadeInSection>
                   </section>
                 );
               case "about":
@@ -455,29 +526,38 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                 if (!bio && !org?.website) return null;
                 return (
                   <section className="py-6 border-t border-border">
-                    <h2 className="mb-4 text-lg font-semibold text-foreground">About</h2>
+                    <FadeInSection>
+                      <SectionTitle>About</SectionTitle>
                     {bio && <p className="text-foreground">{bio}</p>}
+                    </FadeInSection>
                   </section>
                 );
               case "ecosystem":
                 if (isProfile || entity.ecosystemCategories.length === 0) return null;
                 return (
                   <section className="py-6 border-t border-border">
-                    <EcosystemSections categories={entity.ecosystemCategories} />
+                    <FadeInSection>
+                      <EcosystemSections categories={entity.ecosystemCategories} />
+                    </FadeInSection>
                   </section>
                 );
               case "token":
-                if (isProfile || !org?.is_crypto_project || !org?.has_token || !entity.dexscreenerUrl) return null;
+                if (isProfile || !entity.dexscreenerUrl) return null;
+                const orgWithToken = org && "is_crypto_project" in org && "has_token" in org ? org : null;
+                if (!orgWithToken?.is_crypto_project || !orgWithToken?.has_token) return null;
                 return (
                   <section className="py-6 border-t border-border">
-                    <DexScreenerEmbed dexscreenerUrl={entity.dexscreenerUrl} tokenSymbol={entity.tokenSymbol} />
+                    <FadeInSection>
+                      <DexScreenerEmbed dexscreenerUrl={entity.dexscreenerUrl} tokenSymbol={entity.tokenSymbol} />
+                    </FadeInSection>
                   </section>
                 );
               case "subsidiaries":
                 if (isProfile || entity.subsidiaries.length === 0) return null;
                 return (
                   <section className="py-6 border-t border-border">
-                    <h2 className="mb-4 text-lg font-semibold text-foreground">Subsidiaries</h2>
+                    <FadeInSection>
+                      <SectionTitle>Subsidiaries</SectionTitle>
                     <ul className="space-y-0">
                       {entity.subsidiaries.map((sub) => (
                         <li key={sub.id} className="flex items-center gap-3 py-3 border-b border-border/50 last:border-0">
@@ -487,8 +567,9 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                             <p className="text-xs text-muted-foreground">@{sub.slug}</p>
                           </div>
                         </li>
-                      ))}
+                        ))}
                     </ul>
+                    </FadeInSection>
                   </section>
                 );
               case "ambassadors":
@@ -498,10 +579,12 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                 if (isProfile || !org?.website) return null;
                 return (
                   <section className="py-6 border-t border-border">
-                    <a href={org.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-primary hover:underline">
+                    <FadeInSection>
+                      <a href={org.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-primary hover:underline">
                       <ExternalLink className="h-4 w-4" />
                       Website
                     </a>
+                    </FadeInSection>
                   </section>
                 );
               default:
@@ -529,12 +612,30 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
           return <div key={sectionId}>{sectionContent}</div>;
         })}
 
-        {/* Viewer CTA: soft block at bottom for non-owners */}
+        {/* Last updated: from latest case study or review (no DTO change) */}
+        {(() => {
+          const dates: string[] = [];
+          entity.caseStudies?.forEach((c) => c.created_at && dates.push(c.created_at));
+          entity.reviews?.forEach((r) => (r as { created_at?: string }).created_at && dates.push((r as { created_at: string }).created_at));
+          if (dates.length === 0) return null;
+          const latest = new Date(Math.max(...dates.map((d) => new Date(d).getTime())));
+          const now = new Date();
+          const diffMs = now.getTime() - latest.getTime();
+          const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+          const relative = diffDays === 0 ? "today" : diffDays === 1 ? "yesterday" : diffDays < 30 ? `${diffDays}d ago` : latest.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+          return (
+            <p className="mt-8 text-center text-xs text-muted-foreground">
+              Profile updated {relative}
+            </p>
+          );
+        })()}
+
+        {/* Viewer CTA: authority footer for non-owners */}
         {!isOwner && (
           <section className="py-10 border-t border-border">
             <div className="text-center">
               <p className="text-sm font-medium text-foreground sm:text-base">
-                Create your verified link-in-bio on Linkary
+                Build your verified reputation profile
               </p>
               <Link
                 href="/login"

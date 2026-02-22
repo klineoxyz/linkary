@@ -68,6 +68,16 @@ type Props = {
 
 const socialIconSize = 20;
 
+/** Primary color thresholds: only show metric in primary when it meets the bar (credibility). */
+const ETHOS_PRIMARY_THRESHOLD = 1200;
+const XSCORE_PRIMARY_THRESHOLD = 60;
+const LINKARY_PRIMARY_THRESHOLD = 60;
+
+function reputationMetricClass(value: number | null | undefined, threshold: number): string {
+  if (value == null) return "text-muted-foreground";
+  return value >= threshold ? "text-primary" : "text-foreground";
+}
+
 function IconX() {
   return (
     <svg width={socialIconSize} height={socialIconSize} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -118,7 +128,7 @@ function SocialIcon({ name, url }: { name: string; url: string }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center justify-center rounded-md p-2 text-foreground hover:bg-accent hover:text-primary min-h-[2.25rem] min-w-[2.25rem] transition-transform duration-200 hover:scale-[1.02]"
+      className="inline-flex items-center justify-center rounded-md p-2 text-foreground hover:bg-accent hover:text-primary min-h-[2.25rem] min-w-[2.25rem] transition-transform duration-200 hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       aria-label={name}
     >
       {icon}
@@ -177,6 +187,16 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
   const [localOrder, setLocalOrder] = useState<string[]>(displayOrder);
   const [savingLayout, setSavingLayout] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [usernameCopied, setUsernameCopied] = useState(false);
+
+  const handleCopyProfileLink = useCallback(() => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = `${origin}/${encodeURIComponent(username)}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setUsernameCopied(true);
+      setTimeout(() => setUsernameCopied(false), 2000);
+    });
+  }, [username]);
 
   const handleSaveLayout = useCallback(async () => {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
@@ -298,7 +318,14 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
             )}
             <div className="min-w-0 flex-1">
               <h1 className="text-2xl font-semibold text-foreground">{displayName}</h1>
-              <span className="text-sm text-primary hover:underline cursor-default">@{username}</span>
+              <button
+                type="button"
+                onClick={handleCopyProfileLink}
+                className="text-sm text-primary hover:underline cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded px-0.5 -ml-0.5"
+                aria-label={usernameCopied ? "Link copied" : "Copy profile link"}
+              >
+                {usernameCopied ? "Copied!" : `@${username}`}
+              </button>
               {bio && <p className="mt-2 text-sm text-muted-foreground">{bio}</p>}
               {profile?.location && (
                 <p className="mt-1 text-xs text-muted-foreground">{profile.location}</p>
@@ -328,7 +355,8 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                   href={orgWebsite}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-primary transition-transform duration-200 hover:scale-[1.02]"
+                  className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-primary transition-transform duration-200 hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  aria-label="Website"
                 >
                   Website
                 </a>
@@ -338,7 +366,8 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                   href={`https://x.com/${orgTwitter.replace(/^@/, "")}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-primary transition-transform duration-200 hover:scale-[1.02]"
+                  className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-primary transition-transform duration-200 hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  aria-label="X profile"
                 >
                   X
                 </a>
@@ -357,15 +386,15 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                 <>
                   <div className="min-w-0 border-b border-border pb-2">
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Community credibility score">ETHOS</div>
-                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${entity.ethosScore != null ? "text-primary" : "text-foreground"}`}>{entity.ethosScore ?? "—"}</div>
+                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${reputationMetricClass(entity.ethosScore ?? null, ETHOS_PRIMARY_THRESHOLD)}`}>{entity.ethosScore ?? "—"}</div>
                   </div>
                   <div className="min-w-0 border-b border-border pb-2">
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>
-                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${profile?.xscore != null ? "text-primary" : "text-foreground"}`}>{profile?.xscore ?? "—"}</div>
+                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${reputationMetricClass(profile?.xscore ?? null, XSCORE_PRIMARY_THRESHOLD)}`}>{profile?.xscore ?? "—"}</div>
                   </div>
                   <div className="min-w-0 border-b border-border pb-2">
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Overall profile strength">Linkary</div>
-                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${entity.linkaryPower != null ? "text-primary" : "text-foreground"}`}>{entity.linkaryPower ?? "—"}</div>
+                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${reputationMetricClass(entity.linkaryPower ?? null, LINKARY_PRIMARY_THRESHOLD)}`}>{entity.linkaryPower ?? "—"}</div>
                   </div>
                 </>
               )}
@@ -373,11 +402,11 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                 <>
                   <div className="min-w-0 border-b border-border pb-2">
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>
-                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${org.xscore != null ? "text-primary" : "text-foreground"}`}>{org.xscore ?? "—"}</div>
+                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${reputationMetricClass(org.xscore ?? null, XSCORE_PRIMARY_THRESHOLD)}`}>{org.xscore ?? "—"}</div>
                   </div>
                   <div className="min-w-0 border-b border-border pb-2">
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Overall profile strength">Linkary</div>
-                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${entity.linkaryInfluence != null ? "text-primary" : "text-foreground"}`}>{entity.linkaryInfluence ?? "—"}</div>
+                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${reputationMetricClass(entity.linkaryInfluence ?? null, LINKARY_PRIMARY_THRESHOLD)}`}>{entity.linkaryInfluence ?? "—"}</div>
                   </div>
                 </>
               )}
@@ -643,7 +672,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
               </p>
               <Link
                 href="/login"
-                className="mt-4 inline-block rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+                className="mt-4 inline-block rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
                 Create yours
               </Link>

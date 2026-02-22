@@ -42,7 +42,7 @@ export type PublicProfileDTO = {
   affiliate: { org_id: string; org_name: string; logo_url: string | null; since_date: string | null } | null;
   ambassadors: Array<{ org_id: string; org_name: string; logo_url: string | null; since_date: string | null }>;
   publicLayout: { order?: string[]; hidden?: string[] } | null;
-  headerMedia: { header_media_type: string; header_media_url: string | null } | null;
+  headerMedia: { header_media_type: "NONE" | "IMAGE" | "VIDEO"; header_media_url: string | null } | null;
   tier: "free" | "pro";
 };
 

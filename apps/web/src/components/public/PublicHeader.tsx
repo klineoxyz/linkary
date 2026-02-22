@@ -4,10 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { BadgeCheck, Send, Link2, Share2 } from "lucide-react";
 import type { PublicEntity } from "@/lib/publicData";
+import type { PublicEntityView } from "@/lib/publicProfileDTO";
 import { SendWalletModal } from "./SendWalletModal";
 
 type PublicHeaderProps = {
-  entity: PublicEntity;
+  entity: PublicEntity | PublicEntityView;
   username: string;
   isLoggedIn: boolean;
   isOwner?: boolean;
@@ -24,7 +25,7 @@ export function PublicHeader({ entity, username, isLoggedIn, isOwner = false }: 
   const verified = false;
 
   const roleTags: string[] = [];
-  if (org?.org_type) roleTags.push(org.org_type);
+  if (org && "org_type" in org && org.org_type) roleTags.push(org.org_type);
 
   const publicUrl = typeof window !== "undefined" ? `${window.location.origin}/${encodeURIComponent(username)}` : "";
   const shareOnXUrl = publicUrl

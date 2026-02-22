@@ -24,6 +24,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, code: "INVALID_SESSION", message: userError?.message ?? "Invalid session" }, { status: 401 });
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("account_type")
+    .eq("id", user.id)
+    .maybeSingle();
+  const accountType = (profile as { account_type?: string } | null)?.account_type;
+  if (accountType !== "company") {
+    return NextResponse.json(
+      { ok: false, code: "ORG_COMPANY_REQUIRED", message: "Only company accounts can create an organization." },
+      { status: 403 }
+    );
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await request.json().catch(() => ({}));

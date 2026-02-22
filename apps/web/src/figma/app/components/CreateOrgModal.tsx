@@ -82,10 +82,12 @@ export default function CreateOrgModal({
     setLoading(false);
     if (err) {
       const msg = String(err);
+      const companyRequired = /ORG_COMPANY_REQUIRED|company accounts can create/i.test(msg);
       const slugTaken = /slug|unique|23505|duplicate/i.test(msg);
       const rlsDenied = /policy|permission|rls|42501|denied/i.test(msg);
-      const displayMsg =
-        slugTaken
+      const displayMsg = companyRequired
+        ? "Only company accounts can create an organization. Switch to a Company account in settings to create an org."
+        : slugTaken
           ? "That slug is already taken. Try a different one or use the suggestion above."
           : rlsDenied
             ? "Permission denied. You may not have access to create orgs."
@@ -125,6 +127,13 @@ export default function CreateOrgModal({
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm shrink-0">
               {error}
+              {(error.includes("ORG_COMPANY_REQUIRED") || error.includes("company accounts can create")) && (
+                <p className="mt-2">
+                  <a href="/onboarding" className="underline font-medium text-primary">Switch to Company account</a>
+                  {" "}or{" "}
+                  <a href="/settings" className="underline font-medium text-primary">Settings</a>
+                </p>
+              )}
             </div>
           )}
 

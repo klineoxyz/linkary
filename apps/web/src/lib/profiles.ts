@@ -135,8 +135,14 @@ export async function updateMyProfile(
   delete updates.xscore;
   if (updates.twitter_username !== undefined) {
     const { data: row } = await supabase.from(PROFILES).select("twitter_username").eq("id", userId).maybeSingle();
-    if (row?.twitter_username && row.twitter_username.trim() !== "" && updates.twitter_username === "") {
-      delete updates.twitter_username;
+    const current = (row?.twitter_username ?? "").toString().trim();
+    if (current !== "") {
+      const incoming = (updates.twitter_username ?? "").toString().trim().replace(/^@/, "");
+      const currentNorm = current.replace(/^@/, "").toLowerCase();
+      const incomingNorm = incoming.toLowerCase();
+      if (incomingNorm !== currentNorm) {
+        delete updates.twitter_username;
+      }
     }
   }
   if (Array.isArray(updates.intents)) {

@@ -113,7 +113,7 @@ export default function AnalyticsTabContent({
   }, [fetchInitStatus]);
 
   useEffect(() => {
-    if (!initStatus?.ok || initStatus.initialized) return;
+    if (!initStatus?.ok || initStatus.initialized || apiData?.source === "worker") return;
     pollCountRef.current = 0;
     const id = setInterval(() => {
       pollCountRef.current += 1;
@@ -121,7 +121,7 @@ export default function AnalyticsTabContent({
       fetchInitStatus();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [initStatus?.ok, initStatus?.initialized, fetchInitStatus]);
+  }, [initStatus?.ok, initStatus?.initialized, apiData?.source, fetchInitStatus]);
 
   const handleRetryBackfill = React.useCallback(async () => {
     setRetryingBackfill(true);
@@ -268,11 +268,13 @@ export default function AnalyticsTabContent({
 
   const jobFailed = initStatus?.job?.status === "failed";
   const notInitialized = initStatus?.ok && !initStatus?.initialized;
+  const sourcePartial = apiData?.source === "partial";
   const sourceFallback = apiData?.source === "fallback";
+  const showBuildingBanner = notInitialized || sourcePartial;
 
   return (
     <div className="space-y-6">
-      {notInitialized && (
+      {showBuildingBanner && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-wrap items-center gap-3">
           <Clock className="w-5 h-5 text-amber-600 shrink-0" />
           <div className="flex-1 min-w-0">
@@ -305,7 +307,7 @@ export default function AnalyticsTabContent({
           </button>
         </div>
       )}
-      {sourceFallback && !notInitialized && (
+      {sourceFallback && initStatus?.initialized === true && (
         <div className="rounded-xl border border-muted bg-muted/50 p-3 flex items-center gap-2">
           <Eye className="w-4 h-4 text-muted-foreground shrink-0" />
           <p className="text-xs text-muted-foreground">Your full history is still loading. Some metrics may be limited.</p>

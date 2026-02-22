@@ -498,7 +498,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             </button>
           </motion.div>
         ) : null}
-        {initStatus?.ok && !initStatus?.initialized && (profile?.twitter_username ?? "").toString().trim() && (
+        {((initStatus?.ok && !initStatus?.initialized) || xAnalyticsData?.source === "partial") && (profile?.twitter_username ?? "").toString().trim() && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

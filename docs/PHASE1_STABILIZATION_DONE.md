@@ -76,15 +76,16 @@ Phase 1 fixes are implemented: org creation gate, twitter_username overwrite gua
 
 - **GET /api/analytics/x**  
   - **File:** `apps/web/src/app/api/analytics/x/route.ts`  
-  - Already preferred `x_daily_snapshots` and `x_window_aggregates` for snapshots and rollup.  
-  - **Added:** Response field `source: 'worker' | 'fallback'`.  
-  - `source === 'worker'` when `rollupFromWindows != null` or `dailyRows.length > 0`; otherwise `source === 'fallback'` (legacy/analytics_snapshots).
+  - Prefers `x_daily_snapshots` and `x_window_aggregates` for snapshots and rollup; falls back to legacy when absent.  
+  - **Source semantics (avoids “false worker” from a single daily cron row):**
+    - `source === 'worker'` only when **90d is ready:** `profiles.analytics_initialized_at IS NOT NULL` OR there exists `x_window_aggregates(window_days=90)` for this owner.
+    - `source === 'partial'` when there are some `x_daily_snapshots` (or 7/30 windows) but no 90d yet (e.g. only today from cron).
+    - `source === 'fallback'` when the response is derived from legacy tables (`analytics_snapshots` / `x_analytics_rollups`) because no worker daily/window data exists.
 - **GET /api/analytics/x/summary**  
   - **File:** `apps/web/src/app/api/analytics/x/summary/route.ts`  
-  - **Added:** Response field `source: 'worker' | 'fallback'`.  
-  - `source === 'worker'` when `hasAnyWindow || snapshotDays > 0`; otherwise `'fallback'`.
+  - Same semantics: `worker` only when 90d aggregate or `analytics_initialized_at`; `partial` when snapshot days or 7/30 windows exist but no 90d; `fallback` otherwise.
 
-UI can show a banner when `source === 'fallback'` to indicate data is from legacy/fallback and not yet from worker backfill.
+**UI:** Building banner when `!initStatus.initialized` OR `source === 'partial'`. Fallback banner only when `source === 'fallback'` and initialized (so it does not conflict with the building state).
 
 ---
 

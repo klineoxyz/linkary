@@ -51,13 +51,11 @@ export async function GET(request: NextRequest) {
     .eq("owner_id", user.id);
 
   const snapshotDays = count ?? 0;
-  const has90d = !!byWindow[90];
-  const initialized = !!(profile && "analytics_initialized_at" in profile && (profile as { analytics_initialized_at?: string | null }).analytics_initialized_at);
-  const hasAnyWindow = !!(byWindow[7] || byWindow[30] || byWindow[90]);
-  // Only show "backfilling" when we have few snapshots AND no 7D/30D/90D window data yet
-  const isBackfilling = snapshotDays < 7 && !hasAnyWindow;
-  const source: "worker" | "partial" | "fallback" =
-    has90d || initialized ? "worker" : hasAnyWindow || snapshotDays > 0 ? "partial" : "fallback";
+  // source = worker only when real 90d backfill is complete
+  const ready90 = !!byWindow[90] || !!(profile && "analytics_initialized_at" in profile && (profile as { analytics_initialized_at?: string | null }).analytics_initialized_at);
+  const hasPartial = snapshotDays > 0 || !!(byWindow[7] || byWindow[30]); // some worker data but no 90d yet
+  const isBackfilling = snapshotDays < 7 && !(byWindow[7] || byWindow[30] || byWindow[90]);
+  const source: "worker" | "partial" | "fallback" = ready90 ? "worker" : hasPartial ? "partial" : "fallback";
 
   return NextResponse.json({
     windows: { "7": byWindow[7] ?? null, "30": byWindow[30] ?? null, "90": byWindow[90] ?? null },

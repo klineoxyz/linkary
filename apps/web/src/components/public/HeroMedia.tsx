@@ -41,6 +41,23 @@ function isDirectVideoUrl(url: string): boolean {
   return lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.includes(".mp4?") || lower.includes(".webm?");
 }
 
+/** X (Twitter) status URL for embed. Returns embed iframe URL or null. */
+function getTwitterEmbedUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    if (host !== "x.com" && host !== "twitter.com" && host !== "www.x.com" && host !== "www.twitter.com") return null;
+    const path = u.pathname.replace(/^\/+/, "");
+    const match = path.match(/^(\w+)\/status\/(\d+)/);
+    if (!match) return null;
+    const tweetId = match[2];
+    const statusUrl = `https://x.com/${match[1]}/status/${tweetId}`;
+    return `https://platform.twitter.com/embed/index.html?url=${encodeURIComponent(statusUrl)}`;
+  } catch {
+    return null;
+  }
+}
+
 export function HeroMedia({ type, url, alt = "" }: HeroMediaProps) {
   const safeUrl = url?.trim();
   const isHttps = safeUrl && (safeUrl.startsWith("https://") || safeUrl.startsWith("http://"));
@@ -52,6 +69,8 @@ export function HeroMedia({ type, url, alt = "" }: HeroMediaProps) {
       </div>
     );
   }
+
+  const isVideoButUnsupported = type === "VIDEO";
 
   if (type === "IMAGE") {
     return (
@@ -94,6 +113,18 @@ export function HeroMedia({ type, url, alt = "" }: HeroMediaProps) {
         </div>
       );
     }
+    const twitter = getTwitterEmbedUrl(safeUrl);
+    if (twitter) {
+      return (
+        <div className="relative w-full overflow-hidden rounded-lg border border-border bg-muted aspect-video min-h-[300px]">
+          <iframe
+            src={twitter}
+            title="X post"
+            className="absolute inset-0 h-full w-full min-h-[300px]"
+          />
+        </div>
+      );
+    }
     if (isDirectVideoUrl(safeUrl)) {
       return (
         <div className="relative w-full overflow-hidden rounded-lg border border-border bg-muted aspect-video">
@@ -109,7 +140,9 @@ export function HeroMedia({ type, url, alt = "" }: HeroMediaProps) {
     }
     return (
       <div className="w-full overflow-hidden rounded-lg border border-border bg-muted/30 aspect-video flex items-center justify-center">
-        <p className="text-sm text-muted-foreground px-4 text-center">Add a hero media in profile settings</p>
+        <p className="text-sm text-muted-foreground px-4 text-center">
+          {isVideoButUnsupported ? "Use a YouTube, Vimeo, or X (Twitter) video URL, or a direct .mp4/.webm link." : "Add a hero media in profile settings"}
+        </p>
       </div>
     );
   }

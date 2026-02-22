@@ -146,65 +146,6 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
       <PublicHeader entity={entity} username={username} isLoggedIn={isLoggedIn} isOwner={isOwner} />
 
       <main className="mx-auto max-w-5xl px-4 py-8 pb-24">
-        {/* Social links under header — 32px before next block */}
-        {(hasSocials || orgWebsite || orgTwitter) && (
-          <nav className="mb-8 flex flex-wrap items-center gap-2 sm:gap-3 py-1" aria-label="Social links">
-            {hasSocials && <SocialsRow entity={entity} />}
-            {orgWebsite && (
-              <a
-                href={orgWebsite}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-primary"
-              >
-                Website
-              </a>
-            )}
-            {orgTwitter && (
-              <a
-                href={`https://x.com/${orgTwitter.replace(/^@/, "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-primary"
-              >
-                X
-              </a>
-            )}
-          </nav>
-        )}
-
-        {/* Highlights: ETHOS, XScore, Linkary — minimal cards, large number + small label */}
-        <section className="mb-8 flex flex-wrap gap-3 sm:gap-4" aria-label="Highlights">
-          {isProfile && (
-            <>
-              <div className="min-w-0 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:px-5 sm:py-4">
-                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETHOS</div>
-                <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{entity.ethosScore ?? "—"}</div>
-              </div>
-              <div className="min-w-0 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:px-5 sm:py-4">
-                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">XScore</div>
-                <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile?.xscore ?? "—"}</div>
-              </div>
-              <div className="min-w-0 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:px-5 sm:py-4">
-                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linkary</div>
-                <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{entity.linkaryPower ?? "—"}</div>
-              </div>
-            </>
-          )}
-          {!isProfile && org && (
-            <>
-              <div className="min-w-0 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:px-5 sm:py-4">
-                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">XScore</div>
-                <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{org.xscore ?? "—"}</div>
-              </div>
-              <div className="min-w-0 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:px-5 sm:py-4">
-                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linkary</div>
-                <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{entity.linkaryInfluence ?? "—"}</div>
-              </div>
-            </>
-          )}
-        </section>
-
         {isOwner && (
           <div className="mb-6 flex items-center gap-2">
             {!layoutEditMode ? (
@@ -251,7 +192,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
           </div>
         )}
 
-        {/* Hero: name (largest) → username (muted) → bio → location */}
+        {/* Profile: hero then socials and highlights under it */}
         <section className="py-8">
           <div className="flex items-start gap-4">
             {avatarUrl ? (
@@ -272,6 +213,65 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
               )}
             </div>
           </div>
+
+          {/* Socials under profile */}
+          {(hasSocials || orgWebsite || orgTwitter) && (
+            <nav className="mt-6 flex flex-wrap items-center gap-2 sm:gap-3" aria-label="Social links">
+              {hasSocials && <SocialsRow entity={entity} />}
+              {orgWebsite && (
+                <a
+                  href={orgWebsite}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-primary"
+                >
+                  Website
+                </a>
+              )}
+              {orgTwitter && (
+                <a
+                  href={`https://x.com/${orgTwitter.replace(/^@/, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-primary"
+                >
+                  X
+                </a>
+              )}
+            </nav>
+          )}
+
+          {/* Highlights under profile: ETHOS, XScore, Linkary */}
+          <div className="mt-6 flex flex-wrap gap-3 sm:gap-4" aria-label="Highlights">
+            {isProfile && (
+              <>
+                <div className="min-w-0 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:px-5 sm:py-4">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETHOS</div>
+                  <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{entity.ethosScore ?? "—"}</div>
+                </div>
+                <div className="min-w-0 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:px-5 sm:py-4">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">XScore</div>
+                  <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile?.xscore ?? "—"}</div>
+                </div>
+                <div className="min-w-0 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:px-5 sm:py-4">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linkary</div>
+                  <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{entity.linkaryPower ?? "—"}</div>
+                </div>
+              </>
+            )}
+            {!isProfile && org && (
+              <>
+                <div className="min-w-0 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:px-5 sm:py-4">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">XScore</div>
+                  <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{org.xscore ?? "—"}</div>
+                </div>
+                <div className="min-w-0 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:px-5 sm:py-4">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linkary</div>
+                  <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{entity.linkaryInfluence ?? "—"}</div>
+                </div>
+              </>
+            )}
+          </div>
         </section>
 
         {/* Reorderable sections (order from public_layout or default) */}
@@ -280,11 +280,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
           const sectionContent = (() => {
             switch (sectionId) {
               case "socials":
-                return (
-                  <section className="py-8">
-                    <SocialsRow entity={entity} />
-                  </section>
-                );
+                return null;
               case "analytics":
                 if (!isProfile) return null;
                 if (!hasXConnected) {

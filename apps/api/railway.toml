@@ -1,8 +1,10 @@
 # Railway service config (used when Root Directory = apps/api)
 # https://docs.railway.com/reference/config-as-code
+# Build and start must differ: build compiles, start runs the server.
 
 [build]
 builder = "nixpacks"
+buildCommand = "npm install && npm run build"
 
 [deploy]
 startCommand = "npm run start"

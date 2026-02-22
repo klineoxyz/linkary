@@ -8,21 +8,7 @@ type MediaHeaderProps = {
 
 export function MediaHeader({ type, url, alt = "" }: MediaHeaderProps) {
   if (type === "NONE" || !url?.trim()) return null;
-
-  if (type === "VIDEO") {
-    return (
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border bg-muted">
-        <video
-          src={url}
-          muted
-          playsInline
-          loop
-          className="h-full w-full object-cover"
-          aria-label={alt || "Header video"}
-        />
-      </div>
-    );
-  }
+  if (type === "VIDEO") return null; // Video URLs (e.g. X.com) are not direct assets; only image headers are shown.
 
   return (
     <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border bg-muted">

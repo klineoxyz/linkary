@@ -110,11 +110,17 @@ export async function enqueueXBackfill90dJobs(
 
 /**
  * @deprecated Writes fake 90d (same snapshot repeated) to analytics_snapshots. Do not use. Use worker + enqueueXBackfill90dJobs instead.
+ * Throws unless ALLOW_DEPRECATED_BACKFILL === 'true' to prevent accidental use.
  */
 export async function runBackfillX90d(
   service: SupabaseClient,
   options: BackfillX90dOptions = {}
 ): Promise<BackfillX90dResult> {
+  if (process.env.ALLOW_DEPRECATED_BACKFILL !== "true") {
+    throw new Error(
+      "runBackfillX90d is deprecated and disabled. Use enqueueXBackfill90dJobs + worker for real 90d history. Set ALLOW_DEPRECATED_BACKFILL=true to override (not recommended)."
+    );
+  }
   const limit = Math.min(Math.max(1, options.limit ?? 50), 200);
   const dryRun = options.dryRun === true;
   const twitterApiKey = process.env.TWITTERAPI_API_KEY;

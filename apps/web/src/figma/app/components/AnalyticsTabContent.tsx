@@ -43,6 +43,15 @@ interface AnalyticsTabContentProps {
 
 type SignalType = "good" | "watch" | "risk";
 
+type InitStatus = {
+  ok: boolean;
+  initialized: boolean;
+  has90dAggregate: boolean;
+  hasTodaySnapshot: boolean;
+  snapshotDays: number;
+  job: { status: string; attempts: number; last_error: string | null; run_after: string | null } | null;
+} | null;
+
 export default function AnalyticsTabContent({
   entityType = "creator",
   entityName = "This Profile",
@@ -52,7 +61,38 @@ export default function AnalyticsTabContent({
     profile: { followers_total?: number; avg_engagement_rate?: number; x_last_profile_sync_at?: string | null; x_last_tweets_sync_at?: string | null };
     rollup: Record<string, unknown> | null;
     baseline: { followers_total?: number | null; engagement_rate_proxy?: number | null } | null;
+    source?: "worker" | "partial" | "fallback";
   } | null>(null);
+  const [initStatus, setInitStatus] = useState<InitStatus>(null);
+  const [retryingBackfill, setRetryingBackfill] = useState(false);
+  const pollCountRef = React.useRef(0);
+  const POLL_INTERVAL_MS = 15000;
+  const POLL_MAX = 12;
+
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+
+  const fetchInitStatus = React.useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const res = await fetch(`${base}/api/analytics/init-status`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setInitStatus(json);
+      return json as InitStatus;
+    }
+    return null;
+  }, [base]);
+
+  const fetchAnalytics = React.useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const res = await fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return;
+    const json = await res.json().catch(() => ({}));
+    setApiData({ profile: json.profile ?? {}, rollup: json.rollup ?? null, baseline: json.baseline ?? null, source: json.source ?? "fallback" });
+  }, [base]);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,14 +100,39 @@ export default function AnalyticsTabContent({
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token || cancelled) return;
-      const base = typeof window !== "undefined" ? window.location.origin : "";
       const res = await fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok || cancelled) return;
       const json = await res.json().catch(() => ({}));
-      if (!cancelled) setApiData({ profile: json.profile ?? {}, rollup: json.rollup ?? null, baseline: json.baseline ?? null });
+      if (!cancelled) setApiData({ profile: json.profile ?? {}, rollup: json.rollup ?? null, baseline: json.baseline ?? null, source: json.source ?? "fallback" });
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [base]);
+
+  useEffect(() => {
+    fetchInitStatus();
+  }, [fetchInitStatus]);
+
+  useEffect(() => {
+    if (!initStatus?.ok || initStatus.initialized) return;
+    pollCountRef.current = 0;
+    const id = setInterval(() => {
+      pollCountRef.current += 1;
+      if (pollCountRef.current > POLL_MAX) return;
+      fetchInitStatus();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [initStatus?.ok, initStatus?.initialized, fetchInitStatus]);
+
+  const handleRetryBackfill = React.useCallback(async () => {
+    setRetryingBackfill(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (token) {
+      const res = await fetch(`${base}/api/analytics/backfill-90`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) await fetchInitStatus();
+    }
+    setRetryingBackfill(false);
+  }, [base, fetchInitStatus]);
 
   const profile = apiData?.profile ?? {};
   const rollup = apiData?.rollup;
@@ -201,8 +266,51 @@ export default function AnalyticsTabContent({
     );
   };
 
+  const jobFailed = initStatus?.job?.status === "failed";
+  const notInitialized = initStatus?.ok && !initStatus?.initialized;
+  const sourceFallback = apiData?.source === "fallback";
+
   return (
     <div className="space-y-6">
+      {notInitialized && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-wrap items-center gap-3">
+          <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Building your 90-day history…</p>
+            <p className="text-xs text-amber-800/80 dark:text-amber-200/80 mt-0.5">This can take a few minutes. You can refresh the page to check.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { fetchInitStatus(); fetchAnalytics(); }}
+            className="px-3 py-1.5 rounded-lg border border-amber-500/50 text-amber-800 dark:text-amber-200 text-sm font-medium hover:bg-amber-500/20"
+          >
+            Refresh
+          </button>
+        </div>
+      )}
+      {jobFailed && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 flex flex-wrap items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-destructive">Backfill didn’t complete</p>
+            {initStatus?.job?.last_error && <p className="text-xs text-muted-foreground mt-0.5 truncate">{initStatus.job.last_error}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={handleRetryBackfill}
+            disabled={retryingBackfill}
+            className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          >
+            {retryingBackfill ? "Retrying…" : "Retry backfill"}
+          </button>
+        </div>
+      )}
+      {sourceFallback && !notInitialized && (
+        <div className="rounded-xl border border-muted bg-muted/50 p-3 flex items-center gap-2">
+          <Eye className="w-4 h-4 text-muted-foreground shrink-0" />
+          <p className="text-xs text-muted-foreground">Your full history is still loading. Some metrics may be limited.</p>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

@@ -6,7 +6,7 @@ import { getSupabaseAdmin } from "../lib/supabase.js";
 import { getUserInfo, getRecentTweets } from "../lib/twitterapi.js";
 import { sleep } from "../lib/utils.js";
 
-const MAX_TWEETS = 600;
+const MAX_TWEETS = 1000;
 const DELAY_MS = 400;
 
 function toDay(iso: string): string {
@@ -42,7 +42,7 @@ export async function runXBackfill90d(
 
   const dayMap = new Map<
     string,
-    { tweets_count: number; likes_received: number; replies_received: number; retweets_received: number }
+    { tweets_count: number; likes_received: number; replies_received: number; retweets_received: number; quotes_received: number }
   >();
 
   const now = new Date();
@@ -59,11 +59,13 @@ export async function runXBackfill90d(
       likes_received: 0,
       replies_received: 0,
       retweets_received: 0,
+      quotes_received: 0,
     };
     existing.tweets_count += 1;
     existing.likes_received += Math.max(0, Number(t.likeCount) || 0);
     existing.replies_received += Math.max(0, Number(t.replyCount) || 0);
     existing.retweets_received += Math.max(0, Number(t.retweetCount) || 0);
+    existing.quotes_received += Math.max(0, Number(t.quoteCount) || 0);
     dayMap.set(day, existing);
   }
 
@@ -79,23 +81,25 @@ export async function runXBackfill90d(
         likes_received: agg.likes_received,
         replies_received: agg.replies_received,
         retweets_received: agg.retweets_received,
+        raw: { quotes_received: agg.quotes_received },
       },
       { onConflict: "owner_type,owner_id,day" }
     );
     if (error) return { ok: false, error: error.message };
   }
 
-  if (followersToday != null && todayStr) {
+  if (followersToday != null && todayStr && !dayMap.has(todayStr)) {
     const { error: todayErr } = await supabase.from("x_daily_snapshots").upsert(
       {
         owner_type: "profile",
         owner_id: job.owner_id,
         day: todayStr,
         followers: followersToday,
-        tweets_count: dayMap.get(todayStr)?.tweets_count ?? 0,
-        likes_received: dayMap.get(todayStr)?.likes_received ?? 0,
-        replies_received: dayMap.get(todayStr)?.replies_received ?? 0,
-        retweets_received: dayMap.get(todayStr)?.retweets_received ?? 0,
+        tweets_count: 0,
+        likes_received: 0,
+        replies_received: 0,
+        retweets_received: 0,
+        raw: { quotes_received: 0 },
       },
       { onConflict: "owner_type,owner_id,day" }
     );
@@ -133,6 +137,7 @@ export async function runXBackfill90d(
     let totalLikes = 0;
     let totalReplies = 0;
     let totalRetweets = 0;
+    let totalQuotes = 0;
     let totalPosts = 0;
 
     for (const r of list) {
@@ -143,10 +148,12 @@ export async function runXBackfill90d(
       totalLikes += r.likes_received ?? 0;
       totalReplies += r.replies_received ?? 0;
       totalRetweets += r.retweets_received ?? 0;
+      const raw = r as { raw?: { quotes_received?: number } | null };
+      totalQuotes += raw?.raw?.quotes_received ?? 0;
       totalPosts += r.tweets_count ?? 0;
     }
 
-    const totalEngagement = totalLikes + totalReplies + totalRetweets;
+    const totalEngagement = totalLikes + totalReplies + totalRetweets + totalQuotes;
     const followersEndSafe = followersEnd ?? followersStart ?? 1;
     const avgEngagement =
       totalPosts > 0 && followersEndSafe > 0

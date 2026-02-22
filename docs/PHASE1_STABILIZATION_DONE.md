@@ -68,7 +68,7 @@ Phase 1 fixes are implemented: org creation gate, twitter_username overwrite gua
   - Removed the block that wrote `analytics_snapshots` (today). Still updates `profiles`, writes today to `x_daily_snapshots`, and enqueues `x_backfill_90d` job when needed.
 
 **Deprecated / no longer used for 90d:**  
-- `runBackfillX90d()` in `lib/backfill-x-90d.ts` — do not use for cron or admin; worker-only path builds real 90d via `x_daily_snapshots` + `x_window_aggregates`.
+- `runBackfillX90d()` in `lib/backfill-x-90d.ts` — do not use for cron or admin; worker-only path builds real 90d via `x_daily_snapshots` + `x_window_aggregates`. It is the only code path that still writes to `analytics_snapshots` (legacy public snapshot store). It throws at runtime unless `process.env.ALLOW_DEPRECATED_BACKFILL === 'true'`, so it cannot be called accidentally.
 
 ---
 

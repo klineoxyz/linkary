@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("followers_total, twitter_username, x_last_profile_sync_at")
+    .select("followers_total, twitter_username, x_last_profile_sync_at, analytics_initialized_at")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -51,10 +51,13 @@ export async function GET(request: NextRequest) {
     .eq("owner_id", user.id);
 
   const snapshotDays = count ?? 0;
+  const has90d = !!byWindow[90];
+  const initialized = !!(profile && "analytics_initialized_at" in profile && (profile as { analytics_initialized_at?: string | null }).analytics_initialized_at);
   const hasAnyWindow = !!(byWindow[7] || byWindow[30] || byWindow[90]);
   // Only show "backfilling" when we have few snapshots AND no 7D/30D/90D window data yet
   const isBackfilling = snapshotDays < 7 && !hasAnyWindow;
-  const source = hasAnyWindow || snapshotDays > 0 ? ("worker" as const) : ("fallback" as const);
+  const source: "worker" | "partial" | "fallback" =
+    has90d || initialized ? "worker" : hasAnyWindow || snapshotDays > 0 ? "partial" : "fallback";
 
   return NextResponse.json({
     windows: { "7": byWindow[7] ?? null, "30": byWindow[30] ?? null, "90": byWindow[90] ?? null },

@@ -100,7 +100,17 @@ type XAnalyticsData = {
   topDrivers: Array<{ tweet_id: string; tweeted_at: string | null; like_count: number; reply_count: number; repost_count: number; engagement_score: number }>;
   baseline: Baseline;
   snapshots?: SnapshotPoint[];
+  source?: "worker" | "partial" | "fallback";
 };
+
+type InitStatus = {
+  ok: boolean;
+  initialized: boolean;
+  has90dAggregate: boolean;
+  hasTodaySnapshot: boolean;
+  snapshotDays: number;
+  job: { status: string; attempts: number; last_error: string | null; run_after: string | null } | null;
+} | null;
 
 export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) => void }) {
   const [activePlatform, setActivePlatform] = useState<PlatformType>("x");
@@ -110,13 +120,28 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const [visibility, setVisibility] = useState<VisibilityType>("public");
   const [xAnalyticsData, setXAnalyticsData] = useState<XAnalyticsData | null>(null);
   const [windowSummary, setWindowSummary] = useState<{ windows: Record<string, Record<string, unknown> | null>; is_backfilling: boolean } | null>(null);
+  const [initStatus, setInitStatus] = useState<InitStatus>(null);
+  const [retryingBackfill, setRetryingBackfill] = useState(false);
   const initialSyncTriggered = useRef(false);
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+
+  const fetchInitStatus = React.useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return null;
+    const res = await fetch(`${base}/api/analytics/init-status`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setInitStatus(json);
+      return json as InitStatus;
+    }
+    return null;
+  }, [base]);
 
   const fetchXAnalytics = React.useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     if (!token) return;
-    const base = typeof window !== "undefined" ? window.location.origin : "";
     const [res, summaryRes] = await Promise.all([
       fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } }),
       fetch(`${base}/api/analytics/x/summary`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -129,6 +154,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         topDrivers: json.topDrivers ?? [],
         baseline: json.baseline ?? null,
         snapshots: Array.isArray(json.snapshots) ? json.snapshots : [],
+        source: json.source ?? "fallback",
       });
     }
     if (summaryRes.ok) {
@@ -145,6 +171,21 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     })();
     return () => { cancelled = true; };
   }, [fetchXAnalytics]);
+
+  useEffect(() => {
+    fetchInitStatus();
+  }, [fetchInitStatus]);
+
+  const handleRetryBackfill = React.useCallback(async () => {
+    setRetryingBackfill(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (token) {
+      const res = await fetch(`${base}/api/analytics/backfill-90`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) await fetchInitStatus();
+    }
+    setRetryingBackfill(false);
+  }, [base, fetchInitStatus]);
 
   // When user has X connected but no baseline yet, take initial snapshot so 7D/30D/90D have a baseline
   useEffect(() => {
@@ -457,6 +498,57 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             </button>
           </motion.div>
         ) : null}
+        {initStatus?.ok && !initStatus?.initialized && (profile?.twitter_username ?? "").toString().trim() && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-wrap items-center gap-3"
+          >
+            <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Building your 90-day history…</p>
+              <p className="text-xs text-amber-800/80 dark:text-amber-200/80 mt-0.5">This can take a few minutes. You can refresh the page to check.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { fetchInitStatus(); fetchXAnalytics(); }}
+              className="px-3 py-1.5 rounded-lg border border-amber-500/50 text-amber-800 dark:text-amber-200 text-sm font-medium hover:bg-amber-500/20"
+            >
+              Refresh
+            </button>
+          </motion.div>
+        )}
+        {initStatus?.job?.status === "failed" && (profile?.twitter_username ?? "").toString().trim() && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 flex flex-wrap items-center gap-3"
+          >
+            <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-destructive">Backfill didn’t complete</p>
+              {initStatus.job?.last_error && <p className="text-xs text-muted-foreground mt-0.5 truncate">{initStatus.job.last_error}</p>}
+            </div>
+            <button
+              type="button"
+              onClick={handleRetryBackfill}
+              disabled={retryingBackfill}
+              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {retryingBackfill ? "Retrying…" : "Retry backfill"}
+            </button>
+          </motion.div>
+        )}
+        {xAnalyticsData?.source === "fallback" && initStatus?.initialized === true && (profile?.twitter_username ?? "").toString().trim() && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-muted bg-muted/50 p-3 flex items-center gap-2"
+          >
+            <Eye className="w-4 h-4 text-muted-foreground shrink-0" />
+            <p className="text-xs text-muted-foreground">Your full history is still loading. Some metrics may be limited.</p>
+          </motion.div>
+        )}
         {/* A) Sticky Analytics Context Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}

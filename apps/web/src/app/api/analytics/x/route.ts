@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   const [profileRes, legacyRollupRes, driversRes, baselineRes, legacySnapshotsRes, dailySnapshotsRes, windowAggsRes] = await Promise.all([
     supabase
       .from("profiles")
-      .select("followers_total, avg_engagement_rate, x_last_profile_sync_at, x_last_tweets_sync_at, x_sync_status, twitter_username")
+      .select("followers_total, avg_engagement_rate, x_last_profile_sync_at, x_last_tweets_sync_at, x_sync_status, twitter_username, analytics_initialized_at")
       .eq("id", user.id)
       .maybeSingle(),
     supabase.from("x_analytics_rollups").select("*").eq("profile_id", user.id).maybeSingle(),
@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
     x_last_tweets_sync_at?: string | null;
     x_sync_status?: string | null;
     twitter_username?: string | null;
+    analytics_initialized_at?: string | null;
   } | null;
   const legacyRollup = legacyRollupRes.data as Record<string, unknown> | null;
   const topDrivers = (driversRes.data ?? []) as Array<{
@@ -149,8 +150,11 @@ export async function GET(request: NextRequest) {
         } as Record<string, unknown>)
       : null;
   const rollup = rollupFromWindows ?? legacyRollup;
-  const source =
-    rollupFromWindows != null || dailyRows.length > 0 ? ("worker" as const) : ("fallback" as const);
+  const has90d = !!w90;
+  const initialized = !!(profile?.analytics_initialized_at ?? null);
+  const hasPartial = dailyRows.length > 0 || !!(w7 || w30);
+  const source: "worker" | "partial" | "fallback" =
+    has90d || initialized ? "worker" : hasPartial ? "partial" : "fallback";
 
   return NextResponse.json({
     profile: profile ?? {},

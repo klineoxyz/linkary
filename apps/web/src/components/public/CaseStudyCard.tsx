@@ -33,7 +33,7 @@ export function CaseStudyCard({
     : firstMetric ? firstMetric[0] : null;
 
   return (
-    <div className="rounded-md border border-border/60 bg-muted/30 p-4">
+    <div className="rounded-md border border-border p-4">
       <div className="flex items-start gap-3">
         {projectLogo && (
           <img

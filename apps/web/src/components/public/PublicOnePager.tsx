@@ -38,7 +38,7 @@ function useFadeIn() {
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <h2 className="mb-2 flex items-center gap-3 text-lg font-semibold text-foreground">
-      <span className="h-5 w-0.5 shrink-0 self-stretch rounded-full bg-primary" aria-hidden />
+      <span className="h-5 w-0.5 shrink-0 self-stretch rounded-full bg-primary/80" aria-hidden />
       {children}
     </h2>
   );
@@ -298,7 +298,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
             )}
             <div className="min-w-0 flex-1">
               <h1 className="text-2xl font-semibold text-foreground">{displayName}</h1>
-              <p className="text-sm text-muted-foreground">@{username}</p>
+              <span className="text-sm text-primary hover:underline cursor-default">@{username}</span>
               {bio && <p className="mt-2 text-sm text-muted-foreground">{bio}</p>}
               {profile?.location && (
                 <p className="mt-1 text-xs text-muted-foreground">{profile.location}</p>
@@ -306,17 +306,15 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
             </div>
           </div>
 
-          {/* Identity Bar: verified + credibility line */}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span>
-              {hasXConnected ? (
-                <span className="inline-flex items-center gap-1">
-                  <BadgeCheck className="h-3.5 w-3.5 text-primary" aria-hidden />
-                  Verified via X
-                </span>
-              ) : null}
-            </span>
-            <span>
+          {/* Identity Bar: confident badge + credibility line */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            {hasXConnected ? (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+                Verified via X
+              </span>
+            ) : <span />}
+            <span className="text-sm font-medium text-foreground">
               {hasXConnected && analyticsInitialized ? "Verified analytics & credibility" : "Public reputation profile"}
             </span>
           </div>
@@ -349,35 +347,41 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
           )}
 
           {/* Reputation Signals */}
-          <div className="mt-6 flex flex-wrap items-baseline gap-6 sm:gap-8 border-b border-border pb-6" aria-label="Reputation Signals">
-            {isProfile && (
-              <>
-                <div className="min-w-0">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Community credibility score">ETHOS</div>
-                  <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{entity.ethosScore ?? "—"}</div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>
-                  <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile?.xscore ?? "—"}</div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Overall profile strength">Linkary</div>
-                  <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{entity.linkaryPower ?? "—"}</div>
-                </div>
-              </>
-            )}
-            {!isProfile && org && (
-              <>
-                <div className="min-w-0">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>
-                  <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{org.xscore ?? "—"}</div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Overall profile strength">Linkary</div>
-                  <div className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{entity.linkaryInfluence ?? "—"}</div>
-                </div>
-              </>
-            )}
+          <div className="mt-6 border-b border-border pb-6" aria-label="Reputation Signals">
+            <p className="mb-4 text-sm font-semibold text-foreground">
+              <span className="text-primary" aria-hidden>● </span>
+              Reputation Signals
+            </p>
+            <div className="flex flex-wrap items-baseline gap-6 sm:gap-8">
+              {isProfile && (
+                <>
+                  <div className="min-w-0 border-b border-border pb-2">
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Community credibility score">ETHOS</div>
+                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${entity.ethosScore != null ? "text-primary" : "text-foreground"}`}>{entity.ethosScore ?? "—"}</div>
+                  </div>
+                  <div className="min-w-0 border-b border-border pb-2">
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>
+                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${profile?.xscore != null ? "text-primary" : "text-foreground"}`}>{profile?.xscore ?? "—"}</div>
+                  </div>
+                  <div className="min-w-0 border-b border-border pb-2">
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Overall profile strength">Linkary</div>
+                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${entity.linkaryPower != null ? "text-primary" : "text-foreground"}`}>{entity.linkaryPower ?? "—"}</div>
+                  </div>
+                </>
+              )}
+              {!isProfile && org && (
+                <>
+                  <div className="min-w-0 border-b border-border pb-2">
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>
+                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${org.xscore != null ? "text-primary" : "text-foreground"}`}>{org.xscore ?? "—"}</div>
+                  </div>
+                  <div className="min-w-0 border-b border-border pb-2">
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Overall profile strength">Linkary</div>
+                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${entity.linkaryInfluence != null ? "text-primary" : "text-foreground"}`}>{entity.linkaryInfluence ?? "—"}</div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </section>
 
@@ -406,7 +410,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                         <SectionTitle>30d Activity</SectionTitle>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {[1, 2, 3, 4, 5, 6].map((i) => (
-                          <div key={i} className="rounded-md bg-muted/40 p-4 animate-pulse">
+                          <div key={i} className="rounded-md border border-border p-4 animate-pulse">
                             <div className="h-4 w-16 rounded bg-muted" />
                             <div className="mt-2 h-8 w-20 rounded bg-muted" />
                           </div>
@@ -635,7 +639,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
           <section className="py-10 border-t border-border">
             <div className="text-center">
               <p className="text-sm font-medium text-foreground sm:text-base">
-                Build your verified reputation profile
+                Build your public reputation profile
               </p>
               <Link
                 href="/login"
@@ -646,6 +650,11 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
             </div>
           </section>
         )}
+
+        {/* Brand signature */}
+        <p className="pb-6 pt-2 text-center text-xs text-muted-foreground">
+          Powered by <span className="font-medium text-primary">Linkary</span>
+        </p>
       </main>
 
       {!isOwner && <StickyClaimBar />}

@@ -22,8 +22,8 @@ export function StickyClaimBar() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">
-          Build your verified reputation profile
+        <p className="text-sm font-medium text-foreground">
+          Build your public reputation profile
         </p>
         <Link
           href="/login"

@@ -31,7 +31,12 @@ export default async function PublicUsernamePage({ params }: Props) {
     }
   }
 
-  const entity = await resolvePublicEntity(segment, { serviceSupabase: serviceSupabase ?? undefined });
+  let entity;
+  try {
+    entity = await resolvePublicEntity(segment, { serviceSupabase: serviceSupabase ?? undefined });
+  } catch {
+    notFound();
+  }
   if (!entity) notFound();
 
   const canonicalSlug =

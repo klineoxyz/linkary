@@ -150,7 +150,8 @@ export async function GET(request: NextRequest) {
         } as Record<string, unknown>)
       : null;
   const rollup = rollupFromWindows ?? legacyRollup;
-  // source = worker only when real 90d backfill is complete (avoids "false worker" from single daily cron row)
+  // source = worker only when real 90d backfill is complete (avoids "false worker" from single daily cron row).
+  // ready90 scoped by (owner_type, owner_id) above so org vs profile cannot collide.
   const ready90 = !!w90 || !!(profile?.analytics_initialized_at ?? null);
   const hasDaily = dailyRows.length > 0; // x_daily_snapshots exist (may be only today from cron)
   const source: "worker" | "partial" | "fallback" = ready90 ? "worker" : hasDaily ? "partial" : "fallback";

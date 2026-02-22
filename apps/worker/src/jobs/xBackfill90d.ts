@@ -188,7 +188,7 @@ export async function runXBackfill90d(
     if (aggErr) return { ok: false, error: aggErr.message };
   }
 
-  // Mark profile as having completed 90d backfill (idempotent)
+  // Set only after x_daily_snapshots and x_window_aggregates succeeded (no finally — never set on failure).
   if (job.owner_type === "profile" && job.owner_id) {
     await supabase
       .from("profiles")

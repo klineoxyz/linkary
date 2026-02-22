@@ -192,12 +192,20 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
   let ethosResults: Record<string, unknown> | null = null;
   if (profile.twitter_username) {
     const userkey = `service:x.com:username:${profile.twitter_username}`;
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? "";
-    const res = await fetch(`${base}/api/ethos/score?userkey=${encodeURIComponent(userkey)}`, { next: { revalidate: 3600 } });
-    if (res.ok) {
-      const j = await res.json();
-      ethosScore = j.score_value ?? null;
-      ethosResults = typeof j.score_json === "object" && j.score_json ? (j.score_json as Record<string, unknown>) : null;
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL ??
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+    if (base) {
+      try {
+        const res = await fetch(`${base}/api/ethos/score?userkey=${encodeURIComponent(userkey)}`, { next: { revalidate: 3600 } });
+        if (res.ok) {
+          const j = await res.json();
+          ethosScore = j.score_value ?? null;
+          ethosResults = typeof j.score_json === "object" && j.score_json ? (j.score_json as Record<string, unknown>) : null;
+        }
+      } catch {
+        /* ethos API optional; leave scores null */
+      }
     }
   }
 

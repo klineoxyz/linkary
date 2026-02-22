@@ -537,8 +537,6 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [myOrgs, setMyOrgs] = useState<Org[]>([]);
-  const [lastCreateOrgError, setLastCreateOrgError] = useState<string | null>(null);
-  const [lastCreatedOrgId, setLastCreatedOrgId] = useState<string | null>(null);
   const [myDeals, setMyDeals] = useState<Deal[]>([]);
 
   useEffect(() => {
@@ -557,21 +555,10 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
   }, []);
 
   const handleOrgCreated = (orgId: string, _slug?: string) => {
-    setLastCreatedOrgId(orgId);
-    setLastCreateOrgError(null);
     if (userId) listOrgsForUser(userId).then(setMyOrgs);
     setShowCreateOrg(false);
     if (setRoute) setRoute({ name: "orgDetail", data: { orgId, showConnectXBanner: true } });
   };
-
-  const isDevDiagVisible =
-    process.env.NEXT_PUBLIC_ENV !== "production" ||
-    (typeof userEmail === "string" &&
-      (process.env.NEXT_PUBLIC_DEV_DIAG_EMAILS ?? "")
-        .split(",")
-        .map((e) => e.trim().toLowerCase())
-        .filter(Boolean)
-        .includes(userEmail.toLowerCase()));
 
   return (
     <div className="space-y-10 pb-12">
@@ -580,19 +567,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
           userId={userId}
           onClose={() => setShowCreateOrg(false)}
           onSuccess={handleOrgCreated}
-          onError={setLastCreateOrgError}
         />
-      )}
-      {isDevDiagVisible && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-xs font-mono text-amber-900">
-          <div className="font-semibold mb-2">Dev diagnostics</div>
-          <div>User ID: {userId ?? "—"}</div>
-          <div>Last create org error: {lastCreateOrgError ?? "—"}</div>
-          <div>Last created org ID: {lastCreatedOrgId ?? "—"}</div>
-          <div>
-            Org in list: {lastCreatedOrgId ? (myOrgs.some((o) => o.id === lastCreatedOrgId) ? "yes" : "no") : "—"}
-          </div>
-        </div>
       )}
       {/* Universal Search Bar */}
       <GlassCard>

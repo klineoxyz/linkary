@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     .eq("owner_id", user.id);
 
   const snapshotDays = count ?? 0;
-  // source = worker only when real 90d backfill is complete
+  // source = worker only when real 90d backfill is complete (90d row scoped by owner_type + owner_id above).
   const ready90 = !!byWindow[90] || !!(profile && "analytics_initialized_at" in profile && (profile as { analytics_initialized_at?: string | null }).analytics_initialized_at);
   const hasPartial = snapshotDays > 0 || !!(byWindow[7] || byWindow[30]); // some worker data but no 90d yet
   const isBackfilling = snapshotDays < 7 && !(byWindow[7] || byWindow[30] || byWindow[90]);

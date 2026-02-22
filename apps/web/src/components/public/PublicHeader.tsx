@@ -26,17 +26,17 @@ export function PublicHeader({ entity, username, isLoggedIn }: PublicHeaderProps
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             {avatarUrl ? (
               <img
                 src={avatarUrl}
                 alt=""
-                className="h-10 w-10 shrink-0 rounded-full object-cover"
+                className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-border"
               />
             ) : (
-              <div className="h-10 w-10 shrink-0 rounded-full bg-primary/20" />
+              <div className="h-10 w-10 shrink-0 rounded-full bg-muted ring-2 ring-border" />
             )}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -45,7 +45,7 @@ export function PublicHeader({ entity, username, isLoggedIn }: PublicHeaderProps
                 </span>
                 {verified && <BadgeCheck className="h-5 w-5 shrink-0 text-primary" />}
               </div>
-              <p className="truncate text-sm text-muted-foreground">@{username}</p>
+              <p className="truncate text-sm font-medium text-primary">@{username}</p>
               {roleTags.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-1">
                   {roleTags.map((tag) => (
@@ -65,7 +65,7 @@ export function PublicHeader({ entity, username, isLoggedIn }: PublicHeaderProps
               <button
                 type="button"
                 onClick={() => setSendOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm font-medium text-foreground hover:bg-accent hover:border-primary/30"
               >
                 <Send className="h-4 w-4 stroke-[1.75]" />
                 Send
@@ -81,7 +81,7 @@ export function PublicHeader({ entity, username, isLoggedIn }: PublicHeaderProps
             ) : (
               <Link
                 href="/dashboard"
-                className="rounded-lg border border-border bg-muted px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+                className="rounded-lg border border-border bg-muted px-4 py-2 text-sm font-medium text-foreground hover:bg-accent hover:border-primary/30"
               >
                 View Analytics
               </Link>

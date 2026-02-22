@@ -2,15 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { PublicEntity } from "@/lib/publicData";
 import { PublicOnePager } from "@/components/public/PublicOnePager";
 
+export type EntityView = ReturnType<typeof import("@/lib/publicProfileDTO").dtoToEntityView>;
+
 export function PublicOnePagerWrapper({
-  entity,
+  entityView,
   username,
+  analyticsSource,
+  analyticsInitialized,
+  hasXConnected,
 }: {
-  entity: PublicEntity;
+  entityView: EntityView;
   username: string;
+  analyticsSource: "worker" | "partial" | "fallback";
+  analyticsInitialized: boolean;
+  hasXConnected: boolean;
 }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
@@ -18,35 +25,26 @@ export function PublicOnePagerWrapper({
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      setIsLoggedIn(!!user);
-      if (!user?.id) {
+      setIsLoggedIn(!!session?.user);
+      if (!session?.access_token) {
         setIsOwner(false);
         return;
       }
-      if (entity.type === "profile" && entity.profile?.id === user.id) {
-        setIsOwner(true);
-        return;
+      const res = await fetch(
+        `${typeof window !== "undefined" ? window.location.origin : ""}/api/public/ownership?username=${encodeURIComponent(username)}`,
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
+      );
+      if (res.ok) {
+        const j = await res.json();
+        setIsOwner(j.isOwner === true);
+      } else {
+        setIsOwner(false);
       }
-      if (entity.type === "org" && entity.org?.id) {
-        const { data: member } = await supabase
-          .from("org_members")
-          .select("role")
-          .eq("org_id", entity.org.id)
-          .eq("user_id", user.id)
-          .maybeSingle();
-        setIsOwner(!!member && ["owner", "admin"].includes((member as { role: string }).role));
-        return;
-      }
-      setIsOwner(false);
     })();
-  }, [entity.type, entity.profile?.id, entity.org?.id]);
+  }, [username]);
 
-  // When this profile is viewed (by owner or by someone with right, e.g. superadmin), ensure 90d backfill is enqueued so analytics stay healthy
   useEffect(() => {
-    if (entity.type !== "profile" || !entity.profile?.id) return;
-    const handle = (entity.profile as { twitter_username?: string | null }).twitter_username;
-    if (!handle || !String(handle).trim()) return;
+    if (!isOwner || entityView.type !== "profile" || !hasXConnected) return;
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -54,17 +52,20 @@ export function PublicOnePagerWrapper({
       fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/analytics/ensure-backfill`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ profile_id: entity.profile!.id }),
+        body: JSON.stringify({ username }),
       }).catch(() => {});
     })();
-  }, [entity.type, entity.profile?.id, entity.profile]);
+  }, [isOwner, entityView.type, hasXConnected, username]);
 
   return (
     <PublicOnePager
-      entity={entity}
+      entity={entityView}
       username={username}
       isLoggedIn={isLoggedIn}
       isOwner={isOwner}
+      analyticsSource={analyticsSource}
+      analyticsInitialized={analyticsInitialized}
+      hasXConnected={hasXConnected}
     />
   );
 }

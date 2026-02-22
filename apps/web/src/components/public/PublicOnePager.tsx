@@ -15,14 +15,41 @@ import { DexScreenerEmbed } from "./DexScreenerEmbed";
 import { MediaHeader } from "./MediaHeader";
 import { supabase } from "@/lib/supabase";
 
+/** Entity view (from DTO): same shape as PublicEntity for display but no profile.id / org.id. */
+type EntityView = {
+  type: "profile" | "org";
+  profile?: PublicEntity["profile"];
+  org?: PublicEntity["org"];
+  publicLayout?: PublicEntity["publicLayout"];
+  socials?: PublicEntity["socials"];
+  headerMedia?: PublicEntity["headerMedia"];
+  analyticsSnapshot?: PublicEntity["analyticsSnapshot"];
+  ethosScore?: number | null;
+  ethosResults?: Record<string, unknown> | null;
+  linkaryPower?: number;
+  linkaryInfluence?: number;
+  tier: PublicEntity["tier"];
+  caseStudies: PublicEntity["caseStudies"];
+  reviews: PublicEntity["reviews"];
+  affiliate?: PublicEntity["affiliate"];
+  ambassadors: PublicEntity["ambassadors"];
+  ecosystemCategories?: string[];
+  subsidiaries?: Array<{ id: string; slug: string; name: string; logo_url: string | null }>;
+  dexscreenerUrl?: string | null;
+  tokenSymbol?: string | null;
+};
+
 type Props = {
-  entity: PublicEntity;
+  entity: PublicEntity | EntityView;
   username: string;
   isLoggedIn: boolean;
   isOwner?: boolean;
+  analyticsSource?: "worker" | "partial" | "fallback";
+  analyticsInitialized?: boolean;
+  hasXConnected?: boolean;
 };
 
-function SocialsRow({ entity }: { entity: PublicEntity }) {
+function SocialsRow({ entity }: { entity: EntityView | PublicEntity }) {
   const socials = entity.socials;
   if (!socials) return null;
   const links: { name: string; url: string | null }[] = [
@@ -56,7 +83,7 @@ function labelForDelta(value: number | null | undefined): "Good" | "Watch" | "Ri
   return "Watch";
 }
 
-export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false }: Props) {
+export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, analyticsSource, analyticsInitialized, hasXConnected = false }: Props) {
   const router = useRouter();
   const isProfile = entity.type === "profile";
   const profile = entity.profile;
@@ -84,21 +111,25 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false }
 
   const handleSaveLayout = useCallback(async () => {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    if (!token || !entity.profile?.id && !entity.org?.id) return;
+    if (!token) return;
     setSavingLayout(true);
     const entityType = entity.type;
-    const entityId = entity.type === "profile" ? entity.profile!.id : entity.org!.id;
+    const profileId = (entity as PublicEntity).profile?.id;
+    const orgId = (entity as PublicEntity).org?.id;
+    const body = profileId != null || orgId != null
+      ? { entityType, entityId: entityType === "profile" ? profileId : orgId, layout: { order: localOrder } }
+      : { entityType, username, layout: { order: localOrder } };
     const res = await fetch("/api/public/layout", {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ entityType, entityId, layout: { order: localOrder } }),
+      body: JSON.stringify(body),
     });
     setSavingLayout(false);
     if (res.ok) {
       setLayoutEditMode(false);
       router.refresh();
     }
-  }, [entity.type, entity.profile?.id, entity.org?.id, localOrder, router]);
+  }, [entity, username, localOrder, router]);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDragIndex(index);
@@ -229,17 +260,33 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false }
                   </section>
                 );
               case "analytics":
-                if (!isProfile || !snap) return null;
+                if (!isProfile) return null;
+                if (!hasXConnected) {
+                  return (
+                    <section className="mb-10">
+                      <div className="rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+                        Connect X to enable analytics
+                      </div>
+                    </section>
+                  );
+                }
+                if (!snap && !analyticsInitialized) return null;
+                const showPartialBanner = hasXConnected && (analyticsSource === "partial" || analyticsSource === "fallback");
                 return (
                   <section className="mb-10">
+                    {showPartialBanner && (
+                      <div className="mb-4 rounded-xl border border-border bg-amber-500/10 px-4 py-3 text-sm text-foreground">
+                        90-day history is building. Activity history is real; follower growth tracked since connection.
+                      </div>
+                    )}
                     <h2 className="mb-4 text-lg font-semibold text-foreground">Analytics Snapshot (30D)</h2>
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      <MetricCard label="Average Reach" value={snap.reach_avg != null ? Number(snap.reach_avg).toLocaleString() : "—"} status={labelForDelta(snap.reach_avg)} />
-                      <MetricCard label="Engagement Rate" value={snap.engagement_rate != null ? `${(Number(snap.engagement_rate) * 100).toFixed(2)}%` : "—"} status={labelForDelta(snap.engagement_rate)} />
-                      <MetricCard label="Avg Likes/Post" value={snap.likes_avg != null ? Number(snap.likes_avg).toLocaleString() : "—"} />
-                      <MetricCard label="Avg Replies/Post" value={snap.replies_avg != null ? Number(snap.replies_avg).toLocaleString() : "—"} />
-                      <MetricCard label="X Spaces Hosted" value={snap.spaces_count ?? "—"} />
-                      <MetricCard label="Followers Growth" value={snap.followers_delta != null ? `${snap.followers_delta > 0 ? "+" : ""}${snap.followers_delta}` : "—"} status={labelForDelta(snap.followers_delta)} />
+                      <MetricCard label="Average Reach" value={snap?.reach_avg != null ? Number(snap.reach_avg).toLocaleString() : "—"} status={snap ? labelForDelta(snap.reach_avg) : null} />
+                      <MetricCard label="Engagement Rate" value={snap?.engagement_rate != null ? `${(Number(snap.engagement_rate) * 100).toFixed(2)}%` : "—"} status={snap ? labelForDelta(snap.engagement_rate) : null} />
+                      <MetricCard label="Avg Likes/Post" value={snap?.likes_avg != null ? Number(snap.likes_avg).toLocaleString() : "—"} />
+                      <MetricCard label="Avg Replies/Post" value={snap?.replies_avg != null ? Number(snap.replies_avg).toLocaleString() : "—"} />
+                      <MetricCard label="X Spaces Hosted" value={snap?.spaces_count ?? "—"} />
+                      <MetricCard label="Followers Growth" value={snap?.followers_delta != null ? `${snap.followers_delta > 0 ? "+" : ""}${snap.followers_delta}` : "—"} status={snap ? labelForDelta(snap.followers_delta) : null} />
                     </div>
                   </section>
                 );

@@ -44,9 +44,11 @@ export default function ProfileEditPage({
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [telegramUrl, setTelegramUrl] = useState("");
+  const [published, setPublished] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   const load = useCallback(async () => {
     if (!me?.id) return;
@@ -75,7 +77,8 @@ export default function ProfileEditPage({
       setYoutubeUrl(s.youtube_url ?? "");
       setTelegramUrl(s.telegram_url ?? "");
     }
-  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location]);
+    if (me?.published != null) setPublished(!!me.published);
+  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published]);
 
   useEffect(() => {
     load();
@@ -292,6 +295,61 @@ export default function ProfileEditPage({
               placeholder={headerMediaType === "VIDEO" ? "https://… video URL" : "https://… image URL"}
               className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 mt-1"
             />
+          )}
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-sm font-medium text-zinc-700">Publish public page</label>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={published}
+              onClick={async () => {
+                if (!me?.id) return;
+                const hasAvatar = !!(me.avatar_url && me.avatar_url.trim());
+                const hasBio = !!(bio.trim());
+                const hasLink = [website, xUrl, linkedinUrl, youtubeUrl, telegramUrl].some((u) => u.trim().length > 0);
+                if (!published && (!hasAvatar || !hasBio || !hasLink)) {
+                  setError("Add an avatar, bio, and at least one link before publishing.");
+                  return;
+                }
+                setError(null);
+                setSaving(true);
+                const { error: err } = await updateMyProfile(me.id, { published: !published });
+                setSaving(false);
+                if (err) setError(err);
+                else setPublished(!published);
+              }}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border border-zinc-300 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${published ? "bg-primary" : "bg-zinc-200"}`}
+            >
+              <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition translate-y-0.5 translate-x-0.5 ${published ? "translate-x-5" : ""}`} />
+            </button>
+          </div>
+          <p className="text-xs text-zinc-500">
+            {published ? "Your public page is live." : "When on, your page is visible at the URL below."}
+          </p>
+          {(me?.username || me?.twitter_username) && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-zinc-600 font-mono">
+                linkary.xyz/{(me.username || me.twitter_username || "").replace(/^@/, "").toLowerCase()}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `${typeof window !== "undefined" ? window.location.origin : "https://linkary.xyz"}/${(me?.username || me?.twitter_username || "").replace(/^@/, "").toLowerCase()}`;
+                  navigator.clipboard.writeText(url).then(() => {
+                    setCopySuccess(true);
+                    setTimeout(() => setCopySuccess(false), 2000);
+                  });
+                }}
+                className="text-xs px-2 py-1 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+              >
+                {copySuccess ? "Copied" : "Copy"}
+              </button>
+            </div>
+          )}
+          {!me?.username && !me?.twitter_username && (
+            <p className="text-xs text-amber-700">Set a username or connect X to get a public URL.</p>
           )}
         </div>
         <div>

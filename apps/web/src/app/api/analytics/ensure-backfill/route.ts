@@ -65,7 +65,11 @@ async function ensureBackfill(request: NextRequest) {
     if (request.method === "POST") {
       const body = await request.json().catch(() => ({}));
       const requestedId = typeof body?.profile_id === "string" ? body.profile_id.trim() : null;
-      if (requestedId && requestedId !== user.id) {
+      const requestedUsername = typeof body?.username === "string" ? body.username.trim().toLowerCase().replace(/^@/, "") : null;
+      if (requestedUsername && !requestedId) {
+        const { data: profile } = await service.from("profiles").select("id").ilike("username", requestedUsername).eq("id", user.id).maybeSingle();
+        if (profile) targetProfileId = (profile as { id: string }).id;
+      } else if (requestedId && requestedId !== user.id) {
         const email = (user.email ?? "").toString().toLowerCase();
         const { data: superadminRows } = await service
           .from("superadmin_emails")

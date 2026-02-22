@@ -40,13 +40,16 @@ export async function runXBackfill90d(
   const tweets = await getRecentTweets(handle, MAX_TWEETS);
   await sleep(DELAY_MS);
 
+  const now = new Date();
+  const todayStr = toDay(now.toISOString());
+  const startDate90 = new Date(now);
+  startDate90.setDate(startDate90.getDate() - 89);
+  const startDate90Str = toDay(startDate90.toISOString());
+
   const dayMap = new Map<
     string,
     { tweets_count: number; likes_received: number; replies_received: number; retweets_received: number; quotes_received: number }
   >();
-
-  const now = new Date();
-  const todayStr = toDay(now.toISOString());
 
   for (const t of tweets) {
     const createdAt = t.createdAt;
@@ -54,6 +57,7 @@ export async function runXBackfill90d(
     const d = new Date(createdAt);
     if (isNaN(d.getTime())) continue;
     const day = toDay(d.toISOString());
+    if (day < startDate90Str || day > todayStr) continue;
     const existing = dayMap.get(day) ?? {
       tweets_count: 0,
       likes_received: 0,
@@ -69,8 +73,23 @@ export async function runXBackfill90d(
     dayMap.set(day, existing);
   }
 
-  const days = Array.from(dayMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  for (const [day, agg] of days) {
+  const zeroBucket = {
+    tweets_count: 0,
+    likes_received: 0,
+    replies_received: 0,
+    retweets_received: 0,
+    quotes_received: 0,
+  };
+  const full90Days: string[] = [];
+  for (let i = 0; i < 90; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    full90Days.push(toDay(d.toISOString()));
+  }
+  full90Days.sort((a, b) => a.localeCompare(b));
+
+  for (const day of full90Days) {
+    const agg = dayMap.get(day) ?? zeroBucket;
     const { error } = await supabase.from("x_daily_snapshots").upsert(
       {
         owner_type: "profile",
@@ -88,39 +107,20 @@ export async function runXBackfill90d(
     if (error) return { ok: false, error: error.message };
   }
 
-  if (followersToday != null && todayStr && !dayMap.has(todayStr)) {
-    const { error: todayErr } = await supabase.from("x_daily_snapshots").upsert(
-      {
-        owner_type: "profile",
-        owner_id: job.owner_id,
-        day: todayStr,
-        followers: followersToday,
-        tweets_count: 0,
-        likes_received: 0,
-        replies_received: 0,
-        retweets_received: 0,
-        raw: { quotes_received: 0 },
-      },
-      { onConflict: "owner_type,owner_id,day" }
-    );
-    if (todayErr) return { ok: false, error: todayErr.message };
-  }
-
-  const sortedDays = Array.from(dayMap.keys()).sort();
-  const asOf = sortedDays.length ? sortedDays[sortedDays.length - 1]! : todayStr;
+  const asOf = todayStr;
 
   for (const windowDays of [7, 30, 90]) {
-    const start = new Date(asOf);
+    const start = new Date(now);
     start.setDate(start.getDate() - windowDays);
     const startStr = toDay(start.toISOString());
 
     const { data: rows } = await supabase
       .from("x_daily_snapshots")
-      .select("day, followers, tweets_count, likes_received, replies_received, retweets_received")
+      .select("day, followers, tweets_count, likes_received, replies_received, retweets_received, raw")
       .eq("owner_type", "profile")
       .eq("owner_id", job.owner_id)
       .gte("day", startStr)
-      .lte("day", asOf)
+      .lte("day", todayStr)
       .order("day", { ascending: true });
 
     const list = (rows ?? []) as Array<{
@@ -130,6 +130,7 @@ export async function runXBackfill90d(
       likes_received: number | null;
       replies_received: number | null;
       retweets_received: number | null;
+      raw?: { quotes_received?: number } | null;
     }>;
 
     let followersStart: number | null = null;
@@ -148,8 +149,7 @@ export async function runXBackfill90d(
       totalLikes += r.likes_received ?? 0;
       totalReplies += r.replies_received ?? 0;
       totalRetweets += r.retweets_received ?? 0;
-      const raw = r as { raw?: { quotes_received?: number } | null };
-      totalQuotes += raw?.raw?.quotes_received ?? 0;
+      totalQuotes += r.raw?.quotes_received ?? 0;
       totalPosts += r.tweets_count ?? 0;
     }
 

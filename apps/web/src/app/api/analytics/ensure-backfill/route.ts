@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { ok, fail } from "@/lib/api-response";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -31,7 +33,7 @@ async function ensureBackfill(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return fail("UNAUTHORIZED", "Unauthorized", 401);
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -39,14 +41,24 @@ async function ensureBackfill(request: NextRequest) {
   });
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
   if (userError || !user?.id) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    return fail("INVALID_SESSION", "Invalid session", 401);
   }
 
   if (!supabaseServiceKey) {
-    return NextResponse.json({ enqueued: false, reason: "no_service_key" });
+    return ok({ enqueued: false, reason: "no_service_key" });
   }
 
   const service = createClient(supabaseUrl, supabaseServiceKey);
+  const rlKey = user?.id ? `analytics/ensure-backfill:u:${user.id}` : `analytics/ensure-backfill:ip:${getClientIp(request)}`;
+  const rl = await rateLimit({
+    key: rlKey,
+    limit: 10,
+    windowSeconds: 600,
+    supabaseAdmin: service,
+  });
+  if (!rl.allowed) {
+    return fail("RATE_LIMITED", "Too many requests. Please try again later.", 429, { resetAt: rl.resetAt });
+  }
 
   let targetProfileId: string = user.id;
   try {
@@ -64,7 +76,7 @@ async function ensureBackfill(request: NextRequest) {
         const superadminSet = new Set([...fromDb, ...fromEnv]);
         const isSuperadmin = superadminSet.size > 0 && superadminSet.has(email);
         if (!isSuperadmin) {
-          return NextResponse.json({ error: "Forbidden", enqueued: false }, { status: 403 });
+          return fail("FORBIDDEN", "Forbidden", 403, { enqueued: false });
         }
         targetProfileId = requestedId;
       }
@@ -89,7 +101,7 @@ async function ensureBackfill(request: NextRequest) {
     .maybeSingle();
 
   if (profileError || !profile?.id) {
-    return NextResponse.json({ enqueued: false, reason: "profile_not_found" });
+    return ok({ enqueued: false, reason: "profile_not_found" });
   }
 
   let handleFromSocial = (socialX as { username?: string | null })?.username?.toString().trim().replace(/^@/, "");
@@ -130,7 +142,7 @@ async function ensureBackfill(request: NextRequest) {
 
   if (!username) {
     const hasSocialRow = socialX != null;
-    return NextResponse.json({
+    return ok({
       enqueued: false,
       reason: "no_x_handle",
       debugHint: hasSocialRow
@@ -170,7 +182,7 @@ async function ensureBackfill(request: NextRequest) {
     .limit(1);
 
   if (window90Rows?.length) {
-    return NextResponse.json({ enqueued: false, reason: "already_has_90d" });
+    return ok({ enqueued: false, reason: "already_has_90d" });
   }
 
   // Already a recent queued or running job for this profile → avoid duplicate
@@ -186,7 +198,7 @@ async function ensureBackfill(request: NextRequest) {
     .limit(1);
 
   if (recentJobs?.length) {
-    return NextResponse.json({ enqueued: false, reason: "job_pending" });
+    return ok({ enqueued: false, reason: "job_pending" });
   }
 
   const now = new Date().toISOString();
@@ -200,11 +212,8 @@ async function ensureBackfill(request: NextRequest) {
   });
 
   if (insertErr) {
-    return NextResponse.json(
-      { enqueued: false, reason: "insert_failed", error: insertErr.message },
-      { status: 500 }
-    );
+    return fail("INTERNAL", insertErr.message, 500, { enqueued: false, reason: "insert_failed" });
   }
 
-  return NextResponse.json({ enqueued: true });
+  return ok({ enqueued: true });
 }

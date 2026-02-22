@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { ok, fail } from "@/lib/api-response";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return fail("UNAUTHORIZED", "Unauthorized", 401);
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
   });
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
   if (userError || !user?.id) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    return fail("INVALID_SESSION", "Invalid session", 401);
   }
 
   const { data: rows } = await supabase
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
   const isBackfilling = snapshotDays < 7 && !(byWindow[7] || byWindow[30] || byWindow[90]);
   const source: "worker" | "partial" | "fallback" = ready90 ? "worker" : hasPartial ? "partial" : "fallback";
 
-  return NextResponse.json({
+  return ok({
     windows: { "7": byWindow[7] ?? null, "30": byWindow[30] ?? null, "90": byWindow[90] ?? null },
     profile: profile ?? null,
     is_backfilling: isBackfilling,

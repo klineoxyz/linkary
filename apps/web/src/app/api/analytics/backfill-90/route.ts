@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { ok, fail } from "@/lib/api-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -14,7 +16,7 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    return fail("UNAUTHORIZED", "Unauthorized", 401);
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -22,14 +24,23 @@ export async function POST(request: NextRequest) {
   });
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
   if (userError || !user?.id) {
-    return NextResponse.json({ ok: false, error: "Invalid session" }, { status: 401 });
+    return fail("INVALID_SESSION", "Invalid session", 401);
   }
 
   if (!supabaseServiceKey) {
-    return NextResponse.json({ ok: true, enqueued: false, reason: "no_service_key" });
+    return ok({ enqueued: false, reason: "no_service_key" });
   }
 
   const service = createClient(supabaseUrl, supabaseServiceKey);
+  const rl = await rateLimit({
+    key: `analytics/backfill-90:u:${user.id}`,
+    limit: 3,
+    windowSeconds: 1800,
+    supabaseAdmin: service,
+  });
+  if (!rl.allowed) {
+    return fail("RATE_LIMITED", "Too many requests. Please try again later.", 429, { resetAt: rl.resetAt });
+  }
 
   const { data: profile } = await service
     .from("profiles")
@@ -37,10 +48,10 @@ export async function POST(request: NextRequest) {
     .eq("id", user.id)
     .maybeSingle();
   if (!profile?.id) {
-    return NextResponse.json({ ok: true, enqueued: false, reason: "profile_not_found" });
+    return ok({ enqueued: false, reason: "profile_not_found" });
   }
   if (profile.analytics_initialized_at) {
-    return NextResponse.json({ ok: true, enqueued: false, reason: "already_initialized" });
+    return ok({ enqueued: false, reason: "already_initialized" });
   }
 
   const { data: has90 } = await service
@@ -51,7 +62,7 @@ export async function POST(request: NextRequest) {
     .eq("window_days", 90)
     .limit(1);
   if ((has90 ?? []).length > 0) {
-    return NextResponse.json({ ok: true, enqueued: false, reason: "already_has_90d" });
+    return ok({ enqueued: false, reason: "already_has_90d" });
   }
 
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
@@ -65,7 +76,7 @@ export async function POST(request: NextRequest) {
     .gte("created_at", twoHoursAgo)
     .limit(1);
   if ((recentJob ?? []).length > 0) {
-    return NextResponse.json({ ok: true, enqueued: false, reason: "job_pending" });
+    return ok({ enqueued: false, reason: "job_pending" });
   }
 
   const { data: socialX } = await service
@@ -78,7 +89,7 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
   const username = (socialX as { username?: string | null })?.username?.toString().trim().replace(/^@/, "").toLowerCase();
   if (!username) {
-    return NextResponse.json({ ok: true, enqueued: false, reason: "no_x_connection" });
+    return ok({ enqueued: false, reason: "no_x_connection" });
   }
 
   const { error: insertErr } = await service.from("analytics_jobs").insert({
@@ -90,7 +101,7 @@ export async function POST(request: NextRequest) {
     payload: { username, user_id: user.id },
   });
   if (insertErr) {
-    return NextResponse.json({ ok: false, enqueued: false, error: insertErr.message }, { status: 500 });
+    return fail("INTERNAL", insertErr.message, 500, { enqueued: false });
   }
-  return NextResponse.json({ ok: true, enqueued: true });
+  return ok({ enqueued: true });
 }

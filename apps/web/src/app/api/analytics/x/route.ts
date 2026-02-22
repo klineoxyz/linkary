@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { ok, fail } from "@/lib/api-response";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return fail("UNAUTHORIZED", "Unauthorized", 401);
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
   });
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
   if (userError || !user?.id) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    return fail("INVALID_SESSION", "Invalid session", 401);
   }
 
   const [profileRes, legacyRollupRes, driversRes, baselineRes, legacySnapshotsRes, dailySnapshotsRes, windowAggsRes] = await Promise.all([
@@ -156,7 +157,7 @@ export async function GET(request: NextRequest) {
   const hasDaily = dailyRows.length > 0; // x_daily_snapshots exist (may be only today from cron)
   const source: "worker" | "partial" | "fallback" = ready90 ? "worker" : hasDaily ? "partial" : "fallback";
 
-  return NextResponse.json({
+  return ok({
     profile: profile ?? {},
     rollup: rollup ?? null,
     topDrivers,

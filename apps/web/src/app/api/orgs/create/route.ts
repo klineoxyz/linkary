@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { ok, fail } from "@/lib/api-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
 
 /**
  * POST: Create org via create_org_and_membership RPC (auth required).
@@ -13,7 +16,7 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ ok: false, code: "UNAUTHORIZED", message: "Missing auth or config" }, { status: 401 });
+    return fail("UNAUTHORIZED", "Missing auth or config", 401);
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -21,7 +24,20 @@ export async function POST(request: NextRequest) {
   });
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
   if (userError || !user?.id) {
-    return NextResponse.json({ ok: false, code: "INVALID_SESSION", message: userError?.message ?? "Invalid session" }, { status: 401 });
+    return fail("INVALID_SESSION", userError?.message ?? "Invalid session", 401);
+  }
+
+  if (supabaseServiceKey) {
+    const service = createClient(supabaseUrl, supabaseServiceKey);
+    const rl = await rateLimit({
+      key: `orgs/create:u:${user.id}`,
+      limit: 5,
+      windowSeconds: 600,
+      supabaseAdmin: service,
+    });
+    if (!rl.allowed) {
+      return fail("RATE_LIMITED", "Too many requests. Please try again later.", 429, { resetAt: rl.resetAt });
+    }
   }
 
   const { data: profile } = await supabase
@@ -31,26 +47,23 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
   const accountType = (profile as { account_type?: string } | null)?.account_type;
   if (accountType !== "company") {
-    return NextResponse.json(
-      { ok: false, code: "ORG_COMPANY_REQUIRED", message: "Only company accounts can create an organization." },
-      { status: 403 }
-    );
+    return fail("ORG_COMPANY_REQUIRED", "Only company accounts can create an organization.", 403);
   }
 
   let body: Record<string, unknown>;
   try {
     body = await request.json().catch(() => ({}));
   } catch {
-    return NextResponse.json({ ok: false, code: "INVALID_JSON", message: "Invalid JSON body" }, { status: 400 });
+    return fail("INVALID_JSON", "Invalid JSON body", 400);
   }
 
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const org_type = typeof body?.org_type === "string" ? body.org_type.toLowerCase() : "";
   if (!name) {
-    return NextResponse.json({ ok: false, code: "NAME_REQUIRED", message: "name is required" }, { status: 400 });
+    return fail("NAME_REQUIRED", "name is required", 400);
   }
   if (!["company", "brand", "project", "agency"].includes(org_type)) {
-    return NextResponse.json({ ok: false, code: "INVALID_ORG_TYPE", message: "org_type must be one of: company, brand, project, agency" }, { status: 400 });
+    return fail("INVALID_ORG_TYPE", "org_type must be one of: company, brand, project, agency", 400);
   }
 
   const slug = typeof body?.slug === "string" ? body.slug.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "") : undefined;
@@ -76,20 +89,13 @@ export async function POST(request: NextRequest) {
   if (error) {
     const code = error.code ?? "PGRST301";
     const message = error.message ?? "Create failed";
-    return NextResponse.json(
-      { ok: false, code, message },
-      { status: code === "42501" || message.toLowerCase().includes("policy") ? 403 : 400 }
-    );
+    return fail(code, message, code === "42501" || message.toLowerCase().includes("policy") ? 403 : 400);
   }
 
   const org = Array.isArray(raw) ? raw[0] : raw;
   if (!org?.id) {
-    return NextResponse.json({ ok: false, code: "NO_ORG_RETURNED", message: "RPC did not return org" }, { status: 500 });
+    return fail("NO_ORG_RETURNED", "RPC did not return org", 500);
   }
 
-  return NextResponse.json({
-    ok: true,
-    orgId: org.id,
-    slug: org.slug ?? org.id,
-  });
+  return ok({ orgId: org.id, slug: org.slug ?? org.id });
 }

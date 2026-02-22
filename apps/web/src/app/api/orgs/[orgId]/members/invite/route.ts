@@ -1,9 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { ok, fail } from "@/lib/api-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
+const ROLES = { limit: 20, windowSeconds: 600 };
 
 /**
  * POST /api/orgs/[orgId]/members/invite
@@ -16,27 +19,40 @@ export async function POST(
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return fail("UNAUTHORIZED", "Unauthorized", 401);
   }
 
   const { orgId } = await params;
-  if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
+  if (!orgId) return fail("BAD_REQUEST", "orgId required", 400);
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
 
   const { data: { user }, error: userErr } = await supabase.auth.getUser(token);
-  if (userErr || !user?.id) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+  if (userErr || !user?.id) return fail("INVALID_SESSION", "Invalid session", 401);
+
+  if (serviceKey) {
+    const service = createClient(supabaseUrl, serviceKey);
+    const rl = await rateLimit({
+      key: `orgs/invite:u:${user.id}`,
+      limit: ROLES.limit,
+      windowSeconds: ROLES.windowSeconds,
+      supabaseAdmin: service,
+    });
+    if (!rl.allowed) {
+      return fail("RATE_LIMITED", "Too many requests. Please try again later.", 429, { resetAt: rl.resetAt });
+    }
+  }
 
   const { data: isAdmin } = await supabase.rpc("is_org_admin", { p_org_id: orgId, p_uid: user.id });
-  if (!isAdmin) return NextResponse.json({ error: "Only org owner or admin can invite members" }, { status: 403 });
+  if (!isAdmin) return fail("FORBIDDEN", "Only org owner or admin can invite members", 403);
 
   let body: { username?: string; email?: string };
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return fail("BAD_REQUEST", "Invalid JSON", 400);
   }
 
   let targetUserId: string | null = null;
@@ -65,7 +81,7 @@ export async function POST(
   }
 
   if (!targetUserId) {
-    return NextResponse.json({ error: "No Linkary user found for that username or email" }, { status: 404 });
+    return fail("NOT_FOUND", "No Linkary user found for that username or email", 404);
   }
 
   const { error: insertErr } = await supabase.from("org_members").insert({
@@ -76,9 +92,9 @@ export async function POST(
 
   if (insertErr) {
     if (insertErr.code === "23505") {
-      return NextResponse.json({ error: "This user is already a member of the org" }, { status: 409 });
+      return fail("CONFLICT", "This user is already a member of the org", 409);
     }
-    return NextResponse.json({ error: insertErr.message }, { status: 500 });
+    return fail("INTERNAL", insertErr.message, 500);
   }
-  return NextResponse.json({ ok: true });
+  return ok();
 }

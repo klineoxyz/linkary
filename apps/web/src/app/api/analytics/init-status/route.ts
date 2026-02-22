@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { ok, fail } from "@/lib/api-response";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    return fail("UNAUTHORIZED", "Unauthorized", 401);
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   });
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
   if (userError || !user?.id) {
-    return NextResponse.json({ ok: false, error: "Invalid session" }, { status: 401 });
+    return fail("INVALID_SESSION", "Invalid session", 401);
   }
 
   const service = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : supabase;
@@ -69,8 +69,7 @@ export async function GET(request: Request) {
     .eq("day", today);
   const hasTodaySnapshot = (todayCount ?? 0) > 0;
 
-  return NextResponse.json({
-    ok: true,
+  return ok({
     initialized,
     has90dAggregate,
     hasTodaySnapshot,

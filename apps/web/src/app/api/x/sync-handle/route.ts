@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { ok, fail } from "@/lib/api-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
 
 /**
  * POST /api/x/sync-handle
@@ -13,7 +15,7 @@ export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ ok: false, code: "UNAUTHORIZED", message: "Missing auth" }, { status: 401 });
+    return fail("UNAUTHORIZED", "Missing auth", 401);
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -21,7 +23,20 @@ export async function POST(request: Request) {
   });
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
   if (userError || !user?.id) {
-    return NextResponse.json({ ok: false, code: "INVALID_SESSION", message: "Invalid session" }, { status: 401 });
+    return fail("INVALID_SESSION", "Invalid session", 401);
+  }
+
+  if (supabaseServiceKey) {
+    const service = createClient(supabaseUrl, supabaseServiceKey);
+    const rl = await rateLimit({
+      key: `x/sync-handle:u:${user.id}`,
+      limit: 10,
+      windowSeconds: 600,
+      supabaseAdmin: service,
+    });
+    if (!rl.allowed) {
+      return fail("RATE_LIMITED", "Too many requests. Please try again later.", 429, { resetAt: rl.resetAt });
+    }
   }
 
   const { data: socialX } = await supabase
@@ -35,10 +50,7 @@ export async function POST(request: Request) {
 
   const handle = (socialX as { username?: string | null })?.username?.toString().trim().replace(/^@/, "");
   if (!handle) {
-    return NextResponse.json(
-      { ok: false, code: "NO_X_CONNECTION", message: "No active X connection. Connect X first." },
-      { status: 400 }
-    );
+    return fail("NO_X_CONNECTION", "No active X connection. Connect X first.", 400);
   }
 
   const { error: updateErr } = await supabase
@@ -51,11 +63,8 @@ export async function POST(request: Request) {
     .eq("id", user.id);
 
   if (updateErr) {
-    return NextResponse.json(
-      { ok: false, code: "UPDATE_FAILED", message: updateErr.message },
-      { status: 500 }
-    );
+    return fail("UPDATE_FAILED", updateErr.message, 500);
   }
 
-  return NextResponse.json({ ok: true, twitter_username: handle });
+  return ok({ twitter_username: handle });
 }

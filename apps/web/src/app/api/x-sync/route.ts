@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { ok, fail } from "@/lib/api-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -26,7 +28,7 @@ async function handleSync(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "Unauthorized or missing config" }, { status: 401 });
+    return fail("UNAUTHORIZED", "Unauthorized or missing config", 401);
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -34,7 +36,20 @@ async function handleSync(request: NextRequest) {
   });
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
   if (userError || !user?.id) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    return fail("INVALID_SESSION", "Invalid session", 401);
+  }
+
+  if (supabaseServiceKey) {
+    const service = createClient(supabaseUrl, supabaseServiceKey);
+    const rl = await rateLimit({
+      key: `x-sync:u:${user.id}`,
+      limit: 5,
+      windowSeconds: 600,
+      supabaseAdmin: service,
+    });
+    if (!rl.allowed) {
+      return fail("RATE_LIMITED", "Too many requests. Please try again later.", 429, { resetAt: rl.resetAt });
+    }
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -43,12 +58,12 @@ async function handleSync(request: NextRequest) {
     .eq("id", user.id)
     .maybeSingle();
   if (profileError || !profile) {
-    return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    return fail("NOT_FOUND", "Profile not found", 404);
   }
 
   const userName = (profile.twitter_username || profile.username || "").trim().replace(/^@/, "");
   if (!userName) {
-    return NextResponse.json({ error: "No X username to sync. Connect X in Settings → Integrations first." }, { status: 400 });
+    return fail("BAD_REQUEST", "No X username to sync. Connect X in Settings → Integrations first.", 400);
   }
 
   // 24h cooldown: self-only, no arbitrary usernames (we use profile.twitter_username only)
@@ -56,19 +71,12 @@ async function handleSync(request: NextRequest) {
   if (lastSync) {
     const hoursSince = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
     if (hoursSince < COOLDOWN_HOURS) {
-      return NextResponse.json({
-        ok: true,
-        skipped: true,
-        lastSyncedAt: profile.x_last_profile_sync_at,
-      });
+      return ok({ skipped: true, lastSyncedAt: profile.x_last_profile_sync_at });
     }
   }
 
   if (!twitterApiKey) {
-    return NextResponse.json(
-      { error: "X analytics not configured. Set TWITTERAPI_API_KEY." },
-      { status: 503 }
-    );
+    return fail("SERVICE_UNAVAILABLE", "X analytics not configured. Set TWITTERAPI_API_KEY.", 503);
   }
 
   const apiUrl = `https://api.twitterapi.io/twitter/user/info?userName=${encodeURIComponent(userName)}`;
@@ -89,19 +97,13 @@ async function handleSync(request: NextRequest) {
     if (updateErr) {
       /* ignore */
     }
-    return NextResponse.json(
-      { error: "X API error", detail: err },
-      { status: res.status === 400 ? 400 : 502 }
-    );
+    return fail("X_API_ERROR", err?.slice(0, 200) || res.statusText, res.status === 400 ? 400 : 502, { detail: err });
   }
 
   const json = await res.json();
   const data = json?.data;
   if (!data || json?.status === "error") {
-    return NextResponse.json(
-      { error: json?.msg || "X user not found" },
-      { status: 404 }
-    );
+    return fail("NOT_FOUND", json?.msg || "X user not found", 404);
   }
 
   const followers = typeof data.followers === "number" ? data.followers : 0;
@@ -142,9 +144,9 @@ async function handleSync(request: NextRequest) {
   if (updateError) {
     const msg = updateError.message ?? "";
     if (msg.includes("unique") || msg.includes("duplicate") || updateError.code === "23505") {
-      return NextResponse.json({ error: "USERNAME_TAKEN_VERIFIED" }, { status: 409 });
+      return fail("CONFLICT", "USERNAME_TAKEN_VERIFIED", 409);
     }
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
+    return fail("INTERNAL", updateError.message, 500);
   }
 
   if (normalizedUsername && normalizedUsername.length >= 2) {
@@ -153,13 +155,7 @@ async function handleSync(request: NextRequest) {
     });
     if (claimError) {
       const msg = claimError.message ?? "";
-      if (msg.includes("USERNAME_TAKEN_VERIFIED")) {
-        return NextResponse.json({ error: "USERNAME_TAKEN_VERIFIED" }, { status: 409 });
-      }
-      return NextResponse.json(
-        { error: msg.includes("USERNAME_TAKEN") ? "USERNAME_TAKEN_VERIFIED" : msg },
-        { status: 409 }
-      );
+      return fail("CONFLICT", msg.includes("USERNAME_TAKEN") ? "USERNAME_TAKEN_VERIFIED" : msg, 409);
     }
   }
 
@@ -205,8 +201,5 @@ async function handleSync(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({
-    ok: true,
-    lastSyncedAt: updates.x_last_profile_sync_at,
-  });
+  return ok({ lastSyncedAt: updates.x_last_profile_sync_at });
 }

@@ -29,7 +29,7 @@ export function PublicHeader({ entity, username, isLoggedIn, isOwner = false }: 
 
   const publicUrl = typeof window !== "undefined" ? `${window.location.origin}/${encodeURIComponent(username)}` : "";
   const shareOnXUrl = publicUrl
-    ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out my Linkary — ${publicUrl}`)}`
+    ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Found this reputation profile on Linkary: ${publicUrl}`)}`
     : "";
 
   const handleCopyLink = () => {
@@ -43,7 +43,7 @@ export function PublicHeader({ entity, username, isLoggedIn, isOwner = false }: 
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 py-3">
           <div className="flex min-w-0 items-center gap-3">
             {avatarUrl ? (
               <img
@@ -77,30 +77,26 @@ export function PublicHeader({ entity, username, isLoggedIn, isOwner = false }: 
             </div>
           </div>
           <div className="shrink-0 flex items-center gap-2">
-            {isOwner && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  className="inline-flex items-center gap-2 rounded-md bg-muted/80 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
-                  title="Copy link"
-                >
-                  <Link2 className="h-4 w-4" />
-                  {copied ? "Copied" : "Copy link"}
-                </button>
-                {shareOnXUrl && (
-                  <a
-                    href={shareOnXUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-md bg-muted/80 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
-                    title="Share on X"
-                  >
-                    <Share2 className="h-4 w-4" />
-                    Share on X
-                  </a>
-                )}
-              </>
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="inline-flex items-center gap-2 rounded-md bg-muted/80 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
+              title="Copy link"
+            >
+              <Link2 className="h-4 w-4" />
+              {copied ? "Copied" : "Copy link"}
+            </button>
+            {isOwner && shareOnXUrl && (
+              <a
+                href={shareOnXUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-md bg-muted/80 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
+                title="Share on X"
+              >
+                <Share2 className="h-4 w-4" />
+                Share on X
+              </a>
             )}
             {isProfile && (
               <button
@@ -117,7 +113,7 @@ export function PublicHeader({ entity, username, isLoggedIn, isOwner = false }: 
                 href="/login"
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
               >
-                Claim Your Linkary Profile
+                Create yours
               </Link>
             ) : !isOwner ? (
               <Link

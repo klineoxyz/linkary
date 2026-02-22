@@ -1186,12 +1186,12 @@ function OverviewPage({ setRoute, headerMedia }) {
           </div>
         </div>
 
-        {/* Total Paid */}
+        {/* Potential Value Paid */}
         <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-primary/20 cursor-pointer group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80)' }}>
           <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-white">Total Paid</p>
+              <p className="text-sm font-medium text-white">Potential Value Paid</p>
               <div className="p-2 bg-white/20 rounded-lg transition-all duration-300 group-hover:bg-white/30 group-hover:scale-110">
                 <DollarSign className="h-4 w-4 text-white stroke-[1.75]" />
               </div>

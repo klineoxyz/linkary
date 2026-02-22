@@ -18,7 +18,7 @@ const StickyClaimBar = dynamic(
 );
 import { EcosystemSections } from "./EcosystemSections";
 import { DexScreenerEmbed } from "./DexScreenerEmbed";
-import { MediaHeader } from "./MediaHeader";
+import { HeroMedia } from "./HeroMedia";
 import { supabase } from "@/lib/supabase";
 
 /** Minimal fade-in on scroll (once). */
@@ -287,7 +287,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
     <div className="min-h-screen bg-background text-foreground font-sans">
       <PublicHeader entity={entity} username={username} isLoggedIn={isLoggedIn} isOwner={isOwner} />
 
-      <main className="mx-auto max-w-5xl px-4 py-6 pb-20">
+      <main className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-8 pb-20">
         {isOwner && (
           <div className="mb-6 flex items-center gap-2">
             {!layoutEditMode ? (
@@ -325,17 +325,17 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
           </div>
         )}
 
-        {entity.headerMedia?.header_media_type && entity.headerMedia.header_media_type !== "NONE" && (
-          <div className="mb-8">
-            <MediaHeader
-              type={entity.headerMedia.header_media_type}
-              url={entity.headerMedia.header_media_url}
-            />
-          </div>
-        )}
+        {/* Hero strip: video or image (brochure dashboard) */}
+        <section className="mb-8">
+          <HeroMedia
+            type={entity.headerMedia?.header_media_type ?? "NONE"}
+            url={entity.headerMedia?.header_media_url ?? null}
+            alt={displayName ?? undefined}
+          />
+        </section>
 
-        {/* Profile: hero then socials and highlights under it */}
-        <section className="pt-2 pb-4">
+        {/* Profile: name, @username, bio, identity, trust, socials */}
+        <section className="pb-6 border-b border-border">
           <div className="flex items-start gap-4">
             {avatarUrl ? (
               <img
@@ -418,52 +418,85 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
             </nav>
           )}
 
-          {/* Reputation Signals */}
-          <div className="mt-6 border-b border-border pb-6" aria-label="Reputation Signals">
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold text-foreground">
-                <span className="text-primary" aria-hidden>● </span>
-                Reputation
-              </p>
-              <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Signals</span>
-            </div>
-            <div className="flex flex-wrap items-baseline gap-6 sm:gap-8">
-              {isProfile && (
-                <>
-                  <div className="min-w-0 border-b border-border pb-2">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Community credibility score">ETHOS</div>
-                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${reputationMetricClass(entity.ethosScore ?? null, ETHOS_PRIMARY_THRESHOLD)}`}>{entity.ethosScore ?? "—"}</div>
-                  </div>
-                  <div className="min-w-0 border-b border-border pb-2">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>
-                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${reputationMetricClass(profile?.xscore ?? null, XSCORE_PRIMARY_THRESHOLD)}`}>{profile?.xscore ?? "—"}</div>
-                  </div>
-                  <div className="min-w-0 border-b border-border pb-2">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Overall profile strength">Linkary</div>
-                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${reputationMetricClass(entity.linkaryPower ?? null, LINKARY_PRIMARY_THRESHOLD)}`}>{entity.linkaryPower ?? "—"}</div>
-                  </div>
-                </>
-              )}
-              {!isProfile && org && (
-                <>
-                  <div className="min-w-0 border-b border-border pb-2">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>
-                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${reputationMetricClass(org.xscore ?? null, XSCORE_PRIMARY_THRESHOLD)}`}>{org.xscore ?? "—"}</div>
-                  </div>
-                  <div className="min-w-0 border-b border-border pb-2">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Overall profile strength">Linkary</div>
-                    <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${reputationMetricClass(entity.linkaryInfluence ?? null, LINKARY_PRIMARY_THRESHOLD)}`}>{entity.linkaryInfluence ?? "—"}</div>
-                  </div>
-                </>
-              )}
-            </div>
-            <p className="mt-3 text-xs text-muted-foreground">Signals update automatically as your activity and proof grows.</p>
+        </section>
+
+        {/* 4 stat cards (brochure dashboard) */}
+        <section className="py-8" aria-label="Reputation Signals">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {isProfile && (
+              <>
+                <div className="rounded-md border border-border bg-background p-4">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Community credibility score">ETHOS</div>
+                  <div className={`mt-1 text-3xl font-semibold tabular-nums ${reputationMetricClass(entity.ethosScore ?? null, ETHOS_PRIMARY_THRESHOLD)}`}>{entity.ethosScore ?? "—"}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">Community credibility score</p>
+                </div>
+                <div className="rounded-md border border-border bg-background p-4">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>
+                  <div className={`mt-1 text-3xl font-semibold tabular-nums ${reputationMetricClass(profile?.xscore ?? null, XSCORE_PRIMARY_THRESHOLD)}`}>{profile?.xscore ?? "—"}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">Engagement-based influence</p>
+                </div>
+                <div className="rounded-md border border-border bg-background p-4">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Overall profile strength">Linkary</div>
+                  <div className={`mt-1 text-3xl font-semibold tabular-nums ${reputationMetricClass(entity.linkaryPower ?? null, LINKARY_PRIMARY_THRESHOLD)}`}>{entity.linkaryPower ?? "—"}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">Overall profile strength</p>
+                </div>
+                <div className="rounded-md border border-border bg-background p-4">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Verified Proof</div>
+                  {(() => {
+                    const proofCount = entity.caseStudies.length + entity.reviews.length;
+                    return proofCount > 0 ? (
+                      <>
+                        <div className={`mt-1 text-3xl font-semibold tabular-nums ${reputationMetricClass(proofCount, 1)}`}>{proofCount} Proof {proofCount === 1 ? "Item" : "Items"}</div>
+                        <p className="mt-1 text-xs text-muted-foreground">Case studies + verified collabs</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="mt-1 text-3xl font-semibold tabular-nums text-muted-foreground">—</div>
+                        <p className="mt-1 text-xs text-muted-foreground">Add proof to boost credibility</p>
+                      </>
+                    );
+                  })()}
+                </div>
+              </>
+            )}
+            {!isProfile && org && (
+              <>
+                <div className="rounded-md border border-border bg-background p-4">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">XScore</div>
+                  <div className={`mt-1 text-3xl font-semibold tabular-nums ${reputationMetricClass(org.xscore ?? null, XSCORE_PRIMARY_THRESHOLD)}`}>{org.xscore ?? "—"}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">Engagement-based influence</p>
+                </div>
+                <div className="rounded-md border border-border bg-background p-4">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linkary</div>
+                  <div className={`mt-1 text-3xl font-semibold tabular-nums ${reputationMetricClass(entity.linkaryInfluence ?? null, LINKARY_PRIMARY_THRESHOLD)}`}>{entity.linkaryInfluence ?? "—"}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">Overall profile strength</p>
+                </div>
+                <div className="rounded-md border border-border bg-background p-4">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Verified Proof</div>
+                  {(() => {
+                    const proofCount = entity.caseStudies.length + entity.reviews.length;
+                    return proofCount > 0 ? (
+                      <>
+                        <div className={`mt-1 text-3xl font-semibold tabular-nums text-primary`}>{proofCount} Proof {proofCount === 1 ? "Item" : "Items"}</div>
+                        <p className="mt-1 text-xs text-muted-foreground">Case studies + verified collabs</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="mt-1 text-3xl font-semibold tabular-nums text-muted-foreground">—</div>
+                        <p className="mt-1 text-xs text-muted-foreground">Add proof to boost credibility</p>
+                      </>
+                    );
+                  })()}
+                </div>
+              </>
+            )}
           </div>
         </section>
 
-        {/* Share row for viewers (viral hooks) */}
-        {!isOwner && (
-          <div className="flex flex-wrap items-center gap-2 py-4 border-b border-border">
+        {/* Share strip (brochure) */}
+        <div className="flex flex-wrap items-center justify-between gap-3 py-4 border-y border-border">
+          <p className="text-sm text-muted-foreground">Share this as your one-page brochure</p>
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleViewerCopyLink}
@@ -486,11 +519,92 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
               </a>
             )}
           </div>
-        )}
+        </div>
 
-        {/* Reorderable sections (order from public_layout or default) */}
+        {/* 2-column: Proof (Case Studies) | Partners & programs (brochure) */}
+        <section className="py-8 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
+          <div>
+            <h2 className="mb-2 flex items-center gap-3 text-lg font-semibold text-foreground">
+              <span className="h-5 w-0.5 shrink-0 self-stretch rounded-full bg-primary/80" aria-hidden />
+              Case Studies
+            </h2>
+            <p className="mb-4 text-sm text-muted-foreground">Proof and outcomes</p>
+            {caseStudies.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No case studies yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {caseStudies.slice(0, 4).map((cs) => (
+                  <div key={cs.id} className="transition-transform duration-200 hover:scale-[1.02]">
+                    <CaseStudyCard title={cs.title} description={cs.description} proofUrl={cs.proof_url} metrics={(cs as { metrics?: Record<string, unknown> }).metrics} createdAt={cs.created_at} />
+                  </div>
+                ))}
+                {entity.caseStudies.length > 4 && <p className="text-sm text-muted-foreground">View all on profile.</p>}
+              </div>
+            )}
+          </div>
+          <div>
+            <h2 className="mb-2 flex items-center gap-3 text-lg font-semibold text-foreground">
+              <span className="h-5 w-0.5 shrink-0 self-stretch rounded-full bg-primary/80" aria-hidden />
+              Partners & programs
+            </h2>
+            <p className="mb-4 text-sm text-muted-foreground">Affiliates and ambassador programs</p>
+            {isProfile && (entity.affiliate || (entity.ambassadors?.length ?? 0) > 0) ? (
+              <ul className="space-y-3">
+                {entity.affiliate && (
+                  <li className="flex items-center gap-3 rounded-md border border-border bg-background p-3">
+                    {entity.affiliate.logo_url && <img src={entity.affiliate.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-foreground">{entity.affiliate.org_name}</div>
+                      <div className="text-xs text-muted-foreground">{entity.affiliate.since_date ? `Since ${entity.affiliate.since_date}` : "Affiliate"}</div>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Affiliate</span>
+                  </li>
+                )}
+                {entity.ambassadors.map((amb) => (
+                  <li key={amb.org_id} className="flex items-center gap-3 rounded-md border border-border bg-background p-3">
+                    {amb.logo_url && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-foreground">{amb.org_name}</div>
+                      <div className="text-xs text-muted-foreground">{amb.since_date ? `Since ${amb.since_date}` : "Ambassador"}</div>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Ambassador</span>
+                  </li>
+                ))}
+              </ul>
+            ) : isProfile && isOwner ? (
+              <p className="text-sm text-muted-foreground">Add partner programs to showcase credibility.</p>
+            ) : !isProfile && (entity.affiliate || (entity.ambassadors?.length ?? 0) > 0) ? (
+              <ul className="space-y-3">
+                {entity.affiliate && (
+                  <li className="flex items-center gap-3 rounded-md border border-border bg-background p-3">
+                    {entity.affiliate.logo_url && <img src={entity.affiliate.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-foreground">{entity.affiliate.org_name}</div>
+                      <div className="text-xs text-muted-foreground">Affiliate</div>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Affiliate</span>
+                  </li>
+                )}
+                {entity.ambassadors.map((amb) => (
+                  <li key={amb.org_id} className="flex items-center gap-3 rounded-md border border-border bg-background p-3">
+                    {amb.logo_url && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-foreground">{amb.org_name}</div>
+                      <div className="text-xs text-muted-foreground">Ambassador</div>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Ambassador</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">No partner programs listed.</p>
+            )}
+          </div>
+        </section>
+
+        {/* Reorderable sections (order from public_layout or default; caseStudies & affiliates rendered above) */}
         {orderedSectionIds.map((sectionId, index) => {
-          if (hiddenSet.has(sectionId)) return null;
+          if (hiddenSet.has(sectionId) || sectionId === "caseStudies" || sectionId === "affiliates") return null;
           const sectionContent = (() => {
             switch (sectionId) {
               case "socials":

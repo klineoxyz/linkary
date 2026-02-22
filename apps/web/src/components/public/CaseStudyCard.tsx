@@ -62,7 +62,7 @@ export function CaseStudyCard({
               href={proofUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-block text-xs text-muted-foreground hover:text-primary hover:underline"
+              className="mt-2 inline-flex items-center rounded-md border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium text-foreground hover:bg-accent hover:text-primary"
             >
               View proof
             </a>

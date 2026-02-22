@@ -112,7 +112,7 @@ export function ReputationCard({
         return [
           { label: "ETHOS", value: metrics.ethos, icon: Shield },
           { label: "XScore", value: metrics.xscore, icon: Activity },
-          { label: "Total Paid", value: metrics.totalPaid || "€0", icon: TrendingUp },
+          { label: "Potential Value Paid", value: metrics.totalPaid || "€0", icon: TrendingUp },
           { label: "Completion", value: `${metrics.completionRate || 0}%`, icon: CheckCircle2 },
         ];
       case "agency":

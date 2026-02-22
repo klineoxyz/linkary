@@ -164,18 +164,6 @@ async function handleSync(request: NextRequest) {
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  await supabase.from("analytics_snapshots").upsert(
-    {
-      owner_type: "profile",
-      owner_id: user.id,
-      platform: "x",
-      day: today,
-      window_days: 1,
-      metrics: { followers_total: followers, engagement_rate_proxy: avgEngagement },
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "owner_type,owner_id,platform,day,window_days" }
-  );
 
   // One-time baseline for "growth since joining" (first insert wins; ignore duplicate)
   const { error: baselineErr } = await supabase.from("profile_analytics_baseline").insert({

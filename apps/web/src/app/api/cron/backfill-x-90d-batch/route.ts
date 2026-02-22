@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { runBackfillX90d } from "@/lib/backfill-x-90d";
+import { enqueueXBackfill90dJobs } from "@/lib/backfill-x-90d";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
 const BATCH_SIZE = 20;
 
-/** Cron: backfill 90 days of X analytics for a small batch of profiles. Protected by CRON_SECRET. */
+/** Cron: enqueue x_backfill_90d jobs only (no snapshot writes). Worker builds real 90d via x_daily_snapshots + x_window_aggregates. Protected by CRON_SECRET. */
 export async function POST(request: NextRequest) {
   const secret =
     request.headers.get("x-cron-secret") ??
@@ -22,10 +22,10 @@ export async function POST(request: NextRequest) {
 
   const service = createClient(supabaseUrl, supabaseServiceKey);
   try {
-    const result = await runBackfillX90d(service, { limit: BATCH_SIZE, dryRun: false });
+    const result = await enqueueXBackfill90dJobs(service, { limit: BATCH_SIZE, dryRun: false });
     return NextResponse.json(result);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Backfill failed";
+    const msg = e instanceof Error ? e.message : "Enqueue failed";
     return NextResponse.json({ error: msg }, { status: 503 });
   }
 }

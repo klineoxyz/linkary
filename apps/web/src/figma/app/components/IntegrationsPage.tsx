@@ -32,6 +32,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncingHandle, setSyncingHandle] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [twitterUsernameConflict, setTwitterUsernameConflict] = useState(false);
   const [showFallbackNotice, setShowFallbackNotice] = useState(false);
@@ -232,6 +233,30 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   const handle = socialX?.username ?? profile?.twitter_username ?? profile?.twitter_username_candidate ?? null;
   const avatar = profile?.avatar_url ?? null;
 
+  /** Trusted sync: update profile handle only from social_accounts (no 24h cooldown). */
+  const handleSyncHandleFromX = async () => {
+    setSyncingHandle(true);
+    setError(null);
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setError("Not signed in");
+      setSyncingHandle(false);
+      return;
+    }
+    const res = await fetch(`${base}/api/x/sync-handle`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json.ok) {
+      const updatedProfile = await getMyProfile(userId!);
+      setProfile(updatedProfile ?? null);
+      setSocialX(await getMySocialAccountX(userId!));
+    } else {
+      setError(json?.message ?? json?.code ?? "Failed to sync handle");
+    }
+    setSyncingHandle(false);
+  };
+
   const handleSyncFromX = async () => {
     setSyncing(true);
     setError(null);
@@ -345,7 +370,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
                     ? "Loading…"
                     : isConnected
                       ? handle != null
-                        ? "@" + String(handle).replace(/^@/, "")
+                        ? "@" + String(handle).replace(/^@/, "") + " (read-only; sync from X to update)"
                         : "Connected"
                       : "Connect for verification and profile link"}
                   {showLastSynced ? (
@@ -363,6 +388,15 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
                 {avatar != null ? (
                   <img src={avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
                 ) : null}
+                <button
+                  type="button"
+                  onClick={handleSyncHandleFromX}
+                  disabled={syncingHandle}
+                  className="px-3 py-2 rounded-lg border border-zinc-300 text-zinc-700 font-medium hover:bg-zinc-50 disabled:opacity-50 text-sm"
+                  title="Update profile handle from connected X account"
+                >
+                  {syncingHandle ? "Updating…" : "Sync handle"}
+                </button>
                 <button
                   type="button"
                   onClick={handleSyncFromX}

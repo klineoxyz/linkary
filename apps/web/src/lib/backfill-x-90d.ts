@@ -1,12 +1,13 @@
 /**
- * Shared 90-day X analytics backfill. Used by POST /api/admin/backfill-x-90d and /api/cron/backfill-x-90d-batch.
- * Idempotent: upsert by (owner_type, owner_id, platform, day, window_days).
+ * X 90d backfill: enqueue-only helper (canonical). Real 90d history is built by worker → x_daily_snapshots + x_window_aggregates.
+ * runBackfillX90d (writes analytics_snapshots with fake 90d) is DEPRECATED and must not be used by cron/admin.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchXUserInfo } from "@/lib/x-analytics-server";
 
 const CONCURRENCY = 3;
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
 export type BackfillX90dOptions = {
   limit?: number;
@@ -21,9 +22,95 @@ export type BackfillX90dResult = {
   errors?: number;
   wouldProcess?: number;
   profileIds?: string[];
+  enqueued?: number;
   message?: string;
 };
 
+/**
+ * Enqueue x_backfill_90d jobs only (no snapshot writes). Use this from cron and admin.
+ * Selects X-connected profiles that lack 90d aggregate and have no recent queued/running job.
+ */
+export async function enqueueXBackfill90dJobs(
+  service: SupabaseClient,
+  options: BackfillX90dOptions = {}
+): Promise<BackfillX90dResult> {
+  const limit = Math.min(Math.max(1, options.limit ?? 50), 200);
+  const dryRun = options.dryRun === true;
+
+  const { data: socialRows } = await service
+    .from("social_accounts")
+    .select("user_id, username")
+    .in("provider", ["x", "twitter"])
+    .is("revoked_at", null)
+    .eq("status", "connected")
+    .limit(limit * 2);
+
+  const profileList = (socialRows ?? [])
+    .filter((r: { user_id: string; username?: string | null }) => r.user_id && (r.username ?? "").toString().trim())
+    .map((r: { user_id: string; username?: string | null }) => ({
+      id: r.user_id,
+      username: (r.username ?? "").toString().trim().replace(/^@/, "").toLowerCase(),
+    }))
+    .slice(0, limit);
+
+  if (profileList.length === 0) {
+    return { ok: true, dryRun, processed: 0, enqueued: 0, message: "No X-connected profiles" };
+  }
+
+  const twoHoursAgo = new Date(Date.now() - TWO_HOURS_MS).toISOString();
+  let enqueued = 0;
+
+  for (const p of profileList) {
+    const { data: has90 } = await service
+      .from("x_window_aggregates")
+      .select("id")
+      .eq("owner_type", "profile")
+      .eq("owner_id", p.id)
+      .eq("window_days", 90)
+      .limit(1);
+    if ((has90 ?? []).length > 0) continue;
+
+    const { data: recentJob } = await service
+      .from("analytics_jobs")
+      .select("id")
+      .eq("owner_type", "profile")
+      .eq("owner_id", p.id)
+      .eq("job_type", "x_backfill_90d")
+      .in("status", ["queued", "running"])
+      .gte("created_at", twoHoursAgo)
+      .limit(1);
+    if ((recentJob ?? []).length > 0) continue;
+
+    if (dryRun) {
+      enqueued += 1;
+      continue;
+    }
+
+    const { error } = await service.from("analytics_jobs").insert({
+      job_type: "x_backfill_90d",
+      owner_type: "profile",
+      owner_id: p.id,
+      run_after: new Date().toISOString(),
+      status: "queued",
+      payload: { username: p.username, user_id: p.id },
+    });
+    if (!error) enqueued += 1;
+  }
+
+  return {
+    ok: true,
+    dryRun,
+    processed: profileList.length,
+    enqueued,
+    wouldProcess: dryRun ? profileList.length : undefined,
+    profileIds: dryRun ? profileList.map((x) => x.id) : undefined,
+    message: dryRun ? `Would enqueue up to ${profileList.length} jobs` : undefined,
+  };
+}
+
+/**
+ * @deprecated Writes fake 90d (same snapshot repeated) to analytics_snapshots. Do not use. Use worker + enqueueXBackfill90dJobs instead.
+ */
 export async function runBackfillX90d(
   service: SupabaseClient,
   options: BackfillX90dOptions = {}

@@ -181,5 +181,13 @@ export async function runXBackfill90d(
     if (aggErr) return { ok: false, error: aggErr.message };
   }
 
+  // Mark profile as having completed 90d backfill (idempotent)
+  if (job.owner_type === "profile" && job.owner_id) {
+    await supabase
+      .from("profiles")
+      .update({ analytics_initialized_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("id", job.owner_id);
+  }
+
   return { ok: true };
 }

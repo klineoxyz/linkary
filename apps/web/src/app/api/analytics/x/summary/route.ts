@@ -54,11 +54,13 @@ export async function GET(request: NextRequest) {
   const hasAnyWindow = !!(byWindow[7] || byWindow[30] || byWindow[90]);
   // Only show "backfilling" when we have few snapshots AND no 7D/30D/90D window data yet
   const isBackfilling = snapshotDays < 7 && !hasAnyWindow;
+  const source = hasAnyWindow || snapshotDays > 0 ? ("worker" as const) : ("fallback" as const);
 
   return NextResponse.json({
     windows: { "7": byWindow[7] ?? null, "30": byWindow[30] ?? null, "90": byWindow[90] ?? null },
     profile: profile ?? null,
     is_backfilling: isBackfilling,
     snapshot_days_count: snapshotDays,
+    source,
   });
 }

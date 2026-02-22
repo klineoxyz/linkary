@@ -86,17 +86,16 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    await supabase.from("analytics_snapshots").upsert(
+    await supabase.from("x_daily_snapshots").upsert(
       {
         owner_type: "profile",
         owner_id: profile.id,
-        platform: "x",
         day: today,
-        window_days: 1,
-        metrics: { followers_total: followers, engagement_rate_proxy: engagementRate },
-        updated_at: new Date().toISOString(),
+        followers,
+        engagement_rate: engagementRate,
+        raw: { from_cron_sync_x_profiles_daily: true },
       },
-      { onConflict: "owner_type,owner_id,platform,day,window_days" }
+      { onConflict: "owner_type,owner_id,day" }
     );
     ok += 1;
   }

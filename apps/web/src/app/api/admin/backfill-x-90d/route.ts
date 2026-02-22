@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { runBackfillX90d } from "@/lib/backfill-x-90d";
+import { enqueueXBackfill90dJobs } from "@/lib/backfill-x-90d";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
@@ -13,10 +13,9 @@ function getSuperadminEmailsFromEnv(): string[] {
 }
 
 /**
- * POST: Backfill last 90 days of analytics_snapshots for X-connected profiles.
+ * POST: Enqueue x_backfill_90d jobs for X-connected profiles (no snapshot writes). Worker builds real 90d.
  * Requires: Authorization Bearer (superadmin) OR X-Admin-Secret header.
- * Query: dryRun=1 to only list profiles; limit=N (default 50, max 200).
- * Idempotent: upsert by (owner_type, owner_id, platform, day, window_days).
+ * Query: dryRun=1 to only list; limit=N (default 50, max 200).
  */
 export async function POST(request: NextRequest) {
   if (!supabaseServiceKey) {
@@ -53,10 +52,10 @@ export async function POST(request: NextRequest) {
 
   const service = createClient(supabaseUrl, supabaseServiceKey);
   try {
-    const result = await runBackfillX90d(service, { limit, dryRun });
+    const result = await enqueueXBackfill90dJobs(service, { limit, dryRun });
     return NextResponse.json(result);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Backfill failed";
+    const msg = e instanceof Error ? e.message : "Enqueue failed";
     return NextResponse.json({ error: msg }, { status: 503 });
   }
 }

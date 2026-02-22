@@ -149,6 +149,8 @@ export async function GET(request: NextRequest) {
         } as Record<string, unknown>)
       : null;
   const rollup = rollupFromWindows ?? legacyRollup;
+  const source =
+    rollupFromWindows != null || dailyRows.length > 0 ? ("worker" as const) : ("fallback" as const);
 
   return NextResponse.json({
     profile: profile ?? {},
@@ -156,5 +158,6 @@ export async function GET(request: NextRequest) {
     topDrivers,
     baseline: baseline ?? null,
     snapshots,
+    source,
   });
 }

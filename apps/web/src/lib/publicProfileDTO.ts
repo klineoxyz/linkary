@@ -1,8 +1,9 @@
 /**
  * Strict allowlist DTO for public profile/org pages. Never spread raw DB; map explicitly.
- * No email, user_id, bearer tokens, or internal fields.
+ * No email, user_id, bearer tokens, or internal fields. All URLs sanitized (https/http only).
  */
 import type { PublicEntity } from "./publicData";
+import { sanitizeUrl } from "./sanitizeUrl";
 
 export type PublicProfileDTO = {
   type: "profile";
@@ -102,17 +103,17 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
       display_name: p.display_name ?? null,
       username: p.username ?? null,
       bio: p.bio ?? null,
-      avatar_url: p.avatar_url ?? null,
-      website: p.website ?? null,
+      avatar_url: sanitizeUrl(p.avatar_url) ?? null,
+      website: sanitizeUrl(p.website) ?? null,
       twitter_username: p.twitter_username ?? null,
       location: p.location ?? null,
       published: p.published ?? false,
       socials: entity.socials ? {
-        x_url: entity.socials.x_url ?? null,
-        linkedin_url: entity.socials.linkedin_url ?? null,
-        youtube_url: entity.socials.youtube_url ?? null,
-        website_url: entity.socials.website_url ?? null,
-        telegram_url: entity.socials.telegram_url ?? null,
+        x_url: sanitizeUrl(entity.socials.x_url) ?? null,
+        linkedin_url: sanitizeUrl(entity.socials.linkedin_url) ?? null,
+        youtube_url: sanitizeUrl(entity.socials.youtube_url) ?? null,
+        website_url: sanitizeUrl(entity.socials.website_url) ?? null,
+        telegram_url: sanitizeUrl(entity.socials.telegram_url) ?? null,
       } : null,
       ethosScore: entity.ethosScore ?? null,
       xscore: p.xscore ?? null,
@@ -133,7 +134,7 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
         id: c.id,
         title: c.title ?? null,
         description: c.description ?? null,
-        proof_url: c.proof_url ?? null,
+        proof_url: sanitizeUrl(c.proof_url) ?? null,
         created_at: c.created_at,
       })),
       reviews: entity.reviews.map((r) => ({
@@ -143,10 +144,20 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
         title: r.title ?? null,
         created_at: r.created_at,
       })),
-      affiliate: entity.affiliate ?? null,
-      ambassadors: entity.ambassadors ?? [],
+      affiliate: entity.affiliate ? {
+        org_id: entity.affiliate.org_id,
+        org_name: entity.affiliate.org_name,
+        logo_url: sanitizeUrl(entity.affiliate.logo_url) ?? null,
+        since_date: entity.affiliate.since_date ?? null,
+      } : null,
+      ambassadors: entity.ambassadors.map((a) => ({
+        org_id: a.org_id,
+        org_name: a.org_name,
+        logo_url: sanitizeUrl(a.logo_url) ?? null,
+        since_date: a.since_date ?? null,
+      })),
       publicLayout: entity.publicLayout ?? null,
-      headerMedia: entity.headerMedia ? { header_media_type: entity.headerMedia.header_media_type, header_media_url: entity.headerMedia.header_media_url ?? null } : null,
+      headerMedia: entity.headerMedia ? { header_media_type: entity.headerMedia.header_media_type, header_media_url: sanitizeUrl(entity.headerMedia.header_media_url) ?? null } : null,
       tier: entity.tier,
     };
   }
@@ -157,9 +168,9 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
       name: o.name,
       slug: o.slug,
       tagline: o.tagline ?? null,
-      website: o.website ?? null,
+      website: sanitizeUrl(o.website) ?? null,
       twitter_username: o.twitter_username ?? null,
-      logo_url: o.logo_url ?? null,
+      logo_url: sanitizeUrl(o.logo_url) ?? null,
       published: true,
       xscore: o.xscore ?? null,
       linkaryInfluence: entity.linkaryInfluence ?? null,
@@ -179,16 +190,16 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
         id: c.id,
         title: c.title ?? null,
         description: c.description ?? null,
-        proof_url: c.proof_url ?? null,
+        proof_url: sanitizeUrl(c.proof_url) ?? null,
         created_at: c.created_at,
       })),
       reviews: entity.reviews.map((r) => ({ id: r.id, rating: r.rating, body: r.body ?? null, title: r.title ?? null, created_at: r.created_at })),
       ecosystemCategories: entity.ecosystemCategories ?? [],
-      subsidiaries: entity.subsidiaries.map((s) => ({ id: s.id, slug: s.slug, name: s.name, logo_url: s.logo_url ?? null })),
+      subsidiaries: entity.subsidiaries.map((s) => ({ id: s.id, slug: s.slug, name: s.name, logo_url: sanitizeUrl(s.logo_url) ?? null })),
       publicLayout: entity.publicLayout ?? null,
-      headerMedia: entity.headerMedia ? { header_media_type: entity.headerMedia.header_media_type, header_media_url: entity.headerMedia.header_media_url ?? null } : null,
+      headerMedia: entity.headerMedia ? { header_media_type: entity.headerMedia.header_media_type, header_media_url: sanitizeUrl(entity.headerMedia.header_media_url) ?? null } : null,
       tier: entity.tier,
-      dexscreenerUrl: entity.dexscreenerUrl ?? null,
+      dexscreenerUrl: sanitizeUrl(entity.dexscreenerUrl) ?? null,
       tokenSymbol: entity.tokenSymbol ?? null,
     };
   }

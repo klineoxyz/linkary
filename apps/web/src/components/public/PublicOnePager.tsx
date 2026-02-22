@@ -442,7 +442,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
         })}
       </main>
 
-      {!isLoggedIn && <StickyClaimBar />}
+      {!isOwner && <StickyClaimBar />}
     </div>
   );
 }

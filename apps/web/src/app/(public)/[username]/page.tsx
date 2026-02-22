@@ -6,7 +6,7 @@ import { getPublicDTOByUsername } from "@/lib/getPublicDTO";
 import { dtoToEntityView, entityToPublicDTO } from "@/lib/publicProfileDTO";
 import AppWithProviders from "../../AppWithProviders";
 import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
-import { UnpublishedView } from "./UnpublishedView";
+import { NotFoundOrUnpublished } from "./NotFoundOrUnpublished";
 import { NotFoundClaimView } from "./NotFoundClaimView";
 
 type Props = { params: Promise<{ username: string }> };
@@ -122,11 +122,7 @@ export default async function PublicUsernamePage({ params }: Props) {
       );
     }
 
-    if (result.unpublished) {
-      return <UnpublishedView username={result.username} />;
-    }
-
-    return <NotFoundClaimView requestedUsername={segmentLower} />;
+    return <NotFoundOrUnpublished requestedUsername={segmentLower} />;
   }
 
   const entity = await resolvePublicEntity(segment, { serviceSupabase: serviceSupabase ?? undefined });

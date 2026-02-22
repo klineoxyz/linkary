@@ -8,12 +8,17 @@ const CACHE_SHORT = "s-maxage=30, stale-while-revalidate=60";
 
 export const dynamic = "force-dynamic";
 
+function logDev(message: string, meta?: Record<string, unknown>) {
+  if (process.env.NODE_ENV === "development") {
+    console.error(`[public/profile] ${message}`, meta ?? "");
+  }
+}
+
 /**
  * GET /api/public/profile/[username]
  * Returns strict PublicPageDTO for the public 1-pager. No email, user_id, or private fields.
  * - 200 + DTO when published profile/org found
- * - 200 + { published: false, username } when profile exists but unpublished
- * - 404 when not found
+ * - 404 for not found AND for unpublished (no enumeration: unauthenticated callers cannot tell which)
  * Public endpoints must not vary on Authorization.
  */
 export async function GET(
@@ -34,14 +39,16 @@ export async function GET(
   }
 
   const ip = getClientIp(_request);
+  const norm = segment.toLowerCase().replace(/^@/, "");
   if (serviceSupabase) {
     const rl = await rateLimit({
-      key: `public/profile:ip:${ip}`,
+      key: `public_profile:${norm}:ip:${ip}`,
       limit: 120,
       windowSeconds: 60,
       supabaseAdmin: serviceSupabase,
     });
     if (!rl.allowed) {
+      logDev("rate_limited", { username: norm, ip });
       return NextResponse.json(
         { error: "Too many requests" },
         { status: 429, headers: { "Retry-After": "60" } }
@@ -57,29 +64,22 @@ export async function GET(
     return NextResponse.json(result.dto, {
       headers: {
         "Cache-Control": CACHE_PUBLISHED,
-        "Vary": "Accept-Encoding",
+        Vary: "Accept-Encoding",
       },
     });
   }
 
   if (result.unpublished) {
-    return NextResponse.json(
-      { published: false, username: result.username },
-      {
-        status: 200,
-        headers: {
-          "Cache-Control": CACHE_SHORT,
-          "Vary": "Accept-Encoding",
-        },
-      }
-    );
+    logDev("unpublished_404", { username: norm });
+  } else {
+    logDev("not_found", { username: norm });
   }
 
   return NextResponse.json({ error: "Not found" }, {
     status: 404,
     headers: {
       "Cache-Control": CACHE_SHORT,
-      "Vary": "Accept-Encoding",
+      Vary: "Accept-Encoding",
     },
   });
 }

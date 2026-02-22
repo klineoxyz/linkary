@@ -83,11 +83,13 @@ export default function OrgDetailPage({
   const [membersWithProfiles, setMembersWithProfiles] = useState<Array<OrgMember & { profile?: { username: string | null; display_name: string | null; avatar_url: string | null } | null }>>([]);
   const [membersLoadError, setMembersLoadError] = useState<string | null>(null);
   const [memberUsername, setMemberUsername] = useState("");
-  const [memberRole, setMemberRole] = useState<"member" | "admin" | "owner">("member");
+  const [memberRole, setMemberRole] = useState<"member" | "admin">("member");
   const [addMemberLoading, setAddMemberLoading] = useState(false);
   const [membersError, setMembersError] = useState<string | null>(null);
   const [removeLoading, setRemoveLoading] = useState<Record<string, boolean>>({});
   const [roleChangeLoading, setRoleChangeLoading] = useState<Record<string, boolean>>({});
+  const [transferTargetUserId, setTransferTargetUserId] = useState("");
+  const [transferLoading, setTransferLoading] = useState(false);
 
   useEffect(() => void loadSession(), []);
   function loadSession() {
@@ -224,7 +226,7 @@ export default function OrgDetailPage({
     await listOrgMembers(org.id).then(setMembers);
   };
 
-  const handleChangeRole = async (targetUserId: string, newRole: "member" | "admin" | "owner") => {
+  const handleChangeRole = async (targetUserId: string, newRole: "member" | "admin") => {
     if (!org?.id) return;
     setRoleChangeLoading((prev) => ({ ...prev, [targetUserId]: true }));
     setMembersError(null);
@@ -247,6 +249,38 @@ export default function OrgDetailPage({
       setMembersError((out as { error?: string }).error ?? "Failed to update role");
       return;
     }
+    setMembersError(null);
+    await fetchMembersWithProfiles();
+    await listOrgMembers(org.id).then(setMembers);
+  };
+
+  const isOwner = !!userId && membersWithProfiles.some((m) => m.user_id === userId && m.role === "owner");
+  const otherMembersForTransfer = membersWithProfiles.filter((m) => m.user_id !== userId && (m.role === "admin" || m.role === "member"));
+
+  const handleTransferOwnership = async () => {
+    if (!org?.id || !transferTargetUserId || transferLoading) return;
+    setTransferLoading(true);
+    setMembersError(null);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setMembersError("Not signed in");
+      setTransferLoading(false);
+      return;
+    }
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${origin}/api/orgs/${org.id}/transfer-owner`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ new_owner_user_id: transferTargetUserId }),
+    });
+    const out = await res.json().catch(() => ({}));
+    setTransferLoading(false);
+    if (!res.ok) {
+      setMembersError((out as { message?: string }).message ?? "Transfer failed");
+      return;
+    }
+    setTransferTargetUserId("");
     setMembersError(null);
     await fetchMembersWithProfiles();
     await listOrgMembers(org.id).then(setMembers);
@@ -392,12 +426,11 @@ export default function OrgDetailPage({
                     <label className="block text-xs font-medium text-zinc-500 mb-1">Role</label>
                     <select
                       value={memberRole}
-                      onChange={(e) => setMemberRole(e.target.value as "member" | "admin" | "owner")}
+                      onChange={(e) => setMemberRole(e.target.value as "member" | "admin")}
                       className="px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
                     >
                       <option value="member">Member</option>
                       <option value="admin">Admin</option>
-                      <option value="owner">Owner</option>
                     </select>
                   </div>
                   <button
@@ -409,6 +442,31 @@ export default function OrgDetailPage({
                     {addMemberLoading ? "Adding…" : "Add member"}
                   </button>
                   {membersError && <p className="text-sm text-destructive w-full">{membersError}</p>}
+                </div>
+              )}
+              {isOwner && otherMembersForTransfer.length > 0 && (
+                <div className="flex flex-wrap items-end gap-2 p-4 rounded-xl border border-amber-200 dark:border-amber-800/50 bg-amber-50/50 dark:bg-amber-900/20">
+                  <p className="text-xs font-medium text-amber-800 dark:text-amber-200 w-full">Transfer ownership</p>
+                  <select
+                    value={transferTargetUserId}
+                    onChange={(e) => setTransferTargetUserId(e.target.value)}
+                    className="px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm min-w-[180px]"
+                  >
+                    <option value="">Select member</option>
+                    {otherMembersForTransfer.map((m) => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.profile?.display_name || m.profile?.username || m.user_id} ({m.role})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleTransferOwnership}
+                    disabled={transferLoading || !transferTargetUserId}
+                    className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm disabled:opacity-50"
+                  >
+                    {transferLoading ? "Transferring…" : "Transfer ownership"}
+                  </button>
                 </div>
               )}
               {membersWithProfiles.length === 0 && !membersLoadError ? (
@@ -436,13 +494,13 @@ export default function OrgDetailPage({
                         {admin ? (
                           <select
                             value={m.role}
-                            onChange={(e) => handleChangeRole(m.user_id, e.target.value as "member" | "admin" | "owner")}
-                            disabled={roleChangeLoading[m.user_id]}
-                            className="text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                            onChange={(e) => handleChangeRole(m.user_id, e.target.value as "member" | "admin")}
+                            disabled={roleChangeLoading[m.user_id] || m.role === "owner"}
+                            className="text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 disabled:opacity-70"
                           >
                             <option value="member">Member</option>
                             <option value="admin">Admin</option>
-                            <option value="owner">Owner</option>
+                            <option value="owner" disabled>Owner (use Transfer)</option>
                           </select>
                         ) : (
                           <span className="text-xs px-2 py-1 rounded-full bg-accent text-primary">{m.role}</span>

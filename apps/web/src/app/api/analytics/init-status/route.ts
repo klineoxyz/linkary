@@ -74,6 +74,7 @@ export async function GET(request: Request) {
     has90dAggregate,
     hasTodaySnapshot,
     snapshotDays,
+    analytics_initialized_at: profile?.analytics_initialized_at ?? null,
     job: jobStatus ? { status: jobStatus, attempts: job?.attempts ?? 0, last_error: lastError, run_after: job?.run_after ?? null } : null,
   });
 }

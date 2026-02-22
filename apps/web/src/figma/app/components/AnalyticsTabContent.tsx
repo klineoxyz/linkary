@@ -275,20 +275,32 @@ export default function AnalyticsTabContent({
   return (
     <div className="space-y-6">
       {showBuildingBanner && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-wrap items-center gap-3">
-          <Clock className="w-5 h-5 text-amber-600 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Building your 90-day history…</p>
-            <p className="text-xs text-amber-800/80 dark:text-amber-200/80 mt-0.5">This can take a few minutes. You can refresh the page to check.</p>
+        <>
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-wrap items-center gap-3">
+            <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Building your 90-day history…</p>
+              <p className="text-xs text-amber-800/80 dark:text-amber-200/80 mt-0.5">This can take a few minutes. You can refresh the page to check.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { fetchInitStatus(); fetchAnalytics(); }}
+              className="px-3 py-1.5 rounded-lg border border-amber-500/50 text-amber-800 dark:text-amber-200 text-sm font-medium hover:bg-amber-500/20"
+            >
+              Refresh
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => { fetchInitStatus(); fetchAnalytics(); }}
-            className="px-3 py-1.5 rounded-lg border border-amber-500/50 text-amber-800 dark:text-amber-200 text-sm font-medium hover:bg-amber-500/20"
-          >
-            Refresh
-          </button>
-        </div>
+          {initStatus?.ok && (
+            <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Backfill status</p>
+              <ul className="space-y-0.5">
+                <li>Job: {initStatus.job?.status ?? "—"}</li>
+                <li>Snapshot days: {initStatus.snapshotDays ?? 0}</li>
+                <li>90-day aggregate: {initStatus.has90dAggregate ? "Yes" : "Not yet"}</li>
+              </ul>
+            </div>
+          )}
+        </>
       )}
       {jobFailed && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 flex flex-wrap items-center gap-3">

@@ -13,7 +13,7 @@ export async function GET() {
   if (supabaseUrl && supabaseServiceKey) {
     try {
       const client = createClient(supabaseUrl, supabaseServiceKey);
-      const { error } = await client.from("profiles").select("id").limit(1).maybeSingle();
+      const { error } = await client.from("profiles").select("id", { count: "exact", head: true }).limit(1);
       db = error ? "error" : "ok";
     } catch {
       db = "error";

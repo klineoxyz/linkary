@@ -39,8 +39,8 @@ export type PublicProfileDTO = {
   };
   caseStudies: Array<{ id: string; title?: string | null; description?: string | null; proof_url?: string | null; created_at: string }>;
   reviews: Array<{ id: string; rating: number; body?: string | null; title?: string | null; created_at: string }>;
-  affiliate: { org_id: string; org_name: string; logo_url: string | null; since_date: string | null } | null;
-  ambassadors: Array<{ org_id: string; org_name: string; logo_url: string | null; since_date: string | null }>;
+  affiliates: Array<{ name: string; website_url: string | null; logo_url: string | null; description: string | null; since_date: string | null }>;
+  ambassadors: Array<{ name: string; website_url: string | null; logo_url: string | null; description: string | null; since_date: string | null }>;
   publicLayout: { order?: string[]; hidden?: string[] } | null;
   headerMedia: { header_media_type: "NONE" | "IMAGE" | "VIDEO"; header_media_url: string | null } | null;
   tier: "free" | "pro";
@@ -71,6 +71,8 @@ export type PublicOrgDTO = {
   };
   caseStudies: PublicProfileDTO["caseStudies"];
   reviews: PublicProfileDTO["reviews"];
+  affiliates: PublicProfileDTO["affiliates"];
+  ambassadors: PublicProfileDTO["ambassadors"];
   ecosystemCategories: string[];
   subsidiaries: Array<{ id: string; slug: string; name: string; logo_url: string | null }>;
   publicLayout: PublicProfileDTO["publicLayout"];
@@ -144,16 +146,18 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
         title: r.title ?? null,
         created_at: r.created_at,
       })),
-      affiliate: entity.affiliate ? {
-        org_id: entity.affiliate.org_id,
-        org_name: entity.affiliate.org_name,
-        logo_url: sanitizeUrl(entity.affiliate.logo_url) ?? null,
-        since_date: entity.affiliate.since_date ?? null,
-      } : null,
-      ambassadors: entity.ambassadors.map((a) => ({
-        org_id: a.org_id,
-        org_name: a.org_name,
+      affiliates: entity.affiliates.map((a) => ({
+        name: a.name,
+        website_url: sanitizeUrl(a.website_url) ?? null,
         logo_url: sanitizeUrl(a.logo_url) ?? null,
+        description: a.description ?? null,
+        since_date: a.since_date ?? null,
+      })),
+      ambassadors: entity.ambassadors.map((a) => ({
+        name: a.name,
+        website_url: sanitizeUrl(a.website_url) ?? null,
+        logo_url: sanitizeUrl(a.logo_url) ?? null,
+        description: a.description ?? null,
         since_date: a.since_date ?? null,
       })),
       publicLayout: entity.publicLayout ?? null,
@@ -194,6 +198,20 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
         created_at: c.created_at,
       })),
       reviews: entity.reviews.map((r) => ({ id: r.id, rating: r.rating, body: r.body ?? null, title: r.title ?? null, created_at: r.created_at })),
+      affiliates: entity.affiliates.map((a) => ({
+        name: a.name,
+        website_url: sanitizeUrl(a.website_url) ?? null,
+        logo_url: sanitizeUrl(a.logo_url) ?? null,
+        description: a.description ?? null,
+        since_date: a.since_date ?? null,
+      })),
+      ambassadors: entity.ambassadors.map((a) => ({
+        name: a.name,
+        website_url: sanitizeUrl(a.website_url) ?? null,
+        logo_url: sanitizeUrl(a.logo_url) ?? null,
+        description: a.description ?? null,
+        since_date: a.since_date ?? null,
+      })),
       ecosystemCategories: entity.ecosystemCategories ?? [],
       subsidiaries: entity.subsidiaries.map((s) => ({ id: s.id, slug: s.slug, name: s.name, logo_url: sanitizeUrl(s.logo_url) ?? null })),
       publicLayout: entity.publicLayout ?? null,
@@ -241,7 +259,7 @@ export type PublicEntityView = {
   tier: "free" | "pro";
   caseStudies: PublicProfileDTO["caseStudies"];
   reviews: PublicProfileDTO["reviews"];
-  affiliate: PublicProfileDTO["affiliate"];
+  affiliates: PublicProfileDTO["affiliates"];
   ambassadors: PublicProfileDTO["ambassadors"];
   ecosystemCategories: string[];
   subsidiaries: Array<{ id: string; slug: string; name: string; logo_url: string | null }>;
@@ -280,7 +298,7 @@ export function dtoToEntityView(dto: PublicPageDTO): PublicEntityView {
       tier: dto.tier,
       caseStudies: dto.caseStudies,
       reviews: dto.reviews,
-      affiliate: dto.affiliate,
+      affiliates: dto.affiliates,
       ambassadors: dto.ambassadors,
       ecosystemCategories: [],
       subsidiaries: [],
@@ -310,8 +328,8 @@ export function dtoToEntityView(dto: PublicPageDTO): PublicEntityView {
     tier: dto.tier,
     caseStudies: dto.caseStudies,
     reviews: dto.reviews,
-    affiliate: null,
-    ambassadors: [],
+    affiliates: dto.affiliates,
+    ambassadors: dto.ambassadors,
     ecosystemCategories: dto.ecosystemCategories,
     subsidiaries: dto.subsidiaries,
     dexscreenerUrl: dto.dexscreenerUrl,

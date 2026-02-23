@@ -548,50 +548,66 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
               Partners & programs
             </h2>
             <p className="mb-4 text-sm text-muted-foreground">Affiliates and ambassador programs</p>
-            {isProfile && (entity.affiliate || (entity.ambassadors?.length ?? 0) > 0) ? (
+            {isProfile && (entity.affiliates?.length > 0 || entity.ambassadors?.length > 0) ? (
               <ul className="space-y-3">
-                {entity.affiliate && (
-                  <li className="flex items-center gap-3 rounded-md border border-border bg-background p-3">
-                    {entity.affiliate.logo_url && <img src={entity.affiliate.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
+                {entity.affiliates.map((aff, i) => (
+                  <li key={`aff-${i}-${aff.name}`} className="flex items-center gap-3 rounded-md border border-border bg-background p-3 transition-transform duration-200 hover:scale-[1.02]">
+                    {aff.logo_url && <img src={aff.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-foreground">{entity.affiliate.org_name}</div>
-                      <div className="text-xs text-muted-foreground">{entity.affiliate.since_date ? `Since ${entity.affiliate.since_date}` : "Affiliate"}</div>
+                      <div className="font-medium text-foreground">{aff.name}</div>
+                      {aff.description && <div className="text-xs text-muted-foreground line-clamp-2">{aff.description}</div>}
+                      <div className="text-xs text-muted-foreground">{aff.since_date ? `Since ${aff.since_date}` : "Affiliate"}</div>
                     </div>
+                    {aff.website_url ? (
+                      <a href={aff.website_url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary rounded">Visit</a>
+                    ) : null}
                     <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Affiliate</span>
                   </li>
-                )}
-                {entity.ambassadors.map((amb) => (
-                  <li key={amb.org_id} className="flex items-center gap-3 rounded-md border border-border bg-background p-3">
+                ))}
+                {entity.ambassadors.map((amb, i) => (
+                  <li key={`amb-${i}-${amb.name}`} className="flex items-center gap-3 rounded-md border border-border bg-background p-3 transition-transform duration-200 hover:scale-[1.02]">
                     {amb.logo_url && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-foreground">{amb.org_name}</div>
+                      <div className="font-medium text-foreground">{amb.name}</div>
+                      {amb.description && <div className="text-xs text-muted-foreground line-clamp-2">{amb.description}</div>}
                       <div className="text-xs text-muted-foreground">{amb.since_date ? `Since ${amb.since_date}` : "Ambassador"}</div>
                     </div>
+                    {amb.website_url ? (
+                      <a href={amb.website_url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary rounded">Visit</a>
+                    ) : null}
                     <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Ambassador</span>
                   </li>
                 ))}
               </ul>
             ) : isProfile && isOwner ? (
               <p className="text-sm text-muted-foreground">Add partner programs to showcase credibility.</p>
-            ) : !isProfile && (entity.affiliate || (entity.ambassadors?.length ?? 0) > 0) ? (
+            ) : !isProfile && (entity.affiliates?.length > 0 || entity.ambassadors?.length > 0) ? (
               <ul className="space-y-3">
-                {entity.affiliate && (
-                  <li className="flex items-center gap-3 rounded-md border border-border bg-background p-3">
-                    {entity.affiliate.logo_url && <img src={entity.affiliate.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
+                {entity.affiliates.map((aff, i) => (
+                  <li key={`aff-${i}-${aff.name}`} className="flex items-center gap-3 rounded-md border border-border bg-background p-3 transition-transform duration-200 hover:scale-[1.02]">
+                    {aff.logo_url && <img src={aff.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-foreground">{entity.affiliate.org_name}</div>
-                      <div className="text-xs text-muted-foreground">Affiliate</div>
+                      <div className="font-medium text-foreground">{aff.name}</div>
+                      {aff.description && <div className="text-xs text-muted-foreground line-clamp-2">{aff.description}</div>}
+                      <div className="text-xs text-muted-foreground">{aff.since_date ? `Since ${aff.since_date}` : "Affiliate"}</div>
                     </div>
+                    {aff.website_url ? (
+                      <a href={aff.website_url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary rounded">Visit</a>
+                    ) : null}
                     <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Affiliate</span>
                   </li>
-                )}
-                {entity.ambassadors.map((amb) => (
-                  <li key={amb.org_id} className="flex items-center gap-3 rounded-md border border-border bg-background p-3">
+                ))}
+                {entity.ambassadors.map((amb, i) => (
+                  <li key={`amb-${i}-${amb.name}`} className="flex items-center gap-3 rounded-md border border-border bg-background p-3 transition-transform duration-200 hover:scale-[1.02]">
                     {amb.logo_url && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-foreground">{amb.org_name}</div>
-                      <div className="text-xs text-muted-foreground">Ambassador</div>
+                      <div className="font-medium text-foreground">{amb.name}</div>
+                      {amb.description && <div className="text-xs text-muted-foreground line-clamp-2">{amb.description}</div>}
+                      <div className="text-xs text-muted-foreground">{amb.since_date ? `Since ${amb.since_date}` : "Ambassador"}</div>
                     </div>
+                    {amb.website_url ? (
+                      <a href={amb.website_url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary rounded">Visit</a>
+                    ) : null}
                     <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Ambassador</span>
                   </li>
                 ))}
@@ -659,28 +675,30 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                   </section>
                 );
               case "affiliates":
-                if (isProfile && (entity.affiliate || entity.ambassadors.length > 0)) {
+                if (isProfile && (entity.affiliates?.length > 0 || entity.ambassadors?.length > 0)) {
                   return (
                     <section className="py-6 border-t border-border">
                       <FadeInSection>
                         <SectionTitle>Partners & programs</SectionTitle>
                         <p className="mb-4 text-sm text-muted-foreground">Affiliates and ambassador programs</p>
                         <ul className="space-y-3">
-                          {entity.affiliate && (
-                            <li className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0 transition-transform duration-200 hover:scale-[1.02]">
-                              {entity.affiliate.logo_url && <img src={entity.affiliate.logo_url} alt="" className="h-10 w-10 rounded-md object-cover" />}
+                          {entity.affiliates.map((aff, i) => (
+                            <li key={`aff-${i}-${aff.name}`} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0 transition-transform duration-200 hover:scale-[1.02]">
+                              {aff.logo_url && <img src={aff.logo_url} alt="" className="h-10 w-10 rounded-md object-cover" />}
                               <div className="min-w-0 flex-1">
-                                <div className="font-medium text-foreground">{entity.affiliate.org_name}</div>
-                                <div className="text-xs text-muted-foreground">Affiliate{entity.affiliate.since_date ? ` since ${entity.affiliate.since_date}` : ""}</div>
+                                <div className="font-medium text-foreground">{aff.name}</div>
+                                {aff.description && <div className="text-xs text-muted-foreground line-clamp-2">{aff.description}</div>}
+                                <div className="text-xs text-muted-foreground">Affiliate{aff.since_date ? ` since ${aff.since_date}` : ""}</div>
                               </div>
                               <BadgeCheck className="h-5 w-5 shrink-0 text-primary" />
                             </li>
-                          )}
-                          {entity.ambassadors.map((amb) => (
-                            <li key={amb.org_id} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0 transition-transform duration-200 hover:scale-[1.02]">
+                          ))}
+                          {entity.ambassadors.map((amb, i) => (
+                            <li key={`amb-${i}-${amb.name}`} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0 transition-transform duration-200 hover:scale-[1.02]">
                               {amb.logo_url && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover" />}
                               <div className="min-w-0 flex-1">
-                                <div className="font-medium text-foreground">{amb.org_name}</div>
+                                <div className="font-medium text-foreground">{amb.name}</div>
+                                {amb.description && <div className="text-xs text-muted-foreground line-clamp-2">{amb.description}</div>}
                                 <div className="text-xs text-muted-foreground">Ambassador{amb.since_date ? ` since ${amb.since_date}` : ""}</div>
                               </div>
                               <BadgeCheck className="h-5 w-5 shrink-0 text-primary" />
@@ -691,7 +709,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                     </section>
                   );
                 }
-                if (!isProfile && (entity.affiliate || entity.ambassadors.length > 0)) return null;
+                if (!isProfile && (entity.affiliates?.length > 0 || entity.ambassadors?.length > 0)) return null;
                 return null;
               case "caseStudies":
                 if (caseStudies.length === 0) return null;

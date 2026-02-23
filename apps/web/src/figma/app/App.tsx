@@ -2336,7 +2336,7 @@ function ProfilePage({ setRoute, me }) {
 
           {/* Links */}
           <div className="mt-4 space-y-2">
-            {u.links.map((l) => (
+            {(u.links ?? []).map((l) => (
               <div
                 key={l.label}
                 className="flex items-center justify-between rounded-lg border border-border bg-accent backdrop-blur-xl px-4 py-3 hover:border-border transition-all duration-300"
@@ -2473,13 +2473,13 @@ function ProfilePage({ setRoute, me }) {
               <div>
                 <h3 className="font-semibold" style={{ color: '#000000' }}>Reviews</h3>
                 <p className="mt-1 text-sm" style={{ color: '#1a1a1a' }}>
-                  Received: {u.reviews.count} · Given: {u.reviews.given}
+                  Received: {u.reviews.count} · Given: {u.reviews?.given ?? 0}
                 </p>
               </div>
               <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "overview" })}>Leave Review</Button>
             </div>
             <div className="space-y-3">
-              {u.reviews.items.map((r, idx) => (
+              {(u.reviews?.items ?? []).map((r, idx) => (
                 <div key={idx} className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
@@ -2503,7 +2503,7 @@ function ProfilePage({ setRoute, me }) {
                   <p className="font-semibold" style={{ color: '#000000' }}>{r.title}</p>
                   <p className="mt-1 text-sm" style={{ color: '#404040' }}>{r.text}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {r.tags.map((t) => (
+                    {(r.tags ?? []).map((t) => (
                       <span key={t} className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
                         {t}
                       </span>

@@ -95,7 +95,7 @@ Repo-grounded audit. Facts only; no guessing.
 
 ### G) Production hardening
 
-- **ok/fail:** lib/api-response.ts; used in health, partners, orgs/create, analytics ensure-backfill, admin smoke, queue-status. Public profile, ethos, xscore return plain JSON.
+- **ok/fail:** lib/api-response.ts; used in health, partners, orgs/create, analytics ensure-backfill, admin smoke, queue-status, ethos/score, xscore/score. Public profile API returns raw DTO on 200; ethos and xscore use ok/fail.
 - **Rate limits:** rate_limits table; consume_rate_limit RPC; applied to public profile, ensure-backfill, partners, orgs/create, invite, etc.
 - **Health:** api/health; optional DB ping; no rate_limits or cron check.
 - **Admin:** api/admin/queue-status (analytics_jobs), api/admin/smoke; superadmin only.

@@ -9,7 +9,7 @@ import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
 import { NotFoundOrUnpublished } from "./NotFoundOrUnpublished";
 import { NotFoundClaimView } from "./NotFoundClaimView";
 
-type Props = { params: Promise<{ username: string }>; searchParams?: Promise<{ view?: string }> };
+type Props = { params: Promise<{ username: string }>; searchParams?: { view?: string } };
 
 function baseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://linkary.xyz");
@@ -94,8 +94,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  */
 export default async function PublicUsernamePage({ params, searchParams }: Props) {
   const { username } = await params;
-  const resolvedSearch = searchParams ? await searchParams : {};
-  const viewBrochure = resolvedSearch?.view === "brochure";
+  const viewBrochure = searchParams?.view === "brochure";
   const segment = (username ?? "").trim();
   if (!segment) notFound();
 

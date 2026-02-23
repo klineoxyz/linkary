@@ -70,15 +70,17 @@ export async function ingestXTweets(
   params: IngestXTweetsParams
 ): Promise<IngestXTweetsResult> {
   const { profile_id, twitter_username, maxTweets = 50 } = params;
-  const handle = twitter_username.trim().replace(/^@/, "").toLowerCase();
+  const username = twitter_username.trim().replace(/^@/, "");
+  const handle = username.toLowerCase();
   if (!handle) {
     console.log("[X_TWEETS] start profile_id=" + profile_id + " handle=@(empty) skip");
     return { fetched: 0, upserted: 0, inserted: 0 };
   }
 
+  console.log("[X_TWEETS] normalized_handle=" + handle);
   const since = params.since ?? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19);
   const until = params.until ?? new Date().toISOString().slice(0, 19);
-  console.log("[X_TWEETS] start profile_id=" + profile_id + " handle=@" + handle + " since=" + since + " until=" + until);
+  console.log("[X_TWEETS] start profile_id=" + profile_id + " handle=" + handle + " since=" + since + " until=" + until);
 
   const tweets = await getRecentTweets(handle, maxTweets);
   const fetched = tweets.length;

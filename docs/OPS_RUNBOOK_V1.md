@@ -38,7 +38,7 @@ If the worker service uses repo root or `apps/api`, Railway can pick up **apps/a
 | Setting | Value |
 |--------|--------|
 | Root Directory | **`apps/worker`** (required for all worker services) |
-| Build Command | `corepack enable && corepack prepare pnpm@9.15.0 --activate && corepack run pnpm@9.15.0 install && corepack run pnpm@9.15.0 run build` (or use config from `apps/worker/railway.toml`) |
+| Build Command | `corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install && pnpm run build` (or use config from `apps/worker/railway.toml`) |
 | Required env | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (or `SERVICE_ROLE_KEY`), `TWITTERAPI_API_KEY` |
 
 **Cron start commands (one-shot; each run should complete and exit, not stay Running):**

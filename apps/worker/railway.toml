@@ -4,8 +4,8 @@
 
 [build]
 builder = "nixpacks"
-# Use corepack (no npm -g). corepack run pnpm@... avoids PATH issues after prepare.
-buildCommand = "corepack enable && corepack prepare pnpm@9.15.0 --activate && corepack run pnpm@9.15.0 install && corepack run pnpm@9.15.0 run build"
+# Use corepack only to activate pnpm, then run pnpm directly (no "corepack run pnpm@...").
+buildCommand = "corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install && pnpm run build"
 
 # Do NOT set startCommand to a server. Cron services override start per run:
 # Daily: pnpm run sync:x:profiles:daily

@@ -69,6 +69,7 @@ type Props = {
   analyticsSource?: "worker" | "partial" | "fallback";
   analyticsInitialized?: boolean;
   hasXConnected?: boolean;
+  brochure?: boolean;
 };
 
 const socialIconSize = 20;
@@ -167,7 +168,7 @@ function labelForDelta(value: number | null | undefined): "Good" | "Watch" | "Ri
   return "Watch";
 }
 
-export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, analyticsSource, analyticsInitialized, hasXConnected = false }: Props) {
+export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, analyticsSource, analyticsInitialized, hasXConnected = false, brochure = false }: Props) {
   const router = useRouter();
   const isProfile = entity.type === "profile";
   const profile = entity.profile;
@@ -194,6 +195,16 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [usernameCopied, setUsernameCopied] = useState(false);
   const [viewerLinkCopied, setViewerLinkCopied] = useState(false);
+  const [brochureLinkCopied, setBrochureLinkCopied] = useState(false);
+
+  const brochureUrl = typeof window !== "undefined" ? `${window.location.origin}/${encodeURIComponent(username)}?view=brochure` : "";
+  const handleCopyBrochureLink = useCallback(() => {
+    if (!brochureUrl) return;
+    navigator.clipboard.writeText(brochureUrl).then(() => {
+      setBrochureLinkCopied(true);
+      setTimeout(() => setBrochureLinkCopied(false), 2000);
+    });
+  }, [brochureUrl]);
 
   const handleCopyProfileLink = useCallback(() => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -284,11 +295,24 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
   const orgTwitter = !isProfile && org?.twitter_username;
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
-      <PublicHeader entity={entity} username={username} isLoggedIn={isLoggedIn} isOwner={isOwner} />
+    <div className={`min-h-screen bg-background text-foreground font-sans ${brochure ? "pb-16" : ""}`}>
+      {brochure && (
+        <div className="sticky top-0 z-50 flex justify-end p-3 border-b border-border bg-background/95 backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={handleCopyBrochureLink}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label={brochureLinkCopied ? "Brochure link copied" : "Copy brochure link"}
+          >
+            <Link2 className="h-4 w-4" />
+            {brochureLinkCopied ? "Copied" : "Copy brochure link"}
+          </button>
+        </div>
+      )}
+      <PublicHeader entity={entity} username={username} isLoggedIn={isLoggedIn} isOwner={brochure ? false : isOwner} />
 
-      <main className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-8 pb-20">
-        {isOwner && (
+      <main className={`mx-auto max-w-6xl px-4 sm:px-6 pb-20 ${brochure ? "py-8 sm:py-12" : "py-6 sm:py-8"}`}>
+        {isOwner && !brochure && (
           <div className="mb-6 flex items-center gap-2">
             {!layoutEditMode ? (
               <button
@@ -899,7 +923,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
         </p>
       </main>
 
-      {!isOwner && <StickyClaimBar />}
+      {!isOwner && !brochure && <StickyClaimBar />}
     </div>
   );
 }

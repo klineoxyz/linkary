@@ -27,6 +27,20 @@ Use this checklist before shipping. Includes explicit messaging permission tests
 
 - Public 1-pager shows small label under XScore: "Stored value (manual until Wallchain sync)" (profile and org cards).
 
+## Brochure mode
+
+- Open `/{username}?view=brochure` as anon (replace username with a published profile or org slug).
+- Confirm layout is clean: no owner "Refresh now" bar, no "Edit Layout" or owner-only controls, no sticky CTA bar at bottom.
+- Confirm "Copy brochure link" button appears top right; clicking it copies the current URL including `?view=brochure`.
+- Confirm content (hero, socials, reputation, partners, case studies, reviews) matches normal view; only layout and owner UI are reduced.
+- Normal view `/{username}` (no query) unchanged: owner bar and sticky CTA behave as before.
+
+## API response consistency
+
+- **ethos/score:** `GET /api/ethos/score?userkey=service:x.com:username:handle` returns `{ ok: true, score_value, score_json, ... }` on success or `{ ok: false, code, message }` on error. Front end and public entity builder read `score_value` from the payload; both work with the wrapped shape.
+- **xscore/score:** `GET /api/xscore/score?username=handle` returns `{ ok: true, username, xscore }` on success or `{ ok: false, code, message }` on error. Front end and me-stats read `xscore` from the payload; both work with the wrapped shape.
+- **public profile API:** `GET /api/public/profile/[username]` still returns raw DTO on 200 (no ok wrapper) to avoid breaking consumers; 404 unchanged.
+
 ## Messaging permission tests
 
 RLS policies (from `supabase/migrations/20260218000000_mvp_orgs_reputation_marketplace.sql`):

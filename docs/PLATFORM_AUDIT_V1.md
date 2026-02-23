@@ -7,12 +7,12 @@ Repo-grounded audit. Facts only; no guessing.
 | Category | Done | Partial | Missing |
 |----------|------|---------|---------|
 | Auth and identity | X OAuth, social_accounts, session sync, username claim, sync-handle | — | — |
-| Profiles | Publish, case studies, partner programs, reviews, 1-pager mapping, profile_socials, profile_media | Case study PATCH API; proof_url sanitization in create | Skills, experience, CV upload |
+| Profiles | Publish, case studies (incl. PATCH, proof_url sanitized on create), partner programs, reviews, 1-pager mapping, profile_socials, profile_media; profile editor supports case study edit | — | Skills, experience, CV upload |
 | Orgs | Creation, profile fields, ecosystem, subsidiaries, partner_programs (org), reviews, token/dexscreener | — | — |
 | Gigs / marketplace | Jobs, applications, apply flow, org invites, deals | — | REST API for conversations/messages |
-| Public 1-pager | DTO allowlist, sanitizeUrl, ownership, cache, owner preview, HeroMedia, copy/share | — | Brochure mode (query param) |
+| Public 1-pager | DTO allowlist, sanitizeUrl, ownership, cache, owner preview, HeroMedia, copy/share, brochure mode (?view=brochure) | — | — |
 | Analytics and reputation | twitterapi.io, cron, snapshots, aggregates, init-status, ensure-backfill, Ethos, XScore, Linkary score | Source semantics (worker/partial/fallback) | Wallchain API not integrated |
-| Production | ok/fail usage, rate limits, health, admin queue/smoke | Inconsistent ok/fail; health does not probe rate_limits/cron | — |
+| Production | ok/fail usage (health, partners, orgs, analytics, admin, ethos/score, xscore/score), rate limits, admin queue/smoke | Public profile API returns raw DTO (no ok wrapper); health does not probe rate_limits/cron | — |
 
 ## Feature-by-feature matrix
 
@@ -24,7 +24,7 @@ Repo-grounded audit. Facts only; no guessing.
 | Profile skills | Missing | RolesSkillsPage placeholder only; UserProfilePage hardcoded array | No table or API | Low | Add profile_skills table + CRUD or defer |
 | Profile experience | Missing | No table or UI | No table or API | Low | Defer or add experience table |
 | CV upload | Missing | No table, storage, or API | New table + storage + RLS | Medium | Defer v1 |
-| Case studies | Partial | case_studies table; lib/caseStudies.ts (list/create); ProfileEditPage list/add/delete; publicData + DTO | No PATCH API; createCaseStudy does not sanitize proof_url in lib | RLS allows select true on case_studies | Add PATCH route; sanitize proof_url in createCaseStudyForProfile/Org |
+| Case studies | Done | case_studies table; lib/caseStudies.ts (list/create; proof_url sanitized on create); api/case-studies/[id] PATCH; ProfileEditPage list/add/edit/delete; publicData + DTO | — | — | — |
 | Partner programs | Done | partner_programs table; api/partners, api/partners/[id]; ProfileEditPage; publicData + DTO; RLS | — | — | — |
 | Reviews (deal-linked) | Done | reviews.deal_id; deals table; RLS reviews only for completed deals (20260232000000) | — | — | — |
 | Publish gating | Done | Editor checklist (avatar, bio, at least one link); public view only when published | — | — | — |
@@ -39,13 +39,13 @@ Repo-grounded audit. Facts only; no guessing.
 | Ownership endpoint | Done | api/public/ownership?username= | — | — | — |
 | Owner instant preview | Done | api/public/profile-owner/[username]; PublicOnePagerWrapper fetch + Refresh now | — | — | — |
 | HeroMedia (YouTube/Vimeo/mp4/X) | Done | components/public/HeroMedia.tsx; type NONE/IMAGE/VIDEO | — | — | — |
-| Brochure mode | Missing | Copy/share text present; no ?view=brochure | No query param or layout variant | Low | Add ?view=brochure and layout tweaks |
+| Brochure mode | Done | ?view=brochure on public page; PublicOnePager layout variant (no owner bar, no sticky CTA, Copy brochure link); same content as normal | — | — | — |
 | Analytics cron and worker | Done | api/cron/*; worker xBackfill90d, sync_x_profiles_daily; x_daily_snapshots, x_window_aggregates | — | — | — |
 | init-status / ensure-backfill | Done | api/analytics/init-status, ensure-backfill; rate limited | — | — | — |
 | Ethos API | Done | api/ethos/score; ethos_scores table; public entity + linkaryScore | — | — | — |
 | XScore (Wallchain) | Partial | profiles.xscore, orgs.xscore; api/xscore/score; xscoreProvider (abstraction) | No outbound Wallchain API; values stored only | Medium if score expected live | Document as manual/extension or integrate API |
 | Linkary score | Done | lib/linkaryScore.ts; computed only; used in publicData, me-stats, OG | — | — | — |
-| ok/fail wrapper | Partial | lib/api-response.ts; used in health, partners, orgs, analytics, admin | Public profile, ethos, xscore return raw JSON | Low | Standardize critical routes |
+| ok/fail wrapper | Done (key routes) | lib/api-response.ts; used in health, partners, orgs, analytics, admin, ethos/score, xscore/score | Public profile API returns raw DTO (intentionally unchanged) | — | — |
 | Rate limits | Done | lib/rate-limit.ts; consume_rate_limit RPC; public profile, ensure-backfill, partners, orgs/create, etc. | — | — | — |
 | Health and admin | Done | api/health; api/admin/queue-status; api/admin/smoke (superadmin) | Health does not check rate_limits RPC or cron | Low | Optional: extend health checks |
 
@@ -60,7 +60,7 @@ Repo-grounded audit. Facts only; no guessing.
 ### B) Profiles (users)
 
 - **Tables:** `profiles`, `profile_socials`, `profile_media`, `case_studies`, `partner_programs`, `reviews` (reviewee_type=profile).
-- **Case studies:** Schema in 20260218000000 (owner_type, owner_profile_id, title, description, proof_url, metrics). List/create in `lib/caseStudies.ts`; ProfileEditPage: list, add (modal), delete via Supabase. No PATCH API. Public DTO allowlist: id, title, description, proof_url, created_at; proof_url sanitized in DTO; `createCaseStudyForProfile` does not call sanitizeUrl on proof_url before insert (gap).
+- **Case studies:** Schema in 20260218000000 (owner_type, owner_profile_id, title, description, proof_url, metrics). List/create in `lib/caseStudies.ts` (proof_url sanitized on create via sanitizeUrl); PATCH in `api/case-studies/[id]` (ownership check; title, description, proof_url). ProfileEditPage: list, add (modal), edit (modal), delete. Public DTO allowlist: id, title, description, proof_url, created_at; proof_url sanitized in DTO and on create/PATCH.
 - **Partner programs:** Full CRUD via `/api/partners`, `/api/partners/[id]`; RLS and ownership checks; ProfileEditPage tabs, list, add/edit modal, reorder, featured.
 - **Reviews:** `api/reviews` POST; reviews.deal_id; RLS in 20260232000000 restricts to completed deals.
 - **Publish rules:** Avatar, bio, at least one link (website or any profile_socials URL); editor blocks publish and shows checklist.

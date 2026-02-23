@@ -15,12 +15,14 @@ export function PublicOnePagerWrapper({
   analyticsSource: initialAnalyticsSource,
   analyticsInitialized: initialAnalyticsInitialized,
   hasXConnected,
+  brochure = false,
 }: {
   entityView: PublicEntityView;
   username: string;
   analyticsSource: "worker" | "partial" | "fallback";
   analyticsInitialized: boolean;
   hasXConnected: boolean;
+  brochure?: boolean;
 }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
@@ -113,7 +115,7 @@ export function PublicOnePagerWrapper({
 
   return (
     <div className="relative">
-      {isOwner && (
+      {isOwner && !brochure && (
         <div className="sticky top-0 z-10 flex justify-end p-2 bg-background/80 backdrop-blur-sm border-b border-border/50">
           <button
             type="button"
@@ -130,10 +132,11 @@ export function PublicOnePagerWrapper({
         entity={entityView}
         username={username}
         isLoggedIn={isLoggedIn}
-        isOwner={isOwner}
+        isOwner={brochure ? false : isOwner}
         analyticsSource={analyticsSource}
         analyticsInitialized={analyticsInitialized}
         hasXConnected={hasXConnected}
+        brochure={brochure}
       />
     </div>
   );

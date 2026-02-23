@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createServiceSupabase } from "@/lib/x-analytics-server";
+import { ok, fail } from "@/lib/api-response";
 
 const ETHOS_BASE = "https://api.ethos.network";
 const CACHE_HOURS = 6;
@@ -13,7 +14,7 @@ function isValidUserkey(key: string): boolean {
 export async function GET(request: NextRequest) {
   const userkey = request.nextUrl.searchParams.get("userkey");
   if (!userkey || !isValidUserkey(userkey.trim())) {
-    return NextResponse.json({ error: "Missing or invalid userkey" }, { status: 400 });
+    return fail("BAD_REQUEST", "Missing or invalid userkey", 400);
   }
   const key = userkey.trim();
   const clientId = process.env.ETHOS_CLIENT_ID ?? "linkary@1";
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
   try {
     supabase = createServiceSupabase();
   } catch {
-    return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    return fail("CONFIG", "Server configuration error", 500);
   }
 
   const cutoff = new Date(Date.now() - CACHE_HOURS * 60 * 60 * 1000).toISOString();
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     .maybeSingle();
 
   if (cached?.score_json) {
-    return NextResponse.json({
+    return ok({
       userkey: key,
       score_value: cached.score_value,
       score_json: cached.score_json,
@@ -51,17 +52,15 @@ export async function GET(request: NextRequest) {
 
   if (!res.ok) {
     const text = await res.text();
-    return NextResponse.json(
-      { error: "Ethos API error", status: res.status, detail: text.slice(0, 200) },
-      { status: res.status >= 500 ? 502 : res.status }
-    );
+    const status = res.status >= 500 ? 502 : res.status;
+    return fail("ETHOS_API", `Ethos API error: ${text.slice(0, 100)}`, status);
   }
 
   let scoreJson: unknown;
   try {
     scoreJson = await res.json();
   } catch {
-    return NextResponse.json({ error: "Invalid Ethos response" }, { status: 502 });
+    return fail("INVALID_RESPONSE", "Invalid Ethos response", 502);
   }
 
   const scoreValue =
@@ -79,7 +78,7 @@ export async function GET(request: NextRequest) {
     { onConflict: "userkey" }
   );
 
-  return NextResponse.json({
+  return ok({
     userkey: key,
     score_value: scoreValue,
     score_json: scoreJson,

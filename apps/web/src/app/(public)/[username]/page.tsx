@@ -9,7 +9,7 @@ import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
 import { NotFoundOrUnpublished } from "./NotFoundOrUnpublished";
 import { NotFoundClaimView } from "./NotFoundClaimView";
 
-type Props = { params: Promise<{ username: string }> };
+type Props = { params: Promise<{ username: string }>; searchParams?: Promise<{ view?: string }> };
 
 function baseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://linkary.xyz");
@@ -92,8 +92,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  * Public URL: /[identifier] — slug, UUID, X handle, or wallet.
  * Uses single source (DTO) for public data; never sends profile/id or org id to client.
  */
-export default async function PublicUsernamePage({ params }: Props) {
+export default async function PublicUsernamePage({ params, searchParams }: Props) {
   const { username } = await params;
+  const resolvedSearch = searchParams ? await searchParams : {};
+  const viewBrochure = resolvedSearch?.view === "brochure";
   const segment = (username ?? "").trim();
   if (!segment) notFound();
 
@@ -127,6 +129,7 @@ export default async function PublicUsernamePage({ params }: Props) {
           analyticsSource={result.dto.analytics.source}
           analyticsInitialized={result.dto.analytics.initialized}
           hasXConnected={result.dto.type === "profile" && !!result.dto.twitter_username}
+          brochure={viewBrochure}
         />
       );
     }
@@ -153,6 +156,7 @@ export default async function PublicUsernamePage({ params }: Props) {
       analyticsSource={dto.analytics.source}
       analyticsInitialized={dto.analytics.initialized}
       hasXConnected={entity.type === "profile" && !!entity.profile?.twitter_username}
+      brochure={viewBrochure}
     />
   );
 }

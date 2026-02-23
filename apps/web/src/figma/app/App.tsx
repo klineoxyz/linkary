@@ -2569,6 +2569,7 @@ export default function LinkaryApp() {
   const [authBootstrapped, setAuthBootstrapped] = useState(false);
   const [me, setMe] = useState(null);
   const [authUserId, setAuthUserId] = useState(null);
+  const [analyticsInitFailed, setAnalyticsInitFailed] = useState(false);
   const [headerMedia, setHeaderMedia] = useState<{ header_media_type: string; header_media_url: string | null } | null>(null);
 
   useEffect(() => {
@@ -2677,7 +2678,13 @@ export default function LinkaryApp() {
       fetch(`${window.location.origin}/api/analytics/ensure-backfill`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}` },
-      }).catch(() => {});
+      })
+        .then(async (res) => {
+          const body = await res.json().catch(() => ({}));
+          const bad = !res.ok || (body?.enqueued === false && ["no_service_key", "no_x_handle", "profile_not_found", "insert_failed"].includes(body?.reason));
+          if (bad) setAnalyticsInitFailed(true);
+        })
+        .catch(() => setAnalyticsInitFailed(true));
     }
     setAuthBootstrapped(true);
   };
@@ -2709,9 +2716,33 @@ export default function LinkaryApp() {
 
   useInViewAnimations(".animate-fade-in");
 
+  const handleRetryAnalytics = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    const res = await fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/analytics/ensure-backfill`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    const body = await res.json().catch(() => ({}));
+    const bad = !res.ok || (body?.enqueued === false && ["no_service_key", "no_x_handle", "profile_not_found", "insert_failed"].includes(body?.reason));
+    if (!bad) setAnalyticsInitFailed(false);
+  }, []);
+
   return (
     <div className="scrollbar min-h-screen bg-[#F7F8FB] text-gray-900 relative">
       <GlobalStyles />
+      {analyticsInitFailed && (
+        <div className="sticky top-0 z-[100] flex items-center justify-between gap-4 px-4 py-2 bg-amber-100 border-b border-amber-300 text-amber-900 text-sm">
+          <span>Analytics init failed. Retry to start 90-day backfill.</span>
+          <button
+            type="button"
+            onClick={handleRetryAnalytics}
+            className="px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm font-medium"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       
       {/* Animated Floating Squares - Global Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-[1]">

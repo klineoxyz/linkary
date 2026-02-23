@@ -8,6 +8,12 @@ import type { PublicEntityView } from "@/lib/publicProfileDTO";
 
 const ENSURE_BACKFILL_COOLDOWN_KEY = "linkary_ensure_backfill_ts";
 const ENSURE_BACKFILL_COOLDOWN_MS = 10 * 60 * 1000;
+const BAD_ENSURE_BACKFILL_REASONS = ["no_service_key", "no_x_handle", "profile_not_found", "insert_failed"] as const;
+function isEnsureBackfillFailure(res: Response, body: { enqueued?: boolean; reason?: string }): boolean {
+  if (!res.ok) return true;
+  if (body?.enqueued === false && body?.reason && BAD_ENSURE_BACKFILL_REASONS.includes(body.reason as never)) return true;
+  return false;
+}
 
 export function PublicOnePagerWrapper({
   entityView: initialEntityView,
@@ -30,6 +36,7 @@ export function PublicOnePagerWrapper({
   const [liveAnalyticsSource, setLiveAnalyticsSource] = useState<"worker" | "partial" | "fallback" | null>(null);
   const [liveAnalyticsInitialized, setLiveAnalyticsInitialized] = useState<boolean | null>(null);
   const [refreshLoading, setRefreshLoading] = useState(false);
+  const [ensureBackfillFailed, setEnsureBackfillFailed] = useState(false);
   const ensureBackfillCalled = useRef(false);
 
   const fetchOwnerDto = useCallback(async () => {
@@ -88,15 +95,22 @@ export function PublicOnePagerWrapper({
       const token = session?.access_token;
       if (!token) return;
       try {
-        await fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/analytics/ensure-backfill`, {
+        const res = await fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/analytics/ensure-backfill`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ username }),
         });
+        const body = await res.json().catch(() => ({}));
+        if (isEnsureBackfillFailure(res, body)) {
+          setEnsureBackfillFailed(true);
+          ensureBackfillCalled.current = false;
+          return;
+        }
         if (typeof localStorage !== "undefined") {
           localStorage.setItem(ENSURE_BACKFILL_COOLDOWN_KEY, String(Date.now()));
         }
       } catch {
+        setEnsureBackfillFailed(true);
         ensureBackfillCalled.current = false;
       }
     })();
@@ -113,9 +127,38 @@ export function PublicOnePagerWrapper({
     setRefreshLoading(false);
   };
 
+  const handleRetryEnsureBackfill = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const res = await fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/analytics/ensure-backfill`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ username }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!isEnsureBackfillFailure(res, body)) {
+      setEnsureBackfillFailed(false);
+      if (typeof localStorage !== "undefined") localStorage.setItem(ENSURE_BACKFILL_COOLDOWN_KEY, String(Date.now()));
+      fetchOwnerDto();
+    }
+  }, [username, fetchOwnerDto]);
+
   return (
     <div className="relative">
-      {isOwner && !brochure && (
+      {ensureBackfillFailed && isOwner && !brochure && (
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-3 py-2 bg-amber-100 border-b border-amber-300 text-amber-900 text-xs">
+          <span>Analytics init failed. Retry to start 90-day backfill.</span>
+          <button
+            type="button"
+            onClick={handleRetryEnsureBackfill}
+            className="px-2 py-1 rounded border border-amber-600 bg-amber-600 text-white hover:bg-amber-700 font-medium"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      {isOwner && !brochure && !ensureBackfillFailed && (
         <div className="sticky top-0 z-10 flex justify-end p-2 bg-background/80 backdrop-blur-sm border-b border-border/50">
           <button
             type="button"

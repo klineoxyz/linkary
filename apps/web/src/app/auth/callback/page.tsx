@@ -56,11 +56,19 @@ function extractTwitterIdentity(user: { identities?: Array<Record<string, unknow
   };
 }
 
+const BAD_ENSURE_BACKFILL_REASONS = ["no_service_key", "no_x_handle", "profile_not_found", "insert_failed"] as const;
+function isEnsureBackfillFailure(res: Response, body: { enqueued?: boolean; reason?: string }): boolean {
+  if (!res.ok) return true;
+  if (body?.enqueued === false && body?.reason && BAD_ENSURE_BACKFILL_REASONS.includes(body.reason as never)) return true;
+  return false;
+}
+
 export default function AuthCallbackPage() {
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "ok" | "error" | "analytics_failed">("loading");
   const [message, setMessage] = useState("Completing sign in…");
   const [redirectPath, setRedirectPath] = useState<string>(REDIRECT_AFTER);
+  const [redirectTo, setRedirectTo] = useState<string>(REDIRECT_AFTER);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,7 +174,22 @@ export default function AuthCallbackPage() {
                 setStatus("error");
                 return;
               }
-              fetch(`${window.location.origin}/api/analytics/ensure-backfill`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+              const ebfRes = await fetch(`${window.location.origin}/api/analytics/ensure-backfill`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              const ebfBody = await ebfRes.json().catch(() => ({}));
+              if (!cancelled && isEnsureBackfillFailure(ebfRes, ebfBody)) {
+                let url = next.startsWith("/") ? `${SITE_URL.replace(/\/$/, "")}${next}` : `${SITE_URL}/${next}`;
+                if (next === "/settings/integrations" || next?.includes("integrations")) url = url + (url.includes("?") ? "&" : "?") + "x_connected=1";
+                try {
+                  if (sessionStorage.getItem("linkary_oauth_fallback") === "1") url = url + (url.includes("?") ? "&" : "?") + "x_fallback=1";
+                } catch { /* ignore */ }
+                setRedirectTo(url);
+                setStatus("analytics_failed");
+                setMessage("Analytics init failed. You can retry or continue.");
+                return;
+              }
             }
             if (!cancelled) {
               setStatus("ok");
@@ -233,14 +256,24 @@ export default function AuthCallbackPage() {
             }
             // Ensure 90d analytics backfill and canonical X connection in DB on every login
             if (session?.access_token) {
-              fetch(`${window.location.origin}/api/analytics/ensure-backfill`, {
+              const esxRes = await fetch(`${window.location.origin}/api/auth/ensure-social-x`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${session.access_token}` },
-              }).catch(() => {});
-              fetch(`${window.location.origin}/api/auth/ensure-social-x`, {
+              });
+              if (!esxRes.ok) {
+                // non-blocking; continue
+              }
+              const ebfRes = await fetch(`${window.location.origin}/api/analytics/ensure-backfill`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${session.access_token}` },
-              }).catch(() => {});
+              });
+              const ebfBody = await ebfRes.json().catch(() => ({}));
+              if (!cancelled && isEnsureBackfillFailure(ebfRes, ebfBody)) {
+                setRedirectTo(redirectTo);
+                setStatus("analytics_failed");
+                setMessage("Analytics init failed. You can retry or continue.");
+                return;
+              }
             }
             if (!cancelled) {
               setStatus("ok");
@@ -267,6 +300,24 @@ export default function AuthCallbackPage() {
     };
   }, [searchParams]);
 
+  const handleRetryAnalytics = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    setMessage("Retrying…");
+    const res = await fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/analytics/ensure-backfill`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (isEnsureBackfillFailure(res, body)) {
+      setMessage("Analytics init failed. You can retry or continue.");
+      return;
+    }
+    setStatus("ok");
+    setMessage("Redirecting…");
+    window.location.href = redirectTo;
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] p-6">
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-8 max-w-sm w-full text-center">
@@ -278,6 +329,26 @@ export default function AuthCallbackPage() {
         )}
         {status === "ok" && (
           <p className="text-zinc-600">Redirecting…</p>
+        )}
+        {status === "analytics_failed" && (
+          <>
+            <p className="text-amber-700 mb-4">{message}</p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleRetryAnalytics}
+                className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+              >
+                Retry
+              </button>
+              <a
+                href={redirectTo}
+                className="text-indigo-600 hover:underline text-sm"
+              >
+                Continue without retry
+              </a>
+            </div>
+          </>
         )}
         {status === "error" && (
           <>

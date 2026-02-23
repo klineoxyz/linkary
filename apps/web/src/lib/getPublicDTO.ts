@@ -3,7 +3,7 @@
  * Never returns email, user_id, or internal fields.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getPublicEntityByUsername } from "./publicData";
+import { getPublicEntityByUsername, getPublicEntityForOwner } from "./publicData";
 import { entityToPublicDTO, type PublicPageDTO } from "./publicProfileDTO";
 import { normalizeIdentifier } from "./entityResolver";
 
@@ -45,4 +45,28 @@ export async function getPublicDTOByUsername(
   }
 
   return { ok: false, notFound: true };
+}
+
+/**
+ * Resolve username/slug to public DTO when the caller is the owner (profile or org admin).
+ * Uses serviceSupabase to read data regardless of published state.
+ * Returns null if not found or not owner.
+ */
+export async function getPublicDTOForOwner(
+  segment: string,
+  userId: string,
+  serviceSupabase: SupabaseClient
+): Promise<{ dto: PublicPageDTO; canonicalUsername: string } | null> {
+  const norm = normalizeIdentifier(segment);
+  if (!norm) return null;
+
+  const entity = await getPublicEntityForOwner(norm, userId, serviceSupabase);
+  if (!entity) return null;
+
+  const dto = entityToPublicDTO(entity);
+  const canonicalUsername =
+    entity.type === "profile"
+      ? (entity.profile?.username ?? entity.profile?.twitter_username ?? "").replace(/^@/, "").toLowerCase()
+      : (entity.org?.slug ?? "").toLowerCase();
+  return { dto, canonicalUsername: canonicalUsername || norm };
 }

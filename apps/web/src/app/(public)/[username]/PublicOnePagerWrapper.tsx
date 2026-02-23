@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { PublicOnePager } from "@/components/public/PublicOnePager";
+import { dtoToEntityView } from "@/lib/publicProfileDTO";
 import type { PublicEntityView } from "@/lib/publicProfileDTO";
 
 const ENSURE_BACKFILL_COOLDOWN_KEY = "linkary_ensure_backfill_ts";
 const ENSURE_BACKFILL_COOLDOWN_MS = 10 * 60 * 1000;
 
 export function PublicOnePagerWrapper({
-  entityView,
+  entityView: initialEntityView,
   username,
-  analyticsSource,
-  analyticsInitialized,
+  analyticsSource: initialAnalyticsSource,
+  analyticsInitialized: initialAnalyticsInitialized,
   hasXConnected,
 }: {
   entityView: PublicEntityView;
@@ -23,7 +24,27 @@ export function PublicOnePagerWrapper({
 }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [liveEntityView, setLiveEntityView] = useState<PublicEntityView | null>(null);
+  const [liveAnalyticsSource, setLiveAnalyticsSource] = useState<"worker" | "partial" | "fallback" | null>(null);
+  const [liveAnalyticsInitialized, setLiveAnalyticsInitialized] = useState<boolean | null>(null);
+  const [refreshLoading, setRefreshLoading] = useState(false);
   const ensureBackfillCalled = useRef(false);
+
+  const fetchOwnerDto = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(
+      `${base}/api/public/profile-owner/${encodeURIComponent(username)}`,
+      { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" }
+    );
+    if (!res.ok) return;
+    const dto = await res.json();
+    const view = dtoToEntityView(dto);
+    setLiveEntityView(view);
+    setLiveAnalyticsSource(dto.analytics?.source ?? null);
+    setLiveAnalyticsInitialized(dto.analytics?.initialized ?? null);
+  }, [username]);
 
   useEffect(() => {
     (async () => {
@@ -40,11 +61,14 @@ export function PublicOnePagerWrapper({
       if (res.ok) {
         const j = await res.json();
         setIsOwner(j.isOwner === true);
+        if (j.isOwner === true) {
+          fetchOwnerDto();
+        }
       } else {
         setIsOwner(false);
       }
     })();
-  }, [username]);
+  }, [username, fetchOwnerDto]);
 
   useEffect(() => {
     if (!isOwner || entityView.type !== "profile" || !hasXConnected || analyticsInitialized) return;
@@ -74,17 +98,43 @@ export function PublicOnePagerWrapper({
         ensureBackfillCalled.current = false;
       }
     })();
-  }, [isOwner, entityView.type, hasXConnected, analyticsInitialized, username]);
+  }, [isOwner, initialEntityView.type, hasXConnected, initialAnalyticsInitialized, username]);
+
+  const entityView = liveEntityView ?? initialEntityView;
+  const analyticsSource = liveAnalyticsSource ?? initialAnalyticsSource;
+  const analyticsInitialized = liveAnalyticsInitialized ?? initialAnalyticsInitialized;
+
+  const handleRefresh = async () => {
+    if (!isOwner || refreshLoading) return;
+    setRefreshLoading(true);
+    await fetchOwnerDto();
+    setRefreshLoading(false);
+  };
 
   return (
-    <PublicOnePager
-      entity={entityView}
-      username={username}
-      isLoggedIn={isLoggedIn}
-      isOwner={isOwner}
-      analyticsSource={analyticsSource}
-      analyticsInitialized={analyticsInitialized}
-      hasXConnected={hasXConnected}
-    />
+    <div className="relative">
+      {isOwner && (
+        <div className="sticky top-0 z-10 flex justify-end p-2 bg-background/80 backdrop-blur-sm border-b border-border/50">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshLoading}
+            className="text-xs px-2 py-1 rounded border border-border bg-muted/50 text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+            aria-label="Refresh to see latest changes"
+          >
+            {refreshLoading ? "Refreshing…" : "Refresh now"}
+          </button>
+        </div>
+      )}
+      <PublicOnePager
+        entity={entityView}
+        username={username}
+        isLoggedIn={isLoggedIn}
+        isOwner={isOwner}
+        analyticsSource={analyticsSource}
+        analyticsInitialized={analyticsInitialized}
+        hasXConnected={hasXConnected}
+      />
+    </div>
   );
 }

@@ -107,6 +107,7 @@ function PartnerProgramsEditor({
                   <div className="font-medium text-zinc-900 truncate">{p.name}</div>
                   {p.description && <div className="text-xs text-zinc-500 truncate">{p.description}</div>}
                 </div>
+                {p.is_featured && <span className="shrink-0 rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-xs text-primary">Featured</span>}
                 <div className="flex items-center gap-1 shrink-0">
                   <button type="button" onClick={() => move(p, "up")} disabled={idx === 0} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↑</button>
                   <button type="button" onClick={() => move(p, "down")} disabled={idx === list.length - 1} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↓</button>

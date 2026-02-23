@@ -39,8 +39,8 @@ export type PublicProfileDTO = {
   };
   caseStudies: Array<{ id: string; title?: string | null; description?: string | null; proof_url?: string | null; created_at: string }>;
   reviews: Array<{ id: string; rating: number; body?: string | null; title?: string | null; created_at: string }>;
-  affiliates: Array<{ name: string; website_url: string | null; logo_url: string | null; description: string | null; since_date: string | null }>;
-  ambassadors: Array<{ name: string; website_url: string | null; logo_url: string | null; description: string | null; since_date: string | null }>;
+  affiliates: Array<{ name: string; website_url: string | null; logo_url: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
+  ambassadors: Array<{ name: string; website_url: string | null; logo_url: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
   publicLayout: { order?: string[]; hidden?: string[] } | null;
   headerMedia: { header_media_type: "NONE" | "IMAGE" | "VIDEO"; header_media_url: string | null } | null;
   tier: "free" | "pro";
@@ -152,6 +152,7 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
         logo_url: sanitizeUrl(a.logo_url) ?? null,
         description: a.description ?? null,
         since_date: a.since_date ?? null,
+        is_featured: a.is_featured ?? false,
       })),
       ambassadors: entity.ambassadors.map((a) => ({
         name: a.name,
@@ -159,6 +160,7 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
         logo_url: sanitizeUrl(a.logo_url) ?? null,
         description: a.description ?? null,
         since_date: a.since_date ?? null,
+        is_featured: a.is_featured ?? false,
       })),
       publicLayout: entity.publicLayout ?? null,
       headerMedia: entity.headerMedia ? { header_media_type: entity.headerMedia.header_media_type, header_media_url: sanitizeUrl(entity.headerMedia.header_media_url) ?? null } : null,
@@ -204,6 +206,7 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
         logo_url: sanitizeUrl(a.logo_url) ?? null,
         description: a.description ?? null,
         since_date: a.since_date ?? null,
+        is_featured: a.is_featured ?? false,
       })),
       ambassadors: entity.ambassadors.map((a) => ({
         name: a.name,
@@ -211,6 +214,7 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
         logo_url: sanitizeUrl(a.logo_url) ?? null,
         description: a.description ?? null,
         since_date: a.since_date ?? null,
+        is_featured: a.is_featured ?? false,
       })),
       ecosystemCategories: entity.ecosystemCategories ?? [],
       subsidiaries: entity.subsidiaries.map((s) => ({ id: s.id, slug: s.slug, name: s.name, logo_url: sanitizeUrl(s.logo_url) ?? null })),

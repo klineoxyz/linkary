@@ -562,6 +562,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                       <a href={aff.website_url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary rounded">Visit</a>
                     ) : null}
                     <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Affiliate</span>
+                    {aff.is_featured && <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Featured</span>}
                   </li>
                 ))}
                 {entity.ambassadors.map((amb, i) => (
@@ -576,6 +577,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                       <a href={amb.website_url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary rounded">Visit</a>
                     ) : null}
                     <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Ambassador</span>
+                    {amb.is_featured && <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Featured</span>}
                   </li>
                 ))}
               </ul>
@@ -595,6 +597,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                       <a href={aff.website_url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary rounded">Visit</a>
                     ) : null}
                     <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Affiliate</span>
+                    {aff.is_featured && <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Featured</span>}
                   </li>
                 ))}
                 {entity.ambassadors.map((amb, i) => (
@@ -609,6 +612,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                       <a href={amb.website_url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary rounded">Visit</a>
                     ) : null}
                     <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Ambassador</span>
+                    {amb.is_featured && <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Featured</span>}
                   </li>
                 ))}
               </ul>
@@ -690,6 +694,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                                 {aff.description && <div className="text-xs text-muted-foreground line-clamp-2">{aff.description}</div>}
                                 <div className="text-xs text-muted-foreground">Affiliate{aff.since_date ? ` since ${aff.since_date}` : ""}</div>
                               </div>
+                              {aff.is_featured && <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Featured</span>}
                               <BadgeCheck className="h-5 w-5 shrink-0 text-primary" />
                             </li>
                           ))}
@@ -701,6 +706,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                                 {amb.description && <div className="text-xs text-muted-foreground line-clamp-2">{amb.description}</div>}
                                 <div className="text-xs text-muted-foreground">Ambassador{amb.since_date ? ` since ${amb.since_date}` : ""}</div>
                               </div>
+                              {amb.is_featured && <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Featured</span>}
                               <BadgeCheck className="h-5 w-5 shrink-0 text-primary" />
                             </li>
                           ))}

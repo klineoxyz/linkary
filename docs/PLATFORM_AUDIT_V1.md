@@ -115,9 +115,10 @@ Repo-grounded audit. Facts only; no guessing.
 
 ## Regression checklist (what to test)
 
-- Auth: X link and disconnect; sync-handle; username claim; post-login bootstrap.
-- Profile editor: Save basics (display_name, bio, website, location); save socials and hero media; add/edit/delete/reorder partner programs; add/delete case studies; publish toggle and gating checklist.
-- Public 1-pager: Load as anon (cached); load as owner (instant + Refresh now); verify socials, hero media, partners (featured order), case studies, reviews; copy link and Share on X.
-- Orgs: Create org; add job; receive application; accept application (deal); org partner programs; org public page.
-- Analytics: ensure-backfill as owner; init-status; cron runs (or manual trigger); worker backfill; 90d window aggregates.
-- Production: GET api/health; admin queue-status and smoke (as superadmin); rate limit triggers (e.g. partners 30/10min).
+See **docs/REGRESSION_CHECKLIST_V1.md** for the full list, including:
+
+- Auth, profile editor (including case study edit), public 1-pager, orgs, analytics, production.
+- Case studies: invalid proof_url stored as null; edit as owner (PATCH); non-owner gets 403.
+- Cache copy: "Public updates can take up to 60 seconds for others. While logged in, you see instant preview."
+- XScore label on public 1-pager: "Stored value (manual until Wallchain sync)."
+- **Messaging permission tests:** User A and User B have a conversation; User C (non-participant) cannot read the conversation, cannot read messages, cannot insert a message. SQL snippets and step-by-step UI tests are in REGRESSION_CHECKLIST_V1.md. RLS policies in `20260218000000_mvp_orgs_reputation_marketplace.sql` enforce participants-only SELECT and sender-only INSERT; no migration was required.

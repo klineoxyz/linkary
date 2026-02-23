@@ -434,6 +434,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>
                   <div className={`mt-1 text-3xl font-semibold tabular-nums ${reputationMetricClass(profile?.xscore ?? null, XSCORE_PRIMARY_THRESHOLD)}`}>{profile?.xscore ?? "—"}</div>
                   <p className="mt-1 text-xs text-muted-foreground">Engagement-based influence</p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">Stored value (manual until Wallchain sync)</p>
                 </div>
                 <div className="rounded-md border border-border bg-background p-4">
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Overall profile strength">Linkary</div>
@@ -465,6 +466,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">XScore</div>
                   <div className={`mt-1 text-3xl font-semibold tabular-nums ${reputationMetricClass(org.xscore ?? null, XSCORE_PRIMARY_THRESHOLD)}`}>{org.xscore ?? "—"}</div>
                   <p className="mt-1 text-xs text-muted-foreground">Engagement-based influence</p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">Stored value (manual until Wallchain sync)</p>
                 </div>
                 <div className="rounded-md border border-border bg-background p-4">
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linkary</div>

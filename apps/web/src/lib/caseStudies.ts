@@ -2,6 +2,7 @@
  * Case studies (polymorphic: profile or org owner).
  */
 import { supabase } from "./supabase";
+import { sanitizeUrl } from "./sanitizeUrl";
 
 export type CaseStudy = {
   id: string;
@@ -43,6 +44,8 @@ export async function createCaseStudyForProfile(
   profileId: string,
   payload: { title?: string; description?: string; proof_url?: string; metrics?: Record<string, unknown> }
 ): Promise<{ data: CaseStudy | null; error: string | null }> {
+  const clean = payload.proof_url?.trim() ?? "";
+  const safeProofUrl = clean ? sanitizeUrl(clean) ?? null : null;
   const { data, error } = await supabase
     .from(CASE_STUDIES)
     .insert({
@@ -51,7 +54,7 @@ export async function createCaseStudyForProfile(
       owner_org_id: null,
       title: payload.title?.trim() || null,
       description: payload.description?.trim() || null,
-      proof_url: payload.proof_url?.trim() || null,
+      proof_url: safeProofUrl,
       metrics: payload.metrics ?? {},
     })
     .select()
@@ -64,6 +67,8 @@ export async function createCaseStudyForOrg(
   orgId: string,
   payload: { title?: string; description?: string; proof_url?: string; metrics?: Record<string, unknown> }
 ): Promise<{ data: CaseStudy | null; error: string | null }> {
+  const clean = payload.proof_url?.trim() ?? "";
+  const safeProofUrl = clean ? sanitizeUrl(clean) ?? null : null;
   const { data, error } = await supabase
     .from(CASE_STUDIES)
     .insert({
@@ -72,7 +77,7 @@ export async function createCaseStudyForOrg(
       owner_org_id: orgId,
       title: payload.title?.trim() || null,
       description: payload.description?.trim() || null,
-      proof_url: payload.proof_url?.trim() || null,
+      proof_url: safeProofUrl,
       metrics: payload.metrics ?? {},
     })
     .select()

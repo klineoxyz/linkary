@@ -131,12 +131,14 @@ function CaseStudiesEditor({
   caseStudies,
   onReload,
   onOpenAddModal,
+  onOpenEditModal,
   setError,
 }: {
   me: Profile;
   caseStudies: CaseStudy[];
   onReload: () => void;
   onOpenAddModal: () => void;
+  onOpenEditModal: (cs: CaseStudy) => void;
   setError: (s: string | null) => void;
 }) {
   const remove = async (id: string) => {
@@ -159,7 +161,10 @@ function CaseStudiesEditor({
               <div className="font-medium text-zinc-900 truncate">{cs.title || "Untitled"}</div>
               {cs.description && <div className="text-xs text-zinc-500 line-clamp-2">{cs.description}</div>}
             </div>
-            <button type="button" onClick={() => remove(cs.id)} className="text-xs text-red-600 hover:underline shrink-0">Delete</button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button type="button" onClick={() => onOpenEditModal(cs)} className="text-xs text-primary hover:underline">Edit</button>
+              <button type="button" onClick={() => remove(cs.id)} className="text-xs text-red-600 hover:underline">Delete</button>
+            </div>
           </li>
         ))}
       </ul>
@@ -209,12 +214,14 @@ function PartnerModal({
 }
 
 function CaseStudyModal({
+  edit,
   form,
   setForm,
   saving,
   onClose,
   onSubmit,
 }: {
+  edit?: CaseStudy | null;
   form: { title: string; description: string; proofUrl: string };
   setForm: React.Dispatch<React.SetStateAction<{ title: string; description: string; proofUrl: string }>>;
   saving: boolean;
@@ -224,13 +231,13 @@ function CaseStudyModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
-        <h3 className="font-semibold text-zinc-900">Add case study</h3>
+        <h3 className="font-semibold text-zinc-900">{edit ? "Edit case study" : "Add case study"}</h3>
         <input type="text" placeholder="Title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
         <textarea placeholder="Description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={3} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
         <input type="url" placeholder="Proof URL" value={form.proofUrl} onChange={(e) => setForm((f) => ({ ...f, proofUrl: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
-          <button type="button" disabled={saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50">{saving ? "Saving…" : "Add"}</button>
+          <button type="button" disabled={saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50">{saving ? "Saving…" : edit ? "Update" : "Add"}</button>
         </div>
       </div>
     </div>
@@ -268,6 +275,7 @@ export default function ProfileEditPage({
   const [partnerModal, setPartnerModal] = useState<{ open: true; programType: "affiliate" | "ambassador"; edit?: PartnerRow } | { open: false }>({ open: false });
   const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
   const [caseStudyModal, setCaseStudyModal] = useState(false);
+  const [editingCaseStudy, setEditingCaseStudy] = useState<CaseStudy | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [partnerForm, setPartnerForm] = useState({ name: "", websiteUrl: "", logoUrl: "", description: "", sinceDate: "", isFeatured: false });
   const [caseStudyForm, setCaseStudyForm] = useState({ title: "", description: "", proofUrl: "" });
@@ -646,7 +654,7 @@ export default function ProfileEditPage({
               </a>
             </div>
           )}
-          <p className="text-xs text-zinc-500 mt-1">Public updates can take up to 1 minute to appear.</p>
+          <p className="text-xs text-zinc-500 mt-1">Public updates can take up to 60 seconds for others. While logged in, you see instant preview.</p>
           {!me?.username && !me?.twitter_username && (
             <p className="text-xs text-amber-700">Set a username or connect X to get a public URL.</p>
           )}
@@ -678,7 +686,20 @@ export default function ProfileEditPage({
           me={me}
           caseStudies={caseStudies}
           onReload={loadCaseStudies}
-          onOpenAddModal={() => setCaseStudyModal(true)}
+          onOpenAddModal={() => {
+            setEditingCaseStudy(null);
+            setCaseStudyForm({ title: "", description: "", proofUrl: "" });
+            setCaseStudyModal(true);
+          }}
+          onOpenEditModal={(cs) => {
+            setEditingCaseStudy(cs);
+            setCaseStudyForm({
+              title: cs.title ?? "",
+              description: cs.description ?? "",
+              proofUrl: cs.proof_url ?? "",
+            });
+            setCaseStudyModal(true);
+          }}
           setError={setError}
         />
 
@@ -748,24 +769,52 @@ export default function ProfileEditPage({
 
       {caseStudyModal && (
         <CaseStudyModal
+          edit={editingCaseStudy}
           form={caseStudyForm}
           setForm={setCaseStudyForm}
           saving={caseStudySaving}
-          onClose={() => setCaseStudyModal(false)}
+          onClose={() => {
+            setCaseStudyModal(false);
+            setEditingCaseStudy(null);
+          }}
           onSubmit={async () => {
             if (!me?.id) return;
             setCaseStudySaving(true);
-            const { data, error: err } = await createCaseStudyForProfile(me.id, {
-              title: caseStudyForm.title.trim() || undefined,
-              description: caseStudyForm.description.trim() || undefined,
-              proof_url: caseStudyForm.proofUrl.trim() || undefined,
-            });
-            setCaseStudySaving(false);
-            if (err) setError(err);
-            else {
-              setCaseStudyForm({ title: "", description: "", proofUrl: "" });
-              loadCaseStudies();
-              setCaseStudyModal(false);
+            const base = typeof window !== "undefined" ? window.location.origin : "";
+            const headers = await getAuthHeaders();
+            if (editingCaseStudy) {
+              const res = await fetch(`${base}/api/case-studies/${editingCaseStudy.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json", ...headers },
+                body: JSON.stringify({
+                  title: caseStudyForm.title.trim() || null,
+                  description: caseStudyForm.description.trim() || null,
+                  proof_url: caseStudyForm.proofUrl.trim() || null,
+                }),
+              });
+              const json = await res.json().catch(() => ({}));
+              setCaseStudySaving(false);
+              if (!res.ok) {
+                setError(json.message ?? "Update failed");
+              } else {
+                setCaseStudyForm({ title: "", description: "", proofUrl: "" });
+                loadCaseStudies();
+                setCaseStudyModal(false);
+                setEditingCaseStudy(null);
+              }
+            } else {
+              const { data, error: err } = await createCaseStudyForProfile(me.id, {
+                title: caseStudyForm.title.trim() || undefined,
+                description: caseStudyForm.description.trim() || undefined,
+                proof_url: caseStudyForm.proofUrl.trim() || undefined,
+              });
+              setCaseStudySaving(false);
+              if (err) setError(err);
+              else {
+                setCaseStudyForm({ title: "", description: "", proofUrl: "" });
+                loadCaseStudies();
+                setCaseStudyModal(false);
+              }
             }
           }}
         />

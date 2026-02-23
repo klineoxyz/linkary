@@ -1,6 +1,7 @@
 /**
  * Conversations and messages. Participants as jsonb [{ type, id }].
  */
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
 export type Participant = { type: "profile" | "org"; id: string };
@@ -39,15 +40,17 @@ function participantsMatch(a: Participant[], b: Participant[]): boolean {
   return na.every((p, i) => p.type === nb[i].type && p.id === nb[i].id);
 }
 
-/** Find existing conversation with same participants (order-insensitive) or create. */
+/** Find existing conversation with same participants (order-insensitive) or create. Optional client for server-side use. */
 export async function getOrCreateConversation(
-  participants: Participant[]
+  participants: Participant[],
+  client?: SupabaseClient
 ): Promise<{ data: Conversation | null; error: string | null }> {
   if (participants.length === 0) return { data: null, error: "participants required" };
+  const db = client ?? supabase;
   const normalized = normalizeParticipants(participants);
   const participantsJson = JSON.stringify(normalized);
 
-  const { data: list, error: listErr } = await supabase.from(CONVERSATIONS).select("*");
+  const { data: list, error: listErr } = await db.from(CONVERSATIONS).select("*");
   if (listErr) return { data: null, error: listErr.message };
 
   const existing = (list ?? []).find((row: { participants: unknown }) => {
@@ -59,7 +62,7 @@ export async function getOrCreateConversation(
     return { data: { ...existing, participants: Array.isArray(p) ? p : [] } as Conversation, error: null };
   }
 
-  const { data: created, error: createErr } = await supabase
+  const { data: created, error: createErr } = await db
     .from(CONVERSATIONS)
     .insert({ participants: participantsJson })
     .select()

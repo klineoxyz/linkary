@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "@/lib/supabase";
 import { listOrgsForUser, type Org } from "@/lib/orgs";
@@ -123,21 +123,21 @@ interface PersonalStats {
   engagementRateChange: number;
 }
 
-// Demo Data
-const personalStats: PersonalStats = {
-  totalVolume: 12650,
-  totalVolumeChange: 12.5,
-  activeDeals: 5,
-  activeDealsChange: 25,
-  completionRate: 96,
-  completionRateChange: 3,
-  avgRating: 4.8,
-  avgRatingChange: 2.1,
-  totalReviews: 37,
-  profileViews: 1840,
-  profileViewsChange: 18,
-  engagementRate: 67,
-  engagementRateChange: -5,
+// Empty stats; real values come from myDeals / me-stats when available
+const emptyStats: PersonalStats = {
+  totalVolume: 0,
+  totalVolumeChange: 0,
+  activeDeals: 0,
+  activeDealsChange: 0,
+  completionRate: 0,
+  completionRateChange: 0,
+  avgRating: 0,
+  avgRatingChange: 0,
+  totalReviews: 0,
+  profileViews: 0,
+  profileViewsChange: 0,
+  engagementRate: 0,
+  engagementRateChange: 0,
 };
 
 const volumeData = [
@@ -185,92 +185,7 @@ const skillsRadarData = [
   { skill: "Growth", personal: 88, industry: 68 },
 ];
 
-const demoBrands: Brand[] = [
-  {
-    id: "1",
-    name: "MatrixPay",
-    logo: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200&q=80",
-    color: "from-primary to-primary/80",
-    category: "Fintech",
-    created: "2025-09-15",
-    totalRevenue: 8450,
-    activeProjects: 3,
-    completedProjects: 12,
-    rating: 4.9,
-    followers: 2340,
-    engagement: 72,
-  },
-  {
-    id: "2",
-    name: "Web3 Creators Hub",
-    logo: "https://images.unsplash.com/photo-1639322537228-f710d846310a?w=200&q=80",
-    color: "from-primary to-primary/80",
-    category: "Media",
-    created: "2025-11-20",
-    totalRevenue: 4200,
-    activeProjects: 2,
-    completedProjects: 8,
-    rating: 4.7,
-    followers: 1560,
-    engagement: 68,
-  },
-  {
-    id: "3",
-    name: "ChainLink Studios",
-    logo: "https://images.unsplash.com/photo-1620321023374-d1a68fbc720d?w=200&q=80",
-    color: "from-primary to-primary/80",
-    category: "Gaming",
-    created: "2025-08-10",
-    totalRevenue: 12750,
-    activeProjects: 5,
-    completedProjects: 18,
-    rating: 4.8,
-    followers: 3890,
-    engagement: 85,
-  },
-  {
-    id: "4",
-    name: "NFT Gallery Pro",
-    logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&q=80",
-    color: "from-primary to-primary/80",
-    category: "NFT Platform",
-    created: "2025-10-05",
-    totalRevenue: 6890,
-    activeProjects: 4,
-    completedProjects: 11,
-    rating: 4.6,
-    followers: 2780,
-    engagement: 74,
-  },
-  {
-    id: "5",
-    name: "DeFi Analytics",
-    logo: "https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=200&q=80",
-    color: "from-primary to-primary/90",
-    category: "Analytics",
-    created: "2025-07-22",
-    totalRevenue: 9320,
-    activeProjects: 3,
-    completedProjects: 15,
-    rating: 4.9,
-    followers: 4120,
-    engagement: 81,
-  },
-  {
-    id: "6",
-    name: "MetaVerse Events",
-    logo: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=200&q=80",
-    color: "from-primary to-primary/80",
-    category: "Events",
-    created: "2025-12-01",
-    totalRevenue: 3560,
-    activeProjects: 2,
-    completedProjects: 6,
-    rating: 4.5,
-    followers: 1240,
-    engagement: 65,
-  },
-];
+// Brands shown are derived from myOrgs in the component (no hardcoded list)
 
 const brandPerformanceData = [
   { month: "Sep", revenue: 800, projects: 2, engagement: 60 },
@@ -367,58 +282,7 @@ const popularityMetrics = [
   { month: "Feb", mentions: 158, shares: 380, saves: 215 },
 ];
 
-// Search Results Demo Data
-const searchResults = {
-  users: [
-    {
-      id: "1",
-      name: "Sarah Chen",
-      role: "DeFi Growth Lead",
-      ethos: 892,
-      xscore: 834,
-      avatar: "https://i.pravatar.cc/150?img=1",
-    },
-    {
-      id: "2",
-      name: "Marcus Rivera",
-      role: "Web3 Marketing Strategist",
-      ethos: 856,
-      xscore: 798,
-      avatar: "https://i.pravatar.cc/150?img=12",
-    },
-    {
-      id: "3",
-      name: "Elena Volkov",
-      role: "NFT Community Manager",
-      ethos: 823,
-      xscore: 765,
-      avatar: "https://i.pravatar.cc/150?img=5",
-    },
-  ],
-  projects: [
-    {
-      id: "1",
-      name: "DeFiVault",
-      category: "DeFi",
-      looking: "Marketing Lead",
-      logo: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=100&q=80",
-    },
-    {
-      id: "2",
-      name: "ChainBridge Protocol",
-      category: "Infrastructure",
-      looking: "Technical Writer",
-      logo: "https://images.unsplash.com/photo-1639322537228-f710d846310a?w=100&q=80",
-    },
-    {
-      id: "3",
-      name: "MetaMarket",
-      category: "NFT Marketplace",
-      looking: "Community Manager",
-      logo: "https://images.unsplash.com/photo-1622630998477-20aa696ecb05?w=100&q=80",
-    },
-  ],
-};
+// Search results come from GET /api/search when user types (see state below)
 
 // Helper Components - Use shared components from SharedComponents.tsx
 // Note: Using SharedGlassCard and SharedStatCard aliases since we imported them with those names
@@ -538,6 +402,38 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [myOrgs, setMyOrgs] = useState<Org[]>([]);
   const [myDeals, setMyDeals] = useState<Deal[]>([]);
+  const [searchResultsUsers, setSearchResultsUsers] = useState<{ id: string; name: string; role?: string; avatar?: string; url?: string }[]>([]);
+  const [searchResultsProjects, setSearchResultsProjects] = useState<{ id: string; name: string; category?: string; logo?: string; url?: string }[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const brandsFromOrgs = useMemo((): Brand[] => {
+    return myOrgs.map((org) => ({
+      id: org.id,
+      name: org.name,
+      logo: org.logo_url ?? "",
+      color: "from-primary to-primary/80",
+      category: org.org_type ?? "Project",
+      created: "",
+      totalRevenue: 0,
+      activeProjects: 0,
+      completedProjects: 0,
+      rating: 0,
+      followers: 0,
+      engagement: 0,
+    }));
+  }, [myOrgs]);
+
+  const personalStats = useMemo((): PersonalStats => {
+    const activeCount = myDeals.filter((d) => d.status !== "completed" && d.status !== "cancelled").length;
+    const completedCount = myDeals.filter((d) => d.status === "completed").length;
+    const total = myDeals.length;
+    const rate = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+    return {
+      ...emptyStats,
+      activeDeals: activeCount,
+      completionRate: rate,
+    };
+  }, [myDeals]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -553,6 +449,30 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setSearchResultsUsers([]);
+      setSearchResultsProjects([]);
+      return;
+    }
+    setSearchLoading(true);
+    const q = searchQuery.trim();
+    fetch(`/api/search?q=${encodeURIComponent(q)}&filter=all`)
+      .then((r) => r.json())
+      .then((data) => {
+        const raw = Array.isArray(data.results) ? data.results : [];
+        const users = raw.filter((r: { type: string }) => r.type === "person").map((r: { id: string; name: string; handleLabel?: string; url?: string; avatar?: string }) => ({ id: r.id, name: r.name, role: r.handleLabel, avatar: r.avatar, url: r.url }));
+        const projects = raw.filter((r: { type: string }) => r.type === "project" || r.type === "agency").map((r: { id: string; name: string; handleLabel?: string; url?: string; avatar?: string }) => ({ id: r.id, name: r.name, category: r.handleLabel, logo: r.avatar, url: r.url }));
+        setSearchResultsUsers(users);
+        setSearchResultsProjects(projects);
+      })
+      .catch(() => {
+        setSearchResultsUsers([]);
+        setSearchResultsProjects([]);
+      })
+      .finally(() => setSearchLoading(false));
+  }, [searchQuery]);
 
   const handleOrgCreated = (orgId: string, _slug?: string) => {
     if (userId) listOrgsForUser(userId).then(setMyOrgs);
@@ -606,75 +526,72 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 exit={{ opacity: 0, y: -10 }}
                 className="mt-6 space-y-6"
               >
-                {/* Users Results */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
-                    <Users className="w-4 h-4 stroke-[1.75]" />
-                    Users
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {searchResults.users.map((user) => (
-                      <div
-                        key={user.id}
-                        onClick={() => {
-                          if (setRoute) {
-                            setRoute({ name: "userProfile", data: user });
-                          }
-                        }}
-                        className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all cursor-pointer hover:scale-105"
-                      >
-                        <div className="flex items-start gap-3">
-                          <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full" />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-gray-900 truncate">{user.name}</h4>
-                            <p className="text-xs text-gray-600 truncate mb-2">{user.role}</p>
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="px-2 py-0.5 rounded-full bg-accent text-foreground">
-                                ETHOS {user.ethos}
-                              </span>
-                              <span className="px-2 py-0.5 rounded-full bg-accent text-foreground">
-                                X {user.xscore}
-                              </span>
+                {searchLoading ? (
+                  <p className="text-sm text-gray-500 py-4">Searching...</p>
+                ) : (searchResultsUsers.length === 0 && searchResultsProjects.length === 0) ? (
+                  <p className="text-sm text-gray-500 py-4">No people or companies found. Try a different search.</p>
+                ) : (
+                  <>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
+                        <Users className="w-4 h-4 stroke-[1.75]" />
+                        People
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {searchResultsUsers.map((user) => (
+                          <div
+                            key={user.id}
+                            onClick={() => {
+                              if (user.url && typeof window !== "undefined") {
+                                window.location.href = user.url;
+                              } else if (setRoute) {
+                                setRoute({ name: "userProfile", data: user });
+                              }
+                            }}
+                            className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all cursor-pointer hover:scale-105"
+                          >
+                            <div className="flex items-start gap-3">
+                              {user.avatar ? <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full" /> : <div className="w-12 h-12 rounded-full bg-muted" />}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 truncate">{user.name}</h4>
+                                {user.role && <p className="text-xs text-gray-600 truncate">{user.role}</p>}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Projects Results */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
-                    <Briefcase className="w-4 h-4 stroke-[1.75]" />
-                    Projects
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {searchResults.projects.map((project) => (
-                      <div
-                        key={project.id}
-                        onClick={() => {
-                          if (setRoute) {
-                            setRoute({ name: "brandProfile", data: project });
-                          }
-                        }}
-                        className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all cursor-pointer hover:scale-105"
-                      >
-                        <div className="flex items-start gap-3">
-                          <img src={project.logo} alt={project.name} className="w-12 h-12 rounded-xl" />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-gray-900 truncate">{project.name}</h4>
-                            <p className="text-xs text-gray-600 mb-2">{project.category}</p>
-                            <div className="flex items-center gap-1 text-xs text-primary">
-                              <Target className="w-3 h-3 stroke-[1.75]" />
-                              Looking: {project.looking}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
+                        <Briefcase className="w-4 h-4 stroke-[1.75]" />
+                        Companies
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {searchResultsProjects.map((project) => (
+                          <div
+                            key={project.id}
+                            onClick={() => {
+                              if (project.url && typeof window !== "undefined") {
+                                window.location.href = project.url;
+                              } else if (setRoute) {
+                                setRoute({ name: "brandProfile", data: project });
+                              }
+                            }}
+                            className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all cursor-pointer hover:scale-105"
+                          >
+                            <div className="flex items-start gap-3">
+                              {project.logo ? <img src={project.logo} alt={project.name} className="w-12 h-12 rounded-xl" /> : <div className="w-12 h-12 rounded-xl bg-muted" />}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 truncate">{project.name}</h4>
+                                {project.category && <p className="text-xs text-gray-600 truncate">{project.category}</p>}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                  </>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -879,12 +796,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   />
                 }
                 backTitle="Potential Value Insights"
-                backInsights={[
-                  "Highest single deal: €12,400",
-                  "Average deal size: €2,350",
-                  "Top 3 clients account for 52% of value",
-                  "Amount projects have paid or are ready to pay for gigs (sprints)"
-                ]}
+                backInsights={["Complete a deal to see stats"]}
                 isPremium={false}
                 requiresPlan="starter"
               />
@@ -898,12 +810,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   />
                 }
                 backTitle="Deal Breakdown"
-                backInsights={[
-                  "3 deals closing this week",
-                  "Average deal duration: 14 days",
-                  "94% conversion rate on proposals",
-                  "2 deals pending client approval"
-                ]}
+                backInsights={["Complete a deal to see stats"]}
                 isPremium={false}
                 requiresPlan="starter"
               />
@@ -918,12 +825,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   />
                 }
                 backTitle="Performance Metrics"
-                backInsights={[
-                  "All deals completed on-time last 90 days",
-                  "100% positive feedback from clients",
-                  "Above platform average by 8%",
-                  "Zero disputes or late deliveries"
-                ]}
+                backInsights={["Complete a deal to see stats"]}
                 isPremium={false}
                 requiresPlan="pro"
               />
@@ -937,19 +839,14 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   />
                 }
                 backTitle="Rating Details"
-                backInsights={[
-                  "28 five-star reviews in last 30 days",
-                  "Top praised: Communication (96%)",
-                  "Quality of work: 4.9/5.0",
-                  "Would work again: 100%"
-                ]}
+                backInsights={["Complete a deal to see stats"]}
                 isPremium={false}
                 requiresPlan="pro"
               />
             </div>
             
             {/* My Brands or Projects Section */}
-            {demoBrands.length > 0 && (
+            {brandsFromOrgs.length > 0 && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -966,7 +863,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 </div>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-                  {demoBrands.map((brand) => (
+                  {brandsFromOrgs.map((brand) => (
                     <motion.div
                       key={brand.id}
                       whileHover={{ scale: 1.02 }}
@@ -1047,12 +944,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   />
                 }
                 backTitle="View Analytics"
-                backInsights={[
-                  "Peak viewing times: 2-4pm EST",
-                  "62% from direct profile links",
-                  "Top referrer: LinkedIn (34%)",
-                  "Mobile views: 58%"
-                ]}
+                backInsights={["Connect X to see analytics"]}
                 isPremium={false}
                 requiresPlan="starter"
               />
@@ -1067,12 +959,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   />
                 }
                 backTitle="Engagement Breakdown"
-                backInsights={[
-                  "Case study views: +142%",
-                  "Portfolio clicks: 847 last 30 days",
-                  "Social shares: 234",
-                  "Above industry average by 12%"
-                ]}
+                backInsights={["Connect X to see analytics"]}
                 isPremium={false}
                 requiresPlan="pro"
               />
@@ -1086,12 +973,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   />
                 }
                 backTitle="Review Insights"
-                backInsights={[
-                  "Average review length: 142 words",
-                  "85% mention quality & speed",
-                  "Most recent: 2 days ago (5.0★)",
-                  "Response rate: 100% within 24h"
-                ]}
+                backInsights={["Complete a deal to see stats"]}
                 isPremium={false}
                 requiresPlan="starter"
               />
@@ -1571,7 +1453,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-6">Your Brands</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-                    {demoBrands.map((brand) => (
+                    {brandsFromOrgs.map((brand) => (
                       <BrandCard 
                         key={brand.id} 
                         brand={brand} 

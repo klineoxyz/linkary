@@ -23,6 +23,30 @@ interface GlobalSearchProps {
   onResultClick?: (result: SearchResult) => void;
 }
 
+const STORAGE_KEY = "linkary_search_recents";
+const MAX_RECENTS = 8;
+
+function loadRecents(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.slice(0, MAX_RECENTS).filter((s): s is string => typeof s === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecents(recents: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(recents.slice(0, MAX_RECENTS)));
+  } catch {
+    /* ignore */
+  }
+}
+
 export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -30,11 +54,11 @@ export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [recentSearches, setRecentSearches] = useState<string[]>([
-    "MatrixPay",
-    "Web3 developers",
-    "DeFi projects",
-  ]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  useEffect(() => {
+    setRecentSearches(loadRecents());
+  }, []);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,11 +124,11 @@ export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
   };
 
   const handleResultClick = (result: SearchResult) => {
-    // Add to recent searches
-    if (!recentSearches.includes(result.name)) {
-      setRecentSearches([result.name, ...recentSearches.slice(0, 4)]);
-    }
-    
+    const next = result.name && !recentSearches.includes(result.name)
+      ? [result.name, ...recentSearches.filter((s) => s !== result.name)].slice(0, MAX_RECENTS)
+      : recentSearches;
+    setRecentSearches(next);
+    saveRecents(next);
     setQuery("");
     setIsOpen(false);
     onResultClick?.(result);

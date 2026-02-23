@@ -150,7 +150,7 @@ import { ensureProfileForSession, getMyProfile, updateMyProfile } from "@/lib/pr
 import { getXConnection } from "@/lib/xAuth";
 import { getProfileProfessions } from "@/lib/profileProfessions";
 import { listJobs, applyToJobAsProfile, applyToJobAsOrg, type JobWithOrg } from "@/lib/jobs";
-import { getOrCreateConversation, listConversationsForUser, listMessages, sendMessageAsProfile, sendMessageAsOrg } from "@/lib/messages";
+import { listConversationsForUser, listMessages, sendMessageAsProfile, sendMessageAsOrg } from "@/lib/messages";
 import { listMyOrgs } from "@/lib/orgs";
 import { listCaseStudiesForProfile, createCaseStudyForProfile } from "@/lib/caseStudies";
 import LandingPage from "./components/LandingPage";
@@ -517,73 +517,10 @@ const demo = {
       canApplyAsSpeaker: true,
     },
   ],
-  leaderboards: {
-    topCreators: [
-      { name: "Muaz Xinthi", socialPower: 823, ethos: 842, xscore: 771, reviews: 4.8 },
-      { name: "Nina Designer", socialPower: 798, ethos: 743, xscore: 891, reviews: 4.9 },
-      { name: "Alex Builder", socialPower: 776, ethos: 912, xscore: 654, reviews: 4.7 },
-    ],
-    topProjects: [
-      { name: "MatrixPay", socialPower: 794, ethos: 721, xscore: 806, reviews: 4.7 },
-      { name: "Gemini Labs", socialPower: 812, ethos: 840, xscore: 792, reviews: 4.8 },
-      { name: "Web3 Gaming", socialPower: 743, ethos: 687, xscore: 823, reviews: 4.6 },
-    ],
-  },
-  explore: {
-    individuals: [
-      { handle: "Muazxinthi", name: "Muaz Xinthi", ethos: 842, xscore: 771, reputationIndex: 86, socialPower: 823, roleTags: ["Founder", "Content Creator", "Marketing Strategist", "Ambassador"], bio: "Creator economy operator. Web3 GTM, research, and partnerships. Building Linkary: reputation-driven gigs + reviews.", verified: true, reviews: { avg: 4.8, count: 37 } },
-      { handle: "NinaDesigner", name: "Nina Designer", ethos: 743, xscore: 891, reputationIndex: 82, socialPower: 798, roleTags: ["UI/UX Designer", "Brand Designer"], bio: "Design systems for Web3", verified: true, reviews: { avg: 4.9, count: 42 } },
-      { handle: "AlexBuilder", name: "Alex Builder", ethos: 912, xscore: 654, reputationIndex: 85, socialPower: 776, roleTags: ["Smart Contract Dev", "Founder"], bio: "Building secure DeFi protocols", verified: true, reviews: { avg: 4.7, count: 31 } },
-    ],
-    projects: [
-      { slug: "matrixpay", name: "MatrixPay", ethos: 721, xscore: 806, reputationIndex: 88, socialPower: 794, tagline: "Payments + creator bounties for Web3 teams", verified: true, reviews: { avg: 4.7, count: 29 } },
-      { slug: "geminilabs", name: "Gemini Labs", ethos: 840, xscore: 792, reputationIndex: 89, socialPower: 812, tagline: "Design-forward infra for creators", verified: true, reviews: { avg: 4.8, count: 24 } },
-      { slug: "web3gaming", name: "Web3 Gaming", ethos: 687, xscore: 823, reputationIndex: 78, socialPower: 743, tagline: "Next-gen gaming platform", verified: true, reviews: { avg: 4.6, count: 18 } },
-    ],
-  },
-  blog: {
-    posts: [
-      {
-        id: "post-1",
-        title: "Building Reputation Systems in Web3: Lessons from 100+ Projects",
-        excerpt: "After working with hundreds of Web3 projects, here are the key insights on building sustainable reputation infrastructure that actually drives creator value.",
-        author: "Muaz Xinthi",
-        authorHandle: "Muazxinthi",
-        headerImage: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=1200&q=80",
-        publishedAt: "2026-02-10",
-        readTime: "8 min read",
-        tags: ["Reputation", "Web3", "Infrastructure"],
-        views: 2847,
-        likes: 342,
-      },
-      {
-        id: "post-2",
-        title: "The Creator Economy Playbook: From Zero to Paid Opportunities",
-        excerpt: "A comprehensive guide on leveraging reputation scores, case studies, and community to unlock high-value opportunities in the Web3 creator economy.",
-        author: "Nina Designer",
-        authorHandle: "NinaDesigner",
-        headerImage: "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1200&q=80",
-        publishedAt: "2026-02-08",
-        readTime: "12 min read",
-        tags: ["Creator Economy", "Strategy", "Growth"],
-        views: 1924,
-        likes: 287,
-      },
-      {
-        id: "post-3",
-        title: "Smart Contract Security: A Developer's Perspective",
-        excerpt: "Dive deep into the security practices and audit strategies that have protected billions in DeFi protocols. Real-world case studies included.",
-        author: "Alex Builder",
-        authorHandle: "AlexBuilder",
-        headerImage: "https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?w=1200&q=80",
-        publishedAt: "2026-02-05",
-        readTime: "15 min read",
-        tags: ["Security", "DeFi", "Development"],
-        views: 3142,
-        likes: 421,
-      },
-    ],
-  },
+  leaderboards: { topCreators: [], topProjects: [] },
+  explore: { individuals: [], projects: [] },
+  marketplace: { interestedProjects: [] },
+  blog: { posts: [] },
 };
 
 function cn(...classes: (string | undefined | false | null)[]): string {
@@ -1252,7 +1189,9 @@ function OverviewPage({ setRoute, headerMedia }) {
           </Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {demo.explore.individuals.map((creator, idx) => {
+          {demo.explore.individuals.length === 0 ? (
+            <p className="col-span-full text-sm text-zinc-500 py-6 text-center">Search for creators and projects.</p>
+          ) : demo.explore.individuals.map((creator, idx) => {
             const bgImages = ['1559827260-dc66d52bef19', '1637825891028-564f672aa42c', '1678581231067-644dddeca6dc'];
             const gradients = ['from-primary/90 to-primary/70', 'from-primary/80 to-foreground/60', 'from-chart-1/90 to-chart-2/80'];
             return (
@@ -1317,7 +1256,9 @@ function OverviewPage({ setRoute, headerMedia }) {
           </Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {demo.explore.projects.map((project, idx) => {
+          {demo.explore.projects.length === 0 ? (
+            <p className="col-span-full text-sm text-zinc-500 py-6 text-center">Search for creators and projects.</p>
+          ) : demo.explore.projects.map((project, idx) => {
             const bgImages = ['1719432268911-f3ef8b7bd5ec', '1637825891028-564f672aa42c', '1678581231067-644dddeca6dc'];
             const gradients = ['from-primary/90 to-primary/70', 'from-primary/80 to-foreground/60', 'from-chart-1/90 to-chart-2/80'];
             return (
@@ -1505,6 +1446,12 @@ function ExplorePage({ setRoute }) {
 
       {tab === "blog" && (
         <div className="space-y-6">
+          {demo.blog.posts.length === 0 ? (
+            <Card className="p-8 text-center">
+              <p className="text-zinc-500">No posts yet.</p>
+            </Card>
+          ) : (
+            <>
           {/* Featured Post */}
           <div className="relative overflow-hidden rounded-xl bg-cover bg-center h-96 cursor-pointer" style={{ backgroundImage: `url(${demo.blog.posts[0].headerImage})` }}>
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
@@ -1571,6 +1518,8 @@ function ExplorePage({ setRoute }) {
               </Button>
             </div>
           </div>
+            </>
+          )}
         </div>
       )}
 
@@ -1704,7 +1653,7 @@ function MarketplacePage({ setRoute }) {
     if (!applyJob || !userId || !profileId) return;
     setApplyLoading(true);
     const isOrg = !!applyAsOrgId;
-    const { data: appData, error: appErr } = isOrg
+    const { error: appErr } = isOrg
       ? await applyToJobAsOrg(applyJob.id, applyAsOrgId!, applyMessage.trim() || undefined)
       : await applyToJobAsProfile(applyJob.id, profileId, applyMessage.trim() || undefined);
     if (appErr) { setApplyLoading(false); setApplyError(appErr); return; }
@@ -1712,8 +1661,21 @@ function MarketplacePage({ setRoute }) {
     const participants = isOrg
       ? [{ type: "org" as const, id: applyAsOrgId! }, { type: "org" as const, id: applyJob.org_id }]
       : [{ type: "profile" as const, id: profileId }, { type: "org" as const, id: applyJob.org_id }];
-    const { data: conv, error: convErr } = await getOrCreateConversation(participants);
-    if (convErr || !conv) { setApplyLoading(false); setApplyJob(null); return; }
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token ?? "";
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/conversations/get-or-create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ participants }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!data.ok || !data.conversation) {
+      setApplyLoading(false);
+      setApplyError(data.message ?? (res.status === 403 ? "Connect first" : "Failed to start conversation"));
+      return;
+    }
+    const conv = data.conversation;
     if (applyMessage.trim() && conv) {
       if (isOrg) await sendMessageAsOrg(conv.id, applyAsOrgId!, applyMessage.trim());
       else await sendMessageAsProfile(conv.id, profileId, applyMessage.trim());
@@ -1920,6 +1882,7 @@ function MarketplacePage({ setRoute }) {
 
 function LeaderboardsPage({ setRoute }) {
   const { topCreators, topProjects } = demo.leaderboards;
+  const hasAny = topCreators.length > 0 || topProjects.length > 0;
 
   return (
     <div className="space-y-6">
@@ -1927,8 +1890,12 @@ function LeaderboardsPage({ setRoute }) {
         title="Leaderboards"
         subtitle="Top performers ranked by Social Power and reputation"
       />
-
-      <div className="grid gap-6 lg:grid-cols-2">
+      {!hasAny && (
+        <Card className="p-8 text-center">
+          <p className="text-zinc-500">Coming soon.</p>
+        </Card>
+      )}
+      {hasAny && <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
@@ -2041,7 +2008,7 @@ function LeaderboardsPage({ setRoute }) {
             })}
           </div>
         </Card>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -2225,22 +2192,23 @@ function ProfilePage({ setRoute, me }) {
   const publicSlug = (me?.username || me?.twitter_username || xHandle || "").replace(/^@/, "").toLowerCase().trim();
   const hasPublicSlug = publicSlug.length > 0;
 
-  const roleTags = profileProfessions.length > 0 ? profileProfessions.map((p) => p.name) : demo.me.roleTags;
+  const roleTags = profileProfessions.length > 0 ? profileProfessions.map((p) => p.name) : [];
+  const emptyReviews = { avg: 0, count: 0 };
   const u = me
     ? {
         ...demo.me,
-        handle: me.username ?? me.twitter_username?.replace(/^@/, "") ?? xHandle ?? demo.me.handle,
-        name: me.display_name ?? demo.me.name,
-        bio: me.bio ?? demo.me.bio,
-        location: me.location ?? demo.me.location,
+        handle: me.username ?? me.twitter_username?.replace(/^@/, "") ?? xHandle ?? "",
+        name: me.display_name ?? "",
+        bio: me.bio ?? "",
+        location: me.location ?? "",
         roleTags,
         ethos: meStats?.ethos ?? null,
         xscore: meStats?.xscore ?? me.xscore ?? null,
         reputationIndex: meStats?.reputationIndex ?? 0,
         socialPower: meStats?.socialPower ?? 0,
-        reviews: meStats?.reviews ? { ...demo.me.reviews, avg: meStats.reviews.avg, count: meStats.reviews.count } : demo.me.reviews,
+        reviews: meStats?.reviews ? { avg: meStats.reviews.avg, count: meStats.reviews.count } : emptyReviews,
       }
-    : demo.me;
+    : { ...demo.me, handle: "", name: "", bio: "", location: "", roleTags: [], ethos: null, xscore: null, reputationIndex: 0, socialPower: 0, reviews: emptyReviews };
 
   const handleCreateCaseStudy = async () => {
     if (!me?.id) return;

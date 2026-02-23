@@ -102,120 +102,29 @@ function SectionTitle({ title, subtitle, right }: any) {
   );
 }
 
-// Demo data for Brand/Project
-const demoBrandData = {
-  slug: "matrixpay",
-  name: "MatrixPay",
-  tagline: "Payments + creator bounties for Web3 teams",
-  bio: "Cross-chain payment protocol + creator bounty platform for Web3 teams. We're building the infrastructure that powers payments and creator opportunities across Ethereum, Polygon, and BSC.",
-  location: "Global · Remote-First",
-  verified: true,
-  ethos: 721,
-  xscore: 806,
-  reputationIndex: 88,
-  socialPower: 794,
-  volume: { total: 850000 },
-  reviews: { avg: 4.7, count: 29 },
-  industry: ["Payments", "Creator Economy", "Web3"],
-  team: [
-    { name: "Sarah Chen", role: "CTO & Co-Founder", verified: true },
-    { name: "Alex Kim", role: "Lead Designer", verified: true },
-    { name: "Muaz Xinthi", role: "Head of Growth", verified: true },
-    { name: "David Martinez", role: "Smart Contract Engineer", verified: true },
-    { name: "Emma Wilson", role: "Head of Community", verified: true },
-  ],
-  ambassadors: [
-    { name: "Nina Designer", role: "Brand Ambassador", reach: "450K", verified: true },
-    { name: "Alex Builder", role: "Developer Ambassador", reach: "380K", verified: true },
-    { name: "Marcus Web3", role: "Content Ambassador", reach: "520K", verified: true },
-  ],
-  partnerships: [
-    { name: "Chainlink", type: "Oracle Partner", verified: true },
-    { name: "Polygon", type: "Infrastructure Partner", verified: true },
-    { name: "Uniswap", type: "DEX Integration", verified: true },
-  ],
-  links: [
-    { label: "Documentation", url: "https://docs.matrixpay.xyz", clicks: 12420 },
-    { label: "Start Building", url: "https://app.matrixpay.xyz", clicks: 8234 },
-    { label: "Careers", url: "https://matrixpay.xyz/careers", clicks: 3891 },
-    { label: "Media Kit", url: "https://matrixpay.xyz/media", clicks: 2156 },
-  ],
-  metrics: [
-    { label: "Creators Onboarded", value: "450+", change: "+23%" },
-    { label: "Transactions", value: "12K+", change: "+34%" },
-    { label: "Potential Value Generated", value: "$850K", change: "+45%" },
-    { label: "Uptime", value: "99.9%", change: "0%" },
-  ],
-  featuredWork: [
-    { title: "Creator Bounty Platform", views: 8420 },
-    { title: "Cross-Chain Payment System", views: 6234 },
-    { title: "Enterprise Integration", views: 4156 },
-    { title: "Token Launch Campaign", views: 3892 },
-  ],
-  caseStudies: [
-    {
-      id: "cs-1",
-      projectName: "Creator Bounty Platform Launch",
-      role: "Product Development",
-      duration: "6 months",
-      results: { metric: "Creators Onboarded", value: "450+" },
-      verified: true,
-      description: "Successfully launched creator bounty marketplace with strong adoption.",
-      deliverables: ["Platform MVP", "Payment system", "Creator dashboard", "Admin panel"],
-    },
-    {
-      id: "cs-2",
-      projectName: "Cross-Chain Infrastructure",
-      role: "Infrastructure Development",
-      duration: "8 months",
-      results: { metric: "Transactions Processed", value: "12,000+" },
-      verified: true,
-      description: "Built robust payment infrastructure supporting multiple blockchains.",
-      deliverables: ["Smart contracts", "Multi-chain support", "Security audits", "API"],
-    },
-    {
-      id: "cs-3",
-      projectName: "Enterprise Integration",
-      role: "Business Development",
-      duration: "4 months",
-      results: { metric: "Enterprise Customers", value: "18" },
-      verified: true,
-      description: "Launched B2B program for Web3 companies.",
-      deliverables: ["Enterprise features", "Custom integrations", "SLA support"],
-    },
-  ],
-  reviewItems: [
-    {
-      by: "Muaz Xinthi",
-      byType: "individual",
-      rating: 5,
-      title: "Best payment platform for Web3 creators",
-      text: "Clear vision, fair compensation, and great leadership. The team is professional and responsive.",
-      date: "Feb 3, 2026",
-      verifiedDeal: true,
-      tags: ["Paid on time", "Clear communication", "Professional"],
-    },
-    {
-      by: "Nina Designer",
-      byType: "individual",
-      rating: 5,
-      title: "Amazing team and platform",
-      text: "MatrixPay has an incredible team culture. They respect creators and pay fairly.",
-      date: "Jan 28, 2026",
-      verifiedDeal: true,
-      tags: ["Great Team", "Fair Pay", "Professional"],
-    },
-    {
-      by: "Web3 Gaming Studio",
-      byType: "company",
-      rating: 5,
-      title: "Perfect solution for our needs",
-      text: "MatrixPay solved our payment challenges. Integration was smooth and support is excellent.",
-      date: "Jan 15, 2026",
-      verifiedDeal: true,
-      tags: ["Easy Integration", "Great Support", "Reliable"],
-    },
-  ],
+// Empty fallback when no org data (no mock data)
+const emptyBrandData = {
+  slug: "",
+  name: "—",
+  tagline: "",
+  bio: "",
+  location: "",
+  verified: false,
+  ethos: 0,
+  xscore: 0,
+  reputationIndex: 0,
+  socialPower: 0,
+  volume: { total: 0 },
+  reviews: { avg: 0, count: 0 },
+  industry: [] as string[],
+  team: [] as any[],
+  ambassadors: [] as any[],
+  partnerships: [] as any[],
+  links: [] as any[],
+  metrics: [] as any[],
+  featuredWork: [] as any[],
+  caseStudies: [] as any[],
+  reviewItems: [] as any[],
 };
 
 export default function BrandProfilePage({
@@ -255,7 +164,7 @@ export default function BrandProfilePage({
         industry: [] as string[],
         team: [] as any[],
       }
-    : (brandData || demoBrandData);
+    : (brandData || emptyBrandData);
 
   return (
     <div className="space-y-6">

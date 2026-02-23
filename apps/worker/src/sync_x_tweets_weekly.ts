@@ -21,7 +21,29 @@ const BATCH_SIZE = 100;
 const MAX_TWEETS = 50;
 const DELAY_MS = 600;
 
+function envPresent(name: string): boolean {
+  const v = process.env[name];
+  return typeof v === "string" && v.trim().length > 0;
+}
+
 async function main() {
+  console.log("[WEEKLY] starting weekly tweet sync");
+  const supabaseUrlPresent =
+    envPresent("SUPABASE_URL") || envPresent("NEXT_PUBLIC_SUPABASE_URL");
+  const serviceRolePresent =
+    envPresent("SUPABASE_SERVICE_ROLE_KEY") ||
+    envPresent("SUPABASE_SERVICE_KEY") ||
+    envPresent("SERVICE_ROLE_KEY");
+  const twitterApiPresent = envPresent("TWITTERAPI_API_KEY");
+  console.log(
+    "[WEEKLY] env: SUPABASE_URL present=" +
+      supabaseUrlPresent +
+      ", SERVICE_ROLE present=" +
+      serviceRolePresent +
+      ", TWITTERAPI present=" +
+      twitterApiPresent
+  );
+
   const supabase = getSupabaseAdmin();
   const past6d = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString();
 

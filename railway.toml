@@ -1,0 +1,11 @@
+# Railway config when building from monorepo root (e.g. worker service).
+# Worker: set service Root Directory to repo root.
+# Uses npm to install pnpm so the build finds pnpm (corepack is not reliable in this env).
+
+[build]
+builder = "nixpacks"
+buildCommand = "npm install -g pnpm@9.15.0 && pnpm install && pnpm --filter worker run build"
+
+[deploy]
+# Worker is run by Railway Cron; no long-lived start command required.
+# startCommand = "node apps/worker/dist/index.js"

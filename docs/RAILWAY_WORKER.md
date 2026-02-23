@@ -55,9 +55,10 @@ If the `x_tweets` table is missing, the weekly script exits with a message to ru
 ## Railway setup
 
 1. Create a **new service** in your Railway project (e.g. “worker”).
-2. Connect the same repo; set **root directory** to the monorepo root (or the directory that contains `apps/worker` and `pnpm-workspace.yaml`).
-3. Set **env vars** on the service: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TWITTERAPI_API_KEY`.
-4. The worker does not run a long-lived process. Use **Railway Cron** (or an external scheduler) to run the scripts on a schedule.
+2. Connect the same repo; set **root directory** to the monorepo root (the directory that contains `apps/worker` and `pnpm-workspace.yaml`).
+3. Use the **root** `railway.toml` build command, or if setting a custom build command use: `npm install -g pnpm@9.15.0 && pnpm install && pnpm --filter worker run build`. Do not use `corepack prepare pnpm@...` — pnpm is not on PATH after corepack in Railway and the build fails with "pnpm: not found".
+4. Set **env vars** on the service: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TWITTERAPI_API_KEY`.
+5. The worker does not run a long-lived process. Use **Railway Cron** (or an external scheduler) to run the scripts on a schedule.
 
 ### Cron examples
 

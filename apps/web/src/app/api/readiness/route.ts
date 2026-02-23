@@ -21,12 +21,19 @@ type AnalyticsQueueDetail = {
   backlog_age_minutes?: number;
 };
 type QueueDrainerDetail = { ok: boolean; detail?: string; backlog_age_minutes?: number };
+type XTweetsDetail = {
+  ok: boolean;
+  xTweetsTotal?: number;
+  xTweetsLatestCreatedAt?: string | null;
+  warning?: string;
+};
 
 async function runChecks(): Promise<{
   serviceSupabase: CheckResult;
   rateLimitRpc: CheckResult;
   analyticsQueue: AnalyticsQueueDetail;
   queueDrainer: QueueDrainerDetail;
+  xTweets: XTweetsDetail;
   cronSecretConfigured: CheckResult;
   twitterApiConfigured: CheckResult;
   ethosConfigured: CheckResult;
@@ -35,6 +42,7 @@ async function runChecks(): Promise<{
   let rateLimitRpc: CheckResult = { ok: false };
   let analyticsQueue: AnalyticsQueueDetail = { ok: false };
   let queueDrainer: QueueDrainerDetail = { ok: true };
+  let xTweets: XTweetsDetail = { ok: false };
 
   if (supabaseUrl && supabaseServiceKey) {
     try {
@@ -116,6 +124,38 @@ async function runChecks(): Promise<{
         } else {
           queueDrainer = { ok: true, detail: q === 0 ? "no backlog" : "recent done job; drainer likely active" };
         }
+
+        try {
+          const [
+            { count: xTweetsTotal },
+            { data: xTweetsLatestRow },
+          ] = await Promise.all([
+            service.from("x_tweets").select("id", { count: "exact", head: true }),
+            service
+              .from("x_tweets")
+              .select("created_at")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+          ]);
+          const total = xTweetsTotal ?? 0;
+          const latest = (xTweetsLatestRow as { created_at?: string } | null)?.created_at ?? null;
+          xTweets = {
+            ok: true,
+            xTweetsTotal: total,
+            xTweetsLatestCreatedAt: latest,
+          };
+          if (
+            total === 0 &&
+            lastDoneAt != null &&
+            new Date(lastDoneAt).getTime() < Date.now() - 30 * 60 * 1000
+          ) {
+            xTweets.warning =
+              "Worker is not ingesting tweets. Check weekly start command and job processor.";
+          }
+        } catch (e) {
+          xTweets = { ok: false, warning: e instanceof Error ? e.message : "query error" };
+        }
       } catch (e) {
         analyticsQueue = { ok: false, detail: e instanceof Error ? e.message : "query error" };
       }
@@ -145,6 +185,7 @@ async function runChecks(): Promise<{
     rateLimitRpc,
     analyticsQueue,
     queueDrainer,
+    xTweets,
     cronSecretConfigured,
     twitterApiConfigured,
     ethosConfigured,
@@ -185,6 +226,14 @@ export async function GET() {
         ...(checks.queueDrainer.backlog_age_minutes != null && {
           backlog_age_minutes: checks.queueDrainer.backlog_age_minutes,
         }),
+      },
+      xTweets: {
+        ok: checks.xTweets.ok,
+        ...(checks.xTweets.xTweetsTotal != null && { xTweetsTotal: checks.xTweets.xTweetsTotal }),
+        ...(checks.xTweets.xTweetsLatestCreatedAt != null && {
+          xTweetsLatestCreatedAt: checks.xTweets.xTweetsLatestCreatedAt,
+        }),
+        ...(checks.xTweets.warning && { warning: checks.xTweets.warning }),
       },
       cronSecretConfigured: { ok: checks.cronSecretConfigured.ok, detail: checks.cronSecretConfigured.detail },
       twitterApiConfigured: { ok: checks.twitterApiConfigured.ok },

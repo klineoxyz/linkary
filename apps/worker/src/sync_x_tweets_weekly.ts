@@ -1,22 +1,25 @@
 /**
- * Weekly cron: fetch up to 50 recent tweets per eligible profile, insert into x_tweets,
- * update x_last_tweets_sync_at.
- * Eligible: is_indexed, twitter_connected_at not null, twitter_username not null,
- * and (x_last_tweets_sync_at is null or older than 6 days).
+ * Weekly cron: fetch tweets per eligible profile, ingest into public.x_tweets, update x_last_tweets_sync_at.
+ * One-shot script: exits 0 when done. No server.
+ * Eligible: is_indexed, twitter_username set, twitter_connected_at set, (x_last_tweets_sync_at null or >6 days ago).
  */
+import { config } from "dotenv";
+import { fileURLToPath } from "url";
+import { resolve, dirname } from "path";
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(__dirname, "../..");
+config({ path: resolve(repoRoot, ".env") });
+config({ path: resolve(repoRoot, ".env.local") });
+config({ path: resolve(__dirname, ".env") });
+
 import { getSupabaseAdmin } from "./lib/supabase.js";
-import { getRecentTweets } from "./lib/twitterapi.js";
-import { sleep, normalizeHandle } from "./lib/utils.js";
+import { ingestXTweets } from "./lib/ingestXTweets.js";
+import { refreshXRollupsForProfile } from "./lib/refreshXRollups.js";
+import { sleep } from "./lib/utils.js";
 
 const BATCH_SIZE = 100;
 const MAX_TWEETS = 50;
 const DELAY_MS = 600;
-
-function parseTweetCreatedAt(createdAt: string | undefined): string | null {
-  if (!createdAt || typeof createdAt !== "string") return null;
-  const d = new Date(createdAt);
-  return isNaN(d.getTime()) ? null : d.toISOString();
-}
 
 async function main() {
   const supabase = getSupabaseAdmin();
@@ -40,40 +43,22 @@ async function main() {
   const list = (profiles ?? []).filter(
     (p: { twitter_username: string | null }) => p.twitter_username && String(p.twitter_username).trim()
   );
-  let ok = 0;
+
+  let profilesProcessed = 0;
+  let tweetsTotalUpserted = 0;
   let err = 0;
-  let totalInserted = 0;
 
   for (const profile of list) {
-    const handle = normalizeHandle(String(profile.twitter_username));
+    const handle = String(profile.twitter_username).trim();
     if (!handle) continue;
     try {
-      const tweets = await getRecentTweets(handle, MAX_TWEETS);
-      await sleep(DELAY_MS);
-
-      let inserted = 0;
-      for (const t of tweets) {
-        const tweetId = String(t.id ?? "").trim();
-        if (!tweetId) continue;
-        const tweetedAt = parseTweetCreatedAt(t.createdAt);
-        if (!tweetedAt) continue;
-        const { error: upsertErr } = await supabase.from("x_tweets").upsert(
-          {
-            profile_id: profile.id,
-            tweet_id: tweetId,
-            tweeted_at: tweetedAt,
-            text: (t.text ?? "").slice(0, 500) || null,
-            like_count: Math.max(0, Number(t.likeCount) || 0),
-            reply_count: Math.max(0, Number(t.replyCount) || 0),
-            repost_count: Math.max(0, Number(t.retweetCount) || 0),
-            quote_count: Math.max(0, Number(t.quoteCount) || 0),
-            raw: t as unknown as Record<string, unknown>,
-          },
-          { onConflict: "profile_id,tweet_id", ignoreDuplicates: true }
-        );
-        if (!upsertErr) inserted += 1;
-      }
-      totalInserted += inserted;
+      const result = await ingestXTweets(supabase, {
+        profile_id: profile.id,
+        twitter_username: handle,
+        maxTweets: MAX_TWEETS,
+      });
+      profilesProcessed += 1;
+      tweetsTotalUpserted += result.upserted;
 
       const { error: updateErr } = await supabase
         .from("profiles")
@@ -95,9 +80,13 @@ async function main() {
           })
           .eq("id", profile.id);
         err += 1;
-        continue;
+      } else if (result.upserted > 0) {
+        try {
+          await refreshXRollupsForProfile(supabase, profile.id);
+        } catch (e) {
+          console.warn("[WEEKLY] rollups refresh failed for profile " + profile.id + ":", e);
+        }
       }
-      ok += 1;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("x_tweets") || msg.includes("relation") || msg.includes("does not exist")) {
@@ -116,9 +105,11 @@ async function main() {
         .eq("id", profile.id);
       err += 1;
     }
+    await sleep(DELAY_MS);
   }
 
-  console.log(`Weekly sync done. processed=${list.length} ok=${ok} errors=${err} tweets_inserted=${totalInserted}`);
+  console.log("[WEEKLY] profiles_processed=" + profilesProcessed + " tweets_total_upserted=" + tweetsTotalUpserted);
+  process.exit(0);
 }
 
 main().catch((e) => {

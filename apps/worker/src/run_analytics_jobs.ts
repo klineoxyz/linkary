@@ -54,7 +54,7 @@ async function main() {
     process.exit(1);
   }
 
-  let result: { ok: boolean; error?: string };
+  let result: { ok: boolean; upserted?: number; verifiedNoOp?: boolean; error?: string };
   if (job.job_type === "x_backfill_90d") {
     result = await runXBackfill90d(supabase, job as Parameters<typeof runXBackfill90d>[1]);
   } else {
@@ -65,12 +65,29 @@ async function main() {
   const backoffMin = BACKOFF_MINUTES[Math.min(attempts - 1, BACKOFF_MINUTES.length - 1)] ?? 60;
   const runAfter = new Date(Date.now() + backoffMin * 60 * 1000).toISOString();
 
-  if (result.ok) {
+  const canMarkDone =
+    result.ok &&
+    (result.upserted == null || result.upserted > 0 || result.verifiedNoOp === true);
+
+  if (result.ok && canMarkDone) {
     await supabase
       .from("analytics_jobs")
       .update({ status: "done", updated_at: new Date().toISOString(), last_error: null })
       .eq("id", job.id);
     console.log("Job", job.id, "done.");
+  } else if (result.ok && !canMarkDone) {
+    await supabase
+      .from("analytics_jobs")
+      .update({
+        status: "queued",
+        attempts,
+        last_error: "Tweet job completed but no inserts; not marking done.",
+        run_after: runAfter,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", job.id);
+    console.error("Job", job.id, "not marked done: no tweet inserts and not verified no-op.");
+    process.exit(1);
   } else {
     await supabase
       .from("analytics_jobs")

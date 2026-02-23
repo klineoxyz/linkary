@@ -30,24 +30,47 @@ Repo-grounded runbook for verifying env, readiness, worker, and cron before onbo
 
 ---
 
+## Railway worker config (critical)
+
+**All worker cron services MUST use Root Directory = `apps/worker`.**  
+If the worker service uses repo root or `apps/api`, Railway can pick up **apps/api/railway.toml** and run `npm run start` (API server). Cron jobs would then never ingest tweets; they would stay "Running" like a server. Use **apps/worker** so Railway uses **apps/worker/railway.toml** (build only; no long-lived start).
+
+| Setting | Value |
+|--------|--------|
+| Root Directory | **`apps/worker`** (required for all worker services) |
+| Build Command | `npm install -g pnpm@9.15.0 && pnpm install && pnpm run build` (or use config from `apps/worker/railway.toml`) |
+| Required env | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (or `SERVICE_ROLE_KEY`), `TWITTERAPI_API_KEY` |
+
+**Cron start commands (one-shot; each run should complete and exit, not stay Running):**
+
+| Service | Start command (override per cron run) |
+|---------|----------------------------------------|
+| Daily (profiles) | `pnpm run sync:x:profiles:daily` |
+| Weekly (tweets) | `pnpm run sync:x:tweets:weekly` |
+| Queue drainer | `pnpm run run:jobs` or `node dist/run_analytics_jobs.js` |
+
+Expected behaviour: each cron run **completes in seconds/minutes** and exits 0. If a worker service stays "Running" for a long time, it is likely running the wrong start command (e.g. API server from apps/api config).
+
+---
+
 ## Railway queue drainer (required)
 
 All scheduled jobs run via **Railway Cron Runs**, not Vercel Cron. The analytics queue is drained only by the **linkary-queue-drainer** service.
 
 **Services:**
 
-- **linkary-worker** (daily): runs `sync_x_profiles_daily` (e.g. sync X profile snapshots).
-- **linkary-worker-weekly**: runs `sync_x_tweets_weekly`.
-- **linkary-queue-drainer**: **only** service that processes `analytics_jobs` (run_analytics_jobs). Must run on a schedule so that `queued` decreases and `done` increases.
+- **linkary-worker** (daily): runs `sync:x:profiles:daily` (X profile snapshots). Root: **apps/worker**.
+- **linkary-worker-weekly**: runs `sync:x:tweets:weekly` (tweet ingestion into `x_tweets`). Root: **apps/worker**.
+- **linkary-queue-drainer**: **only** service that processes `analytics_jobs` (run:jobs). Root: **apps/worker**. Must run on a schedule so that `queued` decreases and `done` increases.
 
 **linkary-queue-drainer setup:**
 
 | Setting | Value |
 |--------|--------|
 | Service name | `linkary-queue-drainer` |
-| Root Directory | `/apps/worker` |
-| Start Command | `node dist/run_analytics_jobs.js` |
-| Schedule | Every **5 minutes** normally; use every **2 minutes** while a backlog exists, then switch back to 5. |
+| Root Directory | **`apps/worker`** |
+| Start Command | `pnpm run run:jobs` or `node dist/run_analytics_jobs.js` |
+| Schedule | Every **5 minutes** normally; every **2 minutes** while a backlog exists, then switch back to 5. |
 | Required env | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (or `SERVICE_ROLE_KEY`), `TWITTERAPI_API_KEY` |
 
 **Verification:**
@@ -88,6 +111,7 @@ All scheduled jobs run via **Railway Cron Runs**, not Vercel Cron. The analytics
        "rateLimitRpc": { "ok": true, "detail": "allowed" },
        "analyticsQueue": { "ok": true, "detail": "counts read", "queued": 0, "running": 0, "done": 5, "failed": 0 },
        "queueDrainer": { "ok": true, "detail": "no backlog" },
+       "xTweets": { "ok": true, "xTweetsTotal": 42, "xTweetsLatestCreatedAt": "2026-02-22T12:00:00Z" },
        "cronSecretConfigured": { "ok": false, "detail": "CRON_SECRET is only required if you use /api/cron/* routes. Railway cron workers do not require CRON_SECRET." },
        "twitterApiConfigured": { "ok": true },
        "ethosConfigured": { "ok": true, "detail": "optional; ETHOS_CLIENT_ID has default" }
@@ -95,7 +119,7 @@ All scheduled jobs run via **Railway Cron Runs**, not Vercel Cron. The analytics
    }
    ```
 
-   When there is a backlog, `analyticsQueue` may include `"warning": "Backlog detected. Queue drainer should run every 2 to 5 minutes."` and `queueDrainer.ok` may be `false` if no job has completed in the last 30 minutes.
+   When there is a backlog, `analyticsQueue` may include `"warning": "Backlog detected. Queue drainer should run every 2 to 5 minutes."` and `queueDrainer.ok` may be `false` if no job has completed in the last 30 minutes. If the queue is draining but `xTweets.xTweetsTotal` is 0 for more than 30 minutes, `xTweets.warning` will be set: "Worker is not ingesting tweets. Check weekly start command and job processor."
 
 3. **When service key or RPC is missing** (HTTP 503):
 

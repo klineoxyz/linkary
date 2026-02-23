@@ -1,8 +1,9 @@
 /**
- * Run one x_backfill_90d job: fetch tweets for last 90d, fill x_daily_snapshots, compute x_window_aggregates.
+ * Run one x_backfill_90d job: ingest tweets into x_tweets, then fill x_daily_snapshots, compute x_window_aggregates.
+ * Job is only marked done when tweets were upserted or verified no-op (no tweets).
  */
 import { SupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseAdmin } from "../lib/supabase.js";
+import { ingestXTweets } from "../lib/ingestXTweets.js";
 import { getUserInfo, getRecentTweets } from "../lib/twitterapi.js";
 import { sleep } from "../lib/utils.js";
 
@@ -21,17 +22,35 @@ export type JobRow = {
   payload: { username?: string; user_id?: string } | null;
 };
 
+export type RunResult = { ok: boolean; upserted?: number; verifiedNoOp?: boolean; error?: string };
+
 export async function runXBackfill90d(
   supabase: SupabaseClient,
   job: JobRow
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<RunResult> {
   const username = job.payload?.username;
   if (!username || job.owner_type !== "profile" || !job.owner_id) {
-    return { ok: false, error: "Missing username or owner" };
+    return { ok: false, error: "no_x_handle" };
   }
 
   const handle = username.trim().replace(/^@/, "").toLowerCase();
-  if (!handle) return { ok: false, error: "Empty username" };
+  if (!handle) return { ok: false, error: "no_x_handle" };
+
+  const result = await ingestXTweets(supabase, {
+    profile_id: job.owner_id,
+    twitter_username: handle,
+    maxTweets: MAX_TWEETS,
+  });
+  if (result.fetched > 0 && result.upserted === 0) {
+    return {
+      ok: false,
+      error:
+        "Tweet fetch returned rows but no upserts. conflict_target=profile_id,tweet_id. Check table schema and payload.",
+    };
+  }
+  if (result.fetched === 0) {
+    console.log("[X_TWEETS] verified no new tweets");
+  }
 
   const userInfo = await getUserInfo(handle);
   await sleep(200);
@@ -196,5 +215,9 @@ export async function runXBackfill90d(
       .eq("id", job.owner_id);
   }
 
-  return { ok: true };
+  return {
+    ok: true,
+    upserted: result.upserted,
+    verifiedNoOp: result.fetched === 0,
+  };
 }

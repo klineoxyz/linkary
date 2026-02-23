@@ -1,0 +1,16 @@
+# Worker service config. Root Directory for worker cron services MUST be apps/worker
+# so Railway uses this file (not apps/api/railway.toml).
+# Worker runs one-shot scripts via Cron; no long-lived server.
+
+[build]
+builder = "nixpacks"
+# From apps/worker: npm install + build. Use npm to get pnpm so PATH is correct.
+buildCommand = "npm install -g pnpm@9.15.0 && pnpm install && pnpm run build"
+
+# Do NOT set startCommand to a server. Cron services override start per run:
+# Daily: pnpm run sync:x:profiles:daily
+# Weekly: pnpm run sync:x:tweets:weekly
+# Drainer: pnpm run run:jobs
+[deploy]
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

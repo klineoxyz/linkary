@@ -2291,7 +2291,7 @@ function ProfilePage({ setRoute, me }) {
           <div className="mt-4">
             <div className="text-xs font-medium mb-2" style={{ color: '#666666' }}>Roles</div>
             <div className="flex flex-wrap gap-2">
-              {u.roleTags.map((role) => (
+              {(u.roleTags ?? []).map((role) => (
                 <span key={role} className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
                   {role}
                 </span>
@@ -2417,7 +2417,7 @@ function ProfilePage({ setRoute, me }) {
               )}
             </div>
             <div className="space-y-3">
-              {displayCaseStudies.map((cs) => (
+              {(displayCaseStudies ?? []).map((cs) => (
                 <div key={cs.id} className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>

@@ -9,19 +9,30 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.
 export const dynamic = "force-dynamic";
 
 type CheckResult = { ok: boolean; detail?: string };
-type AnalyticsQueueDetail = { ok: boolean; detail?: string; queued?: number; running?: number; done?: number; failed?: number };
+type AnalyticsQueueDetail = {
+  ok: boolean;
+  detail?: string;
+  queued?: number;
+  running?: number;
+  done?: number;
+  failed?: number;
+  warning?: string;
+};
+type QueueDrainerDetail = { ok: boolean; detail?: string };
 
 async function runChecks(): Promise<{
   serviceSupabase: CheckResult;
   rateLimitRpc: CheckResult;
   analyticsQueue: AnalyticsQueueDetail;
-  cronConfigured: CheckResult;
+  queueDrainer: QueueDrainerDetail;
+  cronSecretConfigured: CheckResult;
   twitterApiConfigured: CheckResult;
   ethosConfigured: CheckResult;
 }> {
   let serviceSupabase: CheckResult = { ok: false, detail: "missing env" };
   let rateLimitRpc: CheckResult = { ok: false };
   let analyticsQueue: AnalyticsQueueDetail = { ok: false };
+  let queueDrainer: QueueDrainerDetail = { ok: true };
 
   if (supabaseUrl && supabaseServiceKey) {
     try {
@@ -46,20 +57,45 @@ async function runChecks(): Promise<{
           { count: running },
           { count: done },
           { count: failed },
+          { data: lastDoneRow },
         ] = await Promise.all([
           service.from("analytics_jobs").select("id", { count: "exact", head: true }).eq("status", "queued"),
           service.from("analytics_jobs").select("id", { count: "exact", head: true }).eq("status", "running"),
           service.from("analytics_jobs").select("id", { count: "exact", head: true }).eq("status", "done"),
           service.from("analytics_jobs").select("id", { count: "exact", head: true }).eq("status", "failed"),
+          service
+            .from("analytics_jobs")
+            .select("updated_at")
+            .eq("status", "done")
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
         ]);
+        const q = queued ?? 0;
+        const r = running ?? 0;
+        const d = done ?? 0;
+        const f = failed ?? 0;
         analyticsQueue = {
           ok: true,
           detail: "counts read",
-          queued: queued ?? 0,
-          running: running ?? 0,
-          done: done ?? 0,
-          failed: failed ?? 0,
+          queued: q,
+          running: r,
+          done: d,
+          failed: f,
+          ...(q > 0 && { warning: "Backlog detected. Queue drainer should run every 2 to 5 minutes." }),
         };
+
+        const lastDoneAt = (lastDoneRow as { updated_at?: string } | null)?.updated_at ?? null;
+        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+        if (q > 0 && (!lastDoneAt || lastDoneAt < thirtyMinutesAgo)) {
+          queueDrainer = {
+            ok: false,
+            detail:
+              "Queue not draining. Ensure Railway linkary-queue-drainer cron runs /apps/worker node dist/run_analytics_jobs.js and recent runs succeed.",
+          };
+        } else {
+          queueDrainer = { ok: true, detail: q === 0 ? "no backlog" : "recent done job; drainer likely active" };
+        }
       } catch (e) {
         analyticsQueue = { ok: false, detail: e instanceof Error ? e.message : "query error" };
       }
@@ -68,8 +104,10 @@ async function runChecks(): Promise<{
     }
   }
 
-  const cronConfigured: CheckResult = {
+  const cronSecretConfigured: CheckResult = {
     ok: typeof process.env.CRON_SECRET === "string" && process.env.CRON_SECRET.length > 0,
+    detail:
+      "CRON_SECRET is only required if you use /api/cron/* routes. Railway cron workers do not require CRON_SECRET.",
   };
   const twitterApiConfigured: CheckResult = {
     ok: typeof process.env.TWITTERAPI_API_KEY === "string" && process.env.TWITTERAPI_API_KEY.length > 0,
@@ -86,7 +124,8 @@ async function runChecks(): Promise<{
     serviceSupabase,
     rateLimitRpc,
     analyticsQueue,
-    cronConfigured,
+    queueDrainer,
+    cronSecretConfigured,
     twitterApiConfigured,
     ethosConfigured,
   };
@@ -112,8 +151,10 @@ export async function GET() {
         running: checks.analyticsQueue.running,
         done: checks.analyticsQueue.done,
         failed: checks.analyticsQueue.failed,
+        ...(checks.analyticsQueue.warning && { warning: checks.analyticsQueue.warning }),
       },
-      cronConfigured: { ok: checks.cronConfigured.ok },
+      queueDrainer: { ok: checks.queueDrainer.ok, detail: checks.queueDrainer.detail },
+      cronSecretConfigured: { ok: checks.cronSecretConfigured.ok, detail: checks.cronSecretConfigured.detail },
       twitterApiConfigured: { ok: checks.twitterApiConfigured.ok },
       ethosConfigured: { ok: checks.ethosConfigured.ok, detail: checks.ethosConfigured.detail },
     },

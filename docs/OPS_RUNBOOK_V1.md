@@ -14,7 +14,7 @@ Repo-grounded runbook for verifying env, readiness, worker, and cron before onbo
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Anon key for client auth |
 | `SUPABASE_SERVICE_ROLE_KEY` or `SERVICE_ROLE_KEY` | Yes | Service client (rate limits, public profile, ensure-backfill, owner preview) |
 | `NEXT_PUBLIC_SITE_URL` | Yes (prod) | Auth callback redirect; e.g. `https://linkary.xyz` |
-| `CRON_SECRET` | Yes (if using cron) | Protects `/api/cron/*` routes |
+| `CRON_SECRET` | Only if using /api/cron/* | Protects `/api/cron/*` when called from Vercel/external cron; not needed for Railway workers |
 | `TWITTERAPI_API_KEY` | Yes for X analytics | twitterapi.io; cron and worker |
 | `ETHOS_CLIENT_ID` | Optional | Ethos API; default `linkary@1` |
 | `SUPERADMIN_EMAILS` | Optional | Comma-separated emails for admin/queue-status |
@@ -27,6 +27,46 @@ Repo-grounded runbook for verifying env, readiness, worker, and cron before onbo
 | `SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` or `SERVICE_ROLE_KEY` | Yes | Service client for `analytics_jobs` |
 | `TWITTERAPI_API_KEY` | Yes | twitterapi.io for 90d backfill |
+
+---
+
+## Railway queue drainer (required)
+
+All scheduled jobs run via **Railway Cron Runs**, not Vercel Cron. The analytics queue is drained only by the **linkary-queue-drainer** service.
+
+**Services:**
+
+- **linkary-worker** (daily): runs `sync_x_profiles_daily` (e.g. sync X profile snapshots).
+- **linkary-worker-weekly**: runs `sync_x_tweets_weekly`.
+- **linkary-queue-drainer**: **only** service that processes `analytics_jobs` (run_analytics_jobs). Must run on a schedule so that `queued` decreases and `done` increases.
+
+**linkary-queue-drainer setup:**
+
+| Setting | Value |
+|--------|--------|
+| Service name | `linkary-queue-drainer` |
+| Root Directory | `/apps/worker` |
+| Start Command | `node dist/run_analytics_jobs.js` |
+| Schedule | Every **5 minutes** normally; use every **2 minutes** while a backlog exists, then switch back to 5. |
+| Required env | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (or `SERVICE_ROLE_KEY`), `TWITTERAPI_API_KEY` |
+
+**Verification:**
+
+- Call **GET /api/readiness** (no auth). When the drainer is working:
+  - `checks.analyticsQueue.queued` decreases over time.
+  - `checks.analyticsQueue.done` increases.
+  - `checks.queueDrainer.ok` is `true` when there is no backlog, or when there is a backlog but a job completed in the last 30 minutes.
+- If `queued` is high and not moving, or `queueDrainer.ok` is `false`, the drainer is not running or is failing.
+
+**Failure modes and fixes:**
+
+| Problem | Fix |
+|--------|-----|
+| `dist/run_analytics_jobs.js` missing | Add/verify a build step for the worker (e.g. `pnpm build` in `/apps/worker`) before the start command runs. |
+| Env missing | Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (or `SERVICE_ROLE_KEY`), and `TWITTERAPI_API_KEY` in the queue-drainer service and redeploy. |
+| `queued` not decreasing | Cron not running or runs failing. Open the **Cron Run** logs for linkary-queue-drainer in Railway and fix errors (e.g. missing env, Twitter API rate limit). |
+
+**Note:** `CRON_SECRET` is only for protecting **/api/cron/\*** routes (e.g. if you call them from Vercel Cron or an external scheduler). Railway cron workers do **not** use `CRON_SECRET`; they run the worker process directly.
 
 ---
 
@@ -47,12 +87,15 @@ Repo-grounded runbook for verifying env, readiness, worker, and cron before onbo
        "serviceSupabase": { "ok": true, "detail": "service client created" },
        "rateLimitRpc": { "ok": true, "detail": "allowed" },
        "analyticsQueue": { "ok": true, "detail": "counts read", "queued": 0, "running": 0, "done": 5, "failed": 0 },
-       "cronConfigured": { "ok": true },
+       "queueDrainer": { "ok": true, "detail": "no backlog" },
+       "cronSecretConfigured": { "ok": false, "detail": "CRON_SECRET is only required if you use /api/cron/* routes. Railway cron workers do not require CRON_SECRET." },
        "twitterApiConfigured": { "ok": true },
        "ethosConfigured": { "ok": true, "detail": "optional; ETHOS_CLIENT_ID has default" }
      }
    }
    ```
+
+   When there is a backlog, `analyticsQueue` may include `"warning": "Backlog detected. Queue drainer should run every 2 to 5 minutes."` and `queueDrainer.ok` may be `false` if no job has completed in the last 30 minutes.
 
 3. **When service key or RPC is missing** (HTTP 503):
 
@@ -63,41 +106,32 @@ Repo-grounded runbook for verifying env, readiness, worker, and cron before onbo
 
 ## Verify worker is draining analytics_jobs
 
-1. **Queue status** (superadmin only; requires Bearer token):
+1. **Readiness** (no auth) is the main daily ops check:
 
-   ```bash
-   curl -s -H "Authorization: Bearer YOUR_JWT" https://your-domain.com/api/admin/queue-status
-   ```
+   - **GET /api/readiness** returns `checks.analyticsQueue` (queued, running, done, failed) and `checks.queueDrainer`.
+   - When the Railway **linkary-queue-drainer** is running: `analyticsQueue.queued` decreases, `analyticsQueue.done` increases, and `queueDrainer.ok` stays true (or becomes true once a job completes within 30 minutes).
+   - If `queued` is high and not moving, or `queueDrainer.ok` is false, the drainer is not running or failing — check Railway Cron Run logs for linkary-queue-drainer.
 
-   Check `analytics_jobs.queued` and `analytics_jobs.running`. If the worker is running, `queued` should drain over time and `doneLast24h` should increase.
+2. **Queue status** (optional; superadmin only; requires Bearer token):
 
-2. **Readiness** (no auth) includes queue counts:
-
-   - `checks.analyticsQueue.queued`, `.running`, `.done`, `.failed`. High `queued` with no `running` suggests the worker is not running or not hitting the right env.
-
-3. **Worker command** (Railway or local):
-
-   - Run the job processor periodically (e.g. every 5–10 min):  
-     `pnpm --filter worker run run:jobs`  
-   - Or use a cron that POSTs to `/api/cron/backfill-x-90d-batch` (with `CRON_SECRET`) to enqueue jobs; the worker still must run to process them.
+   - Set `SUPERADMIN_EMAILS` in Vercel to include your login email. Call while logged in (browser) or with `Authorization: Bearer YOUR_JWT`:
+   - `curl -s -H "Authorization: Bearer YOUR_JWT" https://your-domain.com/api/admin/queue-status`
+   - Use this for extra detail (e.g. oldest queued, latest failure). For routine checks, **/api/readiness** is enough.
 
 ---
 
-## Manually trigger cron
+## Manually trigger cron (optional — only if using /api/cron/*)
 
-Cron routes require `CRON_SECRET` in the request (header or Bearer).
+If you use **Vercel Cron** or an external scheduler to hit **/api/cron/\*** routes, set `CRON_SECRET` in Vercel and send it in the request. **Railway cron workers do not use CRON_SECRET**; they run the worker binary directly.
 
-**Example: trigger daily X analytics snapshot**
+**Example: trigger daily X analytics snapshot** (only if you call this route from a scheduler):
 
 ```bash
 curl -X POST "https://your-domain.com/api/cron/x-analytics-daily" \
   -H "x-cron-secret: YOUR_CRON_SECRET"
-# or
-curl -X POST "https://your-domain.com/api/cron/x-analytics-daily" \
-  -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
 
-**Example: enqueue 90d backfill jobs (batch)**
+**Example: enqueue 90d backfill jobs** (only if you use this route; with Railway, jobs are enqueued by ensure-backfill and drained by linkary-queue-drainer):
 
 ```bash
 curl -X POST "https://your-domain.com/api/cron/backfill-x-90d-batch" \
@@ -126,8 +160,11 @@ If the public page or dashboard shows analytics as "partial" or "fallback":
    - Ensure the worker process is running and has `SUPABASE_SERVICE_ROLE_KEY` and `TWITTERAPI_API_KEY`.  
    - Check queue-status: if `queued` grows and never decreases, the worker is not running or is failing (check worker logs and `last_error` in queue-status).
 
-4. **Cron**  
-   - If you rely on cron to enqueue 90d jobs, ensure the cron job is configured (e.g. Vercel Cron or external) to POST to `/api/cron/backfill-x-90d-batch` with `CRON_SECRET`.
+3. **Queue drainer**  
+   - Ensure **Railway linkary-queue-drainer** is running on schedule (every 2–5 min). If `queueDrainer.ok` is false in readiness, check Cron Run logs and env (see "Railway queue drainer (required)" above).
+
+4. **/api/cron/\***  
+   - Only relevant if you call these routes from Vercel or another scheduler. With Railway, the queue is drained by linkary-queue-drainer; ensure-backfill enqueues jobs from the app.
 
 5. **No X handle**  
    - If the user has not connected X or the handle is missing, ensure-backfill returns `enqueued: false`, reason `no_x_handle`. Connect X in Integrations and try again.

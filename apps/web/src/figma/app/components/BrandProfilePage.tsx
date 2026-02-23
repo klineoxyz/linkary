@@ -143,7 +143,7 @@ const demoBrandData = {
   metrics: [
     { label: "Creators Onboarded", value: "450+", change: "+23%" },
     { label: "Transactions", value: "12K+", change: "+34%" },
-    { label: "Total Volume", value: "$850K", change: "+45%" },
+    { label: "Potential Value Generated", value: "$850K", change: "+45%" },
     { label: "Uptime", value: "99.9%", change: "0%" },
   ],
   featuredWork: [

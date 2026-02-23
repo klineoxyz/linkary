@@ -872,18 +872,18 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 frontContent={
                   <StatCard
                     icon={DollarSign}
-                    label="Total Volume (Private)"
+                    label="Potential Value Generated (Private)"
                     value={personalStats.totalVolume}
                     change={personalStats.totalVolumeChange}
                     format="currency"
                   />
                 }
-                backTitle="Volume Insights"
+                backTitle="Potential Value Insights"
                 backInsights={[
                   "Highest single deal: €12,400",
                   "Average deal size: €2,350",
-                  "Top 3 clients account for 52% of volume",
-                  "Q4 trending +18% vs Q3"
+                  "Top 3 clients account for 52% of value",
+                  "Amount projects have paid or are ready to pay for gigs (sprints)"
                 ]}
                 isPremium={false}
                 requiresPlan="starter"

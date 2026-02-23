@@ -181,6 +181,7 @@ import IntegrationsPage from "./components/IntegrationsPage";
 import RolesSkillsPage from "./components/RolesSkillsPage";
 import WalletShell from "@/components/wallet/WalletShell";
 import ProfileEditPage from "./components/ProfileEditPage";
+import GlobalSearch from "./components/GlobalSearch";
 
 /**
  * Linkary - Web3 Reputation + Opportunity + Review + Case Study Infrastructure
@@ -1036,25 +1037,21 @@ function Timer() {
 }
 
 function Topbar({ setMobileOpen, route, setRoute, me }) {
+  const router = useRouter();
   const displayName = me?.display_name?.trim() || demo.me.name;
   const handle = me?.username?.trim() || demo.me.handle;
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 relative z-[35]">
-      <div className="flex items-center gap-3 flex-1 max-w-md">
-        <button className="lg:hidden" onClick={() => setMobileOpen(true)}>
+      <div className="flex items-center gap-3 flex-1 min-w-0 max-w-2xl">
+        <button className="lg:hidden shrink-0" onClick={() => setMobileOpen(true)}>
           <Menu className="h-6 w-6 text-zinc-600" />
         </button>
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
-          <Input
-            placeholder="Search creators, projects, gigs..."
-            className="pl-10 pr-20"
-            onFocus={() => setRoute({ name: "overview" })}
-            onKeyDown={(e) => { if (e.key === "Enter") setRoute({ name: "overview" }); }}
+        <div className="relative flex-1 min-w-0">
+          <GlobalSearch
+            onResultClick={(result) => {
+              if (result?.url) router.push(result.url);
+            }}
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <span className="hidden md:inline text-xs font-medium text-zinc-600 rounded px-2 py-1 bg-zinc-200">⌘K</span>
-          </div>
         </div>
       </div>
 

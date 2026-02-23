@@ -309,7 +309,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
           </button>
         </div>
       )}
-      <PublicHeader entity={entity} username={username} isLoggedIn={isLoggedIn} isOwner={brochure ? false : isOwner} />
+      <PublicHeader entity={entity} username={username} isLoggedIn={isLoggedIn} isOwner={brochure ? false : isOwner} brochure={brochure} />
 
       <main className={`mx-auto max-w-6xl px-4 sm:px-6 pb-20 ${brochure ? "py-8 sm:py-12" : "py-6 sm:py-8"}`}>
         {isOwner && !brochure && (

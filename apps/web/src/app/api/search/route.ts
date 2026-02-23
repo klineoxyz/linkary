@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
       const key = `${type}:${o.id}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const url = `/p/${o.slug}`;
+      const url = `/${o.slug}`;
       const handleLabel = url;
       const rank = [o.slug, o.name, o.twitter_username].some(
         (f) => f != null && String(f).toLowerCase().startsWith(termLower)

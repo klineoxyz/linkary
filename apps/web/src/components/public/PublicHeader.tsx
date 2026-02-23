@@ -6,15 +6,17 @@ import { BadgeCheck, Send, Link2, Share2 } from "lucide-react";
 import type { PublicEntity } from "@/lib/publicData";
 import type { PublicEntityView } from "@/lib/publicProfileDTO";
 import { SendWalletModal } from "./SendWalletModal";
+import { ViewerActionsBar } from "./ViewerActionsBar";
 
 type PublicHeaderProps = {
   entity: PublicEntity | PublicEntityView;
   username: string;
   isLoggedIn: boolean;
   isOwner?: boolean;
+  brochure?: boolean;
 };
 
-export function PublicHeader({ entity, username, isLoggedIn, isOwner = false }: PublicHeaderProps) {
+export function PublicHeader({ entity, username, isLoggedIn, isOwner = false, brochure = false }: PublicHeaderProps) {
   const [sendOpen, setSendOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const isProfile = entity.type === "profile";
@@ -107,6 +109,13 @@ export function PublicHeader({ entity, username, isLoggedIn, isOwner = false }: 
                 <Send className="h-4 w-4 stroke-[1.75]" />
                 Send
               </button>
+            )}
+            {!isOwner && isLoggedIn && !brochure && (
+              <ViewerActionsBar
+                username={username}
+                entityType={entity.type}
+                orgId={entity.type === "org" && entity.org ? (entity.org as { id?: string }).id : undefined}
+              />
             )}
             {!isLoggedIn ? (
               <Link

@@ -66,16 +66,19 @@ export async function POST(
   if (updateErr) {
     return NextResponse.json({ error: updateErr.message }, { status: 500 });
   }
+
   try {
-    const { data: dealRow } = await supabase.from("deals").select("profile_id, org_id").eq("id", id).single();
-    const creatorId = (dealRow as { profile_id?: string; org_id?: string } | null)?.profile_id;
-    const orgId = (dealRow as { profile_id?: string; org_id?: string } | null)?.org_id;
+    const { data: dealRow } = await supabase.from("deals").select("profile_id, org_id, status, completed_at").eq("id", id).single();
+    const row = dealRow as { profile_id?: string; org_id?: string; status?: string; completed_at?: string | null } | null;
+    const creatorId = row?.profile_id;
+    const orgId = row?.org_id;
+    const isCompleted = row?.status === "completed" || row?.completed_at != null;
     const { createNotification } = await import("@/lib/notifications");
     if (creatorId) {
       await createNotification(creatorId, "deal_accepted", { entity_type: "deal", entity_id: id });
-      await createNotification(creatorId, "deal_completed", { entity_type: "deal", entity_id: id });
+      if (isCompleted) await createNotification(creatorId, "deal_completed", { entity_type: "deal", entity_id: id });
     }
-    if (orgId) {
+    if (orgId && isCompleted) {
       const { data: orgAdmins } = await supabase.from("org_members").select("user_id").eq("org_id", orgId).in("role", ["owner", "admin"]);
       for (const m of orgAdmins ?? []) {
         const uid = (m as { user_id: string }).user_id;

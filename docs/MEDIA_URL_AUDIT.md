@@ -7,7 +7,7 @@
 | `ProfileEditPage.tsx` | Header media (IMAGE) – input type="url" placeholder "https://… image URL" | MediaUploadField (profile_header) |
 | `ProfileEditPage.tsx` | Header media (VIDEO) – input type="url" placeholder "https://… video URL" | Left as URL for external embed (YouTube/Vimeo) or future video upload |
 | `ProfileEditPage.tsx` | Partner program logo – input type="url" placeholder "Logo URL" in PartnerProgramsEditor | MediaUploadField (partner_logo) |
-| `ProfileEditPage.tsx` | Case study proof – input type="url" placeholder "Proof URL" in CaseStudiesEditor | MediaUploadField (case_study_proof) |
+| `ProfileEditPage.tsx` | Case study proof – link to evidence (article, tweet, etc.) | **Remains URL** (proof_url). Not image upload. |
 | `CreateOrgModal.tsx` | Org logo – input type="url" placeholder "https://...", state `logo_url` | MediaUploadField (org_logo) after org create |
 | `apps/web/src/app/api/orgs/create/route.ts` | Body `logo_url` string | Accept `logo_file_path` from client after upload, or omit and set via media commit |
 | `apps/web/src/app/api/partners/route.ts` | Body `logoUrl` / `logo_url` | Accept `logo_file_path` from media commit |
@@ -24,8 +24,8 @@
 - **profile_media**: add `header_media_file_path` (text); keep `header_media_url` for backward compat / derived URL.
 - **orgs**: add `logo_file_path` (text); keep `logo_url` for backward compat / derived URL.
 - **partner_programs**: add `logo_file_path` (text); keep `logo_url` for backward compat.
-- **case_studies**: add `proof_file_path` (text); keep `proof_url` for backward compat.
-- **Storage bucket**: `media` (private), paths: `profile/{id}/header/{uuid}.ext`, `org/{id}/logo/{uuid}.ext`, `partner/{id}/logo/{uuid}.ext`, `case_study/{id}/proof/{uuid}.ext`.
+- **case_studies**: `proof_url` only (URL input for links). Optional `proof_attachment_file_path`/thumbnail can be added later if needed; do not replace proof_url with upload.
+- **Storage bucket**: `media` (private), paths: `profile/{id}/header/{uuid}.ext`, `org/{id}/logo/{uuid}.ext`, `partner/{id}/logo/{uuid}.ext`. Case study proof stays as URL.
 
 ## Access control
 

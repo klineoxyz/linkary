@@ -38,12 +38,18 @@ export default function OrgDetailPage({
   data,
 }: {
   setRoute: (r: { name: string; data?: any }) => void;
-  data?: { orgId?: string; slug?: string; showConnectXBanner?: boolean };
+  data?: { orgId?: string; slug?: string; showConnectXBanner?: boolean; tab?: string };
 }) {
   const orgId = data?.orgId ?? data?.slug;
   const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"members" | "affiliates" | "ambassadors" | "jobs" | "case_studies" | "settings">("members");
+  const validTabs = ["members", "affiliates", "ambassadors", "jobs", "case_studies", "settings"] as const;
+  const [tab, setTab] = useState<typeof validTabs[number]>("members");
+
+  useEffect(() => {
+    const t = data?.tab;
+    if (t && validTabs.includes(t as typeof validTabs[number])) setTab(t as typeof validTabs[number]);
+  }, [data?.tab]);
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [affiliations, setAffiliations] = useState<OrgAffiliation[]>([]);
   const [ambassadors, setAmbassadors] = useState<OrgAmbassador[]>([]);
@@ -53,6 +59,7 @@ export default function OrgDetailPage({
   const [acceptLoading, setAcceptLoading] = useState<string | null>(null);
   const [closeJobLoading, setCloseJobLoading] = useState<string | null>(null);
   const [removePartnerLoading, setRemovePartnerLoading] = useState<string | null>(null);
+  const [acceptPartnerLoading, setAcceptPartnerLoading] = useState<string | null>(null);
   const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [admin, setAdmin] = useState(false);
@@ -643,7 +650,33 @@ export default function OrgDetailPage({
                     <span className="font-mono text-sm truncate">{a.profile_id}</span>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-xs px-2 py-1 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{a.status}</span>
-                      {admin && (a.status === "invited" || a.status === "active") && (
+                      {a.status === "invited" && userId === a.profile_id && (
+                        <button
+                          type="button"
+                          disabled={!!acceptPartnerLoading}
+                          onClick={async () => {
+                            if (!org?.id) return;
+                            setAcceptPartnerLoading(a.id);
+                            try {
+                              const { data: { session } } = await supabase.auth.getSession();
+                              const token = session?.access_token;
+                              const origin = typeof window !== "undefined" ? window.location.origin : "";
+                              const res = await fetch(`${origin}/api/orgs/${org.id}/affiliates/${a.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({ status: "active" }),
+                              });
+                              if (res.ok) setAffiliations(await listOrgAffiliations(org.id));
+                            } finally {
+                              setAcceptPartnerLoading(null);
+                            }
+                          }}
+                          className="text-xs px-2 py-1 rounded bg-primary text-white hover:opacity-90 disabled:opacity-50"
+                        >
+                          {acceptPartnerLoading === a.id ? "…" : "Accept"}
+                        </button>
+                      )}
+                      {(admin || userId === a.profile_id) && (a.status === "invited" || a.status === "active") && (
                         <button
                           type="button"
                           disabled={!!removePartnerLoading}
@@ -710,7 +743,33 @@ export default function OrgDetailPage({
                     <span className="font-mono text-sm truncate">{a.profile_id}</span>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-xs px-2 py-1 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{a.status}</span>
-                      {admin && (a.status === "invited" || a.status === "active") && (
+                      {a.status === "invited" && userId === a.profile_id && (
+                        <button
+                          type="button"
+                          disabled={!!acceptPartnerLoading}
+                          onClick={async () => {
+                            if (!org?.id) return;
+                            setAcceptPartnerLoading(a.id);
+                            try {
+                              const { data: { session } } = await supabase.auth.getSession();
+                              const token = session?.access_token;
+                              const origin = typeof window !== "undefined" ? window.location.origin : "";
+                              const res = await fetch(`${origin}/api/orgs/${org.id}/ambassadors/${a.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({ status: "active" }),
+                              });
+                              if (res.ok) setAmbassadors(await listOrgAmbassadors(org.id));
+                            } finally {
+                              setAcceptPartnerLoading(null);
+                            }
+                          }}
+                          className="text-xs px-2 py-1 rounded bg-primary text-white hover:opacity-90 disabled:opacity-50"
+                        >
+                          {acceptPartnerLoading === a.id ? "…" : "Accept"}
+                        </button>
+                      )}
+                      {(admin || userId === a.profile_id) && (a.status === "invited" || a.status === "active") && (
                         <button
                           type="button"
                           disabled={!!removePartnerLoading}

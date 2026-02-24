@@ -72,9 +72,9 @@
   };
 })();
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { Suspense, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 // Linkary brand assets - icons in public/icons/, full logos in public/logos/
 const linkaryIconWhite = "/icons/icon-white.svg";
@@ -760,16 +760,25 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     rolesSkills: "/settings/roles-skills",
     wallet: "/settings/wallet",
   };
+  if (route.name === "orgDetail" && route.data?.orgId) {
+    const tab = route.data.tab;
+    return `/org/${route.data.orgId}${tab ? `?tab=${encodeURIComponent(tab)}` : ""}`;
+  }
+  if (route.name === "dealDetail" && route.data?.dealId) return `/deal/${route.data.dealId}`;
   return map[route.name] ?? "/";
 }
 
-function routeFromPathname(pathname: string | null): { name: string; data?: any; handle?: string } {
+function routeFromPathname(pathname: string | null, searchParams?: URLSearchParams | null): { name: string; data?: any; handle?: string } {
   const fullPath = (pathname ?? "/").replace(/^\//, "");
   const parts = fullPath.split("/").map((p) => p.toLowerCase());
   if (parts[0] === "settings" && parts[1] === "integrations") return { name: "integrations" };
   if (parts[0] === "settings" && parts[1] === "roles-skills") return { name: "rolesSkills" };
   if (parts[0] === "settings" && parts[1] === "wallet") return { name: "wallet" };
   if (parts[0] === "profile" && parts[1] === "edit") return { name: "profileEdit" };
+  if (parts[0] === "org" && parts[1]) {
+    const tab = searchParams?.get("tab") ?? undefined;
+    return { name: "orgDetail", data: { orgId: parts[1], tab: tab || undefined } };
+  }
   const path = parts[0] || "";
   if (!path) return { name: "landing" };
   const segment = path;
@@ -1040,10 +1049,11 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
     if (n.type === "connection_request" || n.type === "connection_accepted") return "/connections";
     if (n.type === "application_submitted" && n.payload?.job_id) return `/app?org=jobs`;
     if (n.type === "application_accepted" && n.entity_id) return `/deal/${n.entity_id}`;
-    if (n.type === "application_rejected" && n.payload?.job_id) return "/overview";
+    if (n.type === "application_rejected" && n.payload?.org_id) return `/org/${n.payload.org_id}?tab=jobs`;
+    if (n.type === "application_rejected") return "/overview";
     if (n.entity_type === "deal" && n.entity_id) return `/deal/${n.entity_id}`;
-    if (n.type === "ambassador_invite_accepted" || n.type === "ambassador_removed") return n.payload?.org_id ? `/overview` : null;
-    if (n.type === "affiliate_invite_accepted" || n.type === "affiliate_removed") return n.payload?.org_id ? `/overview` : null;
+    if (n.type === "ambassador_invite_accepted" || n.type === "ambassador_removed") return n.payload?.org_id ? `/org/${n.payload.org_id}?tab=ambassadors` : null;
+    if (n.type === "affiliate_invite_accepted" || n.type === "affiliate_removed") return n.payload?.org_id ? `/org/${n.payload.org_id}?tab=affiliates` : null;
     if (n.type === "speaker_request_created" || n.type === "speaker_request_approved" || n.type === "speaker_request_rejected") return "/calendar";
     return null;
   };
@@ -2645,12 +2655,13 @@ function ProfilePage({ setRoute, me }) {
 // Old DashboardPage function removed - now using the new component from /src/app/components/DashboardPage.tsx
 
 // -----------------------------
-// App shell
+// App shell (inner uses useSearchParams so must be in Suspense)
 // -----------------------------
-export default function LinkaryApp() {
+function LinkaryAppInner() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const [route, setRouteState] = useState(() => routeFromPathname(pathname ?? "/"));
+  const [route, setRouteState] = useState(() => routeFromPathname(pathname ?? "/", searchParams));
   const [previousRoute, setPreviousRoute] = useState({ name: "overview" });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreateCircle, setShowCreateCircle] = useState(false);
@@ -2662,13 +2673,13 @@ export default function LinkaryApp() {
   const [headerMedia, setHeaderMedia] = useState<{ header_media_type: string; header_media_url: string | null } | null>(null);
 
   useEffect(() => {
-    const fromPath = routeFromPathname(pathname ?? "/");
+    const fromPath = routeFromPathname(pathname ?? "/", searchParams);
     setRouteState((prev) =>
-      prev.name !== fromPath.name || prev.handle !== fromPath.handle
+      prev.name !== fromPath.name || prev.handle !== fromPath.handle || JSON.stringify(prev.data) !== JSON.stringify(fromPath.data)
         ? fromPath
         : prev
     );
-  }, [pathname]);
+  }, [pathname, searchParams]);
 
   const setRoute = useCallback((r: { name: string; data?: any; handle?: string }) => {
     if (r.name === "comingSoon") {
@@ -3387,5 +3398,13 @@ export default function LinkaryApp() {
       </div>
 
     </div>
+  );
+}
+
+export default function LinkaryApp() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-pulse text-muted-foreground">Loading…</div></div>}>
+      <LinkaryAppInner />
+    </Suspense>
   );
 }

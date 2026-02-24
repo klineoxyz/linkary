@@ -234,7 +234,6 @@ function CaseStudyModal({
   onClose,
   onSubmit,
   getAuthHeaders,
-  onProofSaved,
 }: {
   edit?: CaseStudy | null;
   form: { title: string; description: string; proofUrl: string };
@@ -243,7 +242,6 @@ function CaseStudyModal({
   onClose: () => void;
   onSubmit: () => void;
   getAuthHeaders: () => Promise<Record<string, string>>;
-  onProofSaved?: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
@@ -251,11 +249,16 @@ function CaseStudyModal({
         <h3 className="font-semibold text-zinc-900">{edit ? "Edit case study" : "Add case study"}</h3>
         <input type="text" placeholder="Title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
         <textarea placeholder="Description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={3} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
-        {edit ? (
-          <MediaUploadField label="Proof (image or PDF)" type="case_study_proof" ownerId={edit.id} value={edit.proof_file_path ?? null} onChange={() => {}} getAuthHeaders={getAuthHeaders} onSaved={onProofSaved} accept="image/*,application/pdf" maxSizeMB={5} />
-        ) : (
-          <p className="text-xs text-zinc-500">Save the case study first, then edit to add proof (file upload).</p>
-        )}
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Proof URL</label>
+          <input
+            type="url"
+            placeholder="https://… link to evidence (article, tweet, etc.)"
+            value={form.proofUrl}
+            onChange={(e) => setForm((f) => ({ ...f, proofUrl: e.target.value }))}
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900"
+          />
+        </div>
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
           <button type="button" disabled={saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50">{saving ? "Saving…" : edit ? "Update" : "Add"}</button>
@@ -970,7 +973,6 @@ export default function ProfileEditPage({
             setEditingCaseStudy(null);
           }}
           getAuthHeaders={getAuthHeaders}
-          onProofSaved={loadCaseStudies}
           onSubmit={async () => {
             if (!me?.id) return;
             setCaseStudySaving(true);

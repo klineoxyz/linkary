@@ -55,6 +55,13 @@ export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [professions, setProfessions] = useState("");
+  const [followersMin, setFollowersMin] = useState("");
+  const [followersMax, setFollowersMax] = useState("");
+  const [engagementMin, setEngagementMin] = useState("");
+  const [engagementMax, setEngagementMax] = useState("");
+  const [ecosystem, setEcosystem] = useState("");
 
   useEffect(() => {
     setRecentSearches(loadRecents());
@@ -80,7 +87,7 @@ export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
       setResults([]);
       setIsLoading(false);
     }
-  }, [debouncedQuery, filter]);
+  }, [debouncedQuery, filter, professions, followersMin, followersMax, engagementMin, engagementMax, ecosystem]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -98,6 +105,12 @@ export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
     setIsLoading(true);
     try {
       const params = new URLSearchParams({ q: searchQuery, filter });
+      if (professions.trim()) params.set("professions", professions.trim());
+      if (followersMin.trim()) params.set("followers_min", followersMin.trim());
+      if (followersMax.trim()) params.set("followers_max", followersMax.trim());
+      if (engagementMin.trim()) params.set("engagement_min", engagementMin.trim());
+      if (engagementMax.trim()) params.set("engagement_max", engagementMax.trim());
+      if (ecosystem.trim()) params.set("ecosystem", ecosystem.trim());
       const res = await fetch(`/api/search?${params}`);
       const data = await res.json();
       const raw = Array.isArray(data.results) ? data.results : [];
@@ -196,7 +209,7 @@ export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
 
       {/* Filter Pills */}
       {canSearch && (
-        <div className="flex items-center gap-2 mt-3">
+        <div className="flex flex-wrap items-center gap-2 mt-3">
           {filters.map((f) => {
             const Icon = f.icon;
             return (
@@ -214,6 +227,47 @@ export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => setFiltersExpanded(!filtersExpanded)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 text-neutral-400 hover:text-white border border-white/10"
+          >
+            {filtersExpanded ? "Less" : "Filters"}
+          </button>
+        </div>
+      )}
+      {canSearch && filtersExpanded && (
+        <div className="mt-2 p-3 rounded-xl bg-white/5 border border-white/10 space-y-2 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label className="block text-neutral-500 mb-0.5">Professions (slugs, comma)</label>
+              <input type="text" value={professions} onChange={(e) => setProfessions(e.target.value)} placeholder="creator,designer" className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-neutral-500" />
+            </div>
+            <div>
+              <label className="block text-neutral-500 mb-0.5">Ecosystem (comma)</label>
+              <input type="text" value={ecosystem} onChange={(e) => setEcosystem(e.target.value)} placeholder="defi,nft" className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-neutral-500" />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-neutral-500 mb-0.5">Followers min</label>
+                <input type="number" min={0} value={followersMin} onChange={(e) => setFollowersMin(e.target.value)} placeholder="0" className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-neutral-500" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-neutral-500 mb-0.5">Followers max</label>
+                <input type="number" min={0} value={followersMax} onChange={(e) => setFollowersMax(e.target.value)} placeholder="—" className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-neutral-500" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-neutral-500 mb-0.5">Engagement % min</label>
+                <input type="number" min={0} max={100} step={0.1} value={engagementMin} onChange={(e) => setEngagementMin(e.target.value)} placeholder="0" className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-neutral-500" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-neutral-500 mb-0.5">Engagement % max</label>
+                <input type="number" min={0} max={100} step={0.1} value={engagementMax} onChange={(e) => setEngagementMax(e.target.value)} placeholder="—" className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-neutral-500" />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

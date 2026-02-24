@@ -90,6 +90,12 @@ export async function POST(
       .update({ status: "accepted", updated_at: new Date().toISOString() })
       .eq("id", job.id);
 
+    try {
+      const { createNotification } = await import("@/lib/notifications");
+      await createNotification(profileId, "application_accepted", { entity_type: "application", entity_id: applicationId, payload: { job_id: job.id, org_id: job.org_id } });
+    } catch (_) {
+      /* non-blocking */
+    }
     return NextResponse.json({ ok: true, deal });
   }
 

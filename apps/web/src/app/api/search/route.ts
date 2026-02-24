@@ -10,15 +10,22 @@ function sanitizeSearchQuery(q: string): string {
   return allowed.replace(/\s+/g, " ");
 }
 
-/** GET /api/search?q=...&filter=all|people|projects|agencies
- * Real search over public_profile_view and public_org_view.
- * Ranked: starts-with first, then contains. Returns url for navigation; no xscore in response.
+/** GET /api/search?q=...&filter=all|people|projects|agencies&professions=slug1,slug2&followers_min=&followers_max=&engagement_min=&engagement_max=&ecosystem=
+ * Real search with optional filters: professions (people), followers/engagement range (people), ecosystem (orgs).
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const rawQ = searchParams.get("q")?.trim() || "";
   const q = sanitizeSearchQuery(rawQ);
   const filter = searchParams.get("filter") || "all";
+  const professionsParam = searchParams.get("professions")?.trim() || "";
+  const professions = professionsParam ? professionsParam.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) : [];
+  const followersMin = searchParams.get("followers_min")?.trim();
+  const followersMax = searchParams.get("followers_max")?.trim();
+  const engagementMin = searchParams.get("engagement_min")?.trim();
+  const engagementMax = searchParams.get("engagement_max")?.trim();
+  const ecosystemParam = searchParams.get("ecosystem")?.trim() || "";
+  const ecosystem = ecosystemParam ? ecosystemParam.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) : [];
 
   if (q.length < 2) {
     return NextResponse.json({ results: [] });
@@ -48,12 +55,49 @@ export async function GET(request: NextRequest) {
   const includePeople = filter === "all" || filter === "people";
   const includeOrgs = filter === "all" || filter === "projects" || filter === "agencies";
 
+  let profileIdsByProfession: string[] | null = null;
+  if (includePeople && professions.length > 0) {
+    const { data: profs } = await supabase.from("professions").select("id").in("slug", professions);
+    const ids = (profs ?? []).map((r: { id: string }) => r.id);
+    if (ids.length > 0) {
+      const { data: pp } = await supabase.from("profile_professions").select("profile_id").in("profession_id", ids);
+      profileIdsByProfession = [...new Set((pp ?? []).map((r: { profile_id: string }) => r.profile_id))];
+    }
+  }
+
+  let orgIdsByEcosystem: string[] | null = null;
+  if (includeOrgs && ecosystem.length > 0) {
+    const orClause = ecosystem.map((e) => `category.ilike.%${e}%`).join(",");
+    const { data: catRows } = await supabase.from("org_ecosystem_categories").select("org_id").or(orClause);
+    orgIdsByEcosystem = catRows ? [...new Set((catRows as { org_id: string }[]).map((r) => r.org_id))] : [];
+  }
+
   if (includePeople) {
-    const { data: profiles, error: profilesError } = await supabase
+    let qPeople = supabase
       .from("public_profile_view")
-      .select("id, display_name, username, avatar_url, twitter_username")
+      .select("id, display_name, username, avatar_url, twitter_username, followers_total, avg_engagement_rate")
       .or(`username.ilike.${term},display_name.ilike.${term},twitter_username.ilike.${term}`)
-      .limit(15);
+      .limit(50);
+    if (profileIdsByProfession != null && profileIdsByProfession.length > 0) {
+      qPeople = qPeople.in("id", profileIdsByProfession);
+    }
+    if (followersMin != null && followersMin !== "") {
+      const n = parseInt(followersMin, 10);
+      if (!isNaN(n)) qPeople = qPeople.gte("followers_total", n);
+    }
+    if (followersMax != null && followersMax !== "") {
+      const n = parseInt(followersMax, 10);
+      if (!isNaN(n)) qPeople = qPeople.lte("followers_total", n);
+    }
+    if (engagementMin != null && engagementMin !== "") {
+      const n = parseFloat(engagementMin);
+      if (!isNaN(n)) qPeople = qPeople.gte("avg_engagement_rate", n / 100);
+    }
+    if (engagementMax != null && engagementMax !== "") {
+      const n = parseFloat(engagementMax);
+      if (!isNaN(n)) qPeople = qPeople.lte("avg_engagement_rate", n / 100);
+    }
+    const { data: profiles, error: profilesError } = await qPeople;
 
     if (profilesError) {
       console.error("[api/search] profiles error:", profilesError);
@@ -88,11 +132,15 @@ export async function GET(request: NextRequest) {
   }
 
   if (includeOrgs) {
-    const { data: orgs, error: orgsError } = await supabase
+    let qOrgs = supabase
       .from("public_org_view")
       .select("id, name, slug, logo_url, org_type, twitter_username")
       .or(`name.ilike.${term},slug.ilike.${term},twitter_username.ilike.${term}`)
-      .limit(15);
+      .limit(50);
+    if (orgIdsByEcosystem != null && orgIdsByEcosystem.length > 0) {
+      qOrgs = qOrgs.in("id", orgIdsByEcosystem);
+    }
+    const { data: orgs, error: orgsError } = await qOrgs;
 
     if (orgsError) {
       console.error("[api/search] orgs error:", orgsError);

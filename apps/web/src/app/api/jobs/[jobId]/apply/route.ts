@@ -150,5 +150,16 @@ export async function POST(
   if (insertErr) {
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, applicationId: (app as { id: string }).id });
+  const applicationId = (app as { id: string }).id;
+  try {
+    const { data: orgAdmins } = await service.from("org_members").select("user_id").eq("org_id", (job as { org_id: string }).org_id).in("role", ["owner", "admin"]);
+    const { createNotification } = await import("@/lib/notifications");
+    for (const m of orgAdmins ?? []) {
+      const uid = (m as { user_id: string }).user_id;
+      if (uid && uid !== user.id) await createNotification(uid, "application_submitted", { entity_type: "application", entity_id: applicationId, payload: { job_id: jobId } });
+    }
+  } catch (_) {
+    /* non-blocking */
+  }
+  return NextResponse.json({ ok: true, applicationId });
 }

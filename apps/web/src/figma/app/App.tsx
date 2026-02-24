@@ -139,6 +139,7 @@ import CreatorProfilePage from "./components/CreatorProfilePage";
 import AgencyProfilePage from "./components/AgencyProfilePage";
 import ComponentShowcase from "./components/ComponentShowcase";
 import CalendarPage from "./components/CalendarPage";
+import XSpacesPage from "./components/XSpacesPage";
 import DashboardPage from "./components/DashboardPage";
 import OrgDetailPage from "./components/OrgDetailPage";
 import DealDetailPage from "./components/DealDetailPage";
@@ -977,6 +978,51 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
   const router = useRouter();
   const displayName = me?.display_name?.trim() || demo.me.name;
   const handle = me?.username?.trim() || demo.me.handle;
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const loadNotifications = useCallback(async () => {
+    if (!me?.id) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/notifications?limit=15`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => ({}));
+    setNotifications(data.notifications ?? []);
+    setUnreadCount(data.unreadCount ?? 0);
+  }, [me?.id]);
+  useEffect(() => {
+    if (me?.id) loadNotifications();
+  }, [me?.id, loadNotifications]);
+  const markRead = useCallback(async (ids) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    await fetch(`${base}/api/notifications/mark-read`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(ids ? { ids } : {}),
+    });
+    loadNotifications();
+  }, [loadNotifications]);
+  const notifLabel = (n) => {
+    if (n.type === "connection_request") return "Connection request";
+    if (n.type === "application_submitted") return "New application";
+    if (n.type === "application_accepted") return "Application accepted";
+    if (n.type === "application_rejected") return "Application declined";
+    if (n.type === "deal_delivered") return "Work delivered";
+    if (n.type === "deal_accepted") return "Deal accepted";
+    return n.type || "Notification";
+  };
+  const notifLink = (n) => {
+    if (n.type === "connection_request") return "/connections";
+    if (n.type === "application_submitted" && n.payload?.job_id) return `/app?org=jobs`;
+    if (n.type === "application_accepted" && n.entity_id) return `/deal/${n.entity_id}`;
+    if (n.entity_type === "deal" && n.entity_id) return `/deal/${n.entity_id}`;
+    return null;
+  };
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 relative z-[35]">
       <div className="flex items-center gap-3 flex-1 min-w-0 max-w-2xl">
@@ -1000,14 +1046,57 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
           <MessageSquare className="h-5 w-5 text-zinc-600 stroke-[1.75]" />
           <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-primary rounded-full" />
         </button>
-        <button
-          type="button"
-          onClick={() => setRoute({ name: "overview" })}
-          className="relative p-2 rounded-lg transition-colors hover:bg-accent"
-        >
-          <Bell className="h-5 w-5 text-zinc-600" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-primary rounded-full" />
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) loadNotifications(); }}
+            className="relative p-2 rounded-lg transition-colors hover:bg-accent"
+          >
+            <Bell className="h-5 w-5 text-zinc-600" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </button>
+          {notifOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} aria-hidden />
+              <div className="absolute right-0 top-full mt-1 w-80 max-h-[360px] overflow-y-auto rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg z-50 py-1">
+                {notifications.length === 0 ? (
+                  <p className="px-4 py-3 text-sm text-zinc-500">No notifications</p>
+                ) : (
+                  notifications.map((n) => (
+                    <button
+                      key={n.id}
+                      type="button"
+                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 flex flex-col gap-0.5 ${!n.read_at ? "bg-primary/5" : ""}`}
+                      onClick={() => {
+                        markRead([n.id]);
+                        setNotifOpen(false);
+                        const link = notifLink(n);
+                        if (link) router.push(link);
+                        else setRoute({ name: "overview" });
+                      }}
+                    >
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100">{notifLabel(n)}</span>
+                      <span className="text-xs text-zinc-500">{new Date(n.created_at).toLocaleDateString()}</span>
+                    </button>
+                  ))
+                )}
+                {notifications.length > 0 && (
+                  <button
+                    type="button"
+                    className="w-full text-center py-2 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    onClick={() => { markRead(); setNotifOpen(false); }}
+                  >
+                    Mark all read
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
 
         <div
           role="button"
@@ -3252,6 +3341,7 @@ export default function LinkaryApp() {
                 {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "dealDetail" && <DealDetailPage setRoute={setRoute} dealId={route.data?.dealId} />}
                 {route.name === "analytics" && <AnalyticsPage />}
+                {route.name === "calendar" && <XSpacesPage setRoute={setRoute} me={me} />}
                 {route.name === "privacy" && <PrivacyDataPage userId={authUserId} refreshMe={refreshMe} />}
                 {route.name === "terms" && <TermsOfServicePage setRoute={setRoute} />}
                 {route.name === "privacyPolicy" && <PrivacyPolicyPage setRoute={setRoute} />}

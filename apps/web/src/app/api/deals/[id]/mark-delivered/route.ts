@@ -57,5 +57,20 @@ export async function POST(
   if (updateErr) {
     return NextResponse.json({ error: updateErr.message }, { status: 500 });
   }
+  try {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
+    if (serviceKey) {
+      const { createClient } = await import("@supabase/supabase-js");
+      const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey);
+      const { data: orgAdmins } = await svc.from("org_members").select("user_id").eq("org_id", (deal as { org_id?: string }).org_id).in("role", ["owner", "admin"]);
+      const { createNotification } = await import("@/lib/notifications");
+      for (const m of orgAdmins ?? []) {
+        const uid = (m as { user_id: string }).user_id;
+        if (uid) await createNotification(uid, "deal_delivered", { entity_type: "deal", entity_id: id, payload: { profile_id: (deal as { profile_id: string }).profile_id } });
+      }
+    }
+  } catch (_) {
+    /* non-blocking */
+  }
   return NextResponse.json({ ok: true, delivered_at: new Date().toISOString() });
 }

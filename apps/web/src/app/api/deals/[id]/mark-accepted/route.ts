@@ -66,5 +66,15 @@ export async function POST(
   if (updateErr) {
     return NextResponse.json({ error: updateErr.message }, { status: 500 });
   }
+  try {
+    const { data: dealRow } = await supabase.from("deals").select("profile_id").eq("id", id).single();
+    const creatorId = (dealRow as { profile_id?: string } | null)?.profile_id;
+    if (creatorId) {
+      const { createNotification } = await import("@/lib/notifications");
+      await createNotification(creatorId, "deal_accepted", { entity_type: "deal", entity_id: id });
+    }
+  } catch (_) {
+    /* non-blocking */
+  }
   return NextResponse.json({ ok: true, accepted_at: new Date().toISOString() });
 }

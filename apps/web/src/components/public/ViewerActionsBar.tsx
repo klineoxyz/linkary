@@ -16,6 +16,9 @@ export function ViewerActionsBar({ username, entityType, orgId }: Props) {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [following, setFollowing] = useState<boolean | null>(null);
+  const [supporting, setSupporting] = useState<boolean | null>(null);
+  const [supportersCount, setSupportersCount] = useState<number>(0);
+  const [supportersSample, setSupportersSample] = useState<Array<{ id: string; display_name: string | null; avatar_url: string | null; username: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [acceptModalOpen, setAcceptModalOpen] = useState(false);
@@ -53,14 +56,23 @@ export function ViewerActionsBar({ username, entityType, orgId }: Props) {
           setLoading(false);
           return;
         }
-        fetch(`${base}/api/orgs/${orgId}/follow-status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-          .then((r) => r.json())
-          .then((b) => {
-            setFollowing(b.following === true);
+        Promise.all([
+          fetch(`${base}/api/orgs/${orgId}/follow-status`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+          fetch(`${base}/api/orgs/${orgId}/support-status`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+          fetch(`${base}/api/orgs/${orgId}/supporters?limit=12`).then((r) => r.json()),
+        ])
+          .then(([followRes, supportRes, supportersRes]) => {
+            setFollowing(followRes.following === true);
+            setSupporting(supportRes.supporting === true);
+            setSupportersCount(supportersRes.count ?? 0);
+            setSupportersSample(supportersRes.supporters ?? []);
           })
-          .catch(() => setFollowing(false))
+          .catch(() => {
+            setFollowing(false);
+            setSupporting(false);
+            setSupportersCount(0);
+            setSupportersSample([]);
+          })
           .finally(() => setLoading(false));
       });
     } else {
@@ -140,11 +152,29 @@ export function ViewerActionsBar({ username, entityType, orgId }: Props) {
     if (data.ok) setFollowing(!following);
   };
 
+  const toggleSupport = async () => {
+    if (!orgId) return;
+    setSubmitting(true);
+    const token = await getToken();
+    const method = supporting ? "unsupport" : "support";
+    const res = await fetch(`${base}/api/orgs/${orgId}/${method}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    setSubmitting(false);
+    if (data.ok) {
+      setSupporting(!supporting);
+      setSupportersCount((c) => (supporting ? c - 1 : c + 1));
+      if (!supporting) fetch(`${base}/api/orgs/${orgId}/supporters?limit=12`).then((r) => r.json()).then((b) => setSupportersSample(b.supporters ?? []));
+    }
+  };
+
   if (loading) return null;
 
   if (entityType === "org" && orgId) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={toggleFollow}
@@ -154,6 +184,28 @@ export function ViewerActionsBar({ username, entityType, orgId }: Props) {
           <UserPlus className="h-4 w-4" />
           {following ? "Following" : "Follow"}
         </button>
+        <button
+          type="button"
+          onClick={toggleSupport}
+          disabled={submitting}
+          className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium border ${supporting ? "bg-primary/10 border-primary text-primary" : "border-border bg-background hover:bg-muted"}`}
+        >
+          {supporting ? "Supporting" : "Support"}
+        </button>
+        {supportersCount > 0 && (
+          <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+            <span className="font-medium">{supportersCount}</span> supporter{supportersCount !== 1 ? "s" : ""}
+            {supportersSample.length > 0 && (
+              <span className="flex -space-x-2">
+                {supportersSample.slice(0, 5).map((s) => (
+                  <span key={s.id} className="inline-block h-6 w-6 rounded-full border-2 border-background bg-muted overflow-hidden" title={s.display_name ?? s.username ?? undefined}>
+                    {s.avatar_url ? <img src={s.avatar_url} alt="" className="h-full w-full object-cover" /> : <span className="h-full w-full flex items-center justify-center text-xs">?</span>}
+                  </span>
+                ))}
+              </span>
+            )}
+          </span>
+        )}
       </div>
     );
   }

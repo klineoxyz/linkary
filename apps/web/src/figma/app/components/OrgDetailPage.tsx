@@ -90,6 +90,11 @@ export default function OrgDetailPage({
   const [roleChangeLoading, setRoleChangeLoading] = useState<Record<string, boolean>>({});
   const [transferTargetUserId, setTransferTargetUserId] = useState("");
   const [transferLoading, setTransferLoading] = useState(false);
+  const [supportersCount, setSupportersCount] = useState(0);
+  const [supportersSample, setSupportersSample] = useState<Array<{ id: string; display_name: string | null; avatar_url: string | null; username: string | null }>>([]);
+  const [supporting, setSupporting] = useState(false);
+  const [influenceRollup, setInfluenceRollup] = useState<{ total_influence: number; breakdown: Record<string, unknown>; computed_at: string | null } | null>(null);
+  const [influenceExpanded, setInfluenceExpanded] = useState(false);
 
   useEffect(() => void loadSession(), []);
   function loadSession() {
@@ -115,13 +120,23 @@ export default function OrgDetailPage({
         setTokenSymbol(o.token_symbol ?? "");
         setDexscreenerUrl(o.dexscreener_url ?? "");
         setPublished(!!o.published);
-        const [m, a, am, met, jobsAll, cs] = await Promise.all([
+        const base = typeof window !== "undefined" ? window.location.origin : "";
+        const [m, a, am, met, jobsAll, cs, supportersRes, influenceRes, supportStatusRes] = await Promise.all([
           listOrgMembers(o.id),
           listOrgAffiliations(o.id),
           listOrgAmbassadors(o.id),
           getOrgMetrics(o.id),
           listJobs(),
           listCaseStudiesForOrg(o.id),
+          fetch(`${base}/api/orgs/${o.id}/supporters?limit=12`).then((r) => r.json()),
+          fetch(`${base}/api/orgs/${o.id}/influence-rollup`).then((r) => r.json()),
+          userId ? (async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            if (!token) return { supporting: false };
+            const r = await fetch(`${base}/api/orgs/${o.id}/support-status`, { headers: { Authorization: `Bearer ${token}` } });
+            return r.json();
+          })() : Promise.resolve({ supporting: false }),
         ]);
         setMembers(m);
         setAffiliations(a);
@@ -132,6 +147,10 @@ export default function OrgDetailPage({
         const appList = jobsForOrg.length ? await listApplicationsForJobs(jobsForOrg.map((j: { id: string }) => j.id)) : [];
         setApplications(appList);
         setCaseStudies(cs ?? []);
+        setSupportersCount(supportersRes?.count ?? 0);
+        setSupportersSample(supportersRes?.supporters ?? []);
+        setSupporting(supportStatusRes?.supporting === true);
+        setInfluenceRollup(influenceRes ? { total_influence: influenceRes.total_influence ?? 0, breakdown: influenceRes.breakdown ?? {}, computed_at: influenceRes.computed_at ?? null } : null);
         if (userId) {
           const isAdmin = await isOrgAdmin(userId, o.id);
           setAdmin(isAdmin);
@@ -385,6 +404,63 @@ export default function OrgDetailPage({
                 <span>Reach: {(metrics.potential_reach ?? 0).toLocaleString()}</span>
               </div>
             )}
+            <div className="flex flex-wrap items-center gap-3 mt-2">
+              {supportersCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
+                  <Users className="w-3.5 h-3.5" />
+                  <span className="font-medium">{supportersCount}</span> supporter{supportersCount !== 1 ? "s" : ""}
+                  {supportersSample.length > 0 && (
+                    <span className="flex -space-x-2">
+                      {supportersSample.slice(0, 5).map((s) => (
+                        <span key={s.id} className="inline-block h-5 w-5 rounded-full border-2 border-white dark:border-zinc-900 bg-zinc-200 dark:bg-zinc-700 overflow-hidden" title={s.display_name ?? s.username ?? undefined}>
+                          {s.avatar_url ? <img src={s.avatar_url} alt="" className="h-full w-full object-cover" /> : null}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </span>
+              )}
+              {userId && !admin && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const token = session?.access_token;
+                    const base = typeof window !== "undefined" ? window.location.origin : "";
+                    const method = supporting ? "unsupport" : "support";
+                    const res = await fetch(`${base}/api/orgs/${org.id}/${method}`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                    const json = await res.json().catch(() => ({}));
+                    if (json.ok) {
+                      setSupporting(!supporting);
+                      setSupportersCount((c) => (supporting ? c - 1 : c + 1));
+                      if (!supporting) {
+                        const r = await fetch(`${base}/api/orgs/${org.id}/supporters?limit=12`);
+                        const b = await r.json();
+                        setSupportersSample(b.supporters ?? []);
+                      }
+                    }
+                  }}
+                  className={`text-xs px-2 py-1 rounded border ${supporting ? "bg-primary/10 border-primary text-primary" : "border-zinc-300 dark:border-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}
+                >
+                  {supporting ? "Supporting" : "Support"}
+                </button>
+              )}
+              {influenceRollup != null && influenceRollup.total_influence > 0 && (
+                <div className="text-xs">
+                  <button type="button" onClick={() => setInfluenceExpanded(!influenceExpanded)} className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    Influence: <span className="font-medium">{influenceRollup.total_influence}</span>
+                  </button>
+                  {influenceExpanded && (
+                    <div className="mt-1 pl-4 border-l border-zinc-200 dark:border-zinc-700 text-zinc-500 space-y-0.5">
+                      {Object.entries(influenceRollup.breakdown).map(([k, v]) => (
+                        <div key={k}>{k}: {typeof v === "number" ? v.toFixed(1) : String(v)}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

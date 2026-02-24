@@ -105,5 +105,12 @@ export async function POST(request: NextRequest) {
     if (error.code === "23505") return fail("CONFLICT", "Connection request already exists", 409);
     return fail("INTERNAL", error.message, 500);
   }
+  const conn = inserted as { id: string };
+  try {
+    const { createNotification } = await import("@/lib/notifications");
+    await createNotification(recipientId, "connection_request", { entity_type: "connection", entity_id: conn.id, payload: { requester_profile_id: user.id } });
+  } catch (_) {
+    /* non-blocking */
+  }
   return ok({ connection: inserted });
 }

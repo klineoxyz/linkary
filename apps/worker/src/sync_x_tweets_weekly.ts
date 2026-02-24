@@ -1,7 +1,8 @@
 /**
  * Weekly cron: fetch tweets per eligible profile, ingest into public.x_tweets, update x_last_tweets_sync_at.
  * One-shot script: exits 0 when done. No server.
- * Eligible: twitter_username non-empty, twitter_connected_at set. Logs sanity counts and selected_count.
+ * Eligible: twitter_username non-empty, twitter_connected_at set.
+ * Incremental: only sync where x_last_tweets_sync_at is null OR &lt; 6 days ago.
  */
 import { config } from "dotenv";
 import { fileURLToPath } from "url";
@@ -46,7 +47,8 @@ async function main() {
 
   const supabase = getSupabaseAdmin();
   const TABLE = "profiles";
-  console.log("[WEEKLY] query table=" + TABLE);
+  const past6d = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString();
+  console.log("[WEEKLY] query table=" + TABLE + " past6d=" + past6d);
 
   // Sanity counts (no filters that might exclude everyone)
   const { count: totalProfiles } = await supabase.from(TABLE).select("*", { count: "exact", head: true });
@@ -74,30 +76,48 @@ async function main() {
     " with_sync_ok=" + (withSyncOk ?? "?")
   );
 
-  // Select: twitter_username and twitter_connected_at set (no is_indexed / x_last_tweets_sync_at filter so we don't exclude everyone)
-  const { data: profiles, error: listError } = await supabase
-    .from(TABLE)
-    .select("id, twitter_username")
-    .not("twitter_username", "is", null)
-    .not("twitter_connected_at", "is", null)
-    .order("id")
-    .limit(BATCH_SIZE);
+  // Eligible base: twitter_username and twitter_connected_at set
+  const base = () =>
+    supabase.from(TABLE).select("id, twitter_username").not("twitter_username", "is", null).not("twitter_connected_at", "is", null);
 
-  const selectedCount = (profiles ?? []).length;
-  if (listError) {
-    console.error("[WEEKLY] supabase_error message=" + listError.message + " code=" + (listError.code ?? "?") + " details=" + JSON.stringify(listError.details ?? {}));
+  // Incremental: need sync = never synced OR last sync older than 6 days. Two queries to avoid .or() string bugs.
+  const { data: needSyncNull, error: errNull } = await base().is("x_last_tweets_sync_at", null).order("id").limit(BATCH_SIZE);
+  const { data: needSyncStale, error: errStale } = await base().lt("x_last_tweets_sync_at", past6d).order("id").limit(BATCH_SIZE);
+
+  if (errNull || errStale) {
+    console.error("[WEEKLY] supabase_error null=" + (errNull?.message ?? "ok") + " stale=" + (errStale?.message ?? "ok"));
     process.exit(1);
   }
-  console.log("[WEEKLY] selected_count=" + selectedCount);
 
-  const list = (profiles ?? []).filter(
-    (p: { twitter_username: string | null }) => p.twitter_username != null && String(p.twitter_username).trim().length > 0
+  const byId = new Map<string, { id: string; twitter_username: string | null }>();
+  for (const p of needSyncNull ?? []) byId.set(p.id, p);
+  for (const p of needSyncStale ?? []) if (!byId.has(p.id)) byId.set(p.id, p);
+  const profiles = Array.from(byId.values());
+
+  const selectedCount = profiles.length;
+  const list = profiles.filter(
+    (p) => p.twitter_username != null && String(p.twitter_username).trim().length > 0
   );
+
+  // Count skipped due to recent sync (eligible but x_last_tweets_sync_at >= past6d)
+  const { count: skippedDueToRecentSync } = await supabase
+    .from(TABLE)
+    .select("*", { count: "exact", head: true })
+    .not("twitter_username", "is", null)
+    .not("twitter_connected_at", "is", null)
+    .not("x_last_tweets_sync_at", "is", null)
+    .gte("x_last_tweets_sync_at", past6d);
+
+  console.log(
+    "[WEEKLY] selected_count=" + selectedCount +
+    " skipped_due_to_recent_sync=" + (skippedDueToRecentSync ?? "?")
+  );
+
   if (list.length === 0) {
     console.warn(
       "[WEEKLY] selected_count=0. Sanity: total_profiles=" + (totalProfiles ?? "?") +
       " with_handle=" + (withHandle ?? "?") + " with_connected_at=" + (withConnectedAt ?? "?") +
-      " with_sync_ok=" + (withSyncOk ?? "?") + ". Check filters."
+      " skipped_due_to_recent_sync=" + (skippedDueToRecentSync ?? "?") + ". Nothing to sync this run."
     );
     process.exit(0);
   }
@@ -150,10 +170,7 @@ async function main() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("x_tweets") || msg.includes("relation") || msg.includes("does not exist")) {
-        console.error(
-          "x_tweets table missing. Run migration: supabase/migrations/20260220000000_x_analytics_ingestion.sql"
-        );
-        process.exit(1);
+        console.error("[WEEKLY] x_tweets table missing for profile " + profile.id + ". Run migration: supabase/migrations/20260220000000_x_analytics_ingestion.sql");
       }
       await supabase
         .from("profiles")
@@ -168,7 +185,12 @@ async function main() {
     await sleep(DELAY_MS);
   }
 
-  console.log("[WEEKLY] done profiles_processed=" + profilesProcessed + " tweets_total_upserted=" + tweetsTotalUpserted);
+  console.log(
+    "[WEEKLY] done processed=" + profilesProcessed +
+    " failures=" + err +
+    " tweets_total_upserted=" + tweetsTotalUpserted +
+    " skipped_due_to_recent_sync=" + (skippedDueToRecentSync ?? "?")
+  );
   process.exit(0);
 }
 

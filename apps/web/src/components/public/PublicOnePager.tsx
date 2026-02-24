@@ -20,6 +20,7 @@ import { EcosystemSections } from "./EcosystemSections";
 import { DexScreenerEmbed } from "./DexScreenerEmbed";
 import { HeroMedia } from "./HeroMedia";
 import { supabase } from "@/lib/supabase";
+import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 
 /** Minimal fade-in on scroll (once). */
 function useFadeIn() {
@@ -175,7 +176,8 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
   const org = entity.org;
   const displayName = isProfile ? profile?.display_name ?? username : org?.name ?? username;
   const bio = isProfile ? profile?.bio : org?.tagline;
-  const avatarUrl = isProfile ? profile?.avatar_url : org?.logo_url;
+  const rawAvatarUrl = isProfile ? profile?.avatar_url : org?.logo_url;
+  const avatarUrl = rawAvatarUrl && !isPrivateStorageUrl(rawAvatarUrl) ? rawAvatarUrl : null;
   const tier = entity.tier;
   const caseStudies = tier === "pro" ? entity.caseStudies : entity.caseStudies.slice(0, 2);
   const reviews = tier === "pro" ? entity.reviews : entity.reviews.slice(0, 2);
@@ -353,7 +355,11 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
         <section className="mb-8">
           <HeroMedia
             type={entity.headerMedia?.header_media_type ?? "NONE"}
-            url={entity.headerMedia?.header_media_url ?? null}
+            url={
+              entity.headerMedia?.header_media_url && !isPrivateStorageUrl(entity.headerMedia.header_media_url)
+                ? entity.headerMedia.header_media_url
+                : null
+            }
             alt={displayName ?? undefined}
           />
         </section>
@@ -578,7 +584,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
               <ul className="space-y-3">
                 {entity.affiliates.map((aff, i) => (
                   <li key={`aff-${i}-${aff.name}`} className="flex items-center gap-3 rounded-md border border-border bg-background p-3 transition-transform duration-200 hover:scale-[1.02]">
-                    {aff.logo_url && <img src={aff.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
+                    {aff.logo_url && !isPrivateStorageUrl(aff.logo_url) && <img src={aff.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
                     <div className="min-w-0 flex-1">
                       <div className="font-medium text-foreground">{aff.name}</div>
                       {aff.description && <div className="text-xs text-muted-foreground line-clamp-2">{aff.description}</div>}
@@ -593,7 +599,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                 ))}
                 {entity.ambassadors.map((amb, i) => (
                   <li key={`amb-${i}-${amb.name}`} className="flex items-center gap-3 rounded-md border border-border bg-background p-3 transition-transform duration-200 hover:scale-[1.02]">
-                    {amb.logo_url && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
+                    {amb.logo_url && !isPrivateStorageUrl(amb.logo_url) && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
                     <div className="min-w-0 flex-1">
                       <div className="font-medium text-foreground">{amb.name}</div>
                       {amb.description && <div className="text-xs text-muted-foreground line-clamp-2">{amb.description}</div>}
@@ -613,7 +619,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
               <ul className="space-y-3">
                 {entity.affiliates.map((aff, i) => (
                   <li key={`aff-${i}-${aff.name}`} className="flex items-center gap-3 rounded-md border border-border bg-background p-3 transition-transform duration-200 hover:scale-[1.02]">
-                    {aff.logo_url && <img src={aff.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
+                    {aff.logo_url && !isPrivateStorageUrl(aff.logo_url) && <img src={aff.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
                     <div className="min-w-0 flex-1">
                       <div className="font-medium text-foreground">{aff.name}</div>
                       {aff.description && <div className="text-xs text-muted-foreground line-clamp-2">{aff.description}</div>}
@@ -628,7 +634,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                 ))}
                 {entity.ambassadors.map((amb, i) => (
                   <li key={`amb-${i}-${amb.name}`} className="flex items-center gap-3 rounded-md border border-border bg-background p-3 transition-transform duration-200 hover:scale-[1.02]">
-                    {amb.logo_url && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
+                    {amb.logo_url && !isPrivateStorageUrl(amb.logo_url) && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />}
                     <div className="min-w-0 flex-1">
                       <div className="font-medium text-foreground">{amb.name}</div>
                       {amb.description && <div className="text-xs text-muted-foreground line-clamp-2">{amb.description}</div>}
@@ -714,7 +720,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                         <ul className="space-y-3">
                           {entity.affiliates.map((aff, i) => (
                             <li key={`aff-${i}-${aff.name}`} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0 transition-transform duration-200 hover:scale-[1.02]">
-                              {aff.logo_url && <img src={aff.logo_url} alt="" className="h-10 w-10 rounded-md object-cover" />}
+                              {aff.logo_url && !isPrivateStorageUrl(aff.logo_url) && <img src={aff.logo_url} alt="" className="h-10 w-10 rounded-md object-cover" />}
                               <div className="min-w-0 flex-1">
                                 <div className="font-medium text-foreground">{aff.name}</div>
                                 {aff.description && <div className="text-xs text-muted-foreground line-clamp-2">{aff.description}</div>}
@@ -726,7 +732,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                           ))}
                           {entity.ambassadors.map((amb, i) => (
                             <li key={`amb-${i}-${amb.name}`} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0 transition-transform duration-200 hover:scale-[1.02]">
-                              {amb.logo_url && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover" />}
+                              {amb.logo_url && !isPrivateStorageUrl(amb.logo_url) && <img src={amb.logo_url} alt="" className="h-10 w-10 rounded-md object-cover" />}
                               <div className="min-w-0 flex-1">
                                 <div className="font-medium text-foreground">{amb.name}</div>
                                 {amb.description && <div className="text-xs text-muted-foreground line-clamp-2">{amb.description}</div>}
@@ -841,7 +847,7 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                     <ul className="space-y-0">
                       {entity.subsidiaries.map((sub) => (
                         <li key={sub.id} className="flex items-center gap-3 py-3 border-b border-border/50 last:border-0">
-                          {sub.logo_url && <img src={sub.logo_url} alt="" className="h-12 w-12 rounded-md object-cover" />}
+                          {sub.logo_url && !isPrivateStorageUrl(sub.logo_url) && <img src={sub.logo_url} alt="" className="h-12 w-12 rounded-md object-cover" />}
                           <div>
                             <div className="font-medium text-foreground">{sub.name}</div>
                             <p className="text-xs text-muted-foreground">@{sub.slug}</p>

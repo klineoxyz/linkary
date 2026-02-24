@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { updateMyProfile } from "@/lib/profiles";
 import { getProfileProfessions, setProfileProfessions } from "@/lib/profileProfessions";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
+import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 import { listCaseStudiesForProfile, createCaseStudyForProfile, type CaseStudy } from "@/lib/caseStudies";
 import ProfessionSelect from "./ProfessionSelect";
 import { MediaUploadField } from "@/components/MediaUploadField";
@@ -107,7 +108,7 @@ function PartnerProgramsEditor({
               <li key={p.id} className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white p-2">
                 {p.logo_file_path ? (
                   <SignedMediaImage path={p.logo_file_path} getAuthHeaders={getAuthHeaders} className="h-8 w-8 rounded object-cover shrink-0" />
-                ) : p.logo_url && !p.logo_url.includes("supabase.co") ? (
+                ) : p.logo_url && !isPrivateStorageUrl(p.logo_url) ? (
                   <img src={p.logo_url} alt="" className="h-8 w-8 rounded object-cover shrink-0" />
                 ) : null}
                 <div className="min-w-0 flex-1">

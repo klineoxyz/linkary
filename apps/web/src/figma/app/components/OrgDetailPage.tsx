@@ -12,6 +12,7 @@ import {
   Settings,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 import {
   getOrgById,
   getOrgBySlug,
@@ -405,7 +406,7 @@ export default function OrgDetailPage({
 
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 overflow-hidden">
         <div className="p-6 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-4">
-          {org.logo_url ? (
+          {org.logo_url && !isPrivateStorageUrl(org.logo_url) ? (
             <img src={org.logo_url} alt={org.name} className="w-14 h-14 rounded-xl object-cover" />
           ) : (
             <div className="w-14 h-14 rounded-xl bg-accent flex items-center justify-center">

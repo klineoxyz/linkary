@@ -32,9 +32,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "path required" }, { status: 400 });
   }
 
+  // Short-lived signed URL (<= 60s); do not cache in browser
   const { data: signed, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ url: signed.signedUrl });
+  return NextResponse.json(
+    { url: signed.signedUrl },
+    {
+      headers: {
+        "Cache-Control": "private, no-store",
+        Pragma: "no-cache",
+      },
+    }
+  );
 }

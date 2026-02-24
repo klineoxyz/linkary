@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 import {
   ArrowRight,
   CheckCircle2,
@@ -79,7 +80,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
             type: o.org_type === "agency" ? "brand" : "project",
             name: o.name || o.slug || "Project",
             handle: o.slug ? `/p/${o.slug}` : "",
-            avatar: o.logo_url || "",
+            avatar: o.logo_url && !isPrivateStorageUrl(o.logo_url) ? o.logo_url : "",
             xscore: o.xscore ?? undefined,
             verified: false,
           });

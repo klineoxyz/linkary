@@ -73,12 +73,16 @@ interface Signal {
 }
 
 interface TopDriver {
+  tweet_id?: string;
   date: string;
+  time?: string;
   postType: "text" | "media" | "thread";
   likes: number;
   replies: number;
   reposts: number;
   engagementRate: number;
+  /** When true, ER is >100% (e.g. viral tweet); show "100%+" */
+  engagementOver100?: boolean;
   growthContribution?: string;
 }
 
@@ -399,17 +403,27 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         },
       ];
 
-  const topDrivers: TopDriver[] =
-    xAnalyticsData?.topDrivers?.length > 0
-      ? xAnalyticsData.topDrivers.map((t) => ({
-          date: t.tweeted_at ? new Date(t.tweeted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
+  // Dedupe by tweet_id; source: GET /api/analytics/x → x_top_drivers (profile_id, window_days=30)
+  const rawTop = xAnalyticsData?.topDrivers ?? [];
+  const byTweetId = new Map<string, typeof rawTop[0]>();
+  for (const t of rawTop) {
+    if (t?.tweet_id && !byTweetId.has(t.tweet_id)) byTweetId.set(t.tweet_id, t);
+  }
+  const topDrivers: (TopDriver & { tweet_id: string })[] = Array.from(byTweetId.entries()).map(([tweet_id, t]) => {
+    const engagementScore = Number(t.engagement_score) || 0;
+    const erPct = followersTotal > 0 ? (engagementScore / followersTotal) * 100 : 0;
+    return {
+      tweet_id,
+      date: t.tweeted_at ? new Date(t.tweeted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
+      time: t.tweeted_at ? new Date(t.tweeted_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }) : "",
           postType: "text" as const,
           likes: t.like_count ?? 0,
           replies: t.reply_count ?? 0,
           reposts: t.repost_count ?? 0,
-          engagementRate: followersTotal > 0 ? Math.round((Number(t.engagement_score) / followersTotal) * 1000) / 10 : 0,
-        }))
-      : [];
+          engagementRate: Math.min(100, Math.round(erPct * 10) / 10),
+          engagementOver100: erPct > 100,
+        };
+  });
   const hasTopDrivers = topDrivers.length > 0;
 
   const getSignalColor = (signal: SignalType) => {
@@ -858,7 +872,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Top Drivers (30D)</h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  Posts that contributed most to your growth
+                  Posts that contributed most to your growth. Data from your synced X tweets (Integrations).
                 </p>
               </div>
             </div>
@@ -896,13 +910,15 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               <tbody>
                 {topDrivers.map((driver, index) => (
                   <motion.tr
-                    key={index}
+                    key={driver.tweet_id ?? index}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.4, delay: index * 0.05 }}
                     className="border-b border-white/5 hover:bg-white/5 transition-colors group"
                   >
-                    <td className="py-4 text-sm text-gray-900 font-medium">{driver.date}</td>
+                    <td className="py-4 text-sm text-gray-900 font-medium">
+                      {driver.date}{driver.time ? ` · ${driver.time}` : ""}
+                    </td>
                     <td className="py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border ${getPostTypeColor(driver.postType)}`}>
                         {driver.postType.charAt(0).toUpperCase() + driver.postType.slice(1)}
@@ -927,7 +943,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                       </div>
                     </td>
                     <td className="py-4 text-right text-sm font-semibold text-primary">
-                      {driver.engagementRate}%
+                      {driver.engagementOver100 ? "100%+" : `${driver.engagementRate}%`}
                     </td>
                     <td className="py-4 text-right text-sm font-semibold text-primary">
                       {driver.growthContribution ?? "\u2014"}

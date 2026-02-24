@@ -76,7 +76,8 @@ export async function GET(request: NextRequest) {
     analytics_initialized_at?: string | null;
   } | null;
   const legacyRollup = legacyRollupRes.data as Record<string, unknown> | null;
-  const topDrivers = (driversRes.data ?? []) as Array<{
+  // Dedupe by tweet_id (source: x_top_drivers for this profile, window_days=30)
+  const rawDrivers = (driversRes.data ?? []) as Array<{
     tweet_id: string;
     tweeted_at: string | null;
     like_count: number;
@@ -84,6 +85,12 @@ export async function GET(request: NextRequest) {
     repost_count: number;
     engagement_score: number;
   }>;
+  const seenIds = new Set<string>();
+  const topDrivers = rawDrivers.filter((d) => {
+    if (seenIds.has(d.tweet_id)) return false;
+    seenIds.add(d.tweet_id);
+    return true;
+  });
   const baseline = baselineRes.data as {
     baseline_at?: string;
     baseline_date?: string;

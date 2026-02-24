@@ -15,8 +15,8 @@ function getServiceSupabase(): SupabaseClient {
   return createClient(url, key);
 }
 
-/** Normalize handle from profile: prefer twitter_username, normalized (trim, strip @, lower). */
-function normalizedHandle(profile: { twitter_username?: string | null; twitter_user_id?: string | null }): string {
+/** Prefer twitter_user_id for identity; use normalized twitter_username only when twitter_user_id is null (for API lookups that require handle). */
+function getHandleForApi(profile: { twitter_username?: string | null; twitter_user_id?: string | null }): string {
   const raw = profile.twitter_username ?? "";
   return raw.trim().replace(/^@/, "").toLowerCase();
 }
@@ -56,7 +56,8 @@ export async function refreshScoresForProfile(profileId: string): Promise<Refres
     };
   }
 
-  const handle = normalizedHandle(profile);
+  // Prefer twitter_user_id for identity; fallback to normalized twitter_username for API (Ethos userkey format requires handle).
+  const handle = getHandleForApi(profile);
   const userkey = ethosUserkey(handle);
 
   // --- Ethos: fetch live or use cache ---

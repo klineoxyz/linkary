@@ -1303,13 +1303,6 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
 
             {snapshotsForFollowerChart.length >= 2 ? (
             <div className="flex gap-3">
-              <div className="flex flex-col justify-between text-xs text-gray-500 py-2 w-0 overflow-hidden opacity-0" aria-hidden>
-                {(() => {
-                  const vals = snapshotsForFollowerChart.map((s) => Number(s.followers_total ?? 0));
-                  const max = Math.max(...vals, 1);
-                  return [1, 0.75, 0.5, 0.25, 0].map((pct) => Math.round(max * pct).toLocaleString());
-                })()}
-              </div>
               <div className="flex-1">
                 <div className="relative h-48 flex items-end gap-0.5 border-l border-b border-white/10">
                   {snapshotsForFollowerChart.map((s, i) => {
@@ -1375,13 +1368,6 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
 
             {hasEngagementChartData ? (
             <div className="flex gap-3">
-              <div className="flex flex-col justify-between text-xs text-gray-500 py-2 w-0 overflow-hidden opacity-0" aria-hidden>
-                {(() => {
-                  const valid = engagementValues.filter((v): v is number => v != null && Number.isFinite(v));
-                  const max = valid.length ? Math.max(...valid, 0.01) : 5;
-                  return [1, 0.75, 0.5, 0.25, 0].map((pct) => `${(max * pct).toFixed(1)}%`);
-                })()}
-              </div>
               <div className="flex-1">
                 <div className="relative h-48 flex items-end gap-2 border-l border-b border-white/10">
                   {[0, 1, 2, 3, 4].map((i) => (
@@ -1435,12 +1421,6 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
 
             {hasCadenceData ? (
             <div className="flex gap-3">
-              <div className="flex flex-col justify-between text-xs text-gray-500 py-2 w-0 overflow-hidden opacity-0" aria-hidden>
-                {(() => {
-                  const max = Math.max(...cadenceValues, 1);
-                  return [1, 0.75, 0.5, 0.25, 0].map((pct) => String(Math.round(max * pct)));
-                })()}
-              </div>
               <div className="flex-1">
                 <div className="relative h-48 flex items-end gap-2 border-l border-b border-white/10">
                   {[0, 1, 2, 3, 4].map((i) => (

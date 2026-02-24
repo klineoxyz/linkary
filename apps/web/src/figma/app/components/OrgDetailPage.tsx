@@ -677,10 +677,33 @@ export default function OrgDetailPage({
                             </span>
                             <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{app.status}</span>
                           </div>
-                          {app.shared_analytics && app.analytics_snapshot_json && typeof app.analytics_snapshot_json === "object" && (
-                            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                              Shared analytics: 30d posts {(app.analytics_snapshot_json as Record<string, unknown>).posts_30d ?? "—"} · avg likes {(app.analytics_snapshot_json as Record<string, unknown>).avg_likes_30d ?? "—"} · reach proxy {(app.analytics_snapshot_json as Record<string, unknown>).reach_proxy_30d ?? "—"}
-                            </div>
+                          {app.shared_analytics && app.analytics_snapshot_json && typeof app.analytics_snapshot_json === "object" && (() => {
+                            const snap = app.analytics_snapshot_json as Record<string, unknown>;
+                            const posts = snap.posts_30d != null ? String(snap.posts_30d) : "—";
+                            const likes = snap.avg_likes_30d != null ? String(snap.avg_likes_30d) : "—";
+                            const reach = snap.reach_proxy_30d != null ? String(snap.reach_proxy_30d) : "—";
+                            return (
+                              <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                Shared analytics: 30d posts {posts} · avg likes {likes} · reach proxy {reach}
+                              </div>
+                            );
+                          })()}
+                          {app.shared_cv && admin && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const { data: { session } } = await supabase.auth.getSession();
+                                const token = session?.access_token;
+                                const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                const res = await fetch(`${origin}/api/applications/${app.id}/cv-download`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                                const json = await res.json().catch(() => ({}));
+                                if (res.ok && json?.url) window.open(json.url, "_blank");
+                                else if (!res.ok) console.error(json?.error ?? "Failed to get download link");
+                              }}
+                              className="text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                            >
+                              Download CV
+                            </button>
                           )}
                           <div className="flex items-center gap-2 flex-wrap">
                           {admin && app.status === "pending" && isOpen && (

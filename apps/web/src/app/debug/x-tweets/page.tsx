@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
@@ -15,7 +15,7 @@ type Row = {
   engagement: number;
 };
 
-export default function DebugXTweetsPage() {
+function DebugXTweetsContent() {
   const searchParams = useSearchParams();
   const day = searchParams.get("day") ?? "";
   const [rows, setRows] = useState<Row[]>([]);
@@ -112,5 +112,13 @@ export default function DebugXTweetsPage() {
         <Link href="/analytics" className="inline-block mt-4 text-sm text-primary hover:underline">Back to Analytics</Link>
       </div>
     </div>
+  );
+}
+
+export default function DebugXTweetsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen p-6 bg-[#F7F8FB] text-gray-600">Loading…</div>}>
+      <DebugXTweetsContent />
+    </Suspense>
   );
 }

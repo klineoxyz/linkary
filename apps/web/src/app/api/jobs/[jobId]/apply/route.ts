@@ -97,12 +97,14 @@ export async function POST(
   // Apply as profile
   const { data: profile } = await service
     .from("profiles")
-    .select("id, share_analytics_on_apply")
+    .select("id, share_analytics_on_apply, share_cv_on_apply, cv_document_id")
     .eq("id", user.id)
     .maybeSingle();
 
   let sharedAnalytics = false;
   let analyticsSnapshotJson: Record<string, unknown> | null = null;
+  let sharedCv = false;
+  let cvFilePath: string | null = null;
 
   if (profile && (profile as { share_analytics_on_apply?: boolean }).share_analytics_on_apply !== false) {
     const { data: rollup } = await service
@@ -115,6 +117,22 @@ export async function POST(
       analyticsSnapshotJson = rollup as unknown as Record<string, unknown>;
     }
   }
+  if (profile && (profile as { share_cv_on_apply?: boolean }).share_cv_on_apply !== false) {
+    const docId = (profile as { cv_document_id?: string | null }).cv_document_id;
+    if (docId) {
+      const { data: doc } = await service
+        .from("profile_documents")
+        .select("file_path")
+        .eq("id", docId)
+        .eq("profile_id", user.id)
+        .maybeSingle();
+      const path = (doc as { file_path?: string } | null)?.file_path;
+      if (path) {
+        sharedCv = true;
+        cvFilePath = path;
+      }
+    }
+  }
 
   const { data: app, error: insertErr } = await service.from("applications").insert({
     job_id: jobId,
@@ -125,8 +143,8 @@ export async function POST(
     status: "pending",
     shared_analytics: sharedAnalytics,
     analytics_snapshot_json: analyticsSnapshotJson,
-    shared_cv: false,
-    cv_file_path: null,
+    shared_cv: sharedCv,
+    cv_file_path: cvFilePath,
   }).select("id").single();
 
   if (insertErr) {

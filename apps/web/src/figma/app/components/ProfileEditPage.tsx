@@ -281,6 +281,9 @@ export default function ProfileEditPage({
   const [caseStudyForm, setCaseStudyForm] = useState({ title: "", description: "", proofUrl: "" });
   const [partnerSaving, setPartnerSaving] = useState(false);
   const [caseStudySaving, setCaseStudySaving] = useState(false);
+  const [cvFileName, setCvFileName] = useState<string | null>(null);
+  const [cvUploading, setCvUploading] = useState(false);
+  const [cvDeleting, setCvDeleting] = useState(false);
 
   const getAuthHeaders = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -341,7 +344,18 @@ export default function ProfileEditPage({
       setTelegramUrl(s.telegram_url ?? "");
     }
     if (me?.published != null) setPublished(!!me.published);
-  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, loadPartners, loadCaseStudies]);
+    if ((me as { cv_document_id?: string | null })?.cv_document_id) {
+      const { data: cvDoc } = await supabase
+        .from("profile_documents")
+        .select("file_name")
+        .eq("id", (me as { cv_document_id: string }).cv_document_id)
+        .eq("profile_id", me.id)
+        .maybeSingle();
+      setCvFileName((cvDoc as { file_name?: string } | null)?.file_name ?? "CV.pdf");
+    } else {
+      setCvFileName(null);
+    }
+  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies]);
 
   useEffect(() => {
     load();
@@ -572,6 +586,142 @@ export default function ProfileEditPage({
               <option key={opt || "empty"} value={opt}>{opt || "Select…"}</option>
             ))}
           </select>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+          <label className="block text-sm font-medium text-zinc-700">CV (PDF)</label>
+          <p className="text-xs text-zinc-500">Upload a PDF to share with organizations when you apply to jobs (if you enable &quot;Share CV on applications&quot; in Privacy).</p>
+          {cvFileName ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-zinc-700 truncate">{cvFileName}</span>
+              <input
+                type="file"
+                accept=".pdf,application/pdf"
+                className="hidden"
+                id="cv-replace-input"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !me?.id) return;
+                  e.target.value = "";
+                  if (file.type !== "application/pdf") {
+                    setError("Only PDF files are allowed.");
+                    return;
+                  }
+                  setCvUploading(true);
+                  setError(null);
+                  try {
+                    const headers = await getAuthHeaders();
+                    const base = typeof window !== "undefined" ? window.location.origin : "";
+                    const urlRes = await fetch(`${base}/api/profile/cv/upload-url`, { method: "POST", headers: { ...headers } });
+                    const urlJson = await urlRes.json();
+                    if (!urlRes.ok || !urlJson.uploadUrl || !urlJson.file_path) {
+                      setError(urlJson.error || "Failed to get upload URL");
+                      return;
+                    }
+                    const putRes = await fetch(urlJson.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": "application/pdf" } });
+                    if (!putRes.ok) {
+                      setError("Upload failed");
+                      return;
+                    }
+                    const commitRes = await fetch(`${base}/api/profile/cv/commit`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", ...headers },
+                      body: JSON.stringify({ file_path: urlJson.file_path, file_name: file.name, size_bytes: file.size }),
+                    });
+                    const commitJson = await commitRes.json();
+                    if (!commitRes.ok || !commitJson.ok) {
+                      setError(commitJson.error || "Failed to save CV");
+                      return;
+                    }
+                    setCvFileName(file.name);
+                    onSaved?.();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Upload failed");
+                  } finally {
+                    setCvUploading(false);
+                  }
+                }}
+              />
+              <label htmlFor="cv-replace-input" className={`text-sm text-primary cursor-pointer hover:underline ${cvUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                {cvUploading ? "Uploading…" : "Replace"}
+              </label>
+              <button
+                type="button"
+                disabled={cvDeleting}
+                onClick={async () => {
+                  if (!me?.id || !confirm("Remove your CV?")) return;
+                  setCvDeleting(true);
+                  setError(null);
+                  try {
+                    const headers = await getAuthHeaders();
+                    const base = typeof window !== "undefined" ? window.location.origin : "";
+                    const res = await fetch(`${base}/api/profile/cv/delete`, { method: "POST", headers: { ...headers } });
+                    const json = await res.json();
+                    if (!res.ok && !json.ok) setError(json.error || "Delete failed");
+                    else { setCvFileName(null); onSaved?.(); }
+                  } finally {
+                    setCvDeleting(false);
+                  }
+                }}
+                className="text-sm text-red-600 hover:underline disabled:opacity-50"
+              >
+                {cvDeleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                type="file"
+                accept=".pdf,application/pdf"
+                className="hidden"
+                id="cv-upload-input"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !me?.id) return;
+                  e.target.value = "";
+                  if (file.type !== "application/pdf") {
+                    setError("Only PDF files are allowed.");
+                    return;
+                  }
+                  setCvUploading(true);
+                  setError(null);
+                  try {
+                    const headers = await getAuthHeaders();
+                    const base = typeof window !== "undefined" ? window.location.origin : "";
+                    const urlRes = await fetch(`${base}/api/profile/cv/upload-url`, { method: "POST", headers: { ...headers } });
+                    const urlJson = await urlRes.json();
+                    if (!urlRes.ok || !urlJson.uploadUrl || !urlJson.file_path) {
+                      setError(urlJson.error || "Failed to get upload URL");
+                      return;
+                    }
+                    const putRes = await fetch(urlJson.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": "application/pdf" } });
+                    if (!putRes.ok) {
+                      setError("Upload failed");
+                      return;
+                    }
+                    const commitRes = await fetch(`${base}/api/profile/cv/commit`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", ...headers },
+                      body: JSON.stringify({ file_path: urlJson.file_path, file_name: file.name, size_bytes: file.size }),
+                    });
+                    const commitJson = await commitRes.json();
+                    if (!commitRes.ok || !commitJson.ok) {
+                      setError(commitJson.error || "Failed to save CV");
+                      return;
+                    }
+                    setCvFileName(file.name);
+                    onSaved?.();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Upload failed");
+                  } finally {
+                    setCvUploading(false);
+                  }
+                }}
+              />
+              <label htmlFor="cv-upload-input" className="inline-block px-3 py-1.5 rounded-lg border border-zinc-300 bg-white text-zinc-700 text-sm font-medium cursor-pointer hover:bg-zinc-50">
+                {cvUploading ? "Uploading…" : "Upload PDF"}
+              </label>
+            </>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Header media (home &amp; public page)</label>

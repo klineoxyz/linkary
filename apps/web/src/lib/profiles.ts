@@ -47,6 +47,8 @@ export type Profile = {
   share_analytics_on_apply?: boolean;
   /** When true, allow sharing CV with org when applying */
   share_cv_on_apply?: boolean;
+  /** Current CV document id (profile_documents) */
+  cv_document_id?: string | null;
 };
 
 /** Identity shape from Supabase auth (user.identities or provider raw_user_meta) */

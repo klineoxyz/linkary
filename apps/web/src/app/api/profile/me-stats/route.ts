@@ -98,8 +98,7 @@ export async function GET(request: Request) {
     ? reviewsList.reduce((s, r) => s + (Number(r.rating) || 0), 0) / count
     : 0;
 
-  // Verified gigs: completed deals where this profile is the creator (deals.profile_id = creator).
-  // Dev check: create 1 completed deal with profile_id = me, then GET me-stats; verifiedGigsCount should be 1 and socialPower/reputationIndex should increase.
+  // Verified gigs: public.deals has profile_id (creator), status; no verified column on deals. Count = completed deals where creator = me.
   const { count: dealsCount } = await supabase
     .from("deals")
     .select("id", { count: "exact", head: true })

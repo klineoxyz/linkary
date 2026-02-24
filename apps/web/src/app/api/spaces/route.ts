@@ -4,11 +4,17 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-/** GET /api/spaces?mine=1&upcoming=1 — list spaces (my spaces or public upcoming) */
+/** GET /api/spaces?mine=1&upcoming=1 | from=YYYY-MM-01&to=YYYY-MM-DD&scope=public
+ * from/to: return spaces with scheduled_at in [from, to] (inclusive). scope=public filters status scheduled|live.
+ * When logged in, also include mine=1 to merge in the user's spaces.
+ */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const mine = searchParams.get("mine") === "1";
   const upcoming = searchParams.get("upcoming") === "1";
+  const fromParam = searchParams.get("from")?.trim();
+  const toParam = searchParams.get("to")?.trim();
+  const scope = searchParams.get("scope")?.trim();
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
@@ -18,30 +24,62 @@ export async function GET(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, token ? { global: { headers: { Authorization: `Bearer ${token}` } } } : {});
 
-  if (mine && token) {
-    const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user?.id) return NextResponse.json({ spaces: [] });
-    const { data, error } = await supabase
-      .from("spaces")
-      .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at")
-      .eq("host_profile_id", user.id)
-      .order("scheduled_at", { ascending: true });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ spaces: data ?? [] });
+  const spaces: Array<{ id: string; host_profile_id: string; title: string; description: string | null; scheduled_at: string | null; duration_mins: number | null; status: string; created_at: string }> = [];
+
+  const useRange = fromParam && toParam && scope === "public";
+  if (useRange) {
+    const fromDate = new Date(fromParam + "T00:00:00.000Z");
+    const toDate = new Date(toParam + "T23:59:59.999Z");
+    if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime()) && fromDate <= toDate) {
+      const { data, error } = await supabase
+        .from("spaces")
+        .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at")
+        .in("status", ["scheduled", "live"])
+        .gte("scheduled_at", fromDate.toISOString())
+        .lte("scheduled_at", toDate.toISOString())
+        .order("scheduled_at", { ascending: true })
+        .limit(500);
+      if (!error) spaces.push(...(data ?? []));
+    }
   }
 
-  let q = supabase
-    .from("spaces")
-    .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at")
-    .in("status", ["scheduled", "live"])
-    .order("scheduled_at", { ascending: true })
-    .limit(100);
-  if (upcoming) {
-    q = q.gte("scheduled_at", new Date().toISOString());
+  if (mine && token) {
+    const { data: { user } } = await supabase.auth.getUser(token);
+    if (user?.id) {
+      const { data, error } = await supabase
+        .from("spaces")
+        .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at")
+        .eq("host_profile_id", user.id)
+        .order("scheduled_at", { ascending: true })
+        .limit(200);
+      if (!error && data?.length) {
+        const seen = new Set(spaces.map((s) => s.id));
+        for (const s of data ?? []) {
+          if (!seen.has(s.id)) {
+            seen.add(s.id);
+            spaces.push(s);
+          }
+        }
+      }
+    }
   }
-  const { data, error } = await q;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ spaces: data ?? [] });
+
+  if (!useRange && !mine) {
+    let q = supabase
+      .from("spaces")
+      .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at")
+      .in("status", ["scheduled", "live"])
+      .order("scheduled_at", { ascending: true })
+      .limit(100);
+    if (upcoming) {
+      q = q.gte("scheduled_at", new Date().toISOString());
+    }
+    const { data, error } = await q;
+    if (!error) spaces.push(...(data ?? []));
+  }
+
+  spaces.sort((a, b) => (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? ""));
+  return NextResponse.json({ spaces });
 }
 
 /** POST /api/spaces — create space (auth required) */

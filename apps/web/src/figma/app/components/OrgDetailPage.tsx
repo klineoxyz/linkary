@@ -322,6 +322,17 @@ export default function OrgDetailPage({
       setAmbassadorHandle("");
       setAmbassadors(await listOrgAmbassadors(org.id));
     }
+    // Keep influence rollup fresh after relationship change
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      if (token && origin) {
+        await fetch(`${origin}/api/orgs/${org.id}/refresh-influence`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      }
+    } catch (_) {
+      /* non-blocking */
+    }
   };
 
   const handleRecompute = async () => {

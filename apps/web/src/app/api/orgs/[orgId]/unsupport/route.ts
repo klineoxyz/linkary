@@ -35,8 +35,8 @@ export async function POST(
   }
 
   try {
-    const { refreshOrgInfluenceRollup } = await import("@/lib/refreshOrgInfluence");
-    await refreshOrgInfluenceRollup(orgId);
+    const { enqueueInfluenceRefresh } = await import("@/lib/refreshOrgInfluence");
+    await enqueueInfluenceRefresh(orgId);
   } catch (_) {
     /* non-blocking */
   }

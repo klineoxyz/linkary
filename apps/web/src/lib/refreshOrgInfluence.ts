@@ -14,6 +14,18 @@ function getServiceSupabase(): SupabaseClient {
   return createClient(url, key);
 }
 
+/**
+ * Single entry point to refresh org influence rollup. Use from routes and cron.
+ * Safe to call repeatedly; failures are logged and not thrown.
+ */
+export async function enqueueInfluenceRefresh(orgId: string): Promise<void> {
+  try {
+    await refreshOrgInfluenceRollup(orgId);
+  } catch (e) {
+    console.warn("[enqueueInfluenceRefresh]", orgId, e);
+  }
+}
+
 export async function refreshOrgInfluenceRollup(orgId: string): Promise<{ total_influence: number; breakdown: Record<string, unknown> }> {
   const supabase = getServiceSupabase();
 

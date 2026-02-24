@@ -14,7 +14,8 @@
     "debug:x:tweets": "node dist/debug_x_tweets.js",
     "debug:ingest:x:tweets": "node dist/debug_ingest_x_tweets.js",
     "rebuild:x:rollups": "node dist/rebuild_x_rollups.js",
-    "sync:ethos:xscore:daily": "node dist/sync_ethos_xscore_daily.js"
+    "sync:ethos:xscore:daily": "node dist/sync_ethos_xscore_daily.js",
+    "sync:org:influence:daily": "node dist/sync_org_influence_daily.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.0",

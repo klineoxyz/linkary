@@ -118,5 +118,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: msg || "Failed to create review" }, { status: 500 });
   }
 
+  if (reviewee_type === "org" && reviewee_org_id) {
+    try {
+      const { enqueueInfluenceRefresh } = await import("@/lib/refreshOrgInfluence");
+      await enqueueInfluenceRefresh(reviewee_org_id);
+    } catch (_) {
+      /* non-blocking */
+    }
+  }
+
   return NextResponse.json({ ok: true, review });
 }

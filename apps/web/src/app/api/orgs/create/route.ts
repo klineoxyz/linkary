@@ -97,5 +97,14 @@ export async function POST(request: NextRequest) {
     return fail("NO_ORG_RETURNED", "RPC did not return org", 500);
   }
 
+  const parentId = parent_org_id ?? (org as { parent_org_id?: string }).parent_org_id;
+  try {
+    const { enqueueInfluenceRefresh } = await import("@/lib/refreshOrgInfluence");
+    await enqueueInfluenceRefresh(org.id);
+    if (parentId) await enqueueInfluenceRefresh(parentId);
+  } catch (_) {
+    /* non-blocking */
+  }
+
   return ok({ orgId: org.id, slug: org.slug ?? org.id });
 }

@@ -72,6 +72,12 @@ export async function GET(request: NextRequest) {
     orgIdsByEcosystem = catRows ? [...new Set((catRows as { org_id: string }[]).map((r) => r.org_id))] : [];
   }
 
+  // Numeric filters: followers_total is numeric/bigint; avg_engagement_rate in view is 0-1 (percentage as fraction)
+  const followersMinNum = followersMin !== "" && followersMin != null ? Number(followersMin) : null;
+  const followersMaxNum = followersMax !== "" && followersMax != null ? Number(followersMax) : null;
+  const engagementMinNum = engagementMin !== "" && engagementMin != null ? Number(engagementMin) : null;
+  const engagementMaxNum = engagementMax !== "" && engagementMax != null ? Number(engagementMax) : null;
+
   if (includePeople) {
     let qPeople = supabase
       .from("public_profile_view")
@@ -81,21 +87,18 @@ export async function GET(request: NextRequest) {
     if (profileIdsByProfession != null && profileIdsByProfession.length > 0) {
       qPeople = qPeople.in("id", profileIdsByProfession);
     }
-    if (followersMin != null && followersMin !== "") {
-      const n = parseInt(followersMin, 10);
-      if (!isNaN(n)) qPeople = qPeople.gte("followers_total", n);
+    if (followersMinNum != null && Number.isFinite(followersMinNum)) {
+      qPeople = qPeople.gte("followers_total", followersMinNum);
     }
-    if (followersMax != null && followersMax !== "") {
-      const n = parseInt(followersMax, 10);
-      if (!isNaN(n)) qPeople = qPeople.lte("followers_total", n);
+    if (followersMaxNum != null && Number.isFinite(followersMaxNum)) {
+      qPeople = qPeople.lte("followers_total", followersMaxNum);
     }
-    if (engagementMin != null && engagementMin !== "") {
-      const n = parseFloat(engagementMin);
-      if (!isNaN(n)) qPeople = qPeople.gte("avg_engagement_rate", n / 100);
+    // Engagement: view exposes 0-1 (fraction); filter params are 0-100 percentage points
+    if (engagementMinNum != null && Number.isFinite(engagementMinNum)) {
+      qPeople = qPeople.gte("avg_engagement_rate", engagementMinNum / 100);
     }
-    if (engagementMax != null && engagementMax !== "") {
-      const n = parseFloat(engagementMax);
-      if (!isNaN(n)) qPeople = qPeople.lte("avg_engagement_rate", n / 100);
+    if (engagementMaxNum != null && Number.isFinite(engagementMaxNum)) {
+      qPeople = qPeople.lte("avg_engagement_rate", engagementMaxNum / 100);
     }
     const { data: profiles, error: profilesError } = await qPeople;
 

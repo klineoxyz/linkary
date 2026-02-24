@@ -1,11 +1,13 @@
 /**
  * Server-only: resolve username to public DTO or unpublished state. Single source for public page data.
  * Never returns email, user_id, or internal fields.
+ * When serviceSupabase is provided, file_path media is resolved to signed URLs before DTO mapping.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getPublicEntityByUsername, getPublicEntityForOwner } from "./publicData";
 import { entityToPublicDTO, type PublicPageDTO } from "./publicProfileDTO";
 import { normalizeIdentifier } from "./entityResolver";
+import { resolveEntityMediaToSignedUrls } from "./resolveEntityMediaUrls";
 
 export type PublicDTOResult =
   | { ok: true; dto: PublicPageDTO; canonicalUsername: string }
@@ -23,7 +25,10 @@ export async function getPublicDTOByUsername(
   const norm = normalizeIdentifier(segment);
   if (!norm) return { ok: false, notFound: true };
 
-  const entity = await getPublicEntityByUsername(norm);
+  let entity = await getPublicEntityByUsername(norm);
+  if (entity && options?.serviceSupabase) {
+    entity = await resolveEntityMediaToSignedUrls(entity, options.serviceSupabase);
+  }
   if (entity) {
     const dto = entityToPublicDTO(entity);
     const canonicalUsername =
@@ -60,9 +65,10 @@ export async function getPublicDTOForOwner(
   const norm = normalizeIdentifier(segment);
   if (!norm) return null;
 
-  const entity = await getPublicEntityForOwner(norm, userId, serviceSupabase);
+  let entity = await getPublicEntityForOwner(norm, userId, serviceSupabase);
   if (!entity) return null;
 
+  entity = await resolveEntityMediaToSignedUrls(entity, serviceSupabase);
   const dto = entityToPublicDTO(entity);
   const canonicalUsername =
     entity.type === "profile"

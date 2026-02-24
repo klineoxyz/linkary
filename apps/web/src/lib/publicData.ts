@@ -37,6 +37,7 @@ export type PublicOrg = {
   website: string | null;
   twitter_username: string | null;
   logo_url: string | null;
+  logo_file_path?: string | null;
   org_type: string;
   parent_org_id: string | null;
   is_crypto_project: boolean | null;
@@ -60,6 +61,7 @@ export type ProfileSocials = {
 export type HeaderMedia = {
   header_media_type: "NONE" | "IMAGE" | "VIDEO";
   header_media_url: string | null;
+  header_media_file_path?: string | null;
 };
 
 export type AnalyticsSnapshot = {
@@ -87,8 +89,8 @@ export type PublicEntity = {
   tier: "free" | "pro";
   caseStudies: Array<{ id: string; title?: string | null; description?: string | null; proof_url?: string | null; metrics?: Record<string, unknown>; created_at: string }>;
   reviews: Array<{ id: string; rating: number; body?: string | null; title?: string | null; created_at: string }>;
-  affiliates: Array<{ name: string; website_url: string | null; logo_url: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
-  ambassadors: Array<{ name: string; website_url: string | null; logo_url: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
+  affiliates: Array<{ name: string; website_url: string | null; logo_url: string | null; logo_file_path?: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
+  ambassadors: Array<{ name: string; website_url: string | null; logo_url: string | null; logo_file_path?: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
   ecosystemCategories: string[];
   subsidiaries: Array<PublicOrg>;
   dexscreenerUrl?: string | null;
@@ -166,20 +168,21 @@ async function buildPublicProfileEntityWithClient(profile: PublicProfile, client
   const tier = await getSubscriptionTier("profile", profile.id, client);
   const [socialsRow, mediaRow, snapshotRow, window30Row, caseRows, reviewRows, partnerRows] = await Promise.all([
     client.from("profile_socials").select("*").eq("profile_id", profile.id).maybeSingle(),
-    client.from("profile_media").select("header_media_type, header_media_url").eq("profile_id", profile.id).maybeSingle(),
+    client.from("profile_media").select("header_media_type, header_media_url, header_media_file_path").eq("profile_id", profile.id).maybeSingle(),
     client.from("analytics_snapshots").select("day, metrics").eq("owner_type", "profile").eq("owner_id", profile.id).eq("platform", "x").eq("window_days", 1).order("day", { ascending: false }).limit(1).maybeSingle(),
     client.from("x_window_aggregates").select("*").eq("owner_type", "profile").eq("owner_id", profile.id).eq("window_days", 30).order("as_of", { ascending: false }).limit(1).maybeSingle(),
     client.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profile.id).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     client.from("reviews").select("id, rating, body, title, created_at").eq("reviewee_type", "profile").eq("reviewee_profile_id", profile.id).eq("verified_deal", true).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
-    client.from("partner_programs").select("program_type, name, website_url, logo_url, description, since_date, is_featured").eq("owner_type", "profile").eq("owner_id", profile.id).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
+    client.from("partner_programs").select("program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured").eq("owner_type", "profile").eq("owner_id", profile.id).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
   ]);
   const caseStudies = (caseRows.data ?? []) as PublicEntity["caseStudies"];
   const reviews = (reviewRows.data ?? []) as PublicEntity["reviews"];
-  const partnerList = (partnerRows.data ?? []) as Array<{ program_type: string; name: string; website_url: string | null; logo_url: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
+  const partnerList = (partnerRows.data ?? []) as Array<{ program_type: string; name: string; website_url: string | null; logo_url: string | null; logo_file_path?: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
   const affiliates: PublicEntity["affiliates"] = partnerList.filter((p) => p.program_type === "affiliate").map((p) => ({
     name: p.name,
     website_url: p.website_url ?? null,
     logo_url: p.logo_url ?? null,
+    logo_file_path: p.logo_file_path ?? null,
     description: p.description ?? null,
     since_date: p.since_date ? String(p.since_date).slice(0, 10) : null,
     is_featured: Boolean(p.is_featured),
@@ -188,6 +191,7 @@ async function buildPublicProfileEntityWithClient(profile: PublicProfile, client
     name: p.name,
     website_url: p.website_url ?? null,
     logo_url: p.logo_url ?? null,
+    logo_file_path: p.logo_file_path ?? null,
     description: p.description ?? null,
     since_date: p.since_date ? String(p.since_date).slice(0, 10) : null,
     is_featured: Boolean(p.is_featured),
@@ -273,7 +277,7 @@ async function buildPublicOrgEntityWithClient(org: PublicOrg, client: SupabaseCl
     client.from("org_relationships").select("child_org_id").eq("parent_org_id", org.id).eq("rel_type", "SUBSIDIARY"),
     client.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "org").eq("owner_org_id", org.id).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     client.from("reviews").select("id, rating, body, title, created_at").eq("reviewee_type", "org").eq("reviewee_org_id", org.id).eq("verified_deal", true).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
-    client.from("partner_programs").select("program_type, name, website_url, logo_url, description, since_date, is_featured").eq("owner_type", "org").eq("owner_id", org.id).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
+    client.from("partner_programs").select("program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured").eq("owner_type", "org").eq("owner_id", org.id).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
   ]);
   const ecosystemCategories = (ecosystemRows.data ?? []).map((r: { category: string }) => r.category);
   const subsidiaryIds = (subsRows.data ?? []).map((r: { child_org_id: string }) => r.child_org_id);
@@ -284,11 +288,12 @@ async function buildPublicOrgEntityWithClient(org: PublicOrg, client: SupabaseCl
   }
   const caseStudies = (caseRows.data ?? []) as PublicEntity["caseStudies"];
   const reviews = (reviewRows.data ?? []) as PublicEntity["reviews"];
-  const partnerList = (partnerRows.data ?? []) as Array<{ program_type: string; name: string; website_url: string | null; logo_url: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
+  const partnerList = (partnerRows.data ?? []) as Array<{ program_type: string; name: string; website_url: string | null; logo_url: string | null; logo_file_path?: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
   const affiliates: PublicEntity["affiliates"] = partnerList.filter((p) => p.program_type === "affiliate").map((p) => ({
     name: p.name,
     website_url: p.website_url ?? null,
     logo_url: p.logo_url ?? null,
+    logo_file_path: p.logo_file_path ?? null,
     description: p.description ?? null,
     since_date: p.since_date ? String(p.since_date).slice(0, 10) : null,
     is_featured: Boolean(p.is_featured),
@@ -297,6 +302,7 @@ async function buildPublicOrgEntityWithClient(org: PublicOrg, client: SupabaseCl
     name: p.name,
     website_url: p.website_url ?? null,
     logo_url: p.logo_url ?? null,
+    logo_file_path: p.logo_file_path ?? null,
     description: p.description ?? null,
     since_date: p.since_date ? String(p.since_date).slice(0, 10) : null,
     is_featured: Boolean(p.is_featured),
@@ -368,21 +374,22 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
   const tier = await getSubscriptionTier("profile", profile.id);
   const [socialsRow, mediaRow, snapshotRow, window30Row, caseRows, reviewRows, partnerRows] = await Promise.all([
     supabase.from("profile_socials").select("*").eq("profile_id", profile.id).maybeSingle(),
-    supabase.from("profile_media").select("header_media_type, header_media_url").eq("profile_id", profile.id).maybeSingle(),
+    supabase.from("profile_media").select("header_media_type, header_media_url, header_media_file_path").eq("profile_id", profile.id).maybeSingle(),
     supabase.from("analytics_snapshots").select("day, metrics").eq("owner_type", "profile").eq("owner_id", profile.id).eq("platform", "x").eq("window_days", 1).order("day", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("x_window_aggregates").select("*").eq("owner_type", "profile").eq("owner_id", profile.id).eq("window_days", 30).order("as_of", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profile.id).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     supabase.from("reviews").select("id, rating, body, title, created_at").eq("reviewee_type", "profile").eq("reviewee_profile_id", profile.id).eq("verified_deal", true).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
-    supabase.from("partner_programs").select("program_type, name, website_url, logo_url, description, since_date, is_featured").eq("owner_type", "profile").eq("owner_id", profile.id).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
+    supabase.from("partner_programs").select("program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured").eq("owner_type", "profile").eq("owner_id", profile.id).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
   ]);
 
   const caseStudies = (caseRows.data ?? []) as PublicEntity["caseStudies"];
   const reviews = (reviewRows.data ?? []) as PublicEntity["reviews"];
-  const partnerList = (partnerRows.data ?? []) as Array<{ program_type: string; name: string; website_url: string | null; logo_url: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
+  const partnerList = (partnerRows.data ?? []) as Array<{ program_type: string; name: string; website_url: string | null; logo_url: string | null; logo_file_path?: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
   const affiliates: PublicEntity["affiliates"] = partnerList.filter((p) => p.program_type === "affiliate").map((p) => ({
     name: p.name,
     website_url: p.website_url ?? null,
     logo_url: p.logo_url ?? null,
+    logo_file_path: p.logo_file_path ?? null,
     description: p.description ?? null,
     since_date: p.since_date ? String(p.since_date).slice(0, 10) : null,
     is_featured: Boolean(p.is_featured),
@@ -391,6 +398,7 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
     name: p.name,
     website_url: p.website_url ?? null,
     logo_url: p.logo_url ?? null,
+    logo_file_path: p.logo_file_path ?? null,
     description: p.description ?? null,
     since_date: p.since_date ? String(p.since_date).slice(0, 10) : null,
     is_featured: Boolean(p.is_featured),
@@ -482,7 +490,7 @@ async function buildPublicOrgEntity(org: PublicOrg, _norm: string): Promise<Publ
     supabase.from("org_relationships").select("child_org_id").eq("parent_org_id", org.id).eq("rel_type", "SUBSIDIARY"),
     supabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "org").eq("owner_org_id", org.id).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     supabase.from("reviews").select("id, rating, body, title, created_at").eq("reviewee_type", "org").eq("reviewee_org_id", org.id).eq("verified_deal", true).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
-    supabase.from("partner_programs").select("program_type, name, website_url, logo_url, description, since_date, is_featured").eq("owner_type", "org").eq("owner_id", org.id).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
+    supabase.from("partner_programs").select("program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured").eq("owner_type", "org").eq("owner_id", org.id).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
   ]);
 
   const ecosystemCategories = (ecosystemRows.data ?? []).map((r: { category: string }) => r.category);
@@ -496,11 +504,12 @@ async function buildPublicOrgEntity(org: PublicOrg, _norm: string): Promise<Publ
   const caseStudies = (caseRows.data ?? []) as PublicEntity["caseStudies"];
   const reviews = (reviewRows.data ?? []) as PublicEntity["reviews"];
 
-  const partnerList = (partnerRows.data ?? []) as Array<{ program_type: string; name: string; website_url: string | null; logo_url: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
+  const partnerList = (partnerRows.data ?? []) as Array<{ program_type: string; name: string; website_url: string | null; logo_url: string | null; logo_file_path?: string | null; description: string | null; since_date: string | null; is_featured: boolean }>;
   const affiliates: PublicEntity["affiliates"] = partnerList.filter((p) => p.program_type === "affiliate").map((p) => ({
     name: p.name,
     website_url: p.website_url ?? null,
     logo_url: p.logo_url ?? null,
+    logo_file_path: p.logo_file_path ?? null,
     description: p.description ?? null,
     since_date: p.since_date ? String(p.since_date).slice(0, 10) : null,
     is_featured: Boolean(p.is_featured),
@@ -509,6 +518,7 @@ async function buildPublicOrgEntity(org: PublicOrg, _norm: string): Promise<Publ
     name: p.name,
     website_url: p.website_url ?? null,
     logo_url: p.logo_url ?? null,
+    logo_file_path: p.logo_file_path ?? null,
     description: p.description ?? null,
     since_date: p.since_date ? String(p.since_date).slice(0, 10) : null,
     is_featured: Boolean(p.is_featured),

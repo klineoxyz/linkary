@@ -8,6 +8,7 @@ import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { listCaseStudiesForProfile, createCaseStudyForProfile, type CaseStudy } from "@/lib/caseStudies";
 import ProfessionSelect from "./ProfessionSelect";
 import { MediaUploadField } from "@/components/MediaUploadField";
+import { SignedMediaImage } from "@/components/SignedMediaImage";
 import type { Profession } from "@/lib/professions";
 import type { Profile } from "@/lib/profiles";
 
@@ -104,7 +105,11 @@ function PartnerProgramsEditor({
           <ul className="space-y-2">
             {list.map((p, idx) => (
               <li key={p.id} className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white p-2">
-                {p.logo_url && <img src={p.logo_url} alt="" className="h-8 w-8 rounded object-cover shrink-0" />}
+                {p.logo_file_path ? (
+                  <SignedMediaImage path={p.logo_file_path} getAuthHeaders={getAuthHeaders} className="h-8 w-8 rounded object-cover shrink-0" />
+                ) : p.logo_url && !p.logo_url.includes("supabase.co") ? (
+                  <img src={p.logo_url} alt="" className="h-8 w-8 rounded object-cover shrink-0" />
+                ) : null}
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-zinc-900 truncate">{p.name}</div>
                   {p.description && <div className="text-xs text-zinc-500 truncate">{p.description}</div>}
@@ -753,7 +758,7 @@ export default function ProfileEditPage({
         </div>
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Header media (home &amp; public page)</label>
-          <p className="text-xs text-zinc-500 mb-2">Optional video or image shown on your overview and public profile.</p>
+          <p className="text-xs text-zinc-500 mb-2">Optional header image (upload) or embed video URL (YouTube/Vimeo only; not an uploaded file) for your overview and public profile.</p>
           <select
             value={headerMediaType}
             onChange={(e) => setHeaderMediaType(e.target.value as HeaderMediaType)}
@@ -778,13 +783,17 @@ export default function ProfileEditPage({
             />
           )}
           {headerMediaType === "VIDEO" && (
-            <input
-              type="url"
-              value={headerMediaUrl}
-              onChange={(e) => setHeaderMediaUrl(e.target.value)}
-              placeholder="https://… video URL (YouTube, Vimeo, etc.)"
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 mt-1"
-            />
+            <div className="mt-1">
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Embed video URL (YouTube/Vimeo)</label>
+              <input
+                type="url"
+                value={headerMediaUrl}
+                onChange={(e) => setHeaderMediaUrl(e.target.value)}
+                placeholder="https://www.youtube.com/embed/… or https://player.vimeo.com/…"
+                className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+              />
+              <p className="text-xs text-zinc-500 mt-1">This is an embed link, not an uploaded file.</p>
+            </div>
           )}
         </div>
         <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">

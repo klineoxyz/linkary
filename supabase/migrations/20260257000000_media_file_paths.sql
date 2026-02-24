@@ -1,9 +1,8 @@
 -- Media file paths: store storage paths for images; URLs derived server-side (signed or public).
--- Bucket "media" must be created in Supabase Dashboard (private). Paths:
+-- Bucket "media" must be created in Supabase Dashboard (private). Path conventions (only these three):
 --   profile/{profile_id}/header/{uuid}.ext
 --   org/{org_id}/logo/{uuid}.ext
 --   partner/{partner_program_id}/logo/{uuid}.ext
---   case_study/{case_study_id}/proof/{uuid}.ext
 
 -- profile_media: header image file (VIDEO can remain URL for external embed)
 ALTER TABLE public.profile_media

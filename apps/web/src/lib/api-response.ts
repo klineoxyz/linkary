@@ -13,6 +13,7 @@ export function ok(data?: Record<string, unknown>, init?: ResponseInit): NextRes
 
 /**
  * Error response: { ok: false, code, message, ...extra }
+ * For status 429 (RATE_LIMITED), adds Retry-After header when extra.resetAt (ISO timestamp) is present.
  */
 export function fail(
   code: string,
@@ -21,7 +22,13 @@ export function fail(
   extra?: Record<string, unknown>
 ): NextResponse {
   const body = { ok: false as const, code, message, ...extra };
-  return NextResponse.json(body, { status });
+  const init: ResponseInit = { status };
+  if (status === 429 && extra?.resetAt && typeof extra.resetAt === "string") {
+    const resetAt = new Date(extra.resetAt as string).getTime();
+    const seconds = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
+    init.headers = { "Retry-After": String(seconds) };
+  }
+  return NextResponse.json(body, init);
 }
 
 /**

@@ -1154,17 +1154,38 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
 // -----------------------------
 // Pages
 // -----------------------------
-function OverviewPage({ setRoute, headerMedia }) {
+function OverviewPage({ setRoute, headerMedia, getAuthHeaders }) {
   const u = demo.me;
   const p = demo.project;
-
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
+  const isImageWithPath = headerMedia?.header_media_type === "IMAGE" && headerMedia?.header_media_file_path;
+  useEffect(() => {
+    if (!isImageWithPath || !getAuthHeaders) {
+      setResolvedImageUrl(null);
+      return;
+    }
+    let cancelled = false;
+    const path = headerMedia.header_media_file_path as string;
+    (async () => {
+      const headers = await getAuthHeaders();
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/media/signed-url?path=${encodeURIComponent(path)}`, { headers });
+      const data = await res.json().catch(() => ({}));
+      if (!cancelled && data?.url) setResolvedImageUrl(data.url);
+    })();
+    return () => { cancelled = true; };
+  }, [isImageWithPath, headerMedia?.header_media_file_path, getAuthHeaders]);
+  const displayUrl =
+    headerMedia?.header_media_type === "IMAGE" && headerMedia?.header_media_file_path
+      ? resolvedImageUrl
+      : headerMedia?.header_media_url ?? null;
   return (
     <div className="space-y-6">
-      {headerMedia?.header_media_type && headerMedia.header_media_type !== "NONE" && headerMedia.header_media_url && (
+      {displayUrl && (
         <div className="mb-6">
           <MediaHeader
             type={headerMedia.header_media_type as "IMAGE" | "VIDEO"}
-            url={headerMedia.header_media_url}
+            url={displayUrl}
             alt="Profile header"
           />
         </div>
@@ -2670,7 +2691,7 @@ function LinkaryAppInner() {
   const [authUserId, setAuthUserId] = useState(null);
   const [analyticsInitFailed, setAnalyticsInitFailed] = useState(false);
   const [analyticsSessionExpired, setAnalyticsSessionExpired] = useState(false);
-  const [headerMedia, setHeaderMedia] = useState<{ header_media_type: string; header_media_url: string | null } | null>(null);
+  const [headerMedia, setHeaderMedia] = useState<{ header_media_type: string; header_media_url: string | null; header_media_file_path?: string | null } | null>(null);
 
   useEffect(() => {
     const fromPath = routeFromPathname(pathname ?? "/", searchParams);
@@ -2707,15 +2728,24 @@ function LinkaryAppInner() {
     }
   }, [authUserId]);
 
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+  }, []);
+
   const refreshHeaderMedia = useCallback(async () => {
     if (!me?.id) return;
     const { data } = await supabase
       .from("profile_media")
-      .select("header_media_type, header_media_url")
+      .select("header_media_type, header_media_url, header_media_file_path")
       .eq("profile_id", me.id)
       .maybeSingle();
     if (data && data.header_media_type !== "NONE") {
-      setHeaderMedia({ header_media_type: data.header_media_type, header_media_url: data.header_media_url ?? null });
+      setHeaderMedia({
+        header_media_type: data.header_media_type,
+        header_media_url: data.header_media_url ?? null,
+        header_media_file_path: (data as { header_media_file_path?: string | null }).header_media_file_path ?? null,
+      });
     } else {
       setHeaderMedia(null);
     }
@@ -2730,11 +2760,15 @@ function LinkaryAppInner() {
     (async () => {
       const { data } = await supabase
         .from("profile_media")
-        .select("header_media_type, header_media_url")
+        .select("header_media_type, header_media_url, header_media_file_path")
         .eq("profile_id", me.id)
         .maybeSingle();
       if (!cancelled && data && data.header_media_type !== "NONE") {
-        setHeaderMedia({ header_media_type: data.header_media_type, header_media_url: data.header_media_url ?? null });
+        setHeaderMedia({
+          header_media_type: data.header_media_type,
+          header_media_url: data.header_media_url ?? null,
+          header_media_file_path: (data as { header_media_file_path?: string | null }).header_media_file_path ?? null,
+        });
       } else if (!cancelled) {
         setHeaderMedia(null);
       }
@@ -3340,7 +3374,7 @@ function LinkaryAppInner() {
                 transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
                 className="relative z-[10]"
               >
-                {(route.name === "overview" || !ALLOWED_ROUTES.has(route.name)) && <OverviewPage setRoute={setRoute} headerMedia={headerMedia} />}
+                {(route.name === "overview" || !ALLOWED_ROUTES.has(route.name)) && <OverviewPage setRoute={setRoute} headerMedia={headerMedia} getAuthHeaders={getAuthHeaders} />}
                 {route.name === "market" && <MarketplacePage setRoute={setRoute} />}
                 {route.name === "messages" && <MessagesPage setRoute={setRoute} initialConversationId={route.data?.conversationId} />}
                 {route.name === "login" && (

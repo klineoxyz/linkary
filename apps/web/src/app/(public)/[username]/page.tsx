@@ -4,6 +4,7 @@ import { getIdentifierKind, normalizeIdentifier, resolvePublicEntity } from "@/l
 import { isReservedPath } from "@/lib/reservedPaths";
 import { getPublicDTOByUsername } from "@/lib/getPublicDTO";
 import { dtoToEntityView, entityToPublicDTO } from "@/lib/publicProfileDTO";
+import { resolveEntityMediaToSignedUrls } from "@/lib/resolveEntityMediaUrls";
 import AppWithProviders from "../../AppWithProviders";
 import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
 import { NotFoundOrUnpublished } from "./NotFoundOrUnpublished";
@@ -105,13 +106,11 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
   const kind = getIdentifierKind(segment);
   let serviceSupabase: import("@supabase/supabase-js").SupabaseClient | null = null;
-  if (kind === "wallet") {
-    try {
-      const { createServiceSupabase } = await import("@/lib/x-analytics-server");
-      serviceSupabase = createServiceSupabase();
-    } catch {
-      /* no service key; wallet resolution skipped */
-    }
+  try {
+    const { createServiceSupabase } = await import("@/lib/x-analytics-server");
+    serviceSupabase = createServiceSupabase();
+  } catch {
+    /* no service key; wallet resolution and media signed URLs skipped */
   }
 
   if (kind === "slug") {
@@ -136,10 +135,13 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
     return <NotFoundOrUnpublished requestedUsername={segmentLower} />;
   }
 
-  const entity = await resolvePublicEntity(segment, { serviceSupabase: serviceSupabase ?? undefined });
+  let entity = await resolvePublicEntity(segment, { serviceSupabase: serviceSupabase ?? undefined });
   if (!entity) {
     if (kind === "wallet") notFound();
     return <NotFoundClaimView requestedUsername={segmentLower} />;
+  }
+  if (serviceSupabase) {
+    entity = await resolveEntityMediaToSignedUrls(entity, serviceSupabase);
   }
 
   const dto = entityToPublicDTO(entity);

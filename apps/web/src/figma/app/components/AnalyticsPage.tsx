@@ -360,11 +360,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const baselineLikes30 = baseline ? bNum(baseline.avg_likes_30d) : 0;
   const baselineReplies30 = baseline ? bNum(baseline.avg_replies_30d) : 0;
   const baselineReach30 = baseline ? bNum(baseline.reach_proxy_30d) : 0;
+  /** "Since joining" delta; capped to avoid absurd values when baseline is tiny. Max 2 decimals. */
   const pctSince = (current: number, base: number): string | undefined => {
-    if (base === 0 || !Number.isFinite(base)) return undefined;
+    if (base === 0 || !Number.isFinite(base) || !Number.isFinite(current)) return undefined;
     const pct = ((current - base) / base) * 100;
+    if (pct > 9999 || pct < -99) return undefined; // hide when baseline was effectively zero
     const sign = pct >= 0 ? "+" : "";
-    return `${sign}${pct.toFixed(1)}% since joining`;
+    return `${sign}${Number(pct.toFixed(2))}% since joining`;
   };
 
   const snapshots = (xAnalyticsData?.snapshots ?? []).filter((s) => s.snapshot_date);
@@ -454,22 +456,31 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       : undefined;
   const hasRealFollowerHistory = snapshots.length >= 2;
 
-  // Real deltas from baseline for rollup-backed KPIs (when we have both rollup and baseline)
-  const engagementDelta30 = baselineEngagement > 0 && Number.isFinite(engagementRateByPeriod)
-    ? ((engagementRateByPeriod - baselineEngagement) / baselineEngagement) * 100
-    : null;
-  const likesDelta30 = baselineLikes30 > 0 && Number.isFinite(avgLikesByPeriod)
-    ? ((avgLikesByPeriod - baselineLikes30) / baselineLikes30) * 100
-    : null;
-  const repliesDelta30 = baselineReplies30 > 0 && Number.isFinite(avgRepliesByPeriod)
-    ? ((avgRepliesByPeriod - baselineReplies30) / baselineReplies30) * 100
-    : null;
-  const postsDelta30 = baselinePosts30 > 0 && Number.isFinite(postsByPeriod)
-    ? ((postsByPeriod - baselinePosts30) / baselinePosts30) * 100
-    : null;
-  const reachDelta30 = baselineReach30 > 0 && Number.isFinite(reachProxyByPeriod)
-    ? ((reachProxyByPeriod - baselineReach30) / baselineReach30) * 100
-    : null;
+  // Real deltas from baseline (30d at join) for rollup-backed KPIs. Use same baseline for 7D/30D/90D so deltas show for selected period.
+  const baseEng = baselineEngagement > 0 ? baselineEngagement : null;
+  const baseLikes = baselineLikes30 > 0 ? baselineLikes30 : null;
+  const baseReplies = baselineReplies30 > 0 ? baselineReplies30 : null;
+  const basePosts = baselinePosts30 > 0 ? baselinePosts30 : null;
+  const baseReach = baselineReach30 > 0 ? baselineReach30 : null;
+  const pctVsBase = (current: number, base: number | null): number | null => {
+    if (base == null || base === 0 || !Number.isFinite(current)) return null;
+    return ((current - base) / base) * 100;
+  };
+  const engagementDelta7 = baseEng != null ? pctVsBase(engagementRate7d, baseEng) : null;
+  const engagementDelta30 = baseEng != null ? pctVsBase(engagementRate30d, baseEng) : null;
+  const engagementDelta90 = baseEng != null ? pctVsBase(engagementRate90d, baseEng) : null;
+  const likesDelta7 = baseLikes != null ? pctVsBase(avgLikes7d, baseLikes) : null;
+  const likesDelta30 = baseLikes != null ? pctVsBase(avgLikes30d, baseLikes) : null;
+  const likesDelta90 = baseLikes != null ? pctVsBase(avgLikes90d, baseLikes) : null;
+  const repliesDelta7 = baseReplies != null ? pctVsBase(avgReplies7d, baseReplies) : null;
+  const repliesDelta30 = baseReplies != null ? pctVsBase(avgReplies30d, baseReplies) : null;
+  const repliesDelta90 = baseReplies != null ? pctVsBase(avgReplies90d, baseReplies) : null;
+  const postsDelta7 = basePosts != null ? pctVsBase(posts7d, basePosts) : null;
+  const postsDelta30 = basePosts != null ? pctVsBase(posts30d, basePosts) : null;
+  const postsDelta90 = basePosts != null ? pctVsBase(posts90d, basePosts) : null;
+  const reachDelta7 = baseReach != null ? pctVsBase(reachProxy7d, baseReach) : null;
+  const reachDelta30 = baseReach != null ? pctVsBase(reachProxy30d, baseReach) : null;
+  const reachDelta90 = baseReach != null ? pctVsBase(reachProxy90d, baseReach) : null;
 
   // X KPIs: real data when available; no fake deltas or sparklines
   const xKPIs: KPITile[] = [
@@ -489,49 +500,49 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       id: "engagement",
       label: "Engagement Rate",
       value: xAnalyticsData ? `${Number(engagementRateByPeriod).toFixed(2)}%` : "—",
-      delta7D: 0,
+      delta7D: engagementDelta7 ?? 0,
       delta30D: engagementDelta30 ?? 0,
-      delta90D: 0,
+      delta90D: engagementDelta90 ?? 0,
       signal: "good",
       insight: rollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
       sparklineData: undefined,
-      sinceJoining: baseline && baselineEngagement >= 0 ? pctSince(engagementRateByPeriod, baselineEngagement || 0.01) : undefined,
+      sinceJoining: baseline && baselineEngagement > 0 ? pctSince(engagementRateByPeriod, baselineEngagement) : undefined,
     },
     {
       id: "likes",
       label: "Avg Likes/Post",
       value: xAnalyticsData ? String(Math.round(avgLikesByPeriod)) : "—",
-      delta7D: 0,
+      delta7D: likesDelta7 ?? 0,
       delta30D: likesDelta30 ?? 0,
-      delta90D: 0,
+      delta90D: likesDelta90 ?? 0,
       signal: "good",
       insight: rollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
       sparklineData: undefined,
-      sinceJoining: baseline && (baselineLikes30 > 0 || avgLikesByPeriod > 0) ? pctSince(avgLikesByPeriod, baselineLikes30 || 1) : undefined,
+      sinceJoining: baseline && baselineLikes30 > 0 ? pctSince(avgLikesByPeriod, baselineLikes30) : undefined,
     },
     {
       id: "replies",
       label: "Avg Replies/Post",
       value: xAnalyticsData ? String(Math.round(avgRepliesByPeriod)) : "—",
-      delta7D: 0,
+      delta7D: repliesDelta7 ?? 0,
       delta30D: repliesDelta30 ?? 0,
-      delta90D: 0,
+      delta90D: repliesDelta90 ?? 0,
       signal: "good",
       insight: rollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
       sparklineData: undefined,
-      sinceJoining: baseline && (baselineReplies30 > 0 || avgRepliesByPeriod > 0) ? pctSince(avgRepliesByPeriod, baselineReplies30 || 1) : undefined,
+      sinceJoining: baseline && baselineReplies30 > 0 ? pctSince(avgRepliesByPeriod, baselineReplies30) : undefined,
     },
     {
       id: "frequency",
       label: `Posts (${periodLabel})`,
       value: xAnalyticsData ? String(postsByPeriod) : "—",
-      delta7D: 0,
+      delta7D: postsDelta7 ?? 0,
       delta30D: postsDelta30 ?? 0,
-      delta90D: 0,
+      delta90D: postsDelta90 ?? 0,
       signal: "good",
       insight: rollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
       sparklineData: undefined,
-      sinceJoining: baseline && (baselinePosts30 > 0 || postsByPeriod > 0) ? pctSince(postsByPeriod, baselinePosts30 || 1) : undefined,
+      sinceJoining: baseline && baselinePosts30 > 0 ? pctSince(postsByPeriod, baselinePosts30) : undefined,
     },
     {
       id: "reach",
@@ -539,13 +550,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       value: xAnalyticsData
         ? (reachProxyByPeriod >= 1e6 ? `${(reachProxyByPeriod / 1e6).toFixed(1)}M` : reachProxyByPeriod >= 1e3 ? `${(reachProxyByPeriod / 1e3).toFixed(1)}K` : String(Math.round(reachProxyByPeriod)))
         : "—",
-      delta7D: 0,
+      delta7D: reachDelta7 ?? 0,
       delta30D: reachDelta30 ?? 0,
-      delta90D: 0,
+      delta90D: reachDelta90 ?? 0,
       signal: "good",
-      insight: rollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
+      insight: rollup ? "Engagement-based proxy (likes + replies + reposts), not total reach. From rollup for selected period." : "Sync from Integrations to see trends",
       sparklineData: undefined,
-      sinceJoining: baseline && (baselineReach30 > 0 || reachProxyByPeriod > 0) ? pctSince(reachProxyByPeriod, baselineReach30 || 1) : undefined,
+      sinceJoining: baseline && baselineReach30 > 0 ? pctSince(reachProxyByPeriod, baselineReach30) : undefined,
     },
   ];
 
@@ -966,7 +977,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   <div className="flex items-center gap-1 mb-2">
                     {DeltaIcon && <DeltaIcon className={`w-4 h-4 ${deltaColor} stroke-[1.75]`} />}
                     <span className={`text-sm font-semibold ${deltaColor}`}>
-                      {isPositive ? "+" : ""}{delta}%
+                      {isPositive ? "+" : ""}{Number(delta).toFixed(2)}%
                     </span>
                   </div>
                 </div>

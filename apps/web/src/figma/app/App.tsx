@@ -169,6 +169,7 @@ import CirclesOverviewPage from "./components/circles/CirclesOverviewPage";
 import CircleDetailPage from "./components/circles/CircleDetailPage";
 import KOLListsPage from "./components/circles/KOLListsPage";
 import CapitalPartnersPage from "./components/circles/CapitalPartnersPage";
+import ConnectionsPage from "./components/ConnectionsPage";
 
 // Import Monetization system components
 import PlansAndBillingPage from "./components/monetization/PlansAndBillingPage";
@@ -703,7 +704,7 @@ const RESERVED_PATHS = new Set([
   "profile", "overview", "market", "messages", "circles", "analytics", "verification",
   "pricing", "billing", "plans", "app", "api", "settings", "test-supabase", "home",
   "leaderboards", "creator", "brand", "agency", "calendar", "host", "availability",
-  "monetization", "monetization-flow", "kol-lists", "capital-partners",
+  "monetization", "monetization-flow", "kol-lists", "capital-partners", "connections",
   "preferences", "support", "notifications", "verification-inbox", "showcase",   "integrations", "roles-skills", "profile",
 ]);
 
@@ -729,6 +730,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     market: "/market",
     messages: "/messages",
     circles: "/circles",
+    circleDetail: "/circles",
     analytics: "/analytics",
     verification: "/verification",
     verificationInbox: "/verification-inbox",
@@ -749,6 +751,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     monetizationFlowShowcase: "/monetization-flow",
     kolLists: "/kol-lists",
     capitalPartners: "/capital-partners",
+    connections: "/connections",
     preferences: "/preferences",
     support: "/support",
     notifications: "/notifications",
@@ -781,8 +784,8 @@ function routeFromPathname(pathname: string | null): { name: string; data?: any;
       leaderboards: "leaderboards", creator: "creatorProfile", brand: "brandProfile",
       agency: "agencyProfile", calendar: "calendar", host: "hostDashboard",
       availability: "availability", monetization: "monetizationShowcase",
-      "monetization-flow": "monetizationFlowShowcase", "kol-lists": "kolLists",
-      "capital-partners": "capitalPartners", preferences: "preferences",
+      "monetization-flow": "monetizationFlowShowcase",       "kol-lists": "kolLists",
+      "capital-partners": "capitalPartners", connections: "connections", preferences: "preferences",
       support: "support", notifications: "notifications",
       "verification-inbox": "verificationInbox", showcase: "showcase", integrations: "integrations",
       "roles-skills": "rolesSkills", profile: "profile",
@@ -875,6 +878,14 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
         <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="market" icon={Briefcase} label="Jobs & Sprints" />
           <NavLink name="messages" icon={MessageSquare} label="Messages" />
+        </div>
+
+        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Network</span>
+        <div className="flex flex-col gap-1.5 lg:gap-2">
+          <NavLink name="circles" icon={Users} label="Circles" />
+          <NavLink name="connections" icon={UserPlus} label="Connections" />
+          <NavLink name="kolLists" icon={Star} label="KOL Lists" />
+          <NavLink name="calendar" icon={CalendarDays} label="XSpaces &amp; Calendar" />
         </div>
 
         <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Analytics & Data</span>
@@ -3355,6 +3366,11 @@ export default function LinkaryApp() {
                 {route.name === "dealDetail" && <DealDetailPage setRoute={setRoute} dealId={route.data?.dealId} />}
                 {route.name === "analytics" && <AnalyticsPage />}
                 {route.name === "calendar" && <XSpacesPage setRoute={setRoute} me={me} />}
+                {route.name === "circles" && <CirclesOverviewPage setRoute={setRoute} me={me} />}
+                {route.name === "circleDetail" && <CircleDetailPage setRoute={setRoute} data={route.data} />}
+                {route.name === "kolLists" && <KOLListsPage setRoute={setRoute} />}
+                {route.name === "capitalPartners" && <CapitalPartnersPage setRoute={setRoute} />}
+                {route.name === "connections" && <ConnectionsPage setRoute={setRoute} />}
                 {route.name === "privacy" && <PrivacyDataPage userId={authUserId} refreshMe={refreshMe} />}
                 {route.name === "terms" && <TermsOfServicePage setRoute={setRoute} />}
                 {route.name === "privacyPolicy" && <PrivacyPolicyPage setRoute={setRoute} />}

@@ -47,5 +47,18 @@ export async function GET(request: NextRequest) {
       updated_at: r.updated_at,
     };
   });
-  return ok({ connections: list });
+  const otherIds = [...new Set((list as { other_profile_id: string }[]).map((c) => c.other_profile_id))];
+  let usernames: Record<string, string> = {};
+  if (otherIds.length > 0) {
+    const { data: profs } = await supabase.from("profiles").select("id, username").in("id", otherIds);
+    for (const p of profs ?? []) {
+      const row = p as { id: string; username: string | null };
+      if (row.username) usernames[row.id] = row.username;
+    }
+  }
+  const listWithUsernames = (list as { other_profile_id: string }[]).map((c) => ({
+    ...c,
+    other_username: usernames[c.other_profile_id] ?? null,
+  }));
+  return ok({ connections: listWithUsernames });
 }

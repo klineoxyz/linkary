@@ -1,10 +1,13 @@
-import React, { useState } from "react";
-import { ArrowLeft, Search, Filter, Users, TrendingUp, Award, MapPin } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { ArrowLeft, Search, Filter, Users, TrendingUp, Award, MapPin, Loader2 } from "lucide-react";
 import { CreatorRowCard, KOLSelectionSummaryCard } from "./KOLComponents";
+import { supabase } from "@/lib/supabase";
 
 export default function KOLListsPage({ setRoute }: any) {
   const [selectedCreators, setSelectedCreators] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [filters, setFilters] = useState({
     geo: "all",
     minReach: 0,
@@ -89,18 +92,51 @@ export default function KOLListsPage({ setRoute }: any) {
     },
   ];
 
-  // Filter creators based on search and filters
-  const filteredCreators = demoCreators.filter((creator) => {
-    const matchesSearch =
-      creator.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      creator.handle.toLowerCase().includes(searchQuery.toLowerCase());
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+  const searchApi = useCallback(async (q: string) => {
+    if (q.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchLoading(true);
+    const params = new URLSearchParams({ q, filter: "people" });
+    const res = await fetch(`${base}/api/search?${params}`);
+    const data = await res.json().catch(() => ({}));
+    const list = (data.results ?? []).filter((r: any) => r.type === "person");
+    setSearchResults(
+      list.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        handle: (r.handleLabel || "").replace(/^@/, ""),
+        reach: 0,
+        topGeo: null,
+        verified: !!r.verified,
+        roleTags: [],
+        _fromSearch: true,
+      }))
+    );
+    setSearchLoading(false);
+  }, [base]);
 
-    const matchesGeo = filters.geo === "all" || creator.topGeo === filters.geo;
-    const matchesReach = creator.reach >= filters.minReach;
-    const matchesVerified = !filters.verifiedOnly || creator.verified;
+  useEffect(() => {
+    const t = setTimeout(() => {
+      searchApi(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery, searchApi]);
 
-    return matchesSearch && matchesGeo && matchesReach && matchesVerified;
-  });
+  const isSearchActive = searchQuery.trim().length >= 2;
+  const filteredCreators = isSearchActive
+    ? searchResults
+    : demoCreators.filter((creator) => {
+        const matchesSearch =
+          creator.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          creator.handle.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesGeo = filters.geo === "all" || creator.topGeo === filters.geo;
+        const matchesReach = creator.reach >= filters.minReach;
+        const matchesVerified = !filters.verifiedOnly || creator.verified;
+        return matchesSearch && matchesGeo && matchesReach && matchesVerified;
+      });
 
   const toggleCreator = (creator: any) => {
     const isSelected = selectedCreators.some((c) => c.id === creator.id);
@@ -164,11 +200,14 @@ export default function KOLListsPage({ setRoute }: any) {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
                   <input
                     type="text"
-                    placeholder="Search creators by name or handle..."
+                    placeholder="Search creators by name or handle (min 2 chars)..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full h-11 pl-10 pr-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500"
                   />
+                  {searchLoading && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400 animate-spin" />
+                  )}
                 </div>
                 <button className="h-11 px-4 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 font-medium transition-colors flex items-center gap-2">
                   <Filter className="h-4 w-4" />
@@ -258,7 +297,9 @@ export default function KOLListsPage({ setRoute }: any) {
             {/* Results Count */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-zinc-600">
-                {filteredCreators.length} creator{filteredCreators.length !== 1 ? "s" : ""} found
+                {isSearchActive
+                  ? `Search: ${filteredCreators.length} creator${filteredCreators.length !== 1 ? "s" : ""} found`
+                  : `${filteredCreators.length} demo creator${filteredCreators.length !== 1 ? "s" : ""} (type 2+ chars to search real profiles)`}
                 {selectedCreators.length > 0 && ` · ${selectedCreators.length} selected`}
               </span>
             </div>

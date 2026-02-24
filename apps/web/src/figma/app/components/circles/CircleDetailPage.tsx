@@ -126,11 +126,11 @@ const activityLog = [
   { id: "a5", type: "gig", gigName: "Content Sprint #12", date: "Feb 5, 2026", details: "Circle invited to gig" },
 ];
 
-export default function CircleDetailPage({ setRoute, circleData }: { setRoute?: (route: any) => void; circleData?: any }) {
+export default function CircleDetailPage({ setRoute, circleData, data }: { setRoute?: (route: any) => void; circleData?: any; data?: any }) {
   const [activeTab, setActiveTab] = useState<"members" | "analytics" | "activity" | "settings">("members");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
 
-  const circle = circleData || demoCircleData;
+  const circle = circleData || data || demoCircleData;
 
   const toggleMember = (memberId: string) => {
     setSelectedMembers((prev) =>

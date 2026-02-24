@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { Plus, Users, Shield, TrendingUp, Target } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Plus, Users, Shield, TrendingUp, Target, Link2 } from "lucide-react";
 import { CircleCard, StatsCard } from "./CircleComponents";
+import { supabase } from "@/lib/supabase";
 
 /**
  * Circles Overview Page
@@ -117,8 +118,28 @@ const statsData = {
   avgPowerScore: 598,
 };
 
-export default function CirclesOverviewPage({ setRoute }: { setRoute?: (route: any) => void }) {
+export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (route: any) => void; me?: { id: string } | null }) {
   const [activeTab, setActiveTab] = useState<"all" | "personal" | "organization">("all");
+  const [connectionsCount, setConnectionsCount] = useState<{ accepted: number; pending: number } | null>(null);
+
+  const loadConnections = useCallback(async () => {
+    if (!me?.id) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/connections/list`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => ({}));
+    const list = data.connections ?? [];
+    setConnectionsCount({
+      accepted: list.filter((c: { status: string }) => c.status === "accepted").length,
+      pending: list.filter((c: { status: string }) => c.status === "pending").length,
+    });
+  }, [me?.id]);
+
+  useEffect(() => {
+    loadConnections();
+  }, [loadConnections]);
 
   const filteredCircles = demoCircles.filter((circle) => {
     if (activeTab === "all") return true;
@@ -152,6 +173,24 @@ export default function CirclesOverviewPage({ setRoute }: { setRoute?: (route: a
           </Button>
         }
       />
+
+      {/* My Connections (real data) */}
+      {me?.id && connectionsCount !== null && (
+        <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-4 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <Link2 className="h-5 w-5 text-indigo-400" />
+            <div>
+              <p className="font-medium text-white">My Connections</p>
+              <p className="text-sm text-indigo-200">
+                {connectionsCount.accepted} connected · {connectionsCount.pending} pending
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" icon={Users} onClick={() => setRoute?.({ name: "connections" })}>
+            View &amp; manage
+          </Button>
+        </div>
+      )}
 
       {/* Stats Row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

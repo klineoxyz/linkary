@@ -89,7 +89,7 @@ export async function refreshXRollupsForProfile(
     const topByEngagement = [...list]
       .map((t) => ({
         ...t,
-        engagement: (t.like_count ?? 0) + (t.reply_count ?? 0) + (t.repost_count ?? 0) + (t.quote_count ?? 0),
+        engagement: (t.like_count ?? 0) + (t.reply_count ?? 0) + (t.repost_count ?? 0),
       }))
       .sort((a, b) => b.engagement - a.engagement)
       .slice(0, TOP_DRIVERS_PER_WINDOW);
@@ -104,7 +104,7 @@ export async function refreshXRollupsForProfile(
         like_count: t.like_count ?? 0,
         reply_count: t.reply_count ?? 0,
         repost_count: t.repost_count ?? 0,
-        engagement_score: (t.like_count ?? 0) + (t.reply_count ?? 0) + (t.repost_count ?? 0) + (t.quote_count ?? 0),
+        engagement_score: (t.like_count ?? 0) + (t.reply_count ?? 0) + (t.repost_count ?? 0),
       }));
       await supabase.from("x_top_drivers").upsert(rows, {
         onConflict: "profile_id,window_days,tweet_id",

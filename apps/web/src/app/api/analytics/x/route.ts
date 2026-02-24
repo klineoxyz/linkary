@@ -179,6 +179,19 @@ export async function GET(request: NextRequest) {
   const hasDaily = dailyRows.length > 0; // x_daily_snapshots exist (may be only today from cron)
   const source: "worker" | "partial" | "fallback" = ready90 ? "worker" : hasDaily ? "partial" : "fallback";
 
+  const snapshotMaxDay =
+    dailyRows.length > 0
+      ? dailyRows.reduce((max, r) => (r.day > max ? r.day : max), dailyRows[0].day)
+      : null;
+  type Wa = { as_of?: string };
+  const aggregateMaxAsOf =
+    windowRows.length > 0
+      ? (windowRows as Wa[]).reduce(
+          (max, r) => (r.as_of && (max == null || r.as_of > max) ? r.as_of : max),
+          null as string | null
+        )
+      : null;
+
   return ok({
     profile: profile ?? {},
     rollup: rollup ?? null,
@@ -186,5 +199,10 @@ export async function GET(request: NextRequest) {
     baseline: baseline ?? null,
     snapshots,
     source,
+    freshness: {
+      tweets_last_synced_at: profile?.x_last_tweets_sync_at ?? null,
+      snapshot_max_day: snapshotMaxDay,
+      aggregate_max_as_of: aggregateMaxAsOf,
+    },
   });
 }

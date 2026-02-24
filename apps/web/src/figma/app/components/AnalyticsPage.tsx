@@ -111,6 +111,18 @@ type XAnalyticsData = {
   baseline: Baseline;
   snapshots?: SnapshotPoint[];
   source?: "worker" | "partial" | "fallback";
+  freshness?: {
+    tweets_last_synced_at: string | null;
+    snapshot_max_day: string | null;
+    aggregate_max_as_of: string | null;
+  };
+};
+
+type RebuildJob = {
+  id: string;
+  status: string;
+  updated_at?: string;
+  last_error?: string | null;
 };
 
 type InitStatus = {
@@ -132,6 +144,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const [windowSummary, setWindowSummary] = useState<{ windows: Record<string, Record<string, unknown> | null>; is_backfilling: boolean } | null>(null);
   const [initStatus, setInitStatus] = useState<InitStatus>(null);
   const [retryingBackfill, setRetryingBackfill] = useState(false);
+  const [rebuildJob, setRebuildJob] = useState<RebuildJob | null>(null);
+  const [rebuildLoading, setRebuildLoading] = useState(false);
+  const [rebuildError, setRebuildError] = useState<string | null>(null);
+  const rebuildPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initialSyncTriggered = useRef(false);
   const base = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -165,6 +181,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         baseline: json.baseline ?? null,
         snapshots: Array.isArray(json.snapshots) ? json.snapshots : [],
         source: json.source ?? "fallback",
+        freshness: json.freshness ?? undefined,
       });
     }
     if (summaryRes.ok) {
@@ -196,6 +213,81 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     }
     setRetryingBackfill(false);
   }, [base, fetchInitStatus]);
+
+  const triggerRebuild = React.useCallback(async () => {
+    setRebuildError(null);
+    setRebuildLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setRebuildLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch(`${base}/api/analytics/x/rebuild`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRebuildError(json.message ?? "Failed to start rebuild");
+        setRebuildLoading(false);
+        return;
+      }
+      const jobPayload = json.job;
+      if (jobPayload) {
+        setRebuildJob({
+          id: jobPayload.id,
+          status: jobPayload.status,
+          updated_at: jobPayload.created_at,
+          last_error: null,
+        });
+      }
+    } catch (e) {
+      setRebuildError(e instanceof Error ? e.message : "Request failed");
+      setRebuildLoading(false);
+      return;
+    }
+    setRebuildLoading(false);
+  }, [base]);
+
+  useEffect(() => {
+    if (!rebuildJob || (rebuildJob.status !== "queued" && rebuildJob.status !== "running")) return;
+    const poll = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      const res = await fetch(`${base}/api/analytics/x/job`, { headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json().catch(() => ({}));
+      const job = json.job;
+      if (job) {
+        setRebuildJob({
+          id: job.id,
+          status: job.status,
+          updated_at: job.updated_at,
+          last_error: job.last_error ?? null,
+        });
+        if (job.status === "done") {
+          if (rebuildPollRef.current) {
+            clearInterval(rebuildPollRef.current);
+            rebuildPollRef.current = null;
+          }
+          fetchXAnalytics();
+        }
+        if (job.status === "failed") {
+          if (rebuildPollRef.current) {
+            clearInterval(rebuildPollRef.current);
+            rebuildPollRef.current = null;
+          }
+        }
+      }
+    };
+    rebuildPollRef.current = setInterval(poll, 5000);
+    poll();
+    return () => {
+      if (rebuildPollRef.current) {
+        clearInterval(rebuildPollRef.current);
+        rebuildPollRef.current = null;
+      }
+    };
+  }, [base, rebuildJob?.id, rebuildJob?.status, fetchXAnalytics]);
 
   // When user has X connected but no baseline yet, take initial snapshot so 7D/30D/90D have a baseline
   useEffect(() => {
@@ -554,15 +646,73 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 ? "7D/30D/90D windows are being computed. Your latest stats are below. (For new accounts under 90 days, full windows appear shortly.)"
                 : "Connect X in Integrations to load your data. 7D/30D/90D windows are backfilled automatically on login and when your profile is viewed."}
             </span>
-            <button
-              type="button"
-              onClick={() => fetchXAnalytics()}
-              className="shrink-0 px-3 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary font-medium text-sm transition-colors"
-            >
-              Refresh analytics
-            </button>
+            <div className="shrink-0 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => triggerRebuild()}
+                disabled={rebuildLoading || rebuildJob?.status === "queued" || rebuildJob?.status === "running"}
+                className="px-3 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {rebuildLoading ? "Starting…" : "Rebuild analytics"}
+              </button>
+              <button
+                type="button"
+                onClick={() => fetchXAnalytics()}
+                className="px-3 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary font-medium text-sm transition-colors"
+              >
+                Refresh analytics
+              </button>
+            </div>
           </motion.div>
         ) : null}
+        {rebuildJob && (rebuildJob.status === "queued" || rebuildJob.status === "running" || rebuildJob.status === "done" || rebuildJob.status === "failed") && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 flex flex-wrap items-center justify-between gap-2"
+          >
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-600">Rebuild status:</span>
+              <span className="font-medium capitalize">{rebuildJob.status}</span>
+              {rebuildJob.updated_at && (
+                <span className="text-xs text-gray-500">
+                  Last updated {formatTimeAgo(rebuildJob.updated_at)}
+                </span>
+              )}
+            </div>
+            {(rebuildJob.last_error || rebuildJob.status === "failed") && (
+              <p className="text-xs text-destructive w-full">{rebuildJob.last_error ?? "Job failed."}</p>
+            )}
+            {rebuildJob.status === "failed" && (
+              <button
+                type="button"
+                onClick={() => triggerRebuild()}
+                disabled={rebuildLoading}
+                className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              >
+                Try again
+              </button>
+            )}
+            {rebuildJob.status === "done" && (
+              <button
+                type="button"
+                onClick={() => fetchXAnalytics()}
+                className="px-3 py-1.5 rounded-lg border border-border text-sm font-medium"
+              >
+                Refresh data
+              </button>
+            )}
+          </motion.div>
+        )}
+        {rebuildError && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive"
+          >
+            {rebuildError}
+          </motion.div>
+        )}
         {((initStatus?.ok && !initStatus?.initialized) || xAnalyticsData?.source === "partial") && (profile?.twitter_username ?? "").toString().trim() && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -859,6 +1009,26 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           })}
         </div>
 
+        {/* Data freshness: tweets, snapshots, aggregates */}
+        {activePlatform === "x" && (
+          <div className="text-xs text-gray-600 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span>
+              Tweets last synced:{" "}
+              {xAnalyticsData?.freshness?.tweets_last_synced_at
+                ? formatTimeAgo(xAnalyticsData.freshness.tweets_last_synced_at)
+                : "Not ready yet, run Rebuild analytics"}
+            </span>
+            <span>
+              Snapshots as of:{" "}
+              {xAnalyticsData?.freshness?.snapshot_max_day ?? "Not ready yet, run Rebuild analytics"}
+            </span>
+            <span>
+              Aggregates as of:{" "}
+              {xAnalyticsData?.freshness?.aggregate_max_as_of ?? "Not ready yet, run Rebuild analytics"}
+            </span>
+          </div>
+        )}
+
         {/* C) Signals Feed (Primary Section) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -923,7 +1093,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Top Drivers (30D)</h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  Posts that contributed most to your growth. Data from your synced X tweets (Integrations).
+                  Posts that contributed most to your growth. Data from your synced X tweets (Integrations). Engagement uses likes, replies, and reposts only.
                 </p>
               </div>
             </div>

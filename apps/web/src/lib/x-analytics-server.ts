@@ -181,7 +181,7 @@ export async function computeAndUpsertRollups(
           t.like_count ?? 0,
           t.reply_count ?? 0,
           t.repost_count ?? 0,
-          t.quote_count ?? 0
+          0
         ),
       0
     );
@@ -226,7 +226,7 @@ export async function computeAndUpsertRollups(
     { onConflict: "profile_id" }
   );
 
-  // Top 10 drivers for 30D window (by engagement_score)
+  // Top 10 drivers for 30D window (by engagement_score; likes + replies + reposts only, no quote_count)
   const top30 = w30.inWindow
     .map((t) => ({
       ...t,
@@ -234,7 +234,7 @@ export async function computeAndUpsertRollups(
         t.like_count ?? 0,
         t.reply_count ?? 0,
         t.repost_count ?? 0,
-        t.quote_count ?? 0
+        0
       ),
     }))
     .sort((a, b) => b.score - a.score)

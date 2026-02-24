@@ -52,6 +52,7 @@ export default function OrgDetailPage({
   const [applications, setApplications] = useState<Application[]>([]);
   const [acceptLoading, setAcceptLoading] = useState<string | null>(null);
   const [closeJobLoading, setCloseJobLoading] = useState<string | null>(null);
+  const [removePartnerLoading, setRemovePartnerLoading] = useState<string | null>(null);
   const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [admin, setAdmin] = useState(false);
@@ -634,13 +635,43 @@ export default function OrgDetailPage({
                   {inviteError && tab === "affiliates" && <p className="text-destructive text-sm w-full">{inviteError}</p>}
                 </div>
               )}
-              {affiliations.length === 0 ? (
+              {affiliations.filter((a) => a.status !== "removed").length === 0 ? (
                 <p className="text-zinc-500 text-sm">No affiliates yet.</p>
               ) : (
-                affiliations.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-                    <span className="font-mono text-sm">{a.profile_id}</span>
-                    <span className="text-xs px-2 py-1 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{a.status}</span>
+                affiliations.filter((a) => a.status !== "removed").map((a) => (
+                  <div key={a.id} className="flex items-center justify-between gap-2 py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
+                    <span className="font-mono text-sm truncate">{a.profile_id}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs px-2 py-1 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{a.status}</span>
+                      {admin && (a.status === "invited" || a.status === "active") && (
+                        <button
+                          type="button"
+                          disabled={!!removePartnerLoading}
+                          onClick={async () => {
+                            if (!org?.id) return;
+                            setRemovePartnerLoading(a.id);
+                            try {
+                              const { data: { session } } = await supabase.auth.getSession();
+                              const token = session?.access_token;
+                              const origin = typeof window !== "undefined" ? window.location.origin : "";
+                              const res = await fetch(`${origin}/api/orgs/${org.id}/affiliates/${a.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({ status: "removed" }),
+                              });
+                              if (res.ok) {
+                                setAffiliations(await listOrgAffiliations(org.id));
+                              }
+                            } finally {
+                              setRemovePartnerLoading(null);
+                            }
+                          }}
+                          className="text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-50"
+                        >
+                          {removePartnerLoading === a.id ? "…" : "Remove"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
@@ -671,13 +702,43 @@ export default function OrgDetailPage({
                   {inviteError && tab === "ambassadors" && <p className="text-destructive text-sm w-full">{inviteError}</p>}
                 </div>
               )}
-              {ambassadors.length === 0 ? (
+              {ambassadors.filter((a) => a.status !== "removed").length === 0 ? (
                 <p className="text-zinc-500 text-sm">No ambassadors yet.</p>
               ) : (
-                ambassadors.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-                    <span className="font-mono text-sm">{a.profile_id}</span>
-                    <span className="text-xs px-2 py-1 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{a.status}</span>
+                ambassadors.filter((a) => a.status !== "removed").map((a) => (
+                  <div key={a.id} className="flex items-center justify-between gap-2 py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
+                    <span className="font-mono text-sm truncate">{a.profile_id}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs px-2 py-1 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{a.status}</span>
+                      {admin && (a.status === "invited" || a.status === "active") && (
+                        <button
+                          type="button"
+                          disabled={!!removePartnerLoading}
+                          onClick={async () => {
+                            if (!org?.id) return;
+                            setRemovePartnerLoading(a.id);
+                            try {
+                              const { data: { session } } = await supabase.auth.getSession();
+                              const token = session?.access_token;
+                              const origin = typeof window !== "undefined" ? window.location.origin : "";
+                              const res = await fetch(`${origin}/api/orgs/${org.id}/ambassadors/${a.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({ status: "removed" }),
+                              });
+                              if (res.ok) {
+                                setAmbassadors(await listOrgAmbassadors(org.id));
+                              }
+                            } finally {
+                              setRemovePartnerLoading(null);
+                            }
+                          }}
+                          className="text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-50"
+                        >
+                          {removePartnerLoading === a.id ? "…" : "Remove"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))
               )}

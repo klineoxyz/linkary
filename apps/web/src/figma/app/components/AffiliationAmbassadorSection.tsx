@@ -6,8 +6,6 @@ import { supabase } from "@/lib/supabase";
 import {
   listAffiliationsForProfile,
   listAmbassadorsForProfile,
-  acceptAffiliation,
-  acceptAmbassador,
   getOrgById,
 } from "@/lib/orgs";
 
@@ -49,16 +47,34 @@ export default function AffiliationAmbassadorSection() {
     });
   }, []);
 
-  const handleAcceptAffiliation = async (id: string) => {
+  const handleAcceptAffiliation = async (id: string, orgId: string) => {
     if (!profileId) return;
-    const { error } = await acceptAffiliation(id, profileId);
-    if (!error) setAffiliations((prev) => prev.map((a) => (a.id === id ? { ...a, status: "active" } : a)));
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/orgs/${orgId}/affiliates/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status: "active" }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && !json.error) setAffiliations((prev) => prev.map((a) => (a.id === id ? { ...a, status: "active" } : a)));
   };
 
-  const handleAcceptAmbassador = async (id: string) => {
+  const handleAcceptAmbassador = async (id: string, orgId: string) => {
     if (!profileId) return;
-    const { error } = await acceptAmbassador(id, profileId);
-    if (!error) setAmbassadors((prev) => prev.map((a) => (a.id === id ? { ...a, status: "active" } : a)));
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/orgs/${orgId}/ambassadors/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status: "active" }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && !json.error) setAmbassadors((prev) => prev.map((a) => (a.id === id ? { ...a, status: "active" } : a)));
   };
 
   if (loading || (!affiliations.length && !ambassadors.length)) return null;
@@ -82,7 +98,7 @@ export default function AffiliationAmbassadorSection() {
                 </span>
                 {a.status === "invited" ? (
                   <button
-                    onClick={() => handleAcceptAffiliation(a.id)}
+                    onClick={() => handleAcceptAffiliation(a.id, a.org_id)}
                     className="px-3 py-1.5 rounded-lg bg-primary hover:opacity-90 text-white text-sm"
                   >
                     Accept
@@ -108,7 +124,7 @@ export default function AffiliationAmbassadorSection() {
                 </span>
                 {a.status === "invited" ? (
                   <button
-                    onClick={() => handleAcceptAmbassador(a.id)}
+                    onClick={() => handleAcceptAmbassador(a.id, a.org_id)}
                     className="px-3 py-1.5 rounded-lg bg-primary hover:opacity-90 text-white text-sm"
                   >
                     Accept

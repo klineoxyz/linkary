@@ -78,7 +78,8 @@ export async function refreshXRollupsForProfile(
     const avgLikes = posts > 0 ? totalLikes / posts : 0;
     const avgReplies = posts > 0 ? totalReplies / posts : 0;
     const engagementRate = posts > 0 ? (totalEngagement / posts) : 0;
-    const reachProxy = posts;
+    const totalReposts = list.reduce((s, t) => s + (t.repost_count ?? 0), 0);
+    const reachProxy = Math.round(totalLikes + totalReplies + totalReposts);
 
     rollup["posts_" + days + "d"] = posts;
     rollup["avg_likes_" + days + "d"] = Math.round(avgLikes * 100) / 100;

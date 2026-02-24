@@ -2535,6 +2535,7 @@ export default function LinkaryApp() {
   const [me, setMe] = useState(null);
   const [authUserId, setAuthUserId] = useState(null);
   const [analyticsInitFailed, setAnalyticsInitFailed] = useState(false);
+  const [analyticsSessionExpired, setAnalyticsSessionExpired] = useState(false);
   const [headerMedia, setHeaderMedia] = useState<{ header_media_type: string; header_media_url: string | null } | null>(null);
 
   useEffect(() => {
@@ -2646,6 +2647,11 @@ export default function LinkaryApp() {
       })
         .then(async (res) => {
           const body = await res.json().catch(() => ({}));
+          if (res.status === 401 || body?.code === "INVALID_SESSION") {
+            setAnalyticsSessionExpired(true);
+            setAnalyticsInitFailed(true);
+            return;
+          }
           const bad = !res.ok || (body?.enqueued === false && ["no_service_key", "no_x_handle", "profile_not_found", "insert_failed"].includes(body?.reason));
           if (bad) setAnalyticsInitFailed(true);
         })
@@ -2682,15 +2688,31 @@ export default function LinkaryApp() {
   useInViewAnimations(".animate-fade-in");
 
   const handleRetryAnalytics = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return;
+    setAnalyticsSessionExpired(false);
+    const { data: { session }, error: refreshErr } = await supabase.auth.refreshSession();
+    const token = session?.access_token;
+    if (!token) {
+      setAnalyticsSessionExpired(true);
+      setAnalyticsInitFailed(true);
+      return;
+    }
     const res = await fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/analytics/ensure-backfill`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${session.access_token}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
     const body = await res.json().catch(() => ({}));
+    if (res.status === 401 || body?.code === "INVALID_SESSION") {
+      setAnalyticsSessionExpired(true);
+      setAnalyticsInitFailed(true);
+      return;
+    }
     const bad = !res.ok || (body?.enqueued === false && ["no_service_key", "no_x_handle", "profile_not_found", "insert_failed"].includes(body?.reason));
-    if (!bad) setAnalyticsInitFailed(false);
+    if (!bad) {
+      setAnalyticsInitFailed(false);
+      setAnalyticsSessionExpired(false);
+    } else {
+      setAnalyticsInitFailed(true);
+    }
   }, []);
 
   return (
@@ -2698,14 +2720,30 @@ export default function LinkaryApp() {
       <GlobalStyles />
       {analyticsInitFailed && (
         <div className="sticky top-0 z-[100] flex items-center justify-between gap-4 px-4 py-2 bg-amber-100 border-b border-amber-300 text-amber-900 text-sm">
-          <span>Analytics init failed. Retry to start 90-day backfill.</span>
-          <button
-            type="button"
-            onClick={handleRetryAnalytics}
-            className="px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm font-medium"
-          >
-            Retry
-          </button>
+          <span>
+            {analyticsSessionExpired
+              ? "Session expired. Please sign in again to refresh analytics."
+              : "Analytics init failed. Retry to start 90-day backfill."}
+          </span>
+          <div className="flex items-center gap-2">
+            {analyticsSessionExpired ? (
+              <button
+                type="button"
+                onClick={() => setRoute({ name: "login" })}
+                className="px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm font-medium"
+              >
+                Sign in
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRetryAnalytics}
+                className="px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm font-medium"
+              >
+                Retry
+              </button>
+            )}
+          </div>
         </div>
       )}
       

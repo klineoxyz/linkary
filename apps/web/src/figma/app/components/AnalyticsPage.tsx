@@ -551,7 +551,15 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
 
   const hasRealInsights = Boolean(rollup || hasRealFollowerHistory);
   const signals: Signal[] = hasRealInsights
-    ? []
+    ? [
+        {
+          id: "synced",
+          type: "good" as SignalType,
+          title: "Your X metrics are synced",
+          metric: "View your 7D / 30D / 90D trends in the cards above. Connect more data in Integrations for richer signals.",
+          timestamp: "",
+        },
+      ]
     : [
         {
           id: "no-data",
@@ -929,6 +937,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             const SignalIcon = signalStyle.icon;
             const delta = timePeriod === "7D" ? kpi.delta7D : timePeriod === "30D" ? kpi.delta30D : kpi.delta90D;
             const isPositive = delta > 0;
+            const isNegative = delta < 0;
+            const deltaColor = isPositive ? "text-green-600" : isNegative ? "text-orange-800" : "text-gray-500";
+            const DeltaIcon = isPositive ? TrendingUp : isNegative ? TrendingDown : null;
 
             return (
               <motion.div
@@ -953,12 +964,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 <div className="flex items-end gap-3 mb-3">
                   <h3 className="text-4xl font-bold text-gray-900">{kpi.value}</h3>
                   <div className="flex items-center gap-1 mb-2">
-                    {isPositive ? (
-                      <TrendingUp className="w-4 h-4 text-primary stroke-[1.75]" />
-                    ) : (
-                      <TrendingDown className="w-4 h-4 text-muted-foreground stroke-[1.75]" />
-                    )}
-                    <span className={`text-sm font-semibold ${isPositive ? "text-primary" : "text-muted-foreground"}`}>
+                    {DeltaIcon && <DeltaIcon className={`w-4 h-4 ${deltaColor} stroke-[1.75]`} />}
+                    <span className={`text-sm font-semibold ${deltaColor}`}>
                       {isPositive ? "+" : ""}{delta}%
                     </span>
                   </div>
@@ -1285,7 +1292,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
 
             {snapshotsForFollowerChart.length >= 2 ? (
             <div className="flex gap-3">
-              <div className="flex flex-col justify-between text-xs text-gray-500 py-2">
+              <div className="flex flex-col justify-between text-xs text-gray-500 py-2 w-0 overflow-hidden opacity-0" aria-hidden>
                 {(() => {
                   const vals = snapshotsForFollowerChart.map((s) => Number(s.followers_total ?? 0));
                   const max = Math.max(...vals, 1);
@@ -1357,7 +1364,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
 
             {hasEngagementChartData ? (
             <div className="flex gap-3">
-              <div className="flex flex-col justify-between text-xs text-gray-500 py-2">
+              <div className="flex flex-col justify-between text-xs text-gray-500 py-2 w-0 overflow-hidden opacity-0" aria-hidden>
                 {(() => {
                   const valid = engagementValues.filter((v): v is number => v != null && Number.isFinite(v));
                   const max = valid.length ? Math.max(...valid, 0.01) : 5;
@@ -1417,7 +1424,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
 
             {hasCadenceData ? (
             <div className="flex gap-3">
-              <div className="flex flex-col justify-between text-xs text-gray-500 py-2">
+              <div className="flex flex-col justify-between text-xs text-gray-500 py-2 w-0 overflow-hidden opacity-0" aria-hidden>
                 {(() => {
                   const max = Math.max(...cadenceValues, 1);
                   return [1, 0.75, 0.5, 0.25, 0].map((pct) => String(Math.round(max * pct)));

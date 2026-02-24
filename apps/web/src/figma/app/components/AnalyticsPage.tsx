@@ -15,6 +15,8 @@ import {
   Youtube,
   Video,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   MessageSquare,
   Heart,
   Repeat,
@@ -116,6 +118,17 @@ type XAnalyticsData = {
     snapshot_max_day: string | null;
     aggregate_max_as_of: string | null;
   };
+  diagnostics?: {
+    top_day_last30_from_x_tweets: {
+      day: string;
+      likes: number;
+      replies: number;
+      reposts: number;
+      tweets_count: number;
+      max_like_tweet_id: string | null;
+    } | null;
+    has_outlier_day: boolean;
+  };
 };
 
 type RebuildJob = {
@@ -147,7 +160,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const [rebuildJob, setRebuildJob] = useState<RebuildJob | null>(null);
   const [rebuildLoading, setRebuildLoading] = useState(false);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const rebuildPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isDev = process.env.NODE_ENV !== "production";
   const initialSyncTriggered = useRef(false);
   const base = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -182,6 +197,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         snapshots: Array.isArray(json.snapshots) ? json.snapshots : [],
         source: json.source ?? "fallback",
         freshness: json.freshness ?? undefined,
+        diagnostics: json.diagnostics ?? undefined,
       });
     }
     if (summaryRes.ok) {
@@ -1027,6 +1043,62 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               {xAnalyticsData?.freshness?.aggregate_max_as_of ?? "Not ready yet, run Rebuild analytics"}
             </span>
           </div>
+        )}
+
+        {/* Outlier warning (when diagnostics indicate possible data error) */}
+        {activePlatform === "x" && xAnalyticsData?.diagnostics?.has_outlier_day && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-wrap items-center justify-between gap-2"
+          >
+            <p className="text-sm text-amber-900 dark:text-amber-200">
+              Outlier detected in last 30 days. This may be provider data error. Click View tweet rows to inspect.
+            </p>
+            <a
+              href={`/debug/x-tweets?day=${xAnalyticsData.diagnostics?.top_day_last30_from_x_tweets?.day ?? ""}`}
+              className="px-3 py-1.5 rounded-lg border border-amber-500/50 text-amber-800 dark:text-amber-200 text-sm font-medium hover:bg-amber-500/20"
+            >
+              View tweet rows
+            </a>
+          </motion.div>
+        )}
+
+        {/* Diagnostics panel (dev only) */}
+        {activePlatform === "x" && isDev && xAnalyticsData?.diagnostics != null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-white/10 bg-white/5 overflow-hidden"
+          >
+            <button
+              type="button"
+              onClick={() => setDiagnosticsOpen((o) => !o)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left text-sm font-medium text-gray-700 hover:bg-white/10"
+            >
+              <span>Diagnostics</span>
+              {diagnosticsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            {diagnosticsOpen && (
+              <div className="px-4 pb-4 border-t border-white/10">
+                <table className="w-full text-xs text-left border-collapse">
+                  <tbody>
+                    <tr><th className="py-1 pr-4 font-semibold text-gray-600">has_outlier_day</th><td>{String(xAnalyticsData.diagnostics.has_outlier_day)}</td></tr>
+                    {xAnalyticsData.diagnostics.top_day_last30_from_x_tweets && (
+                      <>
+                        <tr><th className="py-1 pr-4 font-semibold text-gray-600">top_day</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.day}</td></tr>
+                        <tr><th className="py-1 pr-4 font-semibold text-gray-600">likes</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.likes}</td></tr>
+                        <tr><th className="py-1 pr-4 font-semibold text-gray-600">replies</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.replies}</td></tr>
+                        <tr><th className="py-1 pr-4 font-semibold text-gray-600">reposts</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.reposts}</td></tr>
+                        <tr><th className="py-1 pr-4 font-semibold text-gray-600">tweets_count</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.tweets_count}</td></tr>
+                        <tr><th className="py-1 pr-4 font-semibold text-gray-600">max_like_tweet_id</th><td className="font-mono">{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.max_like_tweet_id ?? "—"}</td></tr>
+                      </>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </motion.div>
         )}
 
         {/* C) Signals Feed (Primary Section) */}

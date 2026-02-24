@@ -212,7 +212,7 @@ async function ensureBackfill(request: NextRequest) {
     owner_id: profile.id,
     run_after: now,
     status: "queued",
-    payload: { username, user_id: profile.id },
+    payload: { profile_id: profile.id, username },
   });
 
   if (insertErr) {

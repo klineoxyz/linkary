@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
           owner_id: profile.id,
           run_after: now,
           status: "queued",
-          payload: { username: String(username).replace(/^@/, "").toLowerCase(), user_id: user.id },
+          payload: { profile_id: profile.id, username: String(username).replace(/^@/, "").toLowerCase() },
         });
         if (jobErr) {
           // log but do not fail the request

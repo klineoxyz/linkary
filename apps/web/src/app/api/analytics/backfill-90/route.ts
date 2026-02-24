@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     owner_id: user.id,
     run_after: new Date().toISOString(),
     status: "queued",
-    payload: { username, user_id: user.id },
+    payload: { profile_id: user.id, username },
   });
   if (insertErr) {
     return fail("INTERNAL", insertErr.message, 500, { enqueued: false });

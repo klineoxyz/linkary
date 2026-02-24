@@ -44,6 +44,11 @@ async function main() {
     return;
   }
 
+  const payloadProfileId = (job.payload as { profile_id?: string } | null)?.profile_id ?? null;
+  console.log(
+    "[JOB] id=" + job.id + " owner_id=" + job.owner_id + " payload_profile_id=" + (payloadProfileId ?? "null") + " job_type=" + job.job_type + " status=queued"
+  );
+
   const { error: markErr } = await supabase
     .from("analytics_jobs")
     .update({ status: "running", updated_at: new Date().toISOString() })
@@ -53,6 +58,8 @@ async function main() {
     console.error("Failed to mark job running:", markErr.message);
     process.exit(1);
   }
+
+  console.log("[JOB] id=" + job.id + " owner_id=" + job.owner_id + " payload_profile_id=" + (payloadProfileId ?? "null") + " job_type=" + job.job_type + " status=running");
 
   let result: { ok: boolean; upserted?: number; verifiedNoOp?: boolean; error?: string };
   if (job.job_type === "x_backfill_90d") {
@@ -74,7 +81,7 @@ async function main() {
       .from("analytics_jobs")
       .update({ status: "done", updated_at: new Date().toISOString(), last_error: null })
       .eq("id", job.id);
-    console.log("Job", job.id, "done.");
+    console.log("[JOB] id=" + job.id + " owner_id=" + job.owner_id + " payload_profile_id=" + (payloadProfileId ?? "null") + " job_type=" + job.job_type + " status=done");
   } else if (result.ok && !canMarkDone) {
     await supabase
       .from("analytics_jobs")
@@ -86,6 +93,7 @@ async function main() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", job.id);
+    console.log("[JOB] id=" + job.id + " owner_id=" + job.owner_id + " payload_profile_id=" + (payloadProfileId ?? "null") + " job_type=" + job.job_type + " status=requeued(no_inserts)");
     console.error("Job", job.id, "not marked done: no tweet inserts and not verified no-op.");
     process.exit(1);
   } else {
@@ -99,6 +107,7 @@ async function main() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", job.id);
+    console.log("[JOB] id=" + job.id + " owner_id=" + job.owner_id + " payload_profile_id=" + (payloadProfileId ?? "null") + " job_type=" + job.job_type + " status=requeued(failed)");
     console.error("Job", job.id, "failed:", result.error);
     process.exit(1);
   }

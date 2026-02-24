@@ -196,7 +196,7 @@ async function handleSync(request: NextRequest) {
         owner_id: user.id,
         run_after: now,
         status: "queued",
-        payload: { username: normalizedUsername || userName, user_id: user.id },
+        payload: { profile_id: user.id, username: normalizedUsername || userName },
       });
     }
   }

@@ -92,7 +92,7 @@ export async function enqueueXBackfill90dJobs(
       owner_id: p.id,
       run_after: new Date().toISOString(),
       status: "queued",
-      payload: { username: p.username, user_id: p.id },
+      payload: { profile_id: p.id, username: p.username },
     });
     if (!error) enqueued += 1;
   }

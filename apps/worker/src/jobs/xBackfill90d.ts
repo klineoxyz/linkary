@@ -19,7 +19,7 @@ export type JobRow = {
   job_type: string;
   owner_type: string;
   owner_id: string;
-  payload: { username?: string; user_id?: string } | null;
+  payload: { profile_id?: string; username?: string; user_id?: string } | null;
 };
 
 export type RunResult = { ok: boolean; upserted?: number; verifiedNoOp?: boolean; error?: string };
@@ -28,17 +28,28 @@ export async function runXBackfill90d(
   supabase: SupabaseClient,
   job: JobRow
 ): Promise<RunResult> {
-  const username = job.payload?.username;
-  if (!username || job.owner_type !== "profile" || !job.owner_id) {
+  if (job.owner_type !== "profile" || !job.owner_id) {
+    return { ok: false, error: "invalid_owner" };
+  }
+  const profileId = job.owner_id;
+
+  let handle: string | null = (job.payload?.username ?? "").trim().replace(/^@/, "").toLowerCase() || null;
+  if (!handle) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("twitter_username")
+      .eq("id", profileId)
+      .maybeSingle();
+    const tw = (profile as { twitter_username?: string | null } | null)?.twitter_username;
+    handle = (tw ?? "").trim().replace(/^@/, "").toLowerCase() || null;
+  }
+  if (!handle) {
     return { ok: false, error: "no_x_handle" };
   }
 
-  const handle = username.trim().replace(/^@/, "").toLowerCase();
-  if (!handle) return { ok: false, error: "no_x_handle" };
-
   const result = await ingestXTweets(supabase, {
-    profile_id: job.owner_id,
-    twitter_username: handle,
+    profile_id: profileId,
+    twitter_username: handle as string,
     maxTweets: MAX_TWEETS,
   });
   if (result.fetched > 0 && result.upserted === 0) {

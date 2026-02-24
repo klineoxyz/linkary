@@ -21,7 +21,11 @@ export async function GET(request: NextRequest) {
     return fail("INVALID_SESSION", "Invalid session", 401);
   }
 
-  const [profileRes, legacyRollupRes, driversRes, baselineRes, legacySnapshotsRes, dailySnapshotsRes, windowAggsRes] = await Promise.all([
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
+
+  const [profileRes, legacyRollupRes, driversRes, baselineRes, legacySnapshotsRes, dailySnapshotsRes, windowAggsRes, tweetsLast30Res] = await Promise.all([
     supabase
       .from("profiles")
       .select("followers_total, avg_engagement_rate, x_last_profile_sync_at, x_last_tweets_sync_at, x_sync_status, twitter_username, analytics_initialized_at")
@@ -64,6 +68,12 @@ export async function GET(request: NextRequest) {
       .eq("owner_id", user.id)
       .in("window_days", [7, 30, 90])
       .order("as_of", { ascending: false }),
+    supabase
+      .from("x_tweets")
+      .select("tweet_id, tweeted_at, like_count, reply_count, repost_count")
+      .eq("profile_id", user.id)
+      .gte("tweeted_at", thirtyDaysAgoStr)
+      .order("tweeted_at", { ascending: true }),
   ]);
 
   const profile = profileRes.data as {
@@ -192,6 +202,62 @@ export async function GET(request: NextRequest) {
         )
       : null;
 
+  const LIKES_OUTLIER = 2000;
+  const REPOSTS_OUTLIER = 500;
+  type TweetRow = { tweet_id: string; tweeted_at: string; like_count: number; reply_count: number; repost_count: number };
+  const tweetsLast30 = (tweetsLast30Res.data ?? []) as TweetRow[];
+  const dayAgg = new Map<
+    string,
+    { likes: number; replies: number; reposts: number; tweets_count: number; max_like_tweet_id: string | null; max_like_count: number }
+  >();
+  for (const t of tweetsLast30) {
+    const day = t.tweeted_at?.slice(0, 10) ?? "";
+    if (!day) continue;
+    const cur = dayAgg.get(day) ?? {
+      likes: 0,
+      replies: 0,
+      reposts: 0,
+      tweets_count: 0,
+      max_like_tweet_id: null as string | null,
+      max_like_count: 0,
+    };
+    const likeCount = Number(t.like_count) || 0;
+    cur.likes += likeCount;
+    cur.replies += Number(t.reply_count) || 0;
+    cur.reposts += Number(t.repost_count) || 0;
+    cur.tweets_count += 1;
+    if (likeCount > cur.max_like_count) {
+      cur.max_like_count = likeCount;
+      cur.max_like_tweet_id = t.tweet_id ?? null;
+    }
+    dayAgg.set(day, cur);
+  }
+  let topDay: string | null = null;
+  let topLikes = 0;
+  for (const [day, agg] of dayAgg) {
+    if (agg.likes > topLikes) {
+      topLikes = agg.likes;
+      topDay = day;
+    }
+  }
+  const topDayAgg = topDay ? dayAgg.get(topDay) : null;
+  const hasOutlierDay = Array.from(dayAgg.values()).some(
+    (a) => a.likes > LIKES_OUTLIER || a.reposts > REPOSTS_OUTLIER
+  );
+  const diagnostics = {
+    top_day_last30_from_x_tweets: topDay
+      ? {
+          day: topDay,
+          likes: topDayAgg?.likes ?? 0,
+          replies: topDayAgg?.replies ?? 0,
+          reposts: topDayAgg?.reposts ?? 0,
+          tweets_count: topDayAgg?.tweets_count ?? 0,
+          max_like_tweet_id: topDayAgg?.max_like_tweet_id ?? null,
+        }
+      : null,
+    has_outlier_day: hasOutlierDay,
+  };
+
   return ok({
     profile: profile ?? {},
     rollup: rollup ?? null,
@@ -204,5 +270,6 @@ export async function GET(request: NextRequest) {
       snapshot_max_day: snapshotMaxDay,
       aggregate_max_as_of: aggregateMaxAsOf,
     },
+    diagnostics,
   });
 }

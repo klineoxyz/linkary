@@ -117,7 +117,7 @@ export async function POST(request: Request) {
           owner_id: profile.id,
           run_after: now,
           status: "queued",
-          payload: { username: normalizedHandle, user_id: user.id },
+          payload: { profile_id: profile.id, username: normalizedHandle },
         });
       }
     }

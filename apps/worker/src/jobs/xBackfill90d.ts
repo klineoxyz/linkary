@@ -3,7 +3,7 @@
  * Job is only marked done when tweets were upserted or verified no-op (no tweets).
  */
 import { SupabaseClient } from "@supabase/supabase-js";
-import { ingestXTweets, isRetweetText } from "../lib/ingestXTweets.js";
+import { ingestXTweets, isRetweetText, isOutlierTweet } from "../lib/ingestXTweets.js";
 import { getUserInfo, getRecentTweets } from "../lib/twitterapi.js";
 import { sleep } from "../lib/utils.js";
 
@@ -47,10 +47,15 @@ export async function runXBackfill90d(
     return { ok: false, error: "no_x_handle" };
   }
 
+  const userInfo = await getUserInfo(handle);
+  await sleep(200);
+  const followersToday = userInfo?.followers ?? null;
+
   const result = await ingestXTweets(supabase, {
     profile_id: profileId,
     twitter_username: handle as string,
     maxTweets: MAX_TWEETS,
+    followers_total: followersToday ?? undefined,
   });
   if (result.fetched > 0 && result.upserted === 0) {
     return {
@@ -62,10 +67,9 @@ export async function runXBackfill90d(
   if (result.fetched === 0) {
     console.log("[X_TWEETS] verified no new tweets");
   }
-
-  const userInfo = await getUserInfo(handle);
-  await sleep(200);
-  const followersToday = userInfo?.followers ?? null;
+  if (result.skipped_outliers != null && result.skipped_outliers > 0) {
+    console.log("[X_BACKFILL_90D] skipped_outliers=" + result.skipped_outliers);
+  }
 
   const tweets = await getRecentTweets(handle, MAX_TWEETS);
   await sleep(DELAY_MS);
@@ -83,6 +87,7 @@ export async function runXBackfill90d(
 
   for (const t of tweets) {
     if (isRetweetText(t.text)) continue;
+    if (followersToday != null && isOutlierTweet(t, followersToday)) continue;
     const createdAt = t.createdAt;
     if (!createdAt) continue;
     const d = new Date(createdAt);

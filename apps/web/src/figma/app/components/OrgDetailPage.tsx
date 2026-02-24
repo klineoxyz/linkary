@@ -669,12 +669,20 @@ export default function OrgDetailPage({
                         <div className="text-xs font-medium text-zinc-500 mt-2">Applicants ({pending.length} pending, {accepted.length} accepted)</div>
                       )}
                       {jobApps.map((app) => (
-                        <div key={app.id} className="flex items-center justify-between py-2 pl-3 border-l-2 border-zinc-200 dark:border-zinc-700">
-                          <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                            {app.applicant_type === "profile" ? `Profile ${app.applicant_profile_id ?? ""}` : `Org ${app.applicant_org_id ?? ""}`}
-                            {app.message ? ` · "${app.message.slice(0, 40)}${app.message.length > 40 ? "…" : ""}"` : ""}
-                          </span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{app.status}</span>
+                        <div key={app.id} className="py-2 pl-3 border-l-2 border-zinc-200 dark:border-zinc-700 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                              {app.applicant_type === "profile" ? `Profile ${app.applicant_profile_id ?? ""}` : `Org ${app.applicant_org_id ?? ""}`}
+                              {app.message ? ` · "${app.message.slice(0, 40)}${app.message.length > 40 ? "…" : ""}"` : ""}
+                            </span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{app.status}</span>
+                          </div>
+                          {app.shared_analytics && app.analytics_snapshot_json && typeof app.analytics_snapshot_json === "object" && (
+                            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                              Shared analytics: 30d posts {(app.analytics_snapshot_json as Record<string, unknown>).posts_30d ?? "—"} · avg likes {(app.analytics_snapshot_json as Record<string, unknown>).avg_likes_30d ?? "—"} · reach proxy {(app.analytics_snapshot_json as Record<string, unknown>).reach_proxy_30d ?? "—"}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 flex-wrap">
                           {admin && app.status === "pending" && isOpen && (
                             <button
                               type="button"
@@ -708,6 +716,7 @@ export default function OrgDetailPage({
                               {acceptLoading === app.id ? "…" : "Accept"}
                             </button>
                           )}
+                          </div>
                         </div>
                       ))}
                     </div>

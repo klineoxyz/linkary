@@ -190,6 +190,8 @@ export default function AuthCallbackPage() {
                 setMessage("Analytics init failed. You can retry or continue.");
                 return;
               }
+              // Refresh Ethos + XScore cache after X connect (fire-and-forget)
+              fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
             }
             if (!cancelled) {
               setStatus("ok");
@@ -274,6 +276,8 @@ export default function AuthCallbackPage() {
                 setMessage("Analytics init failed. You can retry or continue.");
                 return;
               }
+              // Refresh Ethos + XScore cache after X connect (fire-and-forget)
+              fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } }).catch(() => {});
             }
             if (!cancelled) {
               setStatus("ok");

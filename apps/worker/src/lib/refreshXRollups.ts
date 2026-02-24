@@ -3,7 +3,7 @@
  * Excludes retweets (text starting with "RT @") from rollups and top drivers.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isRetweetText } from "./ingestXTweets.js";
+import { isRetweetText, isOutlierTweet } from "./ingestXTweets.js";
 
 const WINDOWS = [7, 30, 90] as const;
 const TOP_DRIVERS_PER_WINDOW = 10;
@@ -18,6 +18,16 @@ export async function refreshXRollupsForProfile(
 ): Promise<void> {
   const now = new Date();
   const today = toDate(now.toISOString());
+
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("followers_total")
+    .eq("id", profileId)
+    .maybeSingle();
+  const followersTotal =
+    profileRow != null && (profileRow as { followers_total?: number }).followers_total != null
+      ? Number((profileRow as { followers_total: number }).followers_total)
+      : null;
 
   const rollup: Record<string, unknown> = {
     profile_id: profileId,
@@ -65,7 +75,9 @@ export async function refreshXRollupsForProfile(
       quote_count: number;
       text?: string | null;
     }>;
-    const list = raw.filter((t) => !isRetweetText(t.text));
+    const list = raw
+      .filter((t) => !isRetweetText(t.text))
+      .filter((t) => !isOutlierTweet(t, followersTotal));
 
     const posts = list.length;
     const totalLikes = list.reduce((s, t) => s + (t.like_count ?? 0), 0);

@@ -78,7 +78,7 @@ async function main() {
 
   // Eligible base: twitter_username and twitter_connected_at set
   const base = () =>
-    supabase.from(TABLE).select("id, twitter_username").not("twitter_username", "is", null).not("twitter_connected_at", "is", null);
+    supabase.from(TABLE).select("id, twitter_username, followers_total").not("twitter_username", "is", null).not("twitter_connected_at", "is", null);
 
   // Incremental: need sync = never synced OR last sync older than 6 days. Two queries to avoid .or() string bugs.
   const { data: needSyncNull, error: errNull } = await base().is("x_last_tweets_sync_at", null).order("id").limit(BATCH_SIZE);
@@ -89,9 +89,9 @@ async function main() {
     process.exit(1);
   }
 
-  const byId = new Map<string, { id: string; twitter_username: string | null }>();
-  for (const p of needSyncNull ?? []) byId.set(p.id, p);
-  for (const p of needSyncStale ?? []) if (!byId.has(p.id)) byId.set(p.id, p);
+  const byId = new Map<string, { id: string; twitter_username: string | null; followers_total?: number | null }>();
+  for (const p of needSyncNull ?? []) byId.set(p.id, p as { id: string; twitter_username: string | null; followers_total?: number | null });
+  for (const p of needSyncStale ?? []) if (!byId.has(p.id)) byId.set(p.id, p as { id: string; twitter_username: string | null; followers_total?: number | null });
   const profiles = Array.from(byId.values());
 
   const selectedCount = profiles.length;
@@ -135,6 +135,7 @@ async function main() {
         profile_id: profile.id,
         twitter_username: handle,
         maxTweets: MAX_TWEETS,
+        followers_total: profile.followers_total ?? undefined,
       });
       profilesProcessed += 1;
       tweetsTotalUpserted += result.upserted;

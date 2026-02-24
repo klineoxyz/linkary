@@ -149,7 +149,7 @@ import { supabase } from "@/lib/supabase";
 import { ensureProfileForSession, getMyProfile, updateMyProfile } from "@/lib/profiles";
 import { getXConnection } from "@/lib/xAuth";
 import { getProfileProfessions } from "@/lib/profileProfessions";
-import { listJobs, applyToJobAsProfile, applyToJobAsOrg, type JobWithOrg } from "@/lib/jobs";
+import { listJobs, type JobWithOrg } from "@/lib/jobs";
 import { listConversationsForUser, listMessages, sendMessageAsProfile, sendMessageAsOrg } from "@/lib/messages";
 import { listMyOrgs } from "@/lib/orgs";
 import { listCaseStudiesForProfile, createCaseStudyForProfile } from "@/lib/caseStudies";
@@ -1653,20 +1653,30 @@ function MarketplacePage({ setRoute }) {
     if (!applyJob || !userId || !profileId) return;
     setApplyLoading(true);
     const isOrg = !!applyAsOrgId;
-    const { error: appErr } = isOrg
-      ? await applyToJobAsOrg(applyJob.id, applyAsOrgId!, applyMessage.trim() || undefined)
-      : await applyToJobAsProfile(applyJob.id, profileId, applyMessage.trim() || undefined);
-    if (appErr) { setApplyLoading(false); setApplyError(appErr); return; }
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token ?? "";
+    const applyRes = await fetch(`${base}/api/jobs/${applyJob.id}/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        message: applyMessage.trim() || undefined,
+        applyAsOrgId: isOrg ? applyAsOrgId : undefined,
+      }),
+    });
+    const applyData = await applyRes.json().catch(() => ({}));
+    if (!applyRes.ok || !applyData.applicationId) {
+      setApplyLoading(false);
+      setApplyError(applyData.error ?? "Apply failed");
+      return;
+    }
     setApplyError(null);
     const participants = isOrg
       ? [{ type: "org" as const, id: applyAsOrgId! }, { type: "org" as const, id: applyJob.org_id }]
       : [{ type: "profile" as const, id: profileId }, { type: "org" as const, id: applyJob.org_id }];
-    const { data: { session } } = await supabase.auth.getSession();
-    const accessToken = session?.access_token ?? "";
-    const base = typeof window !== "undefined" ? window.location.origin : "";
     const res = await fetch(`${base}/api/conversations/get-or-create`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ participants }),
     });
     const data = await res.json().catch(() => ({}));

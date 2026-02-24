@@ -42,6 +42,8 @@ export default function PrivacyDataPage({
       setAnalyticsVisibility((prev) => ({
         ...prev,
         publicVisible: p.analytics_visibility !== "private",
+        shareOnApplications: (p as { share_analytics_on_apply?: boolean }).share_analytics_on_apply !== false,
+        caseStudyAnalytics: (p as { share_cv_on_apply?: boolean }).share_cv_on_apply !== false,
       }));
     });
     return () => { cancelled = true; };
@@ -67,6 +69,30 @@ export default function PrivacyDataPage({
         return;
       }
       setAnalyticsVisibility((prev) => ({ ...prev, publicVisible: next }));
+      await refreshMe?.();
+    } else if (key === "shareOnApplications" && userId) {
+      const next = !analyticsVisibility.shareOnApplications;
+      setPublicAnalyticsError(null);
+      setPublicAnalyticsSaving(true);
+      const { error } = await updateMyProfile(userId, { share_analytics_on_apply: next });
+      setPublicAnalyticsSaving(false);
+      if (error) {
+        setPublicAnalyticsError(error);
+        return;
+      }
+      setAnalyticsVisibility((prev) => ({ ...prev, shareOnApplications: next }));
+      await refreshMe?.();
+    } else if (key === "caseStudyAnalytics" && userId) {
+      const next = !analyticsVisibility.caseStudyAnalytics;
+      setPublicAnalyticsError(null);
+      setPublicAnalyticsSaving(true);
+      const { error } = await updateMyProfile(userId, { share_cv_on_apply: next });
+      setPublicAnalyticsSaving(false);
+      if (error) {
+        setPublicAnalyticsError(error);
+        return;
+      }
+      setAnalyticsVisibility((prev) => ({ ...prev, caseStudyAnalytics: next }));
       await refreshMe?.();
     } else {
       setAnalyticsVisibility((prev) => ({

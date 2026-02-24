@@ -43,6 +43,10 @@ export type Profile = {
   cdp_wallet_type?: string | null;
   cdp_wallet_created_at?: string | null;
   cdp_mfa_enabled?: boolean;
+  /** When true, attach analytics snapshot to new job applications */
+  share_analytics_on_apply?: boolean;
+  /** When true, allow sharing CV with org when applying */
+  share_cv_on_apply?: boolean;
 };
 
 /** Identity shape from Supabase auth (user.identities or provider raw_user_meta) */
@@ -129,6 +133,8 @@ export async function updateMyProfile(
     onboarding_completed_at?: string | null;
     followers_total?: number;
     avg_engagement_rate?: number;
+    share_analytics_on_apply?: boolean;
+    share_cv_on_apply?: boolean;
   }
 ): Promise<{ error: string | null }> {
   const updates: Record<string, unknown> = { ...payload };

@@ -14,6 +14,35 @@ export function isRetweetText(text: string | null | undefined): boolean {
   return text.trim().toLowerCase().startsWith("rt @");
 }
 
+export type TweetEngagement = {
+  like_count?: number | null;
+  reply_count?: number | null;
+  repost_count?: number | null;
+  likeCount?: number | null;
+  replyCount?: number | null;
+  retweetCount?: number | null;
+};
+
+/**
+ * True if tweet engagement is an outlier (provider spike) relative to follower count.
+ * engagement = likes + replies + reposts. If followers_total is missing or 0, returns false.
+ * Outlier if: likes > followers_total*2 OR reposts > followers_total*0.5 OR engagement > followers_total*3.
+ */
+export function isOutlierTweet(
+  tweet: TweetEngagement,
+  followers_total: number | null | undefined
+): boolean {
+  if (followers_total == null || !Number.isFinite(followers_total) || followers_total <= 0) return false;
+  const likes = Math.max(0, Number(tweet.like_count ?? tweet.likeCount) || 0);
+  const replies = Math.max(0, Number(tweet.reply_count ?? tweet.replyCount) || 0);
+  const reposts = Math.max(0, Number(tweet.repost_count ?? tweet.retweetCount) || 0);
+  const engagement = likes + replies + reposts;
+  if (likes > followers_total * 2) return true;
+  if (reposts > followers_total * 0.5) return true;
+  if (engagement > followers_total * 3) return true;
+  return false;
+}
+
 const X_TWEETS_CONFLICT = "profile_id,tweet_id";
 const X_TWEETS_COLUMNS = [
   "profile_id",
@@ -59,12 +88,15 @@ export type IngestXTweetsParams = {
   since?: string;
   until?: string;
   maxTweets?: number;
+  /** If set, tweets with outlier engagement (vs followers_total) are skipped and logged. */
+  followers_total?: number | null;
 };
 
 export type IngestXTweetsResult = {
   fetched: number;
   upserted: number;
   inserted: number;
+  skipped_outliers?: number;
 };
 
 /**
@@ -76,7 +108,7 @@ export async function ingestXTweets(
   supabase: SupabaseClient,
   params: IngestXTweetsParams
 ): Promise<IngestXTweetsResult> {
-  const { profile_id, twitter_username, maxTweets = 50 } = params;
+  const { profile_id, twitter_username, maxTweets = 50, followers_total } = params;
   const username = twitter_username.trim().replace(/^@/, "");
   const handle = username.toLowerCase();
   if (!handle) {
@@ -92,10 +124,16 @@ export async function ingestXTweets(
   const tweets = await getRecentTweets(handle, maxTweets);
   const fetched_total = tweets.length;
   let skipped_retweets = 0;
+  let skipped_outliers = 0;
   const rows: Record<string, unknown>[] = [];
   for (const t of tweets) {
     if (isRetweetText(t.text)) {
       skipped_retweets += 1;
+      continue;
+    }
+    if (followers_total != null && isOutlierTweet(t, followers_total)) {
+      skipped_outliers += 1;
+      console.log("[X_OUTLIER] profile_id=" + profile_id + " tweet_id=" + (t.id ?? "?") + " likes=" + (t.likeCount ?? 0) + " reposts=" + (t.retweetCount ?? 0) + " followers_total=" + followers_total);
       continue;
     }
     const row = tweetToRow(profile_id, t);
@@ -103,11 +141,11 @@ export async function ingestXTweets(
   }
 
   if (rows.length === 0) {
-    console.log("[X_TWEETS] fetched_total=" + fetched_total + " skipped_retweets=" + skipped_retweets + " upserted=0");
-    return { fetched: fetched_total, upserted: 0, inserted: 0 };
+    console.log("[X_TWEETS] fetched_total=" + fetched_total + " skipped_retweets=" + skipped_retweets + " skipped_outliers=" + skipped_outliers + " upserted=0");
+    return { fetched: fetched_total, upserted: 0, inserted: 0, skipped_outliers };
   }
-  if (skipped_retweets > 0) {
-    console.log("[X_TWEETS] fetched_total=" + fetched_total + " skipped_retweets=" + skipped_retweets);
+  if (skipped_retweets > 0 || skipped_outliers > 0) {
+    console.log("[X_TWEETS] fetched_total=" + fetched_total + " skipped_retweets=" + skipped_retweets + " skipped_outliers=" + skipped_outliers);
   }
 
   const { count: countBefore } = await supabase
@@ -156,5 +194,5 @@ export async function ingestXTweets(
   }
 
   console.log("[X_TWEETS] done");
-  return { fetched: fetched_total, upserted, inserted };
+  return { fetched: fetched_total, upserted, inserted, skipped_outliers };
 }

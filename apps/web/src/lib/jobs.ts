@@ -127,6 +127,10 @@ export type Application = {
   message: string | null;
   status: string;
   created_at: string;
+  shared_analytics?: boolean;
+  analytics_snapshot_json?: Record<string, unknown> | null;
+  shared_cv?: boolean;
+  cv_file_path?: string | null;
 };
 
 /** List applications for given job IDs (e.g. org's jobs). RLS: applications_select_public. */
@@ -134,7 +138,7 @@ export async function listApplicationsForJobs(jobIds: string[]): Promise<Applica
   if (jobIds.length === 0) return [];
   const { data, error } = await supabase
     .from(APPLICATIONS)
-    .select("id, job_id, applicant_type, applicant_profile_id, applicant_org_id, message, status, created_at")
+    .select("id, job_id, applicant_type, applicant_profile_id, applicant_org_id, message, status, created_at, shared_analytics, analytics_snapshot_json, shared_cv, cv_file_path")
     .in("job_id", jobIds)
     .order("created_at", { ascending: false });
   if (error) return [];

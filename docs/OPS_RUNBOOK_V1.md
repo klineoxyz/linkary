@@ -93,6 +93,18 @@ All scheduled jobs run via **Railway Cron Runs**, not Vercel Cron. The analytics
 
 ---
 
+## Analytics UI: why KPIs and charts can show 0
+
+The analytics page (X) reads from:
+
+- **KPI tiles** (Posts, Avg Likes, Engagement Rate, etc.): from **x_window_aggregates** (queue drainer backfill) or, if empty, **x_analytics_rollups** (weekly worker). If both are empty, values show 0. Ensure **weekly worker** has run after tweet sync (so `refreshXRollupsForProfile` runs) and/or **queue drainer** has processed `x_backfill_90d` jobs so `x_window_aggregates` has rows.
+- **Follower Growth chart**: from **x_daily_snapshots** (worker). Followers are forward-filled so past days don’t show 0 when only today has a value; ensure daily worker and/or backfill writes snapshots.
+- **Posting Cadence / Engagement Rate charts**: from **x_daily_snapshots** (`tweets_count`, `engagement_rate`/`likes_received`). Populated by the **queue drainer** when it runs `x_backfill_90d`. If these charts show “Sync from Integrations and run the backfill…”, run the drainer (or ensure backfill jobs have run) so `x_daily_snapshots` has daily rows with `tweets_count` and engagement data.
+
+**Quick checks:** User has connected X and synced; weekly worker has run (rollups); queue drainer has run and processed backfill jobs (window aggregates + daily snapshots). After retweet cleanup, run `pnpm --filter worker run rebuild:x:rollups` once to repopulate rollups and top drivers.
+
+---
+
 ## Verify readiness endpoint
 
 1. **Call the readiness API** (no auth):

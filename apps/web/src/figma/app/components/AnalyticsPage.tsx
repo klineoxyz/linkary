@@ -97,7 +97,13 @@ type Baseline = {
   reach_proxy_30d?: number | null;
 } | null;
 
-type SnapshotPoint = { snapshot_date: string; followers_total: number | null };
+type SnapshotPoint = {
+  snapshot_date: string;
+  followers_total: number | null;
+  tweets_count?: number | null;
+  likes_received?: number | null;
+  engagement_rate?: number | null;
+};
 type XAnalyticsData = {
   profile: { followers_total?: number; avg_engagement_rate?: number; x_last_profile_sync_at?: string | null; x_last_tweets_sync_at?: string | null; twitter_username?: string | null };
   rollup: Record<string, unknown> | null;
@@ -255,6 +261,18 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
 
   const snapshots = (xAnalyticsData?.snapshots ?? []).filter((s) => s.snapshot_date);
   const snapshotsAsc = [...snapshots].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
+  // Forward-fill followers so past days don't show 0 when we only have today's count
+  const snapshotsWithFilledFollowers: SnapshotPoint[] = snapshotsAsc.length
+    ? (() => {
+        let lastKnown = followersTotal;
+        return snapshotsAsc.map((s) => {
+          const v = s.followers_total;
+          if (v != null && Number.isFinite(v)) lastKnown = Number(v);
+          return { ...s, followers_total: s.followers_total ?? lastKnown };
+        });
+      })()
+    : [];
+  const snapshotsForFollowerChart = snapshotsWithFilledFollowers.length >= 2 ? snapshotsWithFilledFollowers : snapshotsAsc;
   const getSnapshotAt = (daysAgo: number): number | null => {
     const target = new Date();
     target.setDate(target.getDate() - daysAgo);
@@ -268,6 +286,39 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const latestFollowerCount = snapshotsAsc.length
     ? (snapshotsAsc[snapshotsAsc.length - 1].followers_total ?? followersTotal)
     : followersTotal;
+  // Last 30 days of daily data for cadence and engagement charts (date -> value)
+  const dayMap = (() => {
+    const map = new Map<string, { posts: number; engagementPct: number | null }>();
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dayStr = d.toISOString().slice(0, 10);
+      map.set(dayStr, { posts: 0, engagementPct: null });
+    }
+    snapshotsAsc.forEach((s) => {
+      const posts = typeof s.tweets_count === "number" && Number.isFinite(s.tweets_count) ? s.tweets_count : 0;
+      let engagementPct: number | null = null;
+      if (typeof s.engagement_rate === "number" && Number.isFinite(s.engagement_rate)) {
+        engagementPct = s.engagement_rate;
+      } else if (
+        typeof s.likes_received === "number" &&
+        Number.isFinite(s.likes_received) &&
+        typeof s.tweets_count === "number" &&
+        s.tweets_count > 0
+      ) {
+        // rough proxy: likes / tweets (no follower denominator)
+        engagementPct = (s.likes_received / s.tweets_count) * 100;
+      }
+      if (map.has(s.snapshot_date)) map.set(s.snapshot_date, { posts, engagementPct });
+    });
+    return map;
+  })();
+  const last30DaysOrdered = Array.from(dayMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  const cadenceValues = last30DaysOrdered.map(([, v]) => v.posts);
+  const engagementValues = last30DaysOrdered.map(([, v]) => v.engagementPct);
+  const hasCadenceData = cadenceValues.some((n) => n > 0);
+  const hasEngagementChartData = engagementValues.some((v) => v != null && Number.isFinite(v));
   const pctDelta = (current: number, past: number | null): number | null => {
     if (past == null || past === 0 || !Number.isFinite(current)) return null;
     return ((current - past) / past) * 100;
@@ -990,20 +1041,20 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               </div>
             </div>
 
-            {snapshotsAsc.length >= 2 ? (
+            {snapshotsForFollowerChart.length >= 2 ? (
             <div className="flex gap-3">
               <div className="flex flex-col justify-between text-xs text-gray-500 py-2">
                 {(() => {
-                  const vals = snapshotsAsc.map((s) => Number(s.followers_total ?? 0));
+                  const vals = snapshotsForFollowerChart.map((s) => Number(s.followers_total ?? 0));
                   const max = Math.max(...vals, 1);
                   return [1, 0.75, 0.5, 0.25, 0].map((pct) => Math.round(max * pct).toLocaleString());
                 })()}
               </div>
               <div className="flex-1">
                 <div className="relative h-48 flex items-end gap-0.5 border-l border-b border-white/10">
-                  {snapshotsAsc.map((s, i) => {
+                  {snapshotsForFollowerChart.map((s, i) => {
                     const val = Number(s.followers_total ?? 0);
-                    const max = Math.max(...snapshotsAsc.map((x) => Number(x.followers_total ?? 0)), 1);
+                    const max = Math.max(...snapshotsForFollowerChart.map((x) => Number(x.followers_total ?? 0)), 1);
                     const heightPct = (val / max) * 100;
                     return (
                       <motion.div
@@ -1022,8 +1073,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   })}
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
-                  <span>{snapshotsAsc[0]?.snapshot_date ?? ""}</span>
-                  <span>{snapshotsAsc[snapshotsAsc.length - 1]?.snapshot_date ?? ""}</span>
+                  <span>{snapshotsForFollowerChart[0]?.snapshot_date ?? ""}</span>
+                  <span>{snapshotsForFollowerChart[snapshotsForFollowerChart.length - 1]?.snapshot_date ?? ""}</span>
                 </div>
               </div>
             </div>
@@ -1034,7 +1085,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             )}
           </motion.div>
 
-          {/* Engagement Rate Chart */}
+          {/* Engagement Rate Chart: real data from x_daily_snapshots when available */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1062,62 +1113,53 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               </div>
             </div>
 
-            {/* Chart with axes */}
+            {hasEngagementChartData ? (
             <div className="flex gap-3">
-              {/* Y-axis */}
               <div className="flex flex-col justify-between text-xs text-gray-500 py-2">
-                <span>5.0%</span>
-                <span>4.0%</span>
-                <span>3.0%</span>
-                <span>2.0%</span>
-                <span>1.0%</span>
+                {(() => {
+                  const valid = engagementValues.filter((v): v is number => v != null && Number.isFinite(v));
+                  const max = valid.length ? Math.max(...valid, 0.01) : 5;
+                  return [1, 0.75, 0.5, 0.25, 0].map((pct) => `${(max * pct).toFixed(1)}%`);
+                })()}
               </div>
-
-              {/* Chart area */}
               <div className="flex-1">
                 <div className="relative h-48 flex items-end gap-2 border-l border-b border-white/10">
-                  {/* Grid lines */}
                   {[0, 1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="absolute left-0 right-0 border-t border-white/5"
-                      style={{ bottom: `${i * 25}%` }}
-                    />
+                    <div key={i} className="absolute left-0 right-0 border-t border-white/5" style={{ bottom: `${i * 25}%` }} />
                   ))}
-
-                  {/* Bars */}
-                  {Array.from({ length: 30 }).map((_, i) => {
-                    const height = 25 + Math.random() * 65;
+                  {engagementValues.map((val, i) => {
+                    const valid = engagementValues.filter((v): v is number => v != null && Number.isFinite(v));
+                    const max = valid.length ? Math.max(...valid, 0.01) : 5;
+                    const heightPct = val != null && Number.isFinite(val) ? (val / max) * 100 : 0;
                     return (
                       <motion.div
-                        key={i}
+                        key={last30DaysOrdered[i]?.[0] ?? i}
                         className="flex-1 rounded-t-md bg-gradient-to-t from-chart-2 to-chart-2/70 border-t border-chart-1/50 relative group"
                         initial={{ height: 0 }}
-                        animate={{ height: `${height}%` }}
+                        animate={{ height: `${heightPct}%` }}
                         transition={{ duration: 0.6, delay: i * 0.02 }}
                       >
-                        {/* Tooltip on hover */}
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          Day {i + 1}: {(1.0 + (height / 100) * 4.0).toFixed(1)}%
+                          {last30DaysOrdered[i]?.[0]}: {val != null && Number.isFinite(val) ? `${val.toFixed(1)}%` : "—"}
                         </div>
                       </motion.div>
                     );
                   })}
                 </div>
-
-                {/* X-axis labels */}
                 <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
-                  <span>Day 1</span>
-                  <span>Day 7</span>
-                  <span>Day 14</span>
-                  <span>Day 21</span>
-                  <span>Day 30</span>
+                  <span>{last30DaysOrdered[0]?.[0] ?? "Day 1"}</span>
+                  <span>{last30DaysOrdered[29]?.[0] ?? "Day 30"}</span>
                 </div>
               </div>
             </div>
+            ) : (
+              <p className="text-sm text-gray-600 py-8">
+                Sync from Integrations and run the backfill to see daily engagement. Data comes from your synced X tweets.
+              </p>
+            )}
           </motion.div>
 
-          {/* Posting Cadence Chart */}
+          {/* Posting Cadence Chart: real data from x_daily_snapshots (tweets_count) when available */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1131,76 +1173,53 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               </h3>
             </div>
 
-            {/* Chart with axes */}
+            {hasCadenceData ? (
             <div className="flex gap-3">
-              {/* Y-axis */}
               <div className="flex flex-col justify-between text-xs text-gray-500 py-2">
-                <span>10</span>
-                <span>8</span>
-                <span>6</span>
-                <span>4</span>
-                <span>2</span>
+                {(() => {
+                  const max = Math.max(...cadenceValues, 1);
+                  return [1, 0.75, 0.5, 0.25, 0].map((pct) => String(Math.round(max * pct)));
+                })()}
               </div>
-
-              {/* Chart area */}
               <div className="flex-1">
                 <div className="relative h-48 flex items-end gap-2 border-l border-b border-white/10">
-                  {/* Grid lines */}
                   {[0, 1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="absolute left-0 right-0 border-t border-white/5"
-                      style={{ bottom: `${i * 25}%` }}
-                    />
+                    <div key={i} className="absolute left-0 right-0 border-t border-white/5" style={{ bottom: `${i * 25}%` }} />
                   ))}
-
-                  {/* Bars */}
-                  {Array.from({ length: 30 }).map((_, i) => {
-                    const height = 20 + Math.random() * 80;
-                    const isWeekend = i % 7 === 5 || i % 7 === 6;
-                    const posts = Math.round(2 + (height / 100) * 8);
+                  {cadenceValues.map((posts, i) => {
+                    const max = Math.max(...cadenceValues, 1);
+                    const heightPct = (posts / max) * 100;
+                    const dateStr = last30DaysOrdered[i]?.[0];
+                    const d = dateStr ? new Date(dateStr) : null;
+                    const isWeekend = d ? (d.getDay() === 6 || d.getDay() === 0) : false;
                     return (
                       <motion.div
-                        key={i}
+                        key={dateStr ?? i}
                         className={`flex-1 rounded-t-md bg-gradient-to-t border-t relative group ${
-                          isWeekend
-                            ? "from-chart-3 to-chart-3/80 border-border"
-                            : "from-chart-4 to-chart-4/80 border-border"
+                          isWeekend ? "from-chart-3 to-chart-3/80 border-border" : "from-chart-4 to-chart-4/80 border-border"
                         }`}
                         initial={{ height: 0 }}
-                        animate={{ height: `${height}%` }}
+                        animate={{ height: `${heightPct}%` }}
                         transition={{ duration: 0.6, delay: i * 0.02 }}
                       >
-                        {/* Tooltip on hover */}
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          Day {i + 1}: {posts} posts {isWeekend ? "(Weekend)" : ""}
+                          {dateStr}: {posts} posts {isWeekend ? "(Weekend)" : ""}
                         </div>
                       </motion.div>
                     );
                   })}
                 </div>
-
-                {/* X-axis labels */}
                 <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
-                  <span>Day 1</span>
-                  <span>Day 7</span>
-                  <span>Day 14</span>
-                  <span>Day 21</span>
-                  <span>Day 30</span>
+                  <span>{last30DaysOrdered[0]?.[0] ?? "Day 1"}</span>
+                  <span>{last30DaysOrdered[29]?.[0] ?? "Day 30"}</span>
                 </div>
               </div>
             </div>
-
-            <div className="flex items-center gap-4 mt-4 text-xs text-gray-600">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-chart-1/40 border border-chart-1/50" />
-                Weekday
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-chart-2/30 border border-border" />
-                Weekend
-              </div>
-            </div>
+            ) : (
+              <p className="text-sm text-gray-600 py-8">
+                Sync from Integrations and run the backfill to see posting cadence. Data comes from your synced X tweets.
+              </p>
+            )}
           </motion.div>
         </div>
 

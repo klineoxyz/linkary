@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       .limit(90),
     supabase
       .from("x_daily_snapshots")
-      .select("day, followers")
+      .select("day, followers, tweets_count, likes_received, engagement_rate")
       .eq("owner_type", "profile")
       .eq("owner_id", user.id)
       .order("day", { ascending: false })
@@ -105,15 +105,30 @@ export async function GET(request: NextRequest) {
   type LegacySnapshotRow = { day: string; metrics?: { followers_total?: number } | null };
   const legacySnapshots = (legacySnapshotsRes.data ?? []) as LegacySnapshotRow[];
 
-  type DailyRow = { day: string; followers: number | null };
+  type DailyRow = {
+    day: string;
+    followers: number | null;
+    tweets_count?: number | null;
+    likes_received?: number | null;
+    engagement_rate?: number | null;
+  };
   const dailyRows = (dailySnapshotsRes.data ?? []) as DailyRow[];
-  const snapshotsFromDaily = dailyRows.map((r) => ({ snapshot_date: r.day, followers_total: r.followers ?? null }));
+  const snapshotsFromDaily = dailyRows.map((r) => ({
+    snapshot_date: r.day,
+    followers_total: r.followers ?? null,
+    tweets_count: r.tweets_count ?? null,
+    likes_received: r.likes_received ?? null,
+    engagement_rate: r.engagement_rate != null ? Number(r.engagement_rate) : null,
+  }));
   const snapshots =
     snapshotsFromDaily.length > 0
       ? snapshotsFromDaily
       : legacySnapshots.map((s) => ({
           snapshot_date: s.day,
           followers_total: s.metrics?.followers_total ?? null,
+          tweets_count: null as number | null,
+          likes_received: null as number | null,
+          engagement_rate: null as number | null,
         }));
 
   type WindowAgg = {

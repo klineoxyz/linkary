@@ -382,7 +382,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         });
       })()
     : [];
-  const snapshotsForFollowerChart = snapshotsWithFilledFollowers.length >= 2 ? snapshotsWithFilledFollowers : snapshotsAsc;
+  const snapshotsForFollowerChartBase = snapshotsWithFilledFollowers.length >= 2 ? snapshotsWithFilledFollowers : snapshotsAsc;
+  const periodDays = timePeriod === "7D" ? 7 : timePeriod === "30D" ? 30 : 90;
+  const followerChartCutoff = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - periodDays);
+    return d.toISOString().slice(0, 10);
+  })();
+  const snapshotsForFollowerChart = snapshotsForFollowerChartBase.filter((s) => s.snapshot_date >= followerChartCutoff);
   const getSnapshotAt = (daysAgo: number): number | null => {
     const target = new Date();
     target.setDate(target.getDate() - daysAgo);
@@ -396,11 +403,12 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const latestFollowerCount = snapshotsAsc.length
     ? (snapshotsAsc[snapshotsAsc.length - 1].followers_total ?? followersTotal)
     : followersTotal;
-  // Last 30 days of daily data for cadence and engagement charts (date -> value)
+  // Last N days of daily data for cadence and engagement charts (date -> value); N = 7, 30, or 90 from timePeriod
   const dayMap = (() => {
     const map = new Map<string, { posts: number; engagementPct: number | null }>();
     const today = new Date();
-    for (let i = 29; i >= 0; i--) {
+    const days = timePeriod === "7D" ? 7 : timePeriod === "30D" ? 30 : 90;
+    for (let i = days - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       const dayStr = d.toISOString().slice(0, 10);
@@ -1286,9 +1294,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 Follower Growth
               </h3>
               <div className="flex gap-2">
-                {["7D", "30D", "90D"].map((range) => (
+                {(["7D", "30D", "90D"] as const).map((range) => (
                   <button
                     key={range}
+                    type="button"
+                    onClick={() => setTimePeriod(range)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       range === timePeriod
                         ? "bg-accent text-primary border border-border"
@@ -1351,11 +1361,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 Engagement Rate
               </h3>
               <div className="flex gap-2">
-                {["7D", "30D", "90D"].map((range) => (
+                {(["7D", "30D", "90D"] as const).map((range) => (
                   <button
                     key={range}
+                    type="button"
+                    onClick={() => setTimePeriod(range)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      range === "30D"
+                      range === timePeriod
                         ? "bg-accent text-primary border border-border"
                         : "text-gray-600 hover:text-gray-900 border border-white/10"
                     }`}
@@ -1394,7 +1406,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
                   <span>{last30DaysOrdered[0]?.[0] ?? "Day 1"}</span>
-                  <span>{last30DaysOrdered[29]?.[0] ?? "Day 30"}</span>
+                  <span>{last30DaysOrdered[last30DaysOrdered.length - 1]?.[0] ?? "Day " + last30DaysOrdered.length}</span>
                 </div>
               </div>
             </div>
@@ -1451,7 +1463,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
                   <span>{last30DaysOrdered[0]?.[0] ?? "Day 1"}</span>
-                  <span>{last30DaysOrdered[29]?.[0] ?? "Day 30"}</span>
+                  <span>{last30DaysOrdered[last30DaysOrdered.length - 1]?.[0] ?? "Day " + last30DaysOrdered.length}</span>
                 </div>
               </div>
             </div>

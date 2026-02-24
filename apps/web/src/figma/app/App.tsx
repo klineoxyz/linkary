@@ -2691,6 +2691,7 @@ function LinkaryAppInner() {
   const [authUserId, setAuthUserId] = useState(null);
   const [analyticsInitFailed, setAnalyticsInitFailed] = useState(false);
   const [analyticsSessionExpired, setAnalyticsSessionExpired] = useState(false);
+  const [analyticsRateLimitResetAt, setAnalyticsRateLimitResetAt] = useState<string | null>(null);
   const [headerMedia, setHeaderMedia] = useState<{ header_media_type: string; header_media_url: string | null; header_media_file_path?: string | null } | null>(null);
 
   useEffect(() => {
@@ -2820,6 +2821,12 @@ function LinkaryAppInner() {
             setAnalyticsInitFailed(true);
             return;
           }
+          if (res.status === 429 && body?.code === "RATE_LIMITED" && body?.resetAt) {
+            setAnalyticsRateLimitResetAt(body.resetAt);
+            setAnalyticsInitFailed(true);
+            return;
+          }
+          setAnalyticsRateLimitResetAt(null);
           const bad = !res.ok || (body?.enqueued === false && ["no_service_key", "no_x_handle", "profile_not_found", "insert_failed"].includes(body?.reason));
           if (bad) setAnalyticsInitFailed(true);
         })
@@ -2846,6 +2853,7 @@ function LinkaryAppInner() {
     "landing", "overview", "dashboard", "profile", "profileEdit", "userProfile", "market", "messages",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding",
     "orgDetail", "brandProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
+    "circles", "circleDetail", "connections", "kolLists", "calendar", "capitalPartners",
   ]);
   useEffect(() => {
     if (!ALLOWED_ROUTES.has(route.name)) {
@@ -2874,6 +2882,12 @@ function LinkaryAppInner() {
       setAnalyticsInitFailed(true);
       return;
     }
+    if (res.status === 429 && body?.code === "RATE_LIMITED" && body?.resetAt) {
+      setAnalyticsRateLimitResetAt(body.resetAt);
+      setAnalyticsInitFailed(true);
+      return;
+    }
+    setAnalyticsRateLimitResetAt(null);
     const bad = !res.ok || (body?.enqueued === false && ["no_service_key", "no_x_handle", "profile_not_found", "insert_failed"].includes(body?.reason));
     if (!bad) {
       setAnalyticsInitFailed(false);
@@ -2891,7 +2905,9 @@ function LinkaryAppInner() {
           <span>
             {analyticsSessionExpired
               ? "Session expired. Please sign in again to refresh analytics."
-              : "Analytics init failed. Retry to start 90-day backfill."}
+              : analyticsRateLimitResetAt
+                ? `Too many requests. Try again after ${new Date(analyticsRateLimitResetAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}.`
+                : "Analytics init failed. Retry to start 90-day backfill."}
           </span>
           <div className="flex items-center gap-2">
             {analyticsSessionExpired ? (
@@ -2906,7 +2922,8 @@ function LinkaryAppInner() {
               <button
                 type="button"
                 onClick={handleRetryAnalytics}
-                className="px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm font-medium"
+                disabled={!!analyticsRateLimitResetAt && new Date(analyticsRateLimitResetAt) > new Date()}
+                className="px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
               >
                 Retry
               </button>

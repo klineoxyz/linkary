@@ -22,7 +22,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  const { data: space } = await supabase.from("spaces").select("id").eq("id", spaceId).maybeSingle();
+  const { data: space } = await supabase.from("spaces").select("id, host_profile_id").eq("id", spaceId).maybeSingle();
   if (!space) return NextResponse.json({ error: "Space not found" }, { status: 404 });
 
   const { data, error } = await supabase
@@ -35,5 +35,19 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const hostId = (space as { host_profile_id?: string }).host_profile_id;
+  if (hostId && data?.id) {
+    try {
+      const { createNotification } = await import("@/lib/notifications");
+      await createNotification(hostId, "speaker_request_created", {
+        entity_type: "speaker_request",
+        entity_id: (data as { id: string }).id,
+        payload: { space_id: spaceId, requester_profile_id: user.id },
+      });
+    } catch (_) {
+      /* non-blocking */
+    }
+  }
   return NextResponse.json(data);
 }

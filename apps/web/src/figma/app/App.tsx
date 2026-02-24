@@ -1009,18 +1009,31 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
   }, [loadNotifications]);
   const notifLabel = (n) => {
     if (n.type === "connection_request") return "Connection request";
+    if (n.type === "connection_accepted") return "Connection accepted";
     if (n.type === "application_submitted") return "New application";
     if (n.type === "application_accepted") return "Application accepted";
     if (n.type === "application_rejected") return "Application declined";
     if (n.type === "deal_delivered") return "Work delivered";
     if (n.type === "deal_accepted") return "Deal accepted";
+    if (n.type === "deal_completed") return "Deal completed";
+    if (n.type === "ambassador_invite_accepted") return "Ambassador joined";
+    if (n.type === "ambassador_removed") return "Ambassador removed";
+    if (n.type === "affiliate_invite_accepted") return "Affiliate joined";
+    if (n.type === "affiliate_removed") return "Affiliate removed";
+    if (n.type === "speaker_request_created") return "Speaker request";
+    if (n.type === "speaker_request_approved") return "Speaker request approved";
+    if (n.type === "speaker_request_rejected") return "Speaker request declined";
     return n.type || "Notification";
   };
   const notifLink = (n) => {
-    if (n.type === "connection_request") return "/connections";
+    if (n.type === "connection_request" || n.type === "connection_accepted") return "/connections";
     if (n.type === "application_submitted" && n.payload?.job_id) return `/app?org=jobs`;
     if (n.type === "application_accepted" && n.entity_id) return `/deal/${n.entity_id}`;
+    if (n.type === "application_rejected" && n.payload?.job_id) return "/overview";
     if (n.entity_type === "deal" && n.entity_id) return `/deal/${n.entity_id}`;
+    if (n.type === "ambassador_invite_accepted" || n.type === "ambassador_removed") return n.payload?.org_id ? `/overview` : null;
+    if (n.type === "affiliate_invite_accepted" || n.type === "affiliate_removed") return n.payload?.org_id ? `/overview` : null;
+    if (n.type === "speaker_request_created" || n.type === "speaker_request_approved" || n.type === "speaker_request_rejected") return "/calendar";
     return null;
   };
   return (

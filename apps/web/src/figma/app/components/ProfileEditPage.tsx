@@ -7,6 +7,7 @@ import { getProfileProfessions, setProfileProfessions } from "@/lib/profileProfe
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { listCaseStudiesForProfile, createCaseStudyForProfile, type CaseStudy } from "@/lib/caseStudies";
 import ProfessionSelect from "./ProfessionSelect";
+import { MediaUploadField } from "@/components/MediaUploadField";
 import type { Profession } from "@/lib/professions";
 import type { Profile } from "@/lib/profiles";
 
@@ -20,6 +21,7 @@ type PartnerRow = {
   name: string;
   website_url: string | null;
   logo_url: string | null;
+  logo_file_path: string | null;
   description: string | null;
   since_date: string | null;
   is_featured: boolean;
@@ -180,22 +182,33 @@ function PartnerModal({
   saving,
   onClose,
   onSubmit,
+  getAuthHeaders,
+  onLogoSaved,
+  partners,
 }: {
   programType: "affiliate" | "ambassador";
   edit?: PartnerRow;
+  partners: PartnerRow[];
   form: { name: string; websiteUrl: string; logoUrl: string; description: string; sinceDate: string; isFeatured: boolean };
   setForm: React.Dispatch<React.SetStateAction<{ name: string; websiteUrl: string; logoUrl: string; description: string; sinceDate: string; isFeatured: boolean }>>;
   saving: boolean;
   onClose: () => void;
   onSubmit: (body: { name: string; websiteUrl?: string | null; logoUrl?: string | null; description?: string | null; sinceDate?: string | null; isFeatured?: boolean }) => void;
+  getAuthHeaders: () => Promise<Record<string, string>>;
+  onLogoSaved?: () => void;
 }) {
+  const currentEdit = edit ? (partners.find((p) => p.id === edit.id) ?? edit) : undefined;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
         <h3 className="font-semibold text-zinc-900">{edit ? "Edit" : "Add"} {programType}</h3>
         <input type="text" placeholder="Name (required)" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
         <input type="url" placeholder="Website URL" value={form.websiteUrl} onChange={(e) => setForm((f) => ({ ...f, websiteUrl: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
-        <input type="url" placeholder="Logo URL" value={form.logoUrl} onChange={(e) => setForm((f) => ({ ...f, logoUrl: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
+        {currentEdit ? (
+          <MediaUploadField label="Logo" type="partner_logo" ownerId={currentEdit.id} value={currentEdit.logo_file_path ?? null} onChange={() => {}} getAuthHeaders={getAuthHeaders} onSaved={onLogoSaved} accept="image/*" maxSizeMB={2} />
+        ) : (
+          <p className="text-xs text-zinc-500">Save the partner first, then edit to add a logo (file upload).</p>
+        )}
         <textarea placeholder="Description (max 280 chars)" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value.slice(0, 280) }))} rows={2} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
         <input type="date" placeholder="Since date" value={form.sinceDate} onChange={(e) => setForm((f) => ({ ...f, sinceDate: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
         <label className="flex items-center gap-2">
@@ -204,7 +217,7 @@ function PartnerModal({
         </label>
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
-          <button type="button" disabled={!form.name.trim() || saving} onClick={() => onSubmit({ name: form.name.trim(), websiteUrl: form.websiteUrl.trim() || null, logoUrl: form.logoUrl.trim() || null, description: form.description.trim() || null, sinceDate: form.sinceDate.trim() || null, isFeatured: form.isFeatured })} className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50">
+          <button type="button" disabled={!form.name.trim() || saving} onClick={() => onSubmit({ name: form.name.trim(), websiteUrl: form.websiteUrl.trim() || null, logoUrl: null, description: form.description.trim() || null, sinceDate: form.sinceDate.trim() || null, isFeatured: form.isFeatured })} className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50">
             {saving ? "Saving…" : edit ? "Update" : "Add"}
           </button>
         </div>
@@ -220,6 +233,8 @@ function CaseStudyModal({
   saving,
   onClose,
   onSubmit,
+  getAuthHeaders,
+  onProofSaved,
 }: {
   edit?: CaseStudy | null;
   form: { title: string; description: string; proofUrl: string };
@@ -227,6 +242,8 @@ function CaseStudyModal({
   saving: boolean;
   onClose: () => void;
   onSubmit: () => void;
+  getAuthHeaders: () => Promise<Record<string, string>>;
+  onProofSaved?: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
@@ -234,7 +251,11 @@ function CaseStudyModal({
         <h3 className="font-semibold text-zinc-900">{edit ? "Edit case study" : "Add case study"}</h3>
         <input type="text" placeholder="Title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
         <textarea placeholder="Description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={3} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
-        <input type="url" placeholder="Proof URL" value={form.proofUrl} onChange={(e) => setForm((f) => ({ ...f, proofUrl: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
+        {edit ? (
+          <MediaUploadField label="Proof (image or PDF)" type="case_study_proof" ownerId={edit.id} value={edit.proof_file_path ?? null} onChange={() => {}} getAuthHeaders={getAuthHeaders} onSaved={onProofSaved} accept="image/*,application/pdf" maxSizeMB={5} />
+        ) : (
+          <p className="text-xs text-zinc-500">Save the case study first, then edit to add proof (file upload).</p>
+        )}
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
           <button type="button" disabled={saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50">{saving ? "Saving…" : edit ? "Update" : "Add"}</button>
@@ -261,6 +282,7 @@ export default function ProfileEditPage({
   const [professions, setProfessions] = useState<Profession[]>([]);
   const [headerMediaType, setHeaderMediaType] = useState<HeaderMediaType>("NONE");
   const [headerMediaUrl, setHeaderMediaUrl] = useState("");
+  const [headerMediaFilePath, setHeaderMediaFilePath] = useState<string | null>(null);
   const [xUrl, setXUrl] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -319,7 +341,7 @@ export default function ProfileEditPage({
     setLoading(true);
     const [profResult, mediaData, socialsData] = await Promise.all([
       getProfileProfessions(me.id),
-      supabase.from("profile_media").select("header_media_type, header_media_url").eq("profile_id", me.id).maybeSingle(),
+      supabase.from("profile_media").select("header_media_type, header_media_url, header_media_file_path").eq("profile_id", me.id).maybeSingle(),
       supabase.from("profile_socials").select("x_url, linkedin_url, youtube_url, website_url, telegram_url").eq("profile_id", me.id).maybeSingle(),
     ]);
     loadPartners();
@@ -335,6 +357,7 @@ export default function ProfileEditPage({
       const t = mediaData.data.header_media_type as HeaderMediaType;
       setHeaderMediaType(t === "IMAGE" || t === "VIDEO" ? t : "NONE");
       setHeaderMediaUrl(mediaData.data.header_media_url ?? "");
+      setHeaderMediaFilePath((mediaData.data as { header_media_file_path?: string | null }).header_media_file_path ?? null);
     }
     if (socialsData?.data) {
       const s = socialsData.data as { x_url?: string | null; linkedin_url?: string | null; youtube_url?: string | null; website_url?: string | null; telegram_url?: string | null };
@@ -402,12 +425,13 @@ export default function ProfileEditPage({
       return;
     }
     let effectiveMediaType = headerMediaType;
-    let effectiveMediaUrl: string | null = headerMediaType !== "NONE" ? headerMediaUrl.trim() || null : null;
+    let effectiveMediaUrl: string | null = headerMediaType === "VIDEO" ? headerMediaUrl.trim() || null : null;
+    let effectiveMediaFilePath: string | null = headerMediaType === "IMAGE" ? headerMediaFilePath : null;
     if (effectiveMediaUrl) {
       const sanitized = sanitizeUrl(effectiveMediaUrl);
       if (!sanitized) {
         effectiveMediaUrl = null;
-        effectiveMediaType = "NONE";
+        if (headerMediaType === "VIDEO") effectiveMediaType = "NONE";
       } else {
         effectiveMediaUrl = sanitized;
       }
@@ -418,6 +442,7 @@ export default function ProfileEditPage({
           profile_id: me.id,
           header_media_type: effectiveMediaType,
           header_media_url: effectiveMediaUrl,
+          header_media_file_path: effectiveMediaFilePath,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "profile_id" }
@@ -735,12 +760,26 @@ export default function ProfileEditPage({
             <option value="IMAGE">Image</option>
             <option value="VIDEO">Video</option>
           </select>
-          {(headerMediaType === "IMAGE" || headerMediaType === "VIDEO") && (
+          {headerMediaType === "IMAGE" && me?.id && (
+            <MediaUploadField
+              label="Header image"
+              type="profile_header"
+              ownerId={me.id}
+              value={headerMediaFilePath}
+              onChange={setHeaderMediaFilePath}
+              accept="image/*"
+              maxSizeMB={5}
+              getAuthHeaders={getAuthHeaders}
+              onSaved={() => load()}
+              className="mt-2"
+            />
+          )}
+          {headerMediaType === "VIDEO" && (
             <input
               type="url"
               value={headerMediaUrl}
               onChange={(e) => setHeaderMediaUrl(e.target.value)}
-              placeholder={headerMediaType === "VIDEO" ? "https://… video URL" : "https://… image URL"}
+              placeholder="https://… video URL (YouTube, Vimeo, etc.)"
               className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 mt-1"
             />
           )}
@@ -875,10 +914,13 @@ export default function ProfileEditPage({
         <PartnerModal
           programType={partnerModal.programType}
           edit={partnerModal.edit}
+          partners={partners}
           form={partnerForm}
           setForm={setPartnerForm}
           saving={partnerSaving}
           onClose={() => setPartnerModal({ open: false })}
+          getAuthHeaders={getAuthHeaders}
+          onLogoSaved={loadPartners}
           onSubmit={async (body) => {
             if (!me?.id) return;
             setPartnerSaving(true);
@@ -927,6 +969,8 @@ export default function ProfileEditPage({
             setCaseStudyModal(false);
             setEditingCaseStudy(null);
           }}
+          getAuthHeaders={getAuthHeaders}
+          onProofSaved={loadCaseStudies}
           onSubmit={async () => {
             if (!me?.id) return;
             setCaseStudySaving(true);

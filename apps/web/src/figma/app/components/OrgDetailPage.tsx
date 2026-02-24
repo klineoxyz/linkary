@@ -794,37 +794,69 @@ export default function OrgDetailPage({
                           )}
                           <div className="flex items-center gap-2 flex-wrap">
                           {admin && app.status === "pending" && isOpen && (
-                            <button
-                              type="button"
-                              disabled={!!acceptLoading}
-                              onClick={async () => {
-                                if (!userId) return;
-                                setAcceptLoading(app.id);
-                                try {
-                                  const { data: { session } } = await supabase.auth.getSession();
-                                  const token = session?.access_token;
-                                  const origin = typeof window !== "undefined" ? window.location.origin : "";
-                                  const res = await fetch(`${origin}/api/applications/${app.id}/accept`, {
-                                    method: "POST",
-                                    headers: { Authorization: `Bearer ${token}` },
-                                  });
-                                  const json = await res.json().catch(() => ({}));
-                                  if (res.ok && json?.deal) {
-                                    const all = await listJobs();
-                                    setOrgJobs((all ?? []).filter((job: { org_id: string }) => job.org_id === org?.id));
-                                    const jobsForOrg = (all ?? []).filter((job: { org_id: string }) => job.org_id === org?.id);
-                                    const appList = jobsForOrg.length ? await listApplicationsForJobs(jobsForOrg.map((job: { id: string }) => job.id)) : [];
-                                    setApplications(appList);
-                                    if (json.deal?.id && setRoute) setRoute({ name: "dealDetail", data: { dealId: json.deal.id } });
+                            <>
+                              <button
+                                type="button"
+                                disabled={!!acceptLoading}
+                                onClick={async () => {
+                                  if (!userId) return;
+                                  setAcceptLoading(app.id);
+                                  try {
+                                    const { data: { session } } = await supabase.auth.getSession();
+                                    const token = session?.access_token;
+                                    const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                    const res = await fetch(`${origin}/api/applications/${app.id}/accept`, {
+                                      method: "POST",
+                                      headers: { Authorization: `Bearer ${token}` },
+                                    });
+                                    const json = await res.json().catch(() => ({}));
+                                    if (res.ok && json?.deal) {
+                                      const all = await listJobs();
+                                      setOrgJobs((all ?? []).filter((job: { org_id: string }) => job.org_id === org?.id));
+                                      const jobsForOrg = (all ?? []).filter((job: { org_id: string }) => job.org_id === org?.id);
+                                      const appList = jobsForOrg.length ? await listApplicationsForJobs(jobsForOrg.map((job: { id: string }) => job.id)) : [];
+                                      setApplications(appList);
+                                      if (json.deal?.id && setRoute) setRoute({ name: "dealDetail", data: { dealId: json.deal.id } });
+                                    }
+                                  } finally {
+                                    setAcceptLoading(null);
                                   }
-                                } finally {
-                                  setAcceptLoading(null);
-                                }
-                              }}
-                              className="text-xs px-2 py-1 rounded bg-primary text-white hover:opacity-90 disabled:opacity-50"
-                            >
-                              {acceptLoading === app.id ? "…" : "Accept"}
-                            </button>
+                                }}
+                                className="text-xs px-2 py-1 rounded bg-primary text-white hover:opacity-90 disabled:opacity-50"
+                              >
+                                {acceptLoading === app.id ? "…" : "Accept"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!!acceptLoading}
+                                onClick={async () => {
+                                  if (!userId) return;
+                                  setAcceptLoading(app.id);
+                                  try {
+                                    const { data: { session } } = await supabase.auth.getSession();
+                                    const token = session?.access_token;
+                                    const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                    const res = await fetch(`${origin}/api/applications/${app.id}/reject`, {
+                                      method: "POST",
+                                      headers: { Authorization: `Bearer ${token}` },
+                                    });
+                                    const json = await res.json().catch(() => ({}));
+                                    if (res.ok && json?.ok) {
+                                      const all = await listJobs();
+                                      setOrgJobs((all ?? []).filter((job: { org_id: string }) => job.org_id === org?.id));
+                                      const jobsForOrg = (all ?? []).filter((job: { org_id: string }) => job.org_id === org?.id);
+                                      const appList = jobsForOrg.length ? await listApplicationsForJobs(jobsForOrg.map((job: { id: string }) => job.id)) : [];
+                                      setApplications(appList);
+                                    }
+                                  } finally {
+                                    setAcceptLoading(null);
+                                  }
+                                }}
+                                className="text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-50"
+                              >
+                                Reject
+                              </button>
+                            </>
                           )}
                           </div>
                         </div>

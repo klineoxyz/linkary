@@ -42,13 +42,13 @@ export async function POST(request: NextRequest) {
 
   const { data: row, error: fetchErr } = await supabase
     .from("connections")
-    .select("id, recipient_profile_id, status")
+    .select("id, requester_profile_id, recipient_profile_id, status")
     .eq("id", connectionId)
     .single();
   if (fetchErr || !row) {
     return fail("NOT_FOUND", "Connection not found", 404);
   }
-  const r = row as { id: string; recipient_profile_id: string; status: string };
+  const r = row as { id: string; requester_profile_id: string; recipient_profile_id: string; status: string };
   if (r.recipient_profile_id !== user.id) {
     return fail("FORBIDDEN", "Only the recipient can respond", 403);
   }
@@ -65,5 +65,14 @@ export async function POST(request: NextRequest) {
     .eq("id", connectionId);
 
   if (updateErr) return fail("INTERNAL", updateErr.message, 500);
+
+  if (action === "accept" && r.requester_profile_id) {
+    try {
+      const { createNotification } = await import("@/lib/notifications");
+      await createNotification(r.requester_profile_id, "connection_accepted", { entity_type: "connection", entity_id: connectionId, payload: { recipient_profile_id: user.id } });
+    } catch (_) {
+      /* non-blocking */
+    }
+  }
   return ok({ connection_id: connectionId, action });
 }

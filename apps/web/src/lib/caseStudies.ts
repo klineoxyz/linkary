@@ -12,6 +12,7 @@ export type CaseStudy = {
   title: string | null;
   description: string | null;
   proof_url: string | null;
+  proof_file_path: string | null;
   metrics: Record<string, unknown>;
   created_at: string;
 };

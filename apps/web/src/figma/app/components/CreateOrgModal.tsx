@@ -4,6 +4,13 @@ import React, { useState } from "react";
 import { X } from "lucide-react";
 import type { OrgType } from "@/lib/orgs";
 import { createOrg, checkSlugAvailable, sanitizeSlug } from "@/lib/orgs";
+import { supabase } from "@/lib/supabase";
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 const ORG_TYPES: { value: OrgType; label: string }[] = [
   { value: "company", label: "Company" },
@@ -28,7 +35,7 @@ export default function CreateOrgModal({
   const [tagline, setTagline] = useState("");
   const [website, setWebsite] = useState("");
   const [twitter_username, setTwitterUsername] = useState("");
-  const [logo_url, setLogoUrl] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [org_type, setOrgType] = useState<OrgType>("brand");
   const [loading, setLoading] = useState(false);
   const [slugChecking, setSlugChecking] = useState(false);
@@ -76,9 +83,26 @@ export default function CreateOrgModal({
       tagline: tagline.trim() || undefined,
       website: website.trim() || undefined,
       twitter_username: twitter_username.trim().replace(/^@/, "") || undefined,
-      logo_url: logo_url.trim() || undefined,
       org_type,
     });
+    if (data?.id && logoFile) {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const headers = await getAuthHeaders();
+      const urlRes = await fetch(`${base}/api/media/upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ type: "org_logo", owner_id: data.id, file_name: logoFile.name }),
+      });
+      const urlJson = await urlRes.json();
+      if (urlRes.ok && urlJson.uploadUrl && urlJson.file_path) {
+        await fetch(urlJson.uploadUrl, { method: "PUT", body: logoFile, headers: { "Content-Type": logoFile.type || "application/octet-stream" } });
+        await fetch(`${base}/api/media/commit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({ type: "org_logo", owner_id: data.id, file_path: urlJson.file_path }),
+        });
+      }
+    }
     setLoading(false);
     if (err) {
       const msg = String(err);
@@ -226,14 +250,14 @@ export default function CreateOrgModal({
                 />
               </div>
               <div>
-                <label className={labelClass}>Logo URL <span className="text-zinc-400 font-normal">(optional)</span></label>
+                <label className={labelClass}>Logo <span className="text-zinc-400 font-normal">(optional, file upload)</span></label>
                 <input
-                  type="url"
-                  value={logo_url}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://..."
-                  className={inputClass}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-primary file:text-primary-foreground"
                 />
+                {logoFile && <p className="text-xs text-zinc-500 mt-1">{logoFile.name}</p>}
               </div>
             </div>
           </div>

@@ -22,7 +22,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  const { data: sr } = await supabase.from("speaker_requests").select("id, space_id").eq("id", requestId).maybeSingle();
+  const { data: sr } = await supabase.from("speaker_requests").select("id, space_id, requester_profile_id").eq("id", requestId).maybeSingle();
   if (!sr) return NextResponse.json({ error: "Speaker request not found" }, { status: 404 });
 
   const { data: space } = await supabase.from("spaces").select("host_profile_id").eq("id", (sr as { space_id: string }).space_id).maybeSingle();
@@ -47,5 +47,16 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const requesterId = (sr as { requester_profile_id?: string }).requester_profile_id;
+  if (requesterId) {
+    try {
+      const { createNotification } = await import("@/lib/notifications");
+      const notifType = action === "approved" ? "speaker_request_approved" : "speaker_request_rejected";
+      await createNotification(requesterId, notifType, { entity_type: "speaker_request", entity_id: requestId, payload: { space_id: (sr as { space_id: string }).space_id } });
+    } catch (_) {
+      /* non-blocking */
+    }
+  }
   return NextResponse.json(data);
 }

@@ -122,7 +122,7 @@ export async function PATCH(
   if (typeof body?.sortOrder === "number" && Number.isFinite(body.sortOrder)) updates.sort_order = Math.round(body.sortOrder);
 
   if (Object.keys(updates).length === 0) {
-    const { data: row } = await supabase.from("partner_programs").select("id, owner_type, owner_id, program_type, name, website_url, logo_url, description, since_date, is_featured, sort_order, created_at, updated_at").eq("id", id).single();
+    const { data: row } = await supabase.from("partner_programs").select("id, owner_type, owner_id, program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured, sort_order, created_at, updated_at").eq("id", id).single();
     return ok({ partner: row });
   }
 
@@ -130,7 +130,7 @@ export async function PATCH(
     .from("partner_programs")
     .update(updates)
     .eq("id", id)
-    .select("id, owner_type, owner_id, program_type, name, website_url, logo_url, description, since_date, is_featured, sort_order, created_at, updated_at")
+    .select("id, owner_type, owner_id, program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured, sort_order, created_at, updated_at")
     .single();
 
   if (error) return fail("DB_ERROR", error.message, 500);

@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("partner_programs")
-    .select("id, owner_type, owner_id, program_type, name, website_url, logo_url, description, since_date, is_featured, sort_order, created_at, updated_at")
+    .select("id, owner_type, owner_id, program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured, sort_order, created_at, updated_at")
     .eq("owner_type", ownerType)
     .eq("owner_id", ownerId)
     .order("sort_order", { ascending: true })
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       is_featured: isFeatured,
       sort_order: sortOrder,
     })
-    .select("id, owner_type, owner_id, program_type, name, website_url, logo_url, description, since_date, is_featured, sort_order, created_at, updated_at")
+    .select("id, owner_type, owner_id, program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured, sort_order, created_at, updated_at")
     .single();
 
   if (error) return fail("DB_ERROR", error.message, 500);

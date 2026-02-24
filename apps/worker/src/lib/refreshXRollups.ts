@@ -1,8 +1,9 @@
 /**
  * Populate x_analytics_rollups and x_top_drivers from x_tweets for a profile.
- * Call after tweet ingestion. No schema changes.
+ * Excludes retweets (text starting with "RT @") from rollups and top drivers.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isRetweetText } from "./ingestXTweets.js";
 
 const WINDOWS = [7, 30, 90] as const;
 const TOP_DRIVERS_PER_WINDOW = 10;
@@ -45,7 +46,7 @@ export async function refreshXRollupsForProfile(
 
     const { data: tweets, error } = await supabase
       .from("x_tweets")
-      .select("tweet_id, tweeted_at, like_count, reply_count, repost_count, quote_count")
+      .select("tweet_id, tweeted_at, like_count, reply_count, repost_count, quote_count, text")
       .eq("profile_id", profileId)
       .gte("tweeted_at", startStr + "T00:00:00Z")
       .lte("tweeted_at", today + "T23:59:59Z");
@@ -55,14 +56,16 @@ export async function refreshXRollupsForProfile(
       continue;
     }
 
-    const list = (tweets ?? []) as Array<{
+    const raw = (tweets ?? []) as Array<{
       tweet_id: string;
       tweeted_at: string;
       like_count: number;
       reply_count: number;
       repost_count: number;
       quote_count: number;
+      text?: string | null;
     }>;
+    const list = raw.filter((t) => !isRetweetText(t.text));
 
     const posts = list.length;
     const totalLikes = list.reduce((s, t) => s + (t.like_count ?? 0), 0);

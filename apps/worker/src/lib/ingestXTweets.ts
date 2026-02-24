@@ -1,11 +1,18 @@
 /**
  * Ingest tweets for a profile into public.x_tweets.
  * Fetches from twitterapi.io, maps to schema, UPSERTs on (profile_id, tweet_id).
+ * Retweets (text starting with "RT @") are never inserted.
  * Returns { fetched, upserted, inserted } and throws if fetched > 0 but upserted === 0.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getRecentTweets } from "./twitterapi.js";
 import type { TweetRaw } from "./twitterapi.js";
+
+/** True if text is a retweet (starts with "RT @" after trim). */
+export function isRetweetText(text: string | null | undefined): boolean {
+  if (text == null || typeof text !== "string") return false;
+  return text.trim().toLowerCase().startsWith("rt @");
+}
 
 const X_TWEETS_CONFLICT = "profile_id,tweet_id";
 const X_TWEETS_COLUMNS = [
@@ -83,18 +90,24 @@ export async function ingestXTweets(
   console.log("[X_TWEETS] start profile_id=" + profile_id + " handle=" + handle + " since=" + since + " until=" + until);
 
   const tweets = await getRecentTweets(handle, maxTweets);
-  const fetched = tweets.length;
-  console.log("[X_TWEETS] fetched=" + fetched);
-
+  const fetched_total = tweets.length;
+  let skipped_retweets = 0;
   const rows: Record<string, unknown>[] = [];
   for (const t of tweets) {
+    if (isRetweetText(t.text)) {
+      skipped_retweets += 1;
+      continue;
+    }
     const row = tweetToRow(profile_id, t);
     if (row) rows.push(row);
   }
 
   if (rows.length === 0) {
-    console.log("[X_TWEETS] done (no rows to upsert)");
-    return { fetched, upserted: 0, inserted: 0 };
+    console.log("[X_TWEETS] fetched_total=" + fetched_total + " skipped_retweets=" + skipped_retweets + " upserted=0");
+    return { fetched: fetched_total, upserted: 0, inserted: 0 };
+  }
+  if (skipped_retweets > 0) {
+    console.log("[X_TWEETS] fetched_total=" + fetched_total + " skipped_retweets=" + skipped_retweets);
   }
 
   const { count: countBefore } = await supabase
@@ -128,8 +141,9 @@ export async function ingestXTweets(
   const after = countAfter ?? before + rows.length;
   const inserted = Math.max(0, after - before);
   const upserted = rows.length;
+  console.log("[X_TWEETS] fetched_total=" + fetched_total + " skipped_retweets=" + skipped_retweets + " upserted=" + upserted);
 
-  if (fetched > 0 && upserted === 0) {
+  if (fetched_total > 0 && upserted === 0) {
     const msg =
       "[X_TWEETS] fetched>0 but upserted=0. conflict_target=" +
       X_TWEETS_CONFLICT +
@@ -141,7 +155,6 @@ export async function ingestXTweets(
     throw new Error(msg);
   }
 
-  console.log("[X_TWEETS] upserted=" + upserted + " inserted=" + inserted);
   console.log("[X_TWEETS] done");
-  return { fetched, upserted, inserted };
+  return { fetched: fetched_total, upserted, inserted };
 }

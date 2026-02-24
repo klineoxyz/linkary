@@ -12,7 +12,8 @@
     "sync:x:weekly": "node dist/sync_x_tweets_weekly.js",
     "run:jobs": "node dist/run_analytics_jobs.js",
     "debug:x:tweets": "node dist/debug_x_tweets.js",
-    "debug:ingest:x:tweets": "node dist/debug_ingest_x_tweets.js"
+    "debug:ingest:x:tweets": "node dist/debug_ingest_x_tweets.js",
+    "rebuild:x:rollups": "node dist/rebuild_x_rollups.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.0",

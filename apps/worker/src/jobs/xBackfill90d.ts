@@ -3,7 +3,7 @@
  * Job is only marked done when tweets were upserted or verified no-op (no tweets).
  */
 import { SupabaseClient } from "@supabase/supabase-js";
-import { ingestXTweets } from "../lib/ingestXTweets.js";
+import { ingestXTweets, isRetweetText } from "../lib/ingestXTweets.js";
 import { getUserInfo, getRecentTweets } from "../lib/twitterapi.js";
 import { sleep } from "../lib/utils.js";
 
@@ -71,6 +71,7 @@ export async function runXBackfill90d(
   >();
 
   for (const t of tweets) {
+    if (isRetweetText(t.text)) continue;
     const createdAt = t.createdAt;
     if (!createdAt) continue;
     const d = new Date(createdAt);

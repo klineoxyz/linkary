@@ -1,7 +1,7 @@
 /**
  * Weekly cron: fetch tweets per eligible profile, ingest into public.x_tweets, update x_last_tweets_sync_at.
  * One-shot script: exits 0 when done. No server.
- * Eligible: is_indexed, twitter_username set, twitter_connected_at set, (x_last_tweets_sync_at null or >6 days ago).
+ * Eligible: twitter_username non-empty, twitter_connected_at set. Logs sanity counts and selected_count.
  */
 import { config } from "dotenv";
 import { fileURLToPath } from "url";
@@ -45,33 +45,70 @@ async function main() {
   );
 
   const supabase = getSupabaseAdmin();
-  const past6d = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString();
+  const TABLE = "profiles";
+  console.log("[WEEKLY] query table=" + TABLE);
 
+  // Sanity counts (no filters that might exclude everyone)
+  const { count: totalProfiles } = await supabase.from(TABLE).select("*", { count: "exact", head: true });
+  const { count: withHandle } = await supabase
+    .from(TABLE)
+    .select("*", { count: "exact", head: true })
+    .not("twitter_username", "is", null);
+  const { count: withConnectedAt } = await supabase
+    .from(TABLE)
+    .select("*", { count: "exact", head: true })
+    .not("twitter_connected_at", "is", null);
+  const { count: withUserId } = await supabase
+    .from(TABLE)
+    .select("*", { count: "exact", head: true })
+    .not("twitter_user_id", "is", null);
+  const { count: withSyncOk } = await supabase
+    .from(TABLE)
+    .select("*", { count: "exact", head: true })
+    .eq("x_sync_status", "ok");
+  console.log(
+    "[WEEKLY] sanity total_profiles=" + (totalProfiles ?? "?") +
+    " with_handle=" + (withHandle ?? "?") +
+    " with_connected_at=" + (withConnectedAt ?? "?") +
+    " with_user_id=" + (withUserId ?? "?") +
+    " with_sync_ok=" + (withSyncOk ?? "?")
+  );
+
+  // Select: twitter_username and twitter_connected_at set (no is_indexed / x_last_tweets_sync_at filter so we don't exclude everyone)
   const { data: profiles, error: listError } = await supabase
-    .from("profiles")
+    .from(TABLE)
     .select("id, twitter_username")
-    .eq("is_indexed", true)
     .not("twitter_username", "is", null)
     .not("twitter_connected_at", "is", null)
-    .or(`x_last_tweets_sync_at.is.null,x_last_tweets_sync_at.lt.${past6d}`)
     .order("id")
     .limit(BATCH_SIZE);
 
+  const selectedCount = (profiles ?? []).length;
   if (listError) {
-    console.error("Failed to list profiles:", listError.message);
+    console.error("[WEEKLY] supabase_error message=" + listError.message + " code=" + (listError.code ?? "?") + " details=" + JSON.stringify(listError.details ?? {}));
     process.exit(1);
   }
+  console.log("[WEEKLY] selected_count=" + selectedCount);
 
   const list = (profiles ?? []).filter(
-    (p: { twitter_username: string | null }) => p.twitter_username && String(p.twitter_username).trim()
+    (p: { twitter_username: string | null }) => p.twitter_username != null && String(p.twitter_username).trim().length > 0
   );
+  if (list.length === 0) {
+    console.warn(
+      "[WEEKLY] selected_count=0. Sanity: total_profiles=" + (totalProfiles ?? "?") +
+      " with_handle=" + (withHandle ?? "?") + " with_connected_at=" + (withConnectedAt ?? "?") +
+      " with_sync_ok=" + (withSyncOk ?? "?") + ". Check filters."
+    );
+    process.exit(0);
+  }
 
   let profilesProcessed = 0;
   let tweetsTotalUpserted = 0;
   let err = 0;
 
   for (const profile of list) {
-    const handle = String(profile.twitter_username).trim();
+    const raw = String(profile.twitter_username ?? "").trim().replace(/^@/, "");
+    const handle = raw.toLowerCase();
     if (!handle) continue;
     try {
       const result = await ingestXTweets(supabase, {
@@ -81,6 +118,7 @@ async function main() {
       });
       profilesProcessed += 1;
       tweetsTotalUpserted += result.upserted;
+      console.log("[WEEKLY] profile_id=" + profile.id + " handle=" + handle + " fetched=" + result.fetched + " upserted=" + result.upserted);
 
       const { error: updateErr } = await supabase
         .from("profiles")
@@ -130,7 +168,7 @@ async function main() {
     await sleep(DELAY_MS);
   }
 
-  console.log("[WEEKLY] profiles_processed=" + profilesProcessed + " tweets_total_upserted=" + tweetsTotalUpserted);
+  console.log("[WEEKLY] done profiles_processed=" + profilesProcessed + " tweets_total_upserted=" + tweetsTotalUpserted);
   process.exit(0);
 }
 

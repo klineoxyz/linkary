@@ -8,9 +8,12 @@ import { fileURLToPath } from "url";
 import { resolve, dirname } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(__dirname, "../..");
+const workerDir = resolve(__dirname, "..");
+const repoRoot = resolve(__dirname, "../..", "..");
 config({ path: resolve(repoRoot, ".env") });
 config({ path: resolve(repoRoot, ".env.local") });
+config({ path: resolve(workerDir, ".env") });
+config({ path: resolve(repoRoot, "apps", "web", ".env.local") });
 config({ path: resolve(__dirname, ".env") });
 
 import { getRecentTweets } from "./lib/twitterapi.js";
@@ -26,7 +29,7 @@ console.log("[DEBUG_X_TWEETS] handle=" + normalized + " maxTweets=50");
 
 getRecentTweets(normalized, 50)
   .then((tweets) => {
-    console.log("[DEBUG_X_TWEETS] status=ok tweets_count=" + tweets.length);
+    console.log("[DEBUG_X_TWEETS] status=ok tweets_len=" + tweets.length);
     process.exit(0);
   })
   .catch((e) => {

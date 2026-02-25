@@ -42,8 +42,8 @@ export default function OrgDetailPage({
   const orgId = data?.orgId ?? data?.slug;
   const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
-  const validTabs = ["members", "affiliates", "ambassadors", "jobs", "case_studies", "settings"] as const;
-  const [tab, setTab] = useState<typeof validTabs[number]>("members");
+  const validTabs = ["dashboard", "members", "affiliates", "ambassadors", "jobs", "case_studies", "settings"] as const;
+  const [tab, setTab] = useState<typeof validTabs[number]>("dashboard");
 
   useEffect(() => {
     const t = data?.tab;
@@ -381,6 +381,7 @@ export default function OrgDetailPage({
   }
 
   const tabs = [
+    { id: "dashboard" as const, label: "Dashboard", icon: TrendingUp },
     { id: "members" as const, label: "Members", icon: Users },
     { id: "affiliates" as const, label: "Affiliates", icon: UserPlus },
     { id: "ambassadors" as const, label: "Ambassadors", icon: UserPlus },
@@ -507,6 +508,66 @@ export default function OrgDetailPage({
         </div>
 
         <div className="p-6">
+          {tab === "dashboard" && (
+            <div className="space-y-6">
+              {influenceRollup != null && (
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Influence rollup</h3>
+                  <p className="mt-1 text-2xl font-bold text-primary">{influenceRollup.total_influence}</p>
+                  {influenceRollup.breakdown && Object.keys(influenceRollup.breakdown).length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+                      {Object.entries(influenceRollup.breakdown).map(([k, v]) => (
+                        <span key={k}>{k}: {typeof v === "number" ? v.toFixed(0) : String(v)}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Supporters</h3>
+                  {supportersCount > 0 ? (
+                    <>
+                      <p className="mt-1 text-lg font-medium">{supportersCount} supporter{supportersCount !== 1 ? "s" : ""}</p>
+                      {supportersSample.length > 0 && (
+                        <div className="mt-2 flex -space-x-2">
+                          {supportersSample.slice(0, 8).map((s) => (
+                            <span key={s.id} className="inline-block h-8 w-8 rounded-full border-2 border-white dark:border-zinc-900 bg-zinc-200 dark:bg-zinc-700 overflow-hidden" title={s.display_name ?? s.username ?? undefined}>
+                              {s.avatar_url && !isPrivateStorageUrl(s.avatar_url) ? <img src={s.avatar_url} alt="" className="h-full w-full object-cover" /> : null}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="mt-1 text-sm text-zinc-500">No supporters yet</p>
+                  )}
+                </div>
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Jobs</h3>
+                  {orgJobs.length > 0 ? (
+                    <p className="mt-1 text-lg font-medium">{orgJobs.length} job{orgJobs.length !== 1 ? "s" : ""}</p>
+                  ) : (
+                    <p className="mt-1 text-sm text-zinc-500">No jobs yet</p>
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Top supporters</h3>
+                  <p className="mt-1 text-sm text-zinc-500">Nothing here yet</p>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Mentions</h3>
+                  <p className="mt-1 text-sm text-zinc-500">Coming soon</p>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Affiliated accounts</h3>
+                  <p className="mt-1 text-sm text-zinc-500">Nothing here yet</p>
+                </div>
+              </div>
+            </div>
+          )}
           {tab === "members" && (
             <div className="space-y-4">
               {membersLoadError && (

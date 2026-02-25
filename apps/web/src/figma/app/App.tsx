@@ -141,6 +141,7 @@ import ComponentShowcase from "./components/ComponentShowcase";
 import CalendarPage from "./components/CalendarPage";
 import XSpacesPage from "./components/XSpacesPage";
 import DashboardPage from "./components/DashboardPage";
+import ProfileDashboardPage from "./components/ProfileDashboardPage";
 import OrgDetailPage from "./components/OrgDetailPage";
 import DealDetailPage from "./components/DealDetailPage";
 import AffiliationAmbassadorSection from "./components/AffiliationAmbassadorSection";
@@ -727,6 +728,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     onboarding: "/onboarding",
     profile: "/profile",
     profileEdit: "/profile/edit",
+    profileDashboard: "/profile/dashboard",
     market: "/market",
     messages: "/messages",
     circles: "/circles",
@@ -760,6 +762,10 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     rolesSkills: "/settings/roles-skills",
     wallet: "/settings/wallet",
   };
+  if (route.name === "profileDashboard") {
+    const u = route.data?.username;
+    return u ? `/profile/dashboard?username=${encodeURIComponent(u)}` : "/profile/dashboard";
+  }
   if (route.name === "orgDetail" && route.data?.orgId) {
     const tab = route.data.tab;
     return `/org/${route.data.orgId}${tab ? `?tab=${encodeURIComponent(tab)}` : ""}`;
@@ -775,6 +781,10 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   if (parts[0] === "settings" && parts[1] === "roles-skills") return { name: "rolesSkills" };
   if (parts[0] === "settings" && parts[1] === "wallet") return { name: "wallet" };
   if (parts[0] === "profile" && parts[1] === "edit") return { name: "profileEdit" };
+  if (parts[0] === "profile" && parts[1] === "dashboard") {
+    const username = searchParams?.get("username") ?? undefined;
+    return { name: "profileDashboard", data: username ? { username } : undefined };
+  }
   if (parts[0] === "org" && parts[1]) {
     const tab = searchParams?.get("tab") ?? undefined;
     return { name: "orgDetail", data: { orgId: parts[1], tab: tab || undefined } };
@@ -2855,7 +2865,7 @@ function LinkaryAppInner() {
 
   // Production route lockdown: only allowed routes are reachable; everything else redirects to Overview
   const ALLOWED_ROUTES = new Set([
-    "landing", "overview", "dashboard", "profile", "profileEdit", "userProfile", "market", "messages",
+    "landing", "overview", "dashboard", "profile", "profileEdit", "profileDashboard", "userProfile", "market", "messages",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding",
     "orgDetail", "brandProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
     "circles", "circleDetail", "connections", "kolLists", "calendar", "capitalPartners",
@@ -3420,6 +3430,14 @@ function LinkaryAppInner() {
                 {route.name === "profile" && <ProfilePage setRoute={setRoute} me={me} />}
                 {route.name === "profileEdit" && (
                   <ProfileEditPage setRoute={setRoute} me={me} onSaved={() => { refreshMe(); refreshHeaderMedia(); }} />
+                )}
+                {route.name === "profileDashboard" && (
+                  <ProfileDashboardPage
+                    setRoute={setRoute}
+                    me={me}
+                    username={route.data?.username as string | undefined}
+                    getAuthHeaders={getAuthHeaders}
+                  />
                 )}
                 {route.name === "userProfile" && (
                   <UserProfilePage

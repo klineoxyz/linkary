@@ -554,7 +554,7 @@ function Stars({ value = 5 }) {
           key={i}
           className={cn(
             "h-4 w-4",
-            i < full ? "fill-current text-primary" : "text-zinc-600"
+            i < full ? "fill-current text-primary" : "text-foreground/75"
           )}
         />
       ))}
@@ -1168,8 +1168,8 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
         >
           <ProfileAvatar handle={me?.twitter_username || handle} alt={displayName} className="h-9 w-9 rounded-full shrink-0" fallbackGradient="from-primary to-primary/80" avatarUrl={me?.avatar_url} />
           <div className="hidden md:block min-w-0">
-            <p className="text-sm font-medium leading-none text-zinc-900 truncate">{displayName}</p>
-            <span className="text-xs text-zinc-800 truncate block">{handle ? `${handle}@linkary.xyz` : "linkary.xyz"}</span>
+            <p className="text-sm font-medium leading-none text-foreground truncate">{displayName}</p>
+            <span className="text-xs text-foreground/90 truncate block">{handle ? `${handle}@linkary.xyz` : "linkary.xyz"}</span>
           </div>
         </div>
       </div>
@@ -2439,19 +2439,19 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
 
   if (tab === "insights") {
     return (
-      <div className="space-y-6">
-        <div className="mb-4 flex gap-2 border-b border-zinc-200 pb-2">
+      <div className="font-app text-foreground space-y-6">
+        <div className="mb-4 flex gap-2 border-b border-border pb-2">
           <button
             type="button"
             onClick={() => setProfileTab("overview")}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 hover:text-foreground hover:bg-secondary"
           >
             Overview
           </button>
           <button
             type="button"
             onClick={() => setProfileTab("insights")}
-            className="rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-900"
+            className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium text-foreground"
           >
             Insights
           </button>
@@ -2462,19 +2462,19 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="mb-4 flex gap-2 border-b border-zinc-200 pb-2">
+    <div className="font-app text-foreground space-y-6">
+      <div className="mb-4 flex gap-2 border-b border-border pb-2">
         <button
           type="button"
           onClick={() => setProfileTab("overview")}
-          className="rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-900"
+          className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium text-foreground"
         >
           Overview
         </button>
         <button
           type="button"
           onClick={() => setProfileTab("insights")}
-          className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+          className="rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 hover:text-foreground hover:bg-secondary"
         >
           Insights
         </button>
@@ -2515,10 +2515,10 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             <ProfileAvatar handle={me?.twitter_username || u.handle} alt={u.name} fallbackGradient="from-primary to-primary/80" avatarUrl={me?.avatar_url} />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold text-zinc-900 truncate">{u.name}</span>
+                <span className="text-lg font-semibold text-foreground truncate">{u.name}</span>
                 {u.verified && <BadgeCheck className="h-5 w-5 text-primary stroke-[1.75]" />}
               </div>
-              <p className="text-sm text-zinc-800 truncate">@{u.handle} · {u.location}</p>
+              <p className="text-sm text-foreground/90 truncate">@{u.handle} · {u.location}</p>
             </div>
           </div>
 
@@ -2532,19 +2532,19 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           <div className="mt-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Stars value={u.reviews.avg} />
-              <span className="text-xs text-zinc-800 font-medium">{u.reviews.avg} ({u.reviews.count})</span>
+              <span className="text-xs text-foreground/90 font-medium">{u.reviews.avg} ({u.reviews.count})</span>
             </div>
-            <div className="text-xs text-zinc-800 font-medium">{formatMoneyEUR(u.volume.current)} volume</div>
+            <div className="text-xs text-foreground/90 font-medium">{formatMoneyEUR(u.volume.current)} volume</div>
           </div>
 
-          <p className="mt-4 text-sm text-zinc-800 leading-relaxed">{u.bio}</p>
+          <p className="mt-4 text-sm text-foreground/90 leading-relaxed">{u.bio}</p>
 
           {/* Role Tags */}
           <div className="mt-4">
-            <div className="text-xs font-medium text-zinc-700 mb-2">Roles</div>
+            <div className="text-xs font-medium text-foreground/85 mb-2">Roles</div>
             <div className="flex flex-wrap gap-2">
               {(u.roleTags ?? []).map((role) => (
-                <span key={role} className="rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-800">
+                <span key={role} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground/90">
                   {role}
                 </span>
               ))}
@@ -2554,10 +2554,10 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           {/* Ambassador Of */}
           {u.ambassadorOf && u.ambassadorOf.length > 0 && (
             <div className="mt-4">
-              <div className="text-xs font-medium text-zinc-700 mb-2">Ambassador Of</div>
+              <div className="text-xs font-medium text-foreground/85 mb-2">Ambassador Of</div>
               <div className="flex flex-wrap gap-2">
                 {u.ambassadorOf.map((proj) => (
-                  <span key={proj} className="rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-800">
+                  <span key={proj} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground/90">
                     {proj}
                   </span>
                 ))}
@@ -2568,17 +2568,17 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           {/* Partnerships */}
           {u.partnerships && u.partnerships.length > 0 && (
             <div className="mt-4">
-              <div className="text-xs font-medium text-zinc-700 mb-2">Partnerships</div>
+              <div className="text-xs font-medium text-foreground/85 mb-2">Partnerships</div>
               <div className="space-y-2">
                 {u.partnerships.map((p) => (
                   <div key={p.name} className="relative overflow-hidden rounded-lg border-0 px-4 py-3 bg-cover bg-center" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)' }}>
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70" />
                     <div className="relative z-10 flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-white">{p.name}</p>
-                        <p className="text-xs text-white/80">{p.type}</p>
+                        <p className="text-sm font-medium text-primary-foreground">{p.name}</p>
+                        <p className="text-xs text-primary-foreground/80">{p.type}</p>
                       </div>
-                      {p.verified && <BadgeCheck className="h-4 w-4 text-white stroke-[1.75]" />}
+                      {p.verified && <BadgeCheck className="h-4 w-4 text-primary-foreground stroke-[1.75]" />}
                     </div>
                   </div>
                 ))}
@@ -2591,13 +2591,13 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             {(u.links ?? []).map((l) => (
               <div
                 key={l.label}
-                className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 hover:bg-zinc-100 transition-colors"
+                className="flex items-center justify-between rounded-lg border border-border bg-muted px-4 py-3 hover:bg-secondary transition-colors"
               >
                 <div className="flex min-w-0 items-center gap-2">
                   <ExternalLink className="h-4 w-4 text-primary stroke-[1.75]" />
-                  <span className="truncate font-medium text-zinc-900">{l.label}</span>
+                  <span className="truncate font-medium text-foreground">{l.label}</span>
                 </div>
-                <span className="text-xs text-zinc-800 font-medium">{l.clicks.toLocaleString()}</span>
+                <span className="text-xs text-foreground/90 font-medium">{l.clicks.toLocaleString()}</span>
               </div>
             ))}
           </div>
@@ -2609,14 +2609,14 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           {u.featuredWork && u.featuredWork.length > 0 && (
             <Card>
               <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-zinc-900">Featured Work</h3>
-                <Button variant="outline" size="sm" className="text-zinc-900" onClick={() => setRoute({ name: "overview" })}>Add</Button>
+                <h3 className="font-semibold text-foreground">Featured Work</h3>
+                <Button variant="outline" size="sm" className="text-foreground" onClick={() => setRoute({ name: "overview" })}>Add</Button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {u.featuredWork.map((work, idx) => (
-                  <div key={idx} className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 hover:bg-zinc-100 transition-colors">
-                    <p className="font-semibold text-zinc-900">{work.title}</p>
-                    <div className="mt-2 flex items-center gap-1 text-xs text-zinc-800">
+                  <div key={idx} className="rounded-lg border border-border bg-muted p-4 hover:bg-secondary transition-colors">
+                    <p className="font-semibold text-foreground">{work.title}</p>
+                    <div className="mt-2 flex items-center gap-1 text-xs text-foreground/90">
                       <Eye className="h-3 w-3 stroke-[1.75]" />
                       {work.views.toLocaleString()} views
                     </div>
@@ -2631,25 +2631,25 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             <Card>
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="font-semibold text-zinc-900">Upcoming Events</h3>
-                  <p className="mt-1 text-sm text-zinc-800">X Spaces and podcasts</p>
+                  <h3 className="font-semibold text-foreground">Upcoming Events</h3>
+                  <p className="mt-1 text-sm text-foreground/90">X Spaces and podcasts</p>
                 </div>
-                <Button variant="outline" size="sm" className="text-zinc-900" onClick={() => setRoute({ name: "overview" })}>
+                <Button variant="outline" size="sm" className="text-foreground" onClick={() => setRoute({ name: "overview" })}>
                   View All
                 </Button>
               </div>
               <div className="space-y-3">
                 {u.upcomingEvents.map((e) => (
-                  <div key={e.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 hover:bg-zinc-100 transition-colors">
+                  <div key={e.id} className="rounded-lg border border-border bg-muted p-3 hover:bg-secondary transition-colors">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={cn(
                         "rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
                       )}>
                         {e.type}
                       </span>
-                      <span className="text-xs text-zinc-700">{e.date}</span>
+                      <span className="text-xs text-foreground/85">{e.date}</span>
                     </div>
-                    <p className="font-semibold text-zinc-900">{e.title}</p>
+                    <p className="font-semibold text-foreground">{e.title}</p>
                   </div>
                 ))}
               </div>
@@ -2659,42 +2659,42 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           {/* Case Studies */}
           <Card>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-zinc-900">Case Studies</h3>
+              <h3 className="font-semibold text-foreground">Case Studies</h3>
               {isMyProfile && (
-                <Button variant="outline" size="sm" className="text-zinc-900" onClick={() => setShowCaseStudyModal(true)}>Add New</Button>
+                <Button variant="outline" size="sm" className="text-foreground" onClick={() => setShowCaseStudyModal(true)}>Add New</Button>
               )}
               {!isMyProfile && caseStudies.length === 0 && u.caseStudies?.length === 0 && (
-                <span className="text-xs text-zinc-700">No case studies yet</span>
+                <span className="text-xs text-foreground/85">No case studies yet</span>
               )}
             </div>
             <div className="space-y-3">
               {(displayCaseStudies ?? []).map((cs) => (
-                <div key={cs.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 hover:bg-zinc-100 transition-colors">
+                <div key={cs.id} className="rounded-lg border border-border bg-muted p-4 hover:bg-secondary transition-colors">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-zinc-900">{cs.title ?? cs.projectName}</span>
+                        <span className="font-semibold text-foreground">{cs.title ?? cs.projectName}</span>
                         {cs.verified && <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />}
                       </div>
-                      {cs.role != null && <p className="mt-1 text-xs text-zinc-800">{cs.role}{cs.duration ? ` · ${cs.duration}` : ""}</p>}
-                      {cs.description && <p className="mt-1 text-sm text-zinc-800">{cs.description}</p>}
+                      {cs.role != null && <p className="mt-1 text-xs text-foreground/90">{cs.role}{cs.duration ? ` · ${cs.duration}` : ""}</p>}
+                      {cs.description && <p className="mt-1 text-sm text-foreground/90">{cs.description}</p>}
                     </div>
                     {cs.proof_url && (
                       <a href={cs.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary">Proof</a>
                     )}
                   </div>
                   {cs.results && (
-                    <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                    <div className="rounded-lg border border-border bg-card p-3">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-primary stroke-[1.75]" />
-                        <span className="text-sm font-semibold text-zinc-900">
+                        <span className="text-sm font-semibold text-foreground">
                           {cs.results.metric}: <span className="text-primary">{cs.results.value}</span>
                         </span>
                       </div>
                     </div>
                   )}
                   {cs.testimonial && (
-                    <div className="mt-3 border-l-2 border-primary/50 pl-3 text-sm italic text-zinc-700">
+                    <div className="mt-3 border-l-2 border-primary/50 pl-3 text-sm italic text-foreground/85">
                       "{cs.testimonial}"
                     </div>
                   )}
@@ -2704,22 +2704,22 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           </Card>
 
           {/* Discover people - search other profiles */}
-          <Card className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <Card className="rounded-2xl border border-border bg-card shadow-sm">
             <div className="mb-4">
-              <h3 className="text-sm font-semibold text-zinc-900">Discover people</h3>
-              <p className="mt-1 text-xs text-zinc-700">Search and open other profiles&apos; insights</p>
+              <h3 className="text-sm font-semibold text-foreground">Discover people</h3>
+              <p className="mt-1 text-xs text-foreground/85">Search and open other profiles&apos; insights</p>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/75" />
               <input
                 type="text"
                 value={profileSearchQuery}
                 onChange={(e) => setProfileSearchQuery(e.target.value)}
                 placeholder="Search by name or handle..."
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-900 placeholder:text-zinc-600 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-border bg-muted text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
               />
               {profileSearchLoading && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-700 font-medium">Searching…</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-foreground/85 font-medium">Searching…</span>
               )}
             </div>
             {profileSearchResults.length > 0 && (
@@ -2731,20 +2731,20 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                       <button
                         type="button"
                         onClick={() => setRoute({ name: "profile", data: { tab: "insights", username } })}
-                        className="flex w-full items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-left transition-colors hover:bg-zinc-100 hover:border-zinc-300"
+                        className="flex w-full items-center gap-3 rounded-xl border border-border bg-muted px-3 py-2.5 text-left transition-colors hover:bg-secondary hover:border-border"
                       >
                         {r.avatar ? (
                           <img src={r.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
                         ) : (
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-200">
-                            <Users className="h-4 w-4 text-zinc-600" />
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary">
+                            <Users className="h-4 w-4 text-foreground/75" />
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-zinc-900">{r.name || username || "—"}</p>
-                          <p className="truncate text-xs text-zinc-700">{username ? `@${username}` : "—"}</p>
+                          <p className="truncate text-sm font-medium text-foreground">{r.name || username || "—"}</p>
+                          <p className="truncate text-xs text-foreground/85">{username ? `@${username}` : "—"}</p>
                         </div>
-                        <ArrowRight className="h-4 w-4 shrink-0 text-zinc-600" />
+                        <ArrowRight className="h-4 w-4 shrink-0 text-foreground/75" />
                       </button>
                     </li>
                   );
@@ -2752,19 +2752,19 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
               </ul>
             )}
             {profileSearchQuery.trim().length >= 2 && !profileSearchLoading && profileSearchResults.length === 0 && (
-              <p className="mt-3 text-xs text-zinc-700">No people found. Try a different search.</p>
+              <p className="mt-3 text-xs text-foreground/85">No people found. Try a different search.</p>
             )}
           </Card>
 
           {showCaseStudyModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-              <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6 max-w-md w-full">
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Add Case Study</h3>
-                <input placeholder="Title" value={csTitle} onChange={(e) => setCsTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3" />
-                <textarea placeholder="Description" value={csDescription} onChange={(e) => setCsDescription(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3" />
-                <input placeholder="Proof URL (optional)" value={csProofUrl} onChange={(e) => setCsProofUrl(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-4" />
+              <div className="bg-card rounded-2xl border border-border p-6 max-w-md w-full">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Add Case Study</h3>
+                <input placeholder="Title" value={csTitle} onChange={(e) => setCsTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground placeholder:text-muted-foreground mb-3" />
+                <textarea placeholder="Description" value={csDescription} onChange={(e) => setCsDescription(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground placeholder:text-muted-foreground mb-3" />
+                <input placeholder="Proof URL (optional)" value={csProofUrl} onChange={(e) => setCsProofUrl(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground placeholder:text-muted-foreground mb-4" />
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => { setShowCaseStudyModal(false); setCsTitle(""); setCsDescription(""); setCsProofUrl(""); }} className="flex-1 py-2 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
+                  <button type="button" onClick={() => { setShowCaseStudyModal(false); setCsTitle(""); setCsDescription(""); setCsProofUrl(""); }} className="flex-1 py-2 rounded-lg border border-border text-foreground/90">Cancel</button>
                   <button type="button" disabled={csSubmitting || !csTitle.trim()} onClick={handleCreateCaseStudy} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50">{csSubmitting ? "Saving…" : "Save"}</button>
                 </div>
               </div>
@@ -2775,21 +2775,21 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           <Card>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="font-semibold text-zinc-900">Reviews</h3>
-                <p className="mt-1 text-sm text-zinc-800">
+                <h3 className="font-semibold text-foreground">Reviews</h3>
+                <p className="mt-1 text-sm text-foreground/90">
                   Received: {u.reviews.count} · Given: {u.reviews?.given ?? 0}
                 </p>
               </div>
-              <Button variant="outline" size="sm" className="text-zinc-900" onClick={() => setRoute({ name: "overview" })}>Leave Review</Button>
+              <Button variant="outline" size="sm" className="text-foreground" onClick={() => setRoute({ name: "overview" })}>Leave Review</Button>
             </div>
             <div className="space-y-3">
               {(u.reviews?.items ?? []).map((r, idx) => (
-                <div key={idx} className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 hover:bg-zinc-100 transition-colors">
+                <div key={idx} className="rounded-lg border border-border bg-muted p-4 hover:bg-secondary transition-colors">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-zinc-900">{r.by}</span>
-                        <span className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-800">
+                        <span className="font-semibold text-foreground">{r.by}</span>
+                        <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-xs font-medium text-foreground/90">
                           {r.byType}
                         </span>
                         {r.verifiedDeal && (
@@ -2800,15 +2800,15 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                       </div>
                       <div className="mt-1 flex items-center gap-2">
                         <Stars value={r.rating} />
-                        <span className="text-xs text-zinc-700">{r.date}</span>
+                        <span className="text-xs text-foreground/85">{r.date}</span>
                       </div>
                     </div>
                   </div>
-                  <p className="font-semibold text-zinc-900">{r.title}</p>
-                  <p className="mt-1 text-sm text-zinc-800 leading-relaxed">{r.text}</p>
+                  <p className="font-semibold text-foreground">{r.title}</p>
+                  <p className="mt-1 text-sm text-foreground/90 leading-relaxed">{r.text}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(r.tags ?? []).map((t) => (
-                      <span key={t} className="rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-800">
+                      <span key={t} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground/90">
                         {t}
                       </span>
                     ))}

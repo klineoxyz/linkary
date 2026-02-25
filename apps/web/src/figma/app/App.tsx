@@ -82,6 +82,7 @@ const linkaryIconColor = "/icons/icon-color.svg";
 import {
   BadgeCheck,
   Bell,
+  Bookmark,
   Briefcase,
   Building2,
   CalendarDays,
@@ -171,6 +172,7 @@ import CircleDetailPage from "./components/circles/CircleDetailPage";
 import KOLListsPage from "./components/circles/KOLListsPage";
 import CapitalPartnersPage from "./components/circles/CapitalPartnersPage";
 import ConnectionsPage from "./components/ConnectionsPage";
+import WatchlistPage from "./components/WatchlistPage";
 
 // Import Monetization system components
 import PlansAndBillingPage from "./components/monetization/PlansAndBillingPage";
@@ -707,6 +709,7 @@ const RESERVED_PATHS = new Set([
   "leaderboards", "creator", "brand", "agency", "calendar", "host", "availability",
   "monetization", "monetization-flow", "kol-lists", "capital-partners", "connections",
   "preferences", "support", "notifications", "verification-inbox", "showcase",   "integrations", "roles-skills", "profile",
+  "watchlist",
 ]);
 
 function pathFromRoute(route: { name: string; data?: any; handle?: string }): string {
@@ -761,6 +764,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     integrations: "/settings/integrations",
     rolesSkills: "/settings/roles-skills",
     wallet: "/settings/wallet",
+    watchlist: "/watchlist",
   };
   if (route.name === "profileDashboard") {
     const u = route.data?.username;
@@ -807,7 +811,7 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
       "capital-partners": "capitalPartners", connections: "connections", preferences: "preferences",
       support: "support", notifications: "notifications",
       "verification-inbox": "verificationInbox", showcase: "showcase", integrations: "integrations",
-      "roles-skills": "rolesSkills", profile: "profile",
+      "roles-skills": "rolesSkills", profile: "profile", watchlist: "watchlist",
     };
     return { name: nameMap[segment] ?? "landing" };
   }
@@ -903,6 +907,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
         <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="circles" icon={Users} label="Circles" />
           <NavLink name="connections" icon={UserPlus} label="Connections" />
+          <NavLink name="watchlist" icon={Bookmark} label="Watchlist" />
           <NavLink name="kolLists" icon={Star} label="KOL Lists" />
           <NavLink name="calendar" icon={CalendarDays} label="XSpaces &amp; Calendar" />
         </div>
@@ -2868,7 +2873,7 @@ function LinkaryAppInner() {
     "landing", "overview", "dashboard", "profile", "profileEdit", "profileDashboard", "userProfile", "market", "messages",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding",
     "orgDetail", "brandProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
-    "circles", "circleDetail", "connections", "kolLists", "calendar", "capitalPartners",
+    "circles", "circleDetail", "connections", "kolLists", "calendar", "capitalPartners", "watchlist",
   ]);
   useEffect(() => {
     if (!ALLOWED_ROUTES.has(route.name)) {
@@ -3456,6 +3461,7 @@ function LinkaryAppInner() {
                 {route.name === "kolLists" && <KOLListsPage setRoute={setRoute} />}
                 {route.name === "capitalPartners" && <CapitalPartnersPage setRoute={setRoute} />}
                 {route.name === "connections" && <ConnectionsPage setRoute={setRoute} />}
+                {route.name === "watchlist" && <WatchlistPage setRoute={setRoute} />}
                 {route.name === "privacy" && <PrivacyDataPage userId={authUserId} refreshMe={refreshMe} />}
                 {route.name === "terms" && <TermsOfServicePage setRoute={setRoute} />}
                 {route.name === "privacyPolicy" && <PrivacyPolicyPage setRoute={setRoute} />}

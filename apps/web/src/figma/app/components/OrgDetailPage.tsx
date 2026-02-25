@@ -102,6 +102,13 @@ export default function OrgDetailPage({
   const [supporting, setSupporting] = useState(false);
   const [influenceRollup, setInfluenceRollup] = useState<{ total_influence: number; breakdown: Record<string, unknown>; computed_at: string | null } | null>(null);
   const [influenceExpanded, setInfluenceExpanded] = useState(false);
+  const [dashboardData, setDashboardData] = useState<{
+    supportersPreview: Array<{ id: string; display_name: string | null; avatar_url: string | null; username: string | null; score: number | null }>;
+    topSupporters: Array<{ id: string; display_name: string | null; avatar_url: string | null; username: string | null; score: number | null }>;
+    jobsPreview: Array<{ id: string; title: string; status: string; created_at: string }>;
+  } | null>(null);
+  const [watchlistList, setWatchlistList] = useState<{ people: Array<{ entity_id: string }>; orgs: Array<{ entity_id: string }> } | null>(null);
+  const [watchlistToggling, setWatchlistToggling] = useState(false);
 
   useEffect(() => void loadSession(), []);
   function loadSession() {
@@ -128,7 +135,7 @@ export default function OrgDetailPage({
         setDexscreenerUrl(o.dexscreener_url ?? "");
         setPublished(!!o.published);
         const base = typeof window !== "undefined" ? window.location.origin : "";
-        const [m, a, am, met, jobsAll, cs, supportersRes, influenceRes, supportStatusRes] = await Promise.all([
+        const [m, a, am, met, jobsAll, cs, supportersRes, influenceRes, supportStatusRes, dashboardRes] = await Promise.all([
           listOrgMembers(o.id),
           listOrgAffiliations(o.id),
           listOrgAmbassadors(o.id),
@@ -144,6 +151,7 @@ export default function OrgDetailPage({
             const r = await fetch(`${base}/api/orgs/${o.id}/support-status`, { headers: { Authorization: `Bearer ${token}` } });
             return r.json();
           })() : Promise.resolve({ supporting: false }),
+          fetch(`${base}/api/orgs/${o.id}/dashboard`).then((r) => r.json()),
         ]);
         setMembers(m);
         setAffiliations(a);
@@ -158,6 +166,7 @@ export default function OrgDetailPage({
         setSupportersSample(supportersRes?.supporters ?? []);
         setSupporting(supportStatusRes?.supporting === true);
         setInfluenceRollup(influenceRes ? { total_influence: influenceRes.total_influence ?? 0, breakdown: influenceRes.breakdown ?? {}, computed_at: influenceRes.computed_at ?? null } : null);
+        setDashboardData(dashboardRes ? { supportersPreview: dashboardRes.supportersPreview ?? [], topSupporters: dashboardRes.topSupporters ?? [], jobsPreview: dashboardRes.jobsPreview ?? [] } : null);
         if (userId) {
           const isAdmin = await isOrgAdmin(userId, o.id);
           setAdmin(isAdmin);
@@ -195,6 +204,48 @@ export default function OrgDetailPage({
     setMembersWithProfiles(members.map((m) => ({ ...m, profile: null })));
     fetchMembersWithProfiles();
   }, [org?.id, tab, members.length]);
+
+  const fetchWatchlistList = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${origin}/api/watchlist/list`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) {
+      const data = await res.json();
+      setWatchlistList({ people: data?.people ?? [], orgs: data?.orgs ?? [] });
+    } else {
+      setWatchlistList(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!userId || !org?.id) {
+      setWatchlistList(null);
+      return;
+    }
+    fetchWatchlistList();
+  }, [userId, org?.id]);
+
+  const onWatchlistOrg = watchlistList && org ? watchlistList.orgs.some((o) => o.entity_id === org.id) : false;
+  const handleToggleWatchlistOrg = async () => {
+    if (!org?.id || watchlistToggling) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    setWatchlistToggling(true);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    try {
+      const res = await fetch(`${origin}/api/watchlist/toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ entity_type: "org", entity_id: org.id }),
+      });
+      if (res.ok) await fetchWatchlistList();
+    } finally {
+      setWatchlistToggling(false);
+    }
+  };
 
   const handleAddMember = async () => {
     if (!org?.id || !memberUsername.trim()) return;
@@ -472,6 +523,16 @@ export default function OrgDetailPage({
                   {supporting ? "Supporting" : "Support"}
                 </button>
               )}
+              {userId && (
+                <button
+                  type="button"
+                  onClick={handleToggleWatchlistOrg}
+                  disabled={watchlistToggling}
+                  className={`text-xs px-2 py-1 rounded border ${onWatchlistOrg ? "bg-primary/10 border-primary text-primary" : "border-zinc-300 dark:border-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"} disabled:opacity-50`}
+                >
+                  {onWatchlistOrg ? "On watchlist" : "Watchlist"}
+                </button>
+              )}
               {influenceRollup != null && influenceRollup.total_influence > 0 && (
                 <div className="text-xs">
                   <button type="button" onClick={() => setInfluenceExpanded(!influenceExpanded)} className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
@@ -526,18 +587,16 @@ export default function OrgDetailPage({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
                   <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Supporters</h3>
-                  {supportersCount > 0 ? (
+                  {(dashboardData?.supportersPreview?.length ?? 0) > 0 || supportersCount > 0 ? (
                     <>
-                      <p className="mt-1 text-lg font-medium">{supportersCount} supporter{supportersCount !== 1 ? "s" : ""}</p>
-                      {supportersSample.length > 0 && (
-                        <div className="mt-2 flex -space-x-2">
-                          {supportersSample.slice(0, 8).map((s) => (
-                            <span key={s.id} className="inline-block h-8 w-8 rounded-full border-2 border-white dark:border-zinc-900 bg-zinc-200 dark:bg-zinc-700 overflow-hidden" title={s.display_name ?? s.username ?? undefined}>
-                              {s.avatar_url && !isPrivateStorageUrl(s.avatar_url) ? <img src={s.avatar_url} alt="" className="h-full w-full object-cover" /> : null}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      <p className="mt-1 text-lg font-medium">{supportersCount || dashboardData?.supportersPreview?.length || 0} supporter{(supportersCount || dashboardData?.supportersPreview?.length || 0) !== 1 ? "s" : ""}</p>
+                      <div className="mt-2 flex -space-x-2">
+                        {(dashboardData?.supportersPreview?.length ? dashboardData.supportersPreview : supportersSample).slice(0, 8).map((s) => (
+                          <span key={s.id} className="inline-block h-8 w-8 rounded-full border-2 border-white dark:border-zinc-900 bg-zinc-200 dark:bg-zinc-700 overflow-hidden" title={s.display_name ?? s.username ?? undefined}>
+                            {s.avatar_url && !isPrivateStorageUrl(s.avatar_url) ? <img src={s.avatar_url} alt="" className="h-full w-full object-cover" /> : null}
+                          </span>
+                        ))}
+                      </div>
                     </>
                   ) : (
                     <p className="mt-1 text-sm text-zinc-500">No supporters yet</p>
@@ -545,8 +604,16 @@ export default function OrgDetailPage({
                 </div>
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
                   <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Jobs</h3>
-                  {orgJobs.length > 0 ? (
-                    <p className="mt-1 text-lg font-medium">{orgJobs.length} job{orgJobs.length !== 1 ? "s" : ""}</p>
+                  {(dashboardData?.jobsPreview?.length ?? orgJobs.length) > 0 ? (
+                    <>
+                      <p className="mt-1 text-lg font-medium">{orgJobs.length} job{orgJobs.length !== 1 ? "s" : ""}</p>
+                      <ul className="mt-2 space-y-1">
+                        {(dashboardData?.jobsPreview?.length ? dashboardData.jobsPreview : orgJobs.slice(0, 3).map((j: { id: string; title: string; status?: string; created_at?: string }) => ({ id: j.id, title: j.title, status: j.status ?? "", created_at: j.created_at ?? "" }))).map((j: { id: string; title: string; status: string; created_at: string }) => (
+                          <li key={j.id} className="text-sm text-zinc-700 dark:text-zinc-300 truncate">{j.title} · {j.status}</li>
+                        ))}
+                      </ul>
+                      <button type="button" onClick={() => setTab("jobs")} className="mt-2 text-xs font-medium text-primary hover:underline">View all jobs</button>
+                    </>
                   ) : (
                     <p className="mt-1 text-sm text-zinc-500">No jobs yet</p>
                   )}
@@ -555,7 +622,23 @@ export default function OrgDetailPage({
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
                   <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Top supporters</h3>
-                  <p className="mt-1 text-sm text-zinc-500">Nothing here yet</p>
+                  {(dashboardData?.topSupporters?.length ?? 0) > 0 ? (
+                    <ul className="mt-2 space-y-2">
+                      {dashboardData!.topSupporters.slice(0, 10).map((s) => (
+                        <li key={s.id} className="flex items-center gap-2">
+                          {s.avatar_url && !isPrivateStorageUrl(s.avatar_url) ? (
+                            <img src={s.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                          ) : (
+                            <div className="h-6 w-6 rounded-full bg-zinc-300 dark:bg-zinc-600" />
+                          )}
+                          <span className="text-sm truncate flex-1">@{s.username ?? s.id}</span>
+                          {s.score != null && <span className="text-xs text-zinc-500">{s.score}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-sm text-zinc-500">Nothing here yet</p>
+                  )}
                 </div>
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
                   <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Mentions</h3>

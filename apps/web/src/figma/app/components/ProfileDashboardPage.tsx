@@ -40,6 +40,7 @@ interface AnalyticsXResponse {
 
 interface SocialInsightsResponse {
   profile: { username: string; followers: number | null; following: number | null; tweets: number | null; joinedAt: string | null };
+  series?: { followers: Array<{ date: string; value: number }>; score: Array<{ date: string; value: number }> };
   topFollowersByTier: { influencers: unknown[]; projects: unknown[]; funds: unknown[] };
   mentionsLastWeek: unknown[];
   affiliatedAccounts: unknown[];
@@ -100,6 +101,75 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
   const [accountFeedTab, setAccountFeedTab] = useState<"actions" | "newFollowers">("actions");
   const [seeAllModalOpen, setSeeAllModalOpen] = useState(false);
   const [recommended, setRecommended] = useState<Array<{ id: string; name: string; username: string; avatar_url: string | null; url?: string }>>([]);
+  const [watchlistList, setWatchlistList] = useState<{ people: Array<{ entity_id: string }>; orgs: Array<{ entity_id: string }> } | null>(null);
+  const [profileEntityIdForOther, setProfileEntityIdForOther] = useState<string | null>(null);
+  const [watchlistToggling, setWatchlistToggling] = useState(false);
+
+  const profileEntityId = isOwn ? (me?.id ?? null) : profileEntityIdForOther;
+  const onWatchlist =
+    watchlistList && profileEntityId ? watchlistList.people.some((p) => p.entity_id === profileEntityId) : false;
+
+  const fetchWatchlistList = useCallback(async () => {
+    if (!getAuthHeaders) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${origin}/api/watchlist/list`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      setWatchlistList({ people: data?.people ?? [], orgs: data?.orgs ?? [] });
+    } else {
+      setWatchlistList(null);
+    }
+  }, [getAuthHeaders]);
+
+  useEffect(() => {
+    if (me && getAuthHeaders) fetchWatchlistList();
+    else setWatchlistList(null);
+  }, [me, getAuthHeaders, fetchWatchlistList]);
+
+  useEffect(() => {
+    if (!getAuthHeaders || isOwn || !targetUsername) {
+      setProfileEntityIdForOther(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const headers = await getAuthHeaders();
+      const res = await fetch(
+        `${origin}/api/watchlist/resolve?entity_type=profile&username=${encodeURIComponent(targetUsername)}`,
+        { headers }
+      );
+      if (cancelled) return;
+      if (res.ok) {
+        const data = await res.json();
+        const id = data?.entity_id;
+        setProfileEntityIdForOther(typeof id === "string" ? id : null);
+      } else {
+        setProfileEntityIdForOther(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [getAuthHeaders, isOwn, targetUsername]);
+
+  const handleToggleWatchlist = useCallback(async () => {
+    if (!profileEntityId || !getAuthHeaders || watchlistToggling) return;
+    setWatchlistToggling(true);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const headers = await getAuthHeaders();
+    try {
+      const res = await fetch(`${origin}/api/watchlist/toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(headers as Record<string, string>) },
+        body: JSON.stringify({ entity_type: "profile", entity_id: profileEntityId }),
+      });
+      if (res.ok) await fetchWatchlistList();
+    } finally {
+      setWatchlistToggling(false);
+    }
+  }, [profileEntityId, getAuthHeaders, watchlistToggling, fetchWatchlistList]);
 
   const fetchData = useCallback(async () => {
     if (!targetUsername && !isOwn) {
@@ -124,6 +194,18 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
         setAnalyticsX(analyticsData);
         setInsights(insightsData);
         setPublicDto(null);
+        if (insightsData?.recommendedAccounts?.length) {
+          setRecommended(
+            (insightsData.recommendedAccounts as Array<{ id: string; name: string; username: string; avatar_url?: string | null }>).map((r) => ({
+              id: r.id,
+              name: r.name ?? r.username ?? "",
+              username: r.username ?? "",
+              avatar_url: r.avatar_url ?? null,
+            }))
+          );
+        } else {
+          setRecommended([]);
+        }
       } else if (targetUsername) {
         const [dtoRes, insightsRes, searchRes] = await Promise.all([
           fetch(`${origin}/api/public/profile/${encodeURIComponent(targetUsername)}`),
@@ -136,7 +218,16 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
         setInsights(insightsData);
         setMeStats(null);
         setAnalyticsX(null);
-        if (searchRes?.ok) {
+        if (insightsData?.recommendedAccounts?.length) {
+          setRecommended(
+            (insightsData.recommendedAccounts as Array<{ id: string; name: string; username: string; avatar_url?: string | null }>).map((r) => ({
+              id: r.id,
+              name: r.name ?? r.username ?? "",
+              username: r.username ?? "",
+              avatar_url: r.avatar_url ?? null,
+            }))
+          );
+        } else if (searchRes?.ok) {
           const searchData = await searchRes.json();
           const results = (searchData.results ?? []).slice(0, 3).map((r: { id: string; name: string; handleLabel?: string; url?: string; avatar?: string }) => ({
             id: r.id,
@@ -174,8 +265,24 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
   const tierLabel = scoreToTier(isOwn ? (meStats?.reputationIndex ?? 0) : (publicDto?.linkaryPower ?? 0));
 
   const chartData: SocialGraphDataPoint[] = [];
-  if (analyticsX?.snapshots?.length) {
-    analyticsX.snapshots.forEach((s) => {
+  const insightsSeries = insights?.series;
+  if (insightsSeries?.followers?.length || insightsSeries?.score?.length) {
+    const dateSet = new Set<string>();
+    (insightsSeries.followers ?? []).forEach((p: { date: string }) => dateSet.add(p.date));
+    (insightsSeries.score ?? []).forEach((p: { date: string }) => dateSet.add(p.date));
+    const dates = [...dateSet].sort();
+    const followersByDate = new Map<string, number>((insightsSeries.followers ?? []).map((p: { date: string; value: number }) => [p.date, p.value]));
+    const scoreByDate = new Map<string, number>((insightsSeries.score ?? []).map((p: { date: string; value: number }) => [p.date, p.value]));
+    dates.forEach((date) => {
+      chartData.push({
+        date,
+        followers: followersByDate.get(date),
+        score: scoreByDate.get(date),
+      });
+    });
+  }
+  if (chartData.length === 0 && analyticsX?.snapshots?.length) {
+    analyticsX.snapshots.forEach((s: { snapshot_date?: string; followers_total?: number | null }) => {
       chartData.push({
         date: s.snapshot_date?.slice(0, 10) ?? "",
         followers: s.followers_total ?? undefined,
@@ -210,15 +317,8 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
         following={insightsProfile?.following ?? null}
         tweets={insightsProfile?.tweets ?? null}
         joinedAt={insightsProfile?.joinedAt ?? me?.created_at ?? null}
-        watchlistButton={
-          <button
-            type="button"
-            className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white/80 hover:bg-white/15 disabled:opacity-50"
-            disabled
-          >
-            Watchlist
-          </button>
-        }
+        onWatchlist={me && profileEntityId ? onWatchlist : undefined}
+        onToggleWatchlist={me && profileEntityId ? handleToggleWatchlist : undefined}
       />
 
       <ScoreCard

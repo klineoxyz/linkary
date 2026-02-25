@@ -14,6 +14,8 @@ export interface ProfileHeaderCardProps {
   tweets: number | null;
   joinedAt: string | null;
   watchlistButton?: React.ReactNode;
+  onWatchlist?: boolean;
+  onToggleWatchlist?: () => void;
 }
 
 export function ProfileHeaderCard({
@@ -26,6 +28,8 @@ export function ProfileHeaderCard({
   tweets,
   joinedAt,
   watchlistButton,
+  onWatchlist,
+  onToggleWatchlist,
 }: ProfileHeaderCardProps) {
   const safeAvatar = avatarUrl && !isPrivateStorageUrl(avatarUrl) ? avatarUrl : null;
   const handle = username.replace(/^@/, "");
@@ -86,7 +90,25 @@ export function ProfileHeaderCard({
             ))}
           </div>
         </div>
-        {watchlistButton != null && <div className="flex-shrink-0">{watchlistButton}</div>}
+        {(watchlistButton != null || onToggleWatchlist != null) && (
+          <div className="flex-shrink-0">
+            {onToggleWatchlist != null ? (
+              <button
+                type="button"
+                onClick={onToggleWatchlist}
+                className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                  onWatchlist
+                    ? "border-primary bg-primary/20 text-primary"
+                    : "border-white/20 bg-white/10 text-white/80 hover:bg-white/15"
+                }`}
+              >
+                {onWatchlist ? "On watchlist" : "Watchlist"}
+              </button>
+            ) : (
+              watchlistButton
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

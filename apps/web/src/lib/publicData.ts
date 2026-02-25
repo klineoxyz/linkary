@@ -166,11 +166,12 @@ export async function getPublicEntityForOwner(
 
 async function buildPublicProfileEntityWithClient(profile: PublicProfile, client: SupabaseClient): Promise<PublicEntity> {
   const tier = await getSubscriptionTier("profile", profile.id, client);
-  const [socialsRow, mediaRow, snapshotRow, window30Row, caseRows, reviewRows, partnerRows] = await Promise.all([
+  const [socialsRow, mediaRow, snapshotRow, window30Row, rollupRow, caseRows, reviewRows, partnerRows] = await Promise.all([
     client.from("profile_socials").select("*").eq("profile_id", profile.id).maybeSingle(),
     client.from("profile_media").select("header_media_type, header_media_url, header_media_file_path").eq("profile_id", profile.id).maybeSingle(),
     client.from("analytics_snapshots").select("day, metrics").eq("owner_type", "profile").eq("owner_id", profile.id).eq("platform", "x").eq("window_days", 1).order("day", { ascending: false }).limit(1).maybeSingle(),
     client.from("x_window_aggregates").select("*").eq("owner_type", "profile").eq("owner_id", profile.id).eq("window_days", 30).order("as_of", { ascending: false }).limit(1).maybeSingle(),
+    client.from("x_analytics_rollups").select("engagement_rate_30d, avg_likes_30d, avg_replies_30d, reach_proxy_30d").eq("profile_id", profile.id).maybeSingle(),
     client.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profile.id).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     client.from("reviews").select("id, rating, body, title, created_at").eq("reviewee_type", "profile").eq("reviewee_profile_id", profile.id).eq("verified_deal", true).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     client.from("partner_programs").select("program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured").eq("owner_type", "profile").eq("owner_id", profile.id).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
@@ -226,6 +227,7 @@ async function buildPublicProfileEntityWithClient(profile: PublicProfile, client
   );
   const snapshotRowData = snapshotRow.data as { day?: string; metrics?: { followers_total?: number; engagement_rate_proxy?: number } } | null;
   const win30 = window30Row.data as { followers_end?: number; followers_delta?: number; avg_engagement_rate?: number; avg_likes_per_post?: number; avg_replies_per_post?: number; reach_avg?: number; spaces_count?: number } | null;
+  const rollup = rollupRow.data as { engagement_rate_30d?: number; avg_likes_30d?: number; avg_replies_30d?: number; reach_proxy_30d?: number } | null;
   const metrics = snapshotRowData?.metrics;
   const analyticsSnapshot: PublicEntity["analyticsSnapshot"] = win30
     ? {
@@ -237,17 +239,27 @@ async function buildPublicProfileEntityWithClient(profile: PublicProfile, client
         spaces_count: win30.spaces_count ?? null,
         followers_delta: win30.followers_delta ?? null,
       }
-    : metrics != null
+    : rollup != null
       ? {
-          followers: metrics.followers_total ?? null,
-          reach_avg: null,
-          engagement_rate: metrics.engagement_rate_proxy ?? null,
-          likes_avg: null,
-          replies_avg: null,
+          followers: profile.followers_total ?? null,
+          reach_avg: rollup.reach_proxy_30d != null ? Number(rollup.reach_proxy_30d) : null,
+          engagement_rate: rollup.engagement_rate_30d != null ? Number(rollup.engagement_rate_30d) : null,
+          likes_avg: rollup.avg_likes_30d != null ? Number(rollup.avg_likes_30d) : null,
+          replies_avg: rollup.avg_replies_30d != null ? Number(rollup.avg_replies_30d) : null,
           spaces_count: null,
           followers_delta: null,
         }
-      : null;
+      : metrics != null
+        ? {
+            followers: metrics.followers_total ?? profile.followers_total ?? null,
+            reach_avg: null,
+            engagement_rate: metrics.engagement_rate_proxy ?? null,
+            likes_avg: null,
+            replies_avg: null,
+            spaces_count: null,
+            followers_delta: null,
+          }
+        : null;
   return {
     type: "profile",
     profile,
@@ -372,11 +384,12 @@ export async function getPublicEntityByWallet(address: string, serviceSupabase: 
 
 async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): Promise<PublicEntity> {
   const tier = await getSubscriptionTier("profile", profile.id);
-  const [socialsRow, mediaRow, snapshotRow, window30Row, caseRows, reviewRows, partnerRows] = await Promise.all([
+  const [socialsRow, mediaRow, snapshotRow, window30Row, rollupRow, caseRows, reviewRows, partnerRows] = await Promise.all([
     supabase.from("profile_socials").select("*").eq("profile_id", profile.id).maybeSingle(),
     supabase.from("profile_media").select("header_media_type, header_media_url, header_media_file_path").eq("profile_id", profile.id).maybeSingle(),
     supabase.from("analytics_snapshots").select("day, metrics").eq("owner_type", "profile").eq("owner_id", profile.id).eq("platform", "x").eq("window_days", 1).order("day", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("x_window_aggregates").select("*").eq("owner_type", "profile").eq("owner_id", profile.id).eq("window_days", 30).order("as_of", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("x_analytics_rollups").select("engagement_rate_30d, avg_likes_30d, avg_replies_30d, reach_proxy_30d").eq("profile_id", profile.id).maybeSingle(),
     supabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profile.id).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     supabase.from("reviews").select("id, rating, body, title, created_at").eq("reviewee_type", "profile").eq("reviewee_profile_id", profile.id).eq("verified_deal", true).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     supabase.from("partner_programs").select("program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured").eq("owner_type", "profile").eq("owner_id", profile.id).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
@@ -439,6 +452,7 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
 
   const snapshotRowData = snapshotRow.data as { day?: string; metrics?: { followers_total?: number; engagement_rate_proxy?: number } } | null;
   const win30 = window30Row.data as { followers_end?: number; followers_delta?: number; avg_engagement_rate?: number; avg_likes_per_post?: number; avg_replies_per_post?: number; reach_avg?: number; spaces_count?: number } | null;
+  const rollup = rollupRow.data as { engagement_rate_30d?: number; avg_likes_30d?: number; avg_replies_30d?: number; reach_proxy_30d?: number } | null;
   const metrics = snapshotRowData?.metrics;
   const analyticsSnapshot: PublicEntity["analyticsSnapshot"] = win30
     ? {
@@ -450,17 +464,27 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
         spaces_count: win30.spaces_count ?? null,
         followers_delta: win30.followers_delta ?? null,
       }
-    : metrics != null
+    : rollup != null
       ? {
-          followers: metrics.followers_total ?? null,
-          reach_avg: null,
-          engagement_rate: metrics.engagement_rate_proxy ?? null,
-          likes_avg: null,
-          replies_avg: null,
+          followers: profile.followers_total ?? null,
+          reach_avg: rollup.reach_proxy_30d != null ? Number(rollup.reach_proxy_30d) : null,
+          engagement_rate: rollup.engagement_rate_30d != null ? Number(rollup.engagement_rate_30d) : null,
+          likes_avg: rollup.avg_likes_30d != null ? Number(rollup.avg_likes_30d) : null,
+          replies_avg: rollup.avg_replies_30d != null ? Number(rollup.avg_replies_30d) : null,
           spaces_count: null,
           followers_delta: null,
         }
-      : null;
+      : metrics != null
+        ? {
+            followers: metrics.followers_total ?? profile.followers_total ?? null,
+            reach_avg: null,
+            engagement_rate: metrics.engagement_rate_proxy ?? null,
+            likes_avg: null,
+            replies_avg: null,
+            spaces_count: null,
+            followers_delta: null,
+          }
+        : null;
   return {
     type: "profile",
     profile,

@@ -2972,8 +2972,12 @@ function LinkaryAppInner() {
     }
   }, []);
 
+  // Routes that use Linkary dark UI: no full-screen decorative overlays, dark shell
+  const darkUIRoutes = ["profile", "dashboard", "orgDetail"];
+  const isDarkUIRoute = darkUIRoutes.includes(route.name);
+
   return (
-    <div className="scrollbar min-h-screen bg-[#F7F8FB] text-gray-900 relative">
+    <div className={`scrollbar min-h-screen relative ${isDarkUIRoute ? "bg-zinc-950 text-zinc-100" : "bg-[#F7F8FB] text-gray-900"}`}>
       <GlobalStyles />
       {analyticsInitFailed && (
         <div className="sticky top-0 z-[100] flex items-center justify-between gap-4 px-4 py-2 bg-amber-100 border-b border-amber-300 text-amber-900 text-sm">
@@ -3007,7 +3011,8 @@ function LinkaryAppInner() {
         </div>
       )}
       
-      {/* Animated Floating Squares - Global Background */}
+      {/* Animated Floating Squares - hidden on profile/dashboard/org to avoid white haze */}
+      {!isDarkUIRoute && (
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-[1]">
         {/* Cyan Squares */}
         <motion.div
@@ -3317,6 +3322,7 @@ function LinkaryAppInner() {
           }}
         />
       </div>
+      )}
 
       <div className="min-h-screen flex flex-col lg:flex-row relative z-[20]">
         {/* Mobile Sidebar Backdrop */}
@@ -3340,8 +3346,8 @@ function LinkaryAppInner() {
         )}
 
         <main className={`flex-1 ${["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) ? "" : "p-6 lg:p-10"} overflow-y-auto relative min-h-screen`}>
-          {/* Animated Mesh Gradient Background - Hidden for public profiles */}
-          {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && (
+          {/* Animated Mesh Gradient Background - hidden for public and for dark UI (profile/dashboard/org) to avoid haze */}
+          {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && !isDarkUIRoute && (
           <>
             <div className="fixed inset-0 pointer-events-none z-[2]">
               <motion.div

@@ -2440,18 +2440,18 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   if (tab === "insights") {
     return (
       <div className="space-y-6">
-        <div className="mb-4 flex gap-2 border-b border-white/10 pb-2">
+        <div className="mb-4 flex gap-2 border-b border-zinc-200 pb-2">
           <button
             type="button"
             onClick={() => setProfileTab("overview")}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-white/70 hover:text-white/90 hover:bg-white/10"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
           >
             Overview
           </button>
           <button
             type="button"
             onClick={() => setProfileTab("insights")}
-            className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white/90"
+            className="rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-900"
           >
             Insights
           </button>
@@ -2463,18 +2463,18 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
 
   return (
     <div className="space-y-6">
-      <div className="mb-4 flex gap-2 border-b border-white/10 pb-2">
+      <div className="mb-4 flex gap-2 border-b border-zinc-200 pb-2">
         <button
           type="button"
           onClick={() => setProfileTab("overview")}
-          className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white/90"
+          className="rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-900"
         >
           Overview
         </button>
         <button
           type="button"
           onClick={() => setProfileTab("insights")}
-          className="rounded-lg px-3 py-2 text-sm font-medium text-white/70 hover:text-white/90 hover:bg-white/10"
+          className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
         >
           Insights
         </button>

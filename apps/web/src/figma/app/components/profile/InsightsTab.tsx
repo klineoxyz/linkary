@@ -361,7 +361,7 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
   if (loading && !meStats && !publicDto && !insights) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-sm text-foreground/80">Loading insights…</p>
+        <p className="text-sm font-medium text-foreground">Loading insights…</p>
       </div>
     );
   }
@@ -408,7 +408,7 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
             {refreshLoading ? "Refreshing…" : isRefreshRateLimited ? "Rate limited" : isRefreshCooldown ? "Refresh (cooldown)" : "Refresh insights"}
           </button>
           {isRefreshRateLimited && refreshResetAt && (
-            <span className="text-xs text-foreground/80">
+            <span className="text-xs font-medium text-foreground">
               Try again after {new Date(refreshResetAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
@@ -454,41 +454,41 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
           <h3 className="text-sm font-semibold text-foreground">Insights summary</h3>
           <dl className="mt-4 space-y-3">
             <div>
-              <dt className="text-xs font-medium text-muted-foreground">Followers</dt>
+              <dt className="text-xs font-semibold text-foreground">Followers</dt>
               <dd className="mt-0.5 text-lg font-semibold text-foreground">
                 {insightsProfile?.followers != null ? insightsProfile.followers.toLocaleString() : me?.followers_total != null ? me.followers_total.toLocaleString() : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-muted-foreground">Connected X</dt>
+              <dt className="text-xs font-semibold text-foreground">Connected X</dt>
               <dd className="mt-0.5 text-sm text-foreground">
                 {isOwn && me?.twitter_username?.trim() ? `@${me.twitter_username.replace(/^@/, "")}` : isOwn ? "Not connected" : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-muted-foreground">Data health</dt>
+              <dt className="text-xs font-semibold text-foreground">Data health</dt>
               <dd className="mt-1 flex flex-wrap gap-2">
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${topStatus === "hit" ? "bg-emerald-100 text-emerald-800" : topStatus === "stale" ? "bg-amber-100 text-amber-800" : "bg-secondary text-foreground/85"}`}>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${topStatus === "hit" ? "bg-emerald-100 text-emerald-800" : topStatus === "stale" ? "bg-amber-100 text-amber-800" : "bg-secondary text-foreground"}`}>
                   Top followers: {topStatus ?? "—"}
                 </span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${feedStatus === "hit" ? "bg-emerald-100 text-emerald-800" : feedStatus === "stale" ? "bg-amber-100 text-amber-800" : "bg-secondary text-foreground/85"}`}>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${feedStatus === "hit" ? "bg-emerald-100 text-emerald-800" : feedStatus === "stale" ? "bg-amber-100 text-amber-800" : "bg-secondary text-foreground"}`}>
                   Feed: {feedStatus ?? "—"}
                 </span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${mentionsStatus === "hit" ? "bg-emerald-100 text-emerald-800" : mentionsStatus === "stale" ? "bg-amber-100 text-amber-800" : "bg-secondary text-foreground/85"}`}>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${mentionsStatus === "hit" ? "bg-emerald-100 text-emerald-800" : mentionsStatus === "stale" ? "bg-amber-100 text-amber-800" : "bg-secondary text-foreground"}`}>
                   Mentions: {mentionsStatus ?? "—"}
                 </span>
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-muted-foreground">Last updated</dt>
-              <dd className="mt-0.5 text-sm text-foreground/90">
+              <dt className="text-xs font-semibold text-foreground">Last updated</dt>
+              <dd className="mt-0.5 text-sm font-medium text-foreground">
                 {formatRelative(cacheTop?.updatedAt ?? null)}
                 {cacheTop?.updatedAt ? " (top followers)" : ""}
                 {!cacheTop?.updatedAt && !cacheFeed?.updatedAt && !cacheMentions?.updatedAt ? "No cache yet" : ""}
               </dd>
             </div>
           </dl>
-          <p className="mt-3 text-xs text-muted-foreground">Mentions & account feed coming later.</p>
+          <p className="mt-3 text-xs font-medium text-foreground">Mentions & account feed coming later.</p>
         </div>
       </div>
 
@@ -510,7 +510,7 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setSeeAllModalOpen(false)}>
           <div className="max-h-[80vh] w-full max-w-md overflow-auto rounded-2xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-sm font-semibold text-foreground">Top followers</h3>
-            <p className="mt-2 text-xs text-muted-foreground">Nothing here yet</p>
+            <p className="mt-2 text-xs font-medium text-foreground">Nothing here yet</p>
             <button type="button" className="mt-4 rounded-lg bg-secondary px-3 py-2 text-sm font-medium text-foreground hover:bg-accent" onClick={() => setSeeAllModalOpen(false)}>Close</button>
           </div>
         </div>

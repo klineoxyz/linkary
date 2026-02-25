@@ -554,7 +554,7 @@ function Stars({ value = 5 }) {
           key={i}
           className={cn(
             "h-4 w-4",
-            i < full ? "fill-current text-primary" : "text-foreground/75"
+            i < full ? "fill-current text-primary" : "text-foreground"
           )}
         />
       ))}
@@ -604,7 +604,7 @@ function JobStatusBadge({ status }) {
 function GlobalStyles() {
   return (
     <style>{`
-      body, .font-app { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', 'Helvetica Neue', Arial, sans-serif; }
+      body, .font-app { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
       .scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
       .scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); border-radius: 3px; }
     `}</style>
@@ -1169,7 +1169,7 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
           <ProfileAvatar handle={me?.twitter_username || handle} alt={displayName} className="h-9 w-9 rounded-full shrink-0" fallbackGradient="from-primary to-primary/80" avatarUrl={me?.avatar_url} />
           <div className="hidden md:block min-w-0">
             <p className="text-sm font-medium leading-none text-foreground truncate">{displayName}</p>
-            <span className="text-xs text-foreground/90 truncate block">{handle ? `${handle}@linkary.xyz` : "linkary.xyz"}</span>
+            <span className="text-xs font-medium text-foreground truncate block">{handle ? `${handle}@linkary.xyz` : "linkary.xyz"}</span>
           </div>
         </div>
       </div>
@@ -2444,14 +2444,14 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           <button
             type="button"
             onClick={() => setProfileTab("overview")}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 hover:text-foreground hover:bg-secondary"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary"
           >
             Overview
           </button>
           <button
             type="button"
             onClick={() => setProfileTab("insights")}
-            className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium text-foreground"
+            className="rounded-lg bg-secondary px-3 py-2 text-sm font-semibold text-foreground"
           >
             Insights
           </button>
@@ -2467,14 +2467,14 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
         <button
           type="button"
           onClick={() => setProfileTab("overview")}
-          className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium text-foreground"
+          className="rounded-lg bg-secondary px-3 py-2 text-sm font-semibold text-foreground"
         >
           Overview
         </button>
         <button
           type="button"
           onClick={() => setProfileTab("insights")}
-          className="rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 hover:text-foreground hover:bg-secondary"
+          className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary"
         >
           Insights
         </button>
@@ -2518,7 +2518,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                 <span className="text-lg font-semibold text-foreground truncate">{u.name}</span>
                 {u.verified && <BadgeCheck className="h-5 w-5 text-primary stroke-[1.75]" />}
               </div>
-              <p className="text-sm text-foreground/90 truncate">@{u.handle} · {u.location}</p>
+              <p className="text-sm font-medium text-foreground truncate">@{u.handle} · {u.location}</p>
             </div>
           </div>
 
@@ -2532,19 +2532,19 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           <div className="mt-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Stars value={u.reviews.avg} />
-              <span className="text-xs text-foreground/90 font-medium">{u.reviews.avg} ({u.reviews.count})</span>
+              <span className="text-xs font-medium text-foreground">{u.reviews.avg} ({u.reviews.count})</span>
             </div>
-            <div className="text-xs text-foreground/90 font-medium">{formatMoneyEUR(u.volume.current)} volume</div>
+            <div className="text-xs font-medium text-foreground">{formatMoneyEUR(u.volume.current)} volume</div>
           </div>
 
-          <p className="mt-4 text-sm text-foreground/90 leading-relaxed">{u.bio}</p>
+          <p className="mt-4 text-sm font-medium text-foreground leading-relaxed">{u.bio}</p>
 
           {/* Role Tags */}
           <div className="mt-4">
-            <div className="text-xs font-medium text-foreground/85 mb-2">Roles</div>
+            <div className="text-xs font-semibold text-foreground mb-2">Roles</div>
             <div className="flex flex-wrap gap-2">
               {(u.roleTags ?? []).map((role) => (
-                <span key={role} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground/90">
+                <span key={role} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground">
                   {role}
                 </span>
               ))}
@@ -2554,10 +2554,10 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           {/* Ambassador Of */}
           {u.ambassadorOf && u.ambassadorOf.length > 0 && (
             <div className="mt-4">
-              <div className="text-xs font-medium text-foreground/85 mb-2">Ambassador Of</div>
+              <div className="text-xs font-semibold text-foreground mb-2">Ambassador Of</div>
               <div className="flex flex-wrap gap-2">
                 {u.ambassadorOf.map((proj) => (
-                  <span key={proj} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground/90">
+                  <span key={proj} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground">
                     {proj}
                   </span>
                 ))}
@@ -2568,7 +2568,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           {/* Partnerships */}
           {u.partnerships && u.partnerships.length > 0 && (
             <div className="mt-4">
-              <div className="text-xs font-medium text-foreground/85 mb-2">Partnerships</div>
+              <div className="text-xs font-semibold text-foreground mb-2">Partnerships</div>
               <div className="space-y-2">
                 {u.partnerships.map((p) => (
                   <div key={p.name} className="relative overflow-hidden rounded-lg border-0 px-4 py-3 bg-cover bg-center" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)' }}>
@@ -2597,7 +2597,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                   <ExternalLink className="h-4 w-4 text-primary stroke-[1.75]" />
                   <span className="truncate font-medium text-foreground">{l.label}</span>
                 </div>
-                <span className="text-xs text-foreground/90 font-medium">{l.clicks.toLocaleString()}</span>
+                <span className="text-xs font-medium text-foreground">{l.clicks.toLocaleString()}</span>
               </div>
             ))}
           </div>
@@ -2616,7 +2616,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                 {u.featuredWork.map((work, idx) => (
                   <div key={idx} className="rounded-lg border border-border bg-muted p-4 hover:bg-secondary transition-colors">
                     <p className="font-semibold text-foreground">{work.title}</p>
-                    <div className="mt-2 flex items-center gap-1 text-xs text-foreground/90">
+                    <div className="mt-2 flex items-center gap-1 text-xs font-medium text-foreground">
                       <Eye className="h-3 w-3 stroke-[1.75]" />
                       {work.views.toLocaleString()} views
                     </div>
@@ -2632,7 +2632,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="font-semibold text-foreground">Upcoming Events</h3>
-                  <p className="mt-1 text-sm text-foreground/90">X Spaces and podcasts</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">X Spaces and podcasts</p>
                 </div>
                 <Button variant="outline" size="sm" className="text-foreground" onClick={() => setRoute({ name: "overview" })}>
                   View All
@@ -2647,7 +2647,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                       )}>
                         {e.type}
                       </span>
-                      <span className="text-xs text-foreground/85">{e.date}</span>
+                      <span className="text-xs font-medium text-foreground">{e.date}</span>
                     </div>
                     <p className="font-semibold text-foreground">{e.title}</p>
                   </div>
@@ -2664,7 +2664,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                 <Button variant="outline" size="sm" className="text-foreground" onClick={() => setShowCaseStudyModal(true)}>Add New</Button>
               )}
               {!isMyProfile && caseStudies.length === 0 && u.caseStudies?.length === 0 && (
-                <span className="text-xs text-foreground/85">No case studies yet</span>
+                <span className="text-xs font-medium text-foreground">No case studies yet</span>
               )}
             </div>
             <div className="space-y-3">
@@ -2676,8 +2676,8 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                         <span className="font-semibold text-foreground">{cs.title ?? cs.projectName}</span>
                         {cs.verified && <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />}
                       </div>
-                      {cs.role != null && <p className="mt-1 text-xs text-foreground/90">{cs.role}{cs.duration ? ` · ${cs.duration}` : ""}</p>}
-                      {cs.description && <p className="mt-1 text-sm text-foreground/90">{cs.description}</p>}
+                      {cs.role != null && <p className="mt-1 text-xs font-medium text-foreground">{cs.role}{cs.duration ? ` · ${cs.duration}` : ""}</p>}
+                      {cs.description && <p className="mt-1 text-sm font-medium text-foreground">{cs.description}</p>}
                     </div>
                     {cs.proof_url && (
                       <a href={cs.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary">Proof</a>
@@ -2694,7 +2694,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                     </div>
                   )}
                   {cs.testimonial && (
-                    <div className="mt-3 border-l-2 border-primary/50 pl-3 text-sm italic text-foreground/85">
+                    <div className="mt-3 border-l-2 border-primary/50 pl-3 text-sm font-medium italic text-foreground">
                       "{cs.testimonial}"
                     </div>
                   )}
@@ -2707,19 +2707,19 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           <Card className="rounded-2xl border border-border bg-card shadow-sm">
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-foreground">Discover people</h3>
-              <p className="mt-1 text-xs text-foreground/85">Search and open other profiles&apos; insights</p>
+              <p className="mt-1 text-xs font-medium text-foreground">Search and open other profiles&apos; insights</p>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/75" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground" />
               <input
                 type="text"
                 value={profileSearchQuery}
                 onChange={(e) => setProfileSearchQuery(e.target.value)}
                 placeholder="Search by name or handle..."
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-border bg-muted text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-border bg-muted text-foreground font-medium placeholder:text-foreground/60 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
               />
               {profileSearchLoading && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-foreground/85 font-medium">Searching…</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-foreground">Searching…</span>
               )}
             </div>
             {profileSearchResults.length > 0 && (
@@ -2737,14 +2737,14 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                           <img src={r.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
                         ) : (
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary">
-                            <Users className="h-4 w-4 text-foreground/75" />
+                            <Users className="h-4 w-4 text-foreground" />
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-foreground">{r.name || username || "—"}</p>
-                          <p className="truncate text-xs text-foreground/85">{username ? `@${username}` : "—"}</p>
+                          <p className="truncate text-xs font-medium text-foreground">{username ? `@${username}` : "—"}</p>
                         </div>
-                        <ArrowRight className="h-4 w-4 shrink-0 text-foreground/75" />
+                        <ArrowRight className="h-4 w-4 shrink-0 text-foreground" />
                       </button>
                     </li>
                   );
@@ -2752,7 +2752,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
               </ul>
             )}
             {profileSearchQuery.trim().length >= 2 && !profileSearchLoading && profileSearchResults.length === 0 && (
-              <p className="mt-3 text-xs text-foreground/85">No people found. Try a different search.</p>
+              <p className="mt-3 text-xs font-medium text-foreground">No people found. Try a different search.</p>
             )}
           </Card>
 
@@ -2760,11 +2760,11 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
               <div className="bg-card rounded-2xl border border-border p-6 max-w-md w-full">
                 <h3 className="text-lg font-semibold text-foreground mb-4">Add Case Study</h3>
-                <input placeholder="Title" value={csTitle} onChange={(e) => setCsTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground placeholder:text-muted-foreground mb-3" />
-                <textarea placeholder="Description" value={csDescription} onChange={(e) => setCsDescription(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground placeholder:text-muted-foreground mb-3" />
-                <input placeholder="Proof URL (optional)" value={csProofUrl} onChange={(e) => setCsProofUrl(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground placeholder:text-muted-foreground mb-4" />
+                <input placeholder="Title" value={csTitle} onChange={(e) => setCsTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground font-medium placeholder:text-foreground/60 mb-3" />
+                <textarea placeholder="Description" value={csDescription} onChange={(e) => setCsDescription(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground font-medium placeholder:text-foreground/60 mb-3" />
+                <input placeholder="Proof URL (optional)" value={csProofUrl} onChange={(e) => setCsProofUrl(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground font-medium placeholder:text-foreground/60 mb-4" />
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => { setShowCaseStudyModal(false); setCsTitle(""); setCsDescription(""); setCsProofUrl(""); }} className="flex-1 py-2 rounded-lg border border-border text-foreground/90">Cancel</button>
+                  <button type="button" onClick={() => { setShowCaseStudyModal(false); setCsTitle(""); setCsDescription(""); setCsProofUrl(""); }} className="flex-1 py-2 rounded-lg border border-border font-medium text-foreground">Cancel</button>
                   <button type="button" disabled={csSubmitting || !csTitle.trim()} onClick={handleCreateCaseStudy} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50">{csSubmitting ? "Saving…" : "Save"}</button>
                 </div>
               </div>
@@ -2776,7 +2776,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="font-semibold text-foreground">Reviews</h3>
-                <p className="mt-1 text-sm text-foreground/90">
+                <p className="mt-1 text-sm font-medium text-foreground">
                   Received: {u.reviews.count} · Given: {u.reviews?.given ?? 0}
                 </p>
               </div>
@@ -2789,7 +2789,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-foreground">{r.by}</span>
-                        <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-xs font-medium text-foreground/90">
+                        <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-xs font-medium text-foreground">
                           {r.byType}
                         </span>
                         {r.verifiedDeal && (
@@ -2800,15 +2800,15 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                       </div>
                       <div className="mt-1 flex items-center gap-2">
                         <Stars value={r.rating} />
-                        <span className="text-xs text-foreground/85">{r.date}</span>
+                        <span className="text-xs font-medium text-foreground">{r.date}</span>
                       </div>
                     </div>
                   </div>
                   <p className="font-semibold text-foreground">{r.title}</p>
-                  <p className="mt-1 text-sm text-foreground/90 leading-relaxed">{r.text}</p>
+                  <p className="mt-1 text-sm font-medium text-foreground leading-relaxed">{r.text}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(r.tags ?? []).map((t) => (
-                      <span key={t} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground/90">
+                      <span key={t} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground">
                         {t}
                       </span>
                     ))}

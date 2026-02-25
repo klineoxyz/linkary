@@ -20,10 +20,15 @@ export interface UnifiedTopFollowerItem {
   tier?: string | null;
 }
 
+export interface UnifiedCacheBucketMeta {
+  status: "hit" | "miss" | "stale";
+  updatedAt?: string | null;
+}
+
 export interface UnifiedCacheMeta {
-  topFollowers: "hit" | "miss" | "stale";
-  feed: "hit" | "miss" | "stale";
-  mentions: "hit" | "miss" | "stale";
+  topFollowers: UnifiedCacheBucketMeta | ("hit" | "miss" | "stale");
+  feed: UnifiedCacheBucketMeta | ("hit" | "miss" | "stale");
+  mentions: UnifiedCacheBucketMeta | ("hit" | "miss" | "stale");
 }
 
 export interface UnifiedInsightsResponse {
@@ -40,6 +45,9 @@ export interface UnifiedInsightsResponse {
     actions: unknown[];
     newFollowers: unknown[];
   };
+  /** Optional: series and recommendedAccounts when provider=x */
+  series?: { followers: Array<{ date: string; value: number }>; score: Array<{ date: string; value: number }> };
+  recommendedAccounts?: unknown[];
   meta: {
     cache: UnifiedCacheMeta;
     providerVersion: 1;
@@ -62,7 +70,11 @@ export function emptyUnifiedInsights(provider: SocialProvider): UnifiedInsightsR
     affiliatedAccounts: [],
     accountFeed: { actions: [], newFollowers: [] },
     meta: {
-      cache: { topFollowers: "miss", feed: "miss", mentions: "miss" },
+      cache: {
+        topFollowers: { status: "miss" as const, updatedAt: null },
+        feed: { status: "miss" as const, updatedAt: null },
+        mentions: { status: "miss" as const, updatedAt: null },
+      },
       providerVersion: 1,
     },
   };

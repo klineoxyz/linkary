@@ -8,6 +8,7 @@ import { createServiceSupabase } from "@/lib/x-analytics-server";
 import {
   type UnifiedInsightsResponse,
   type UnifiedTopFollowerItem,
+  type UnifiedCacheBucketMeta,
   type SocialProvider,
   emptyUnifiedInsights,
 } from "@/lib/socialInsightsUnifiedContracts";
@@ -21,13 +22,28 @@ function norm(s: string): string {
   return s.trim().toLowerCase().replace(/^@/, "");
 }
 
-/** Map X insights response (from internal fetch) to unified shape. */
+function toCacheBucket(v: string | { status?: string; updatedAt?: string | null } | undefined): UnifiedCacheBucketMeta {
+  if (typeof v === "string") return { status: (v as "hit" | "miss" | "stale") || "miss", updatedAt: null };
+  const status = ((v as { status?: string })?.status ?? "miss") as "hit" | "miss" | "stale";
+  const updatedAt = (v as { updatedAt?: string | null })?.updatedAt ?? null;
+  return { status, updatedAt };
+}
+
+/** Map X insights response (from internal fetch) to unified shape. Includes series + recommendedAccounts when present. */
 function mapXToUnified(xJson: {
   profile?: { username?: string; followers?: number | null; following?: number | null; tweets?: number | null; joinedAt?: string | null };
   topFollowersByTier?: { influencers?: unknown[]; projects?: unknown[]; funds?: unknown[] };
   mentionsLastWeek?: unknown[];
   accountFeed?: { actions?: unknown[]; newFollowers?: unknown[] };
-  meta?: { cache?: { topFollowers?: string; feed?: string; mentions?: string } };
+  series?: { followers?: Array<{ date: string; value: number }>; score?: Array<{ date: string; value: number }> };
+  recommendedAccounts?: unknown[];
+  meta?: {
+    cache?: {
+      topFollowers?: string | { status?: string; updatedAt?: string | null };
+      feed?: string | { status?: string; updatedAt?: string | null };
+      mentions?: string | { status?: string; updatedAt?: string | null };
+    };
+  };
 }): UnifiedInsightsResponse {
   const profile = xJson.profile ?? {};
   return {
@@ -50,17 +66,16 @@ function mapXToUnified(xJson: {
       actions: Array.isArray(xJson.accountFeed?.actions) ? xJson.accountFeed.actions : [],
       newFollowers: Array.isArray(xJson.accountFeed?.newFollowers) ? xJson.accountFeed.newFollowers : [],
     },
+    series:
+      xJson.series && Array.isArray(xJson.series.followers) && Array.isArray(xJson.series.score)
+        ? { followers: xJson.series.followers, score: xJson.series.score }
+        : undefined,
+    recommendedAccounts: Array.isArray(xJson.recommendedAccounts) ? xJson.recommendedAccounts : undefined,
     meta: {
       cache: {
-        topFollowers: ((typeof xJson.meta?.cache?.topFollowers === "string"
-          ? xJson.meta.cache.topFollowers
-          : (xJson.meta?.cache?.topFollowers as { status?: string })?.status) ?? "miss") as "hit" | "miss" | "stale",
-        feed: ((typeof xJson.meta?.cache?.feed === "string"
-          ? xJson.meta.cache.feed
-          : (xJson.meta?.cache?.feed as { status?: string })?.status) ?? "miss") as "hit" | "miss" | "stale",
-        mentions: ((typeof xJson.meta?.cache?.mentions === "string"
-          ? xJson.meta.cache.mentions
-          : (xJson.meta?.cache?.mentions as { status?: string })?.status) ?? "miss") as "hit" | "miss" | "stale",
+        topFollowers: toCacheBucket(xJson.meta?.cache?.topFollowers),
+        feed: toCacheBucket(xJson.meta?.cache?.feed),
+        mentions: toCacheBucket(xJson.meta?.cache?.mentions),
       },
       providerVersion: 1,
     },

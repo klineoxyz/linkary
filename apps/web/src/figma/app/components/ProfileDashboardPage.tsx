@@ -44,18 +44,18 @@ interface CacheBucketMeta {
 }
 
 interface SocialInsightsResponse {
-  profile: { username: string; followers: number | null; following: number | null; tweets: number | null; joinedAt: string | null };
+  profile: { username: string; followers: number | null; following: number | null; tweets?: number | null; posts?: number | null; joinedAt: string | null };
   series?: { followers: Array<{ date: string; value: number }>; score: Array<{ date: string; value: number }> };
   topFollowersByTier: { influencers: unknown[]; projects: unknown[]; funds: unknown[] };
   mentionsLastWeek: unknown[];
   affiliatedAccounts: unknown[];
   accountFeed: { actions: unknown[]; newFollowers: unknown[] };
-  recommendedAccounts: unknown[];
+  recommendedAccounts?: unknown[];
   meta?: {
     cache?: {
-      topFollowers?: CacheBucketMeta;
-      feed?: CacheBucketMeta;
-      mentions?: CacheBucketMeta;
+      topFollowers?: CacheBucketMeta | { status: string; updatedAt?: string | null };
+      feed?: CacheBucketMeta | { status: string; updatedAt?: string | null };
+      mentions?: CacheBucketMeta | { status: string; updatedAt?: string | null };
     };
   };
 }
@@ -99,6 +99,33 @@ function buildTips(meStats: MeStatsResponse | null, profile: { twitter_username?
   return tips.slice(0, 3);
 }
 
+/** Normalize unified or X insights response so profile.tweets and meta.cache buckets are consistent. */
+function normalizeInsightsResponse(data: SocialInsightsResponse | null): SocialInsightsResponse | null {
+  if (!data?.profile) return data;
+  const p = data.profile as { tweets?: number | null; posts?: number | null; [k: string]: unknown };
+  const profile = { ...data.profile, tweets: p.tweets ?? p.posts ?? null } as SocialInsightsResponse["profile"];
+  const cache = data.meta?.cache;
+  type Status = "hit" | "miss" | "stale";
+  const toBucket = (v: CacheBucketMeta | { status: string; updatedAt?: string | null } | undefined): CacheBucketMeta | undefined =>
+    v && typeof v === "object" && "status" in v
+      ? { status: (v.status === "hit" || v.status === "miss" || v.status === "stale" ? v.status : "miss") as Status, updatedAt: (v as { updatedAt?: string | null }).updatedAt ?? null }
+      : undefined;
+  return {
+    ...data,
+    profile,
+    recommendedAccounts: data.recommendedAccounts ?? [],
+    meta: cache
+      ? {
+          cache: {
+            topFollowers: toBucket(cache.topFollowers) ?? { status: "miss" as const, updatedAt: null },
+            feed: toBucket(cache.feed) ?? { status: "miss" as const, updatedAt: null },
+            mentions: toBucket(cache.mentions) ?? { status: "miss" as const, updatedAt: null },
+          },
+        }
+      : data.meta,
+  } as SocialInsightsResponse;
+}
+
 export default function ProfileDashboardPage({ setRoute, me, username, getAuthHeaders }: ProfileDashboardPageProps) {
   const isOwn = !username || (me && (me.username?.toLowerCase() === username.toLowerCase() || me.twitter_username?.toLowerCase().replace(/^@/, "") === username.toLowerCase().replace(/^@/, "")));
   const targetUsername = isOwn ? (me?.username ?? me?.twitter_username ?? "").replace(/^@/, "").toLowerCase() : username?.replace(/^@/, "").toLowerCase();
@@ -116,6 +143,14 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
   const [watchlistList, setWatchlistList] = useState<{ people: Array<{ entity_id: string }>; orgs: Array<{ entity_id: string }> } | null>(null);
   const [profileEntityIdForOther, setProfileEntityIdForOther] = useState<string | null>(null);
   const [watchlistToggling, setWatchlistToggling] = useState(false);
+  const [lastRefreshAt, setLastRefreshAt] = useState<number>(0);
+  const [refreshResetAt, setRefreshResetAt] = useState<string | null>(null);
+  const [refreshLoading, setRefreshLoading] = useState(false);
+
+  const COOLDOWN_MS = 5 * 60 * 1000;
+  const isRefreshCooldown = lastRefreshAt > 0 && Date.now() - lastRefreshAt < COOLDOWN_MS;
+  const isRefreshRateLimited = refreshResetAt != null && Date.now() < new Date(refreshResetAt).getTime();
+  const refreshDisabled = refreshLoading || isRefreshCooldown || isRefreshRateLimited;
 
   const profileEntityId = isOwn ? (me?.id ?? null) : profileEntityIdForOther;
   const onWatchlist =
@@ -197,14 +232,14 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
         const [statsRes, analyticsRes, insightsRes] = await Promise.all([
           fetch(`${origin}/api/profile/me-stats`, { headers }),
           fetch(`${origin}/api/analytics/x`, { headers }),
-          fetch(`${origin}/api/social/x/insights?username=${encodeURIComponent(targetUsername || "")}`, { headers }),
+          fetch(`${origin}/api/social/insights?provider=x&username=${encodeURIComponent(targetUsername || "")}`, { headers }),
         ]);
         const statsData = statsRes.ok ? await statsRes.json() : null;
         const analyticsData = analyticsRes.ok ? await analyticsRes.json() : null;
         const insightsData = insightsRes.ok ? await insightsRes.json() : null;
         setMeStats(statsData);
         setAnalyticsX(analyticsData);
-        setInsights(insightsData);
+        setInsights(normalizeInsightsResponse(insightsData));
         setPublicDto(null);
         if (insightsData?.recommendedAccounts?.length) {
           setRecommended(
@@ -221,13 +256,13 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
       } else if (targetUsername) {
         const [dtoRes, insightsRes, searchRes] = await Promise.all([
           fetch(`${origin}/api/public/profile/${encodeURIComponent(targetUsername)}`),
-          fetch(`${origin}/api/social/x/insights?username=${encodeURIComponent(targetUsername)}`),
+          fetch(`${origin}/api/social/insights?provider=x&username=${encodeURIComponent(targetUsername)}`),
           fetch(`${origin}/api/search?q=${encodeURIComponent(targetUsername)}&filter=people`).catch(() => null),
         ]);
         const dto = dtoRes.ok ? await dtoRes.json() : null;
         const insightsData = insightsRes.ok ? await insightsRes.json() : null;
         setPublicDto(dto);
-        setInsights(insightsData);
+        setInsights(normalizeInsightsResponse(insightsData));
         setMeStats(null);
         setAnalyticsX(null);
         if (insightsData?.recommendedAccounts?.length) {
@@ -259,6 +294,30 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
       setLoading(false);
     }
   }, [isOwn, me?.id, targetUsername, getAuthHeaders]);
+
+  const handleRefreshInsights = useCallback(async () => {
+    if (!getAuthHeaders || refreshDisabled || !targetUsername) return;
+    setRefreshLoading(true);
+    setRefreshResetAt(null);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const headers = await getAuthHeaders();
+    try {
+      const res = await fetch(`${origin}/api/profile/refresh-x-insights`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(headers as Record<string, string>) },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.ok) {
+        setLastRefreshAt(Date.now());
+        if (body.skipped && (body.reason === "GLOBAL_RATE_LIMIT" || body.reason === "RATE_LIMITED") && body.resetAt) {
+          setRefreshResetAt(body.resetAt);
+        }
+        await fetchData();
+      }
+    } finally {
+      setRefreshLoading(false);
+    }
+  }, [getAuthHeaders, refreshDisabled, targetUsername, fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -366,6 +425,24 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
         onToggleSeries={(key) => setGraphSeries((prev) => ({ ...prev, [key]: !prev[key] }))}
       />
 
+      {isOwn && me?.twitter_username?.trim() && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-br from-white/8 to-white/[0.03] px-4 py-3">
+          <button
+            type="button"
+            onClick={handleRefreshInsights}
+            disabled={refreshDisabled}
+            className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white/90 hover:bg-white/15 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {refreshLoading ? "Refreshing…" : isRefreshRateLimited ? "Rate limited" : isRefreshCooldown ? "Refresh (cooldown)" : "Refresh insights"}
+          </button>
+          {isRefreshRateLimited && refreshResetAt && (
+            <span className="text-xs text-white/50">
+              Try again after {new Date(refreshResetAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+        </div>
+      )}
+
       <TopFollowersCard
         tabs={[
           { id: "influencers", label: "Influencers" },
@@ -378,8 +455,8 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
         sampleLabel={topFollowersItems.length > 0 ? "Sample" : null}
         onSeeAll={() => setSeeAllModalOpen(true)}
         emptyMessage="Nothing here yet"
-        cacheStatus={insights?.meta?.cache?.topFollowers?.status}
-        updatedAt={insights?.meta?.cache?.topFollowers?.updatedAt}
+        cacheStatus={(insights?.meta?.cache?.topFollowers && typeof insights.meta.cache.topFollowers === "object" ? insights.meta.cache.topFollowers.status : undefined) as "hit" | "miss" | "stale" | undefined}
+        updatedAt={insights?.meta?.cache?.topFollowers && typeof insights.meta.cache.topFollowers === "object" ? insights.meta.cache.topFollowers.updatedAt : undefined}
       />
 
       <AccountFeedCard
@@ -388,15 +465,15 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
         actions={insights?.accountFeed?.actions ?? []}
         newFollowers={insights?.accountFeed?.newFollowers ?? []}
         emptyMessage="No data yet. Sync will run automatically."
-        cacheStatus={insights?.meta?.cache?.feed?.status}
-        updatedAt={insights?.meta?.cache?.feed?.updatedAt}
+        cacheStatus={(insights?.meta?.cache?.feed && typeof insights.meta.cache.feed === "object" ? insights.meta.cache.feed.status : undefined) as "hit" | "miss" | "stale" | undefined}
+        updatedAt={insights?.meta?.cache?.feed && typeof insights.meta.cache.feed === "object" ? insights.meta.cache.feed.updatedAt : undefined}
       />
 
       <MentionsCard
         mentions={insights?.mentionsLastWeek ?? []}
         emptyMessage="No data yet. Sync will run automatically."
-        cacheStatus={insights?.meta?.cache?.mentions?.status}
-        updatedAt={insights?.meta?.cache?.mentions?.updatedAt}
+        cacheStatus={(insights?.meta?.cache?.mentions && typeof insights.meta.cache.mentions === "object" ? insights.meta.cache.mentions.status : undefined) as "hit" | "miss" | "stale" | undefined}
+        updatedAt={insights?.meta?.cache?.mentions && typeof insights.meta.cache.mentions === "object" ? insights.meta.cache.mentions.updatedAt : undefined}
       />
 
       <AffiliatedAccountsCard accounts={insights?.affiliatedAccounts ?? []} emptyMessage="Nothing here yet" />

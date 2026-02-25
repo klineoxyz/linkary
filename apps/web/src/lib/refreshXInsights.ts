@@ -31,7 +31,23 @@ function parseCreatedAt(createdAt: string | undefined): string {
   return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
-/** GET /twitter/user/followers — first page, map to XTopFollowersCachePayload. All as influencers for now. */
+/** Phase 9: Heuristic categorization for top followers. Tweak here to improve later. */
+function categorizeFollower(
+  name: string | null | undefined,
+  _username: string,
+  followers: number | null,
+  verified: boolean | null | undefined
+): "influencer" | "project" | "fund" {
+  const n = (name ?? "").trim().toLowerCase();
+  const fundPatterns = ["capital", "ventures", "fund", "vc ", " vc", "partners", "asset"];
+  if (fundPatterns.some((p) => n.includes(p))) return "fund";
+  const projectPatterns = ["token", "protocol", "labs", "dao", "network", "chain", "defi", "dex", ".io"];
+  if (projectPatterns.some((p) => n.includes(p))) return "project";
+  if (verified === true || (typeof followers === "number" && followers >= 50000)) return "influencer";
+  return "influencer";
+}
+
+/** GET /twitter/user/followers — first page, map to XTopFollowersCachePayload. Categorize into influencers/projects/funds. */
 async function fetchTopFollowers(username: string): Promise<XTopFollowersCachePayload> {
   try {
     const { data } = await twitterapiFetch("/twitter/user/followers", {
@@ -40,26 +56,35 @@ async function fetchTopFollowers(username: string): Promise<XTopFollowersCachePa
     });
     const obj = data as Record<string, unknown>;
     const list = Array.isArray(obj.followers) ? obj.followers : [];
-    const items: TopFollowerItem[] = [];
+    const influencers: TopFollowerItem[] = [];
+    const projects: TopFollowerItem[] = [];
+    const funds: TopFollowerItem[] = [];
     for (const u of list.slice(0, CAP_FOLLOWERS_TOP)) {
       const row = u as Record<string, unknown>;
       const uname = normalizeUsername((row.userName ?? row.user_name ?? row.screen_name) as string);
       if (!uname) continue;
       const avatar = (row.profilePicture ?? row.profile_picture ?? row.avatar) as string | undefined;
-      items.push({
+      const followers = typeof row.followers === "number" ? row.followers : null;
+      const verified = row.verified as boolean | null | undefined;
+      const name = (row.name as string) || undefined;
+      const category = categorizeFollower(name, uname, followers, verified);
+      const item: TopFollowerItem = {
         username: uname,
-        name: (row.name as string) || undefined,
+        name: name ?? undefined,
         avatar: stripPrivateStorageUrlsFromAvatar(avatar) ?? null,
-        followers: typeof row.followers === "number" ? row.followers : null,
+        followers,
         score: null,
         tier: null,
-        category: "influencer",
-      });
+        category,
+      };
+      if (category === "fund") funds.push(item);
+      else if (category === "project") projects.push(item);
+      else influencers.push(item);
     }
     if (process.env.NODE_ENV !== "production") {
-      console.log("[refreshXInsights] top_followers count=" + items.length);
+      console.log("[refreshXInsights] top_followers influencers=" + influencers.length + " projects=" + projects.length + " funds=" + funds.length);
     }
-    return { influencers: items, projects: [], funds: [] };
+    return { influencers, projects, funds };
   } catch (e) {
     if (e instanceof TwitterApiError && e.code === "RATE_LIMITED") throw e;
     if (process.env.NODE_ENV !== "production") {
@@ -69,17 +94,23 @@ async function fetchTopFollowers(username: string): Promise<XTopFollowersCachePa
   }
 }
 
-/** GET /twitter/user/mentions — sinceTime (7 days ago), cap 50. */
-async function fetchMentions(username: string): Promise<XMentionsCachePayload> {
+/** GET /twitter/user/mentions — last 7 days (or week aligned to weekStart when provided). Cap 50. */
+async function fetchMentions(username: string, weekStart?: string): Promise<XMentionsCachePayload> {
+  let sinceTime: number;
   const now = Math.floor(Date.now() / 1000);
-  const sevenDaysAgo = now - 7 * 24 * 3600;
+  if (weekStart) {
+    const start = new Date(weekStart + "T00:00:00Z").getTime() / 1000;
+    sinceTime = Math.max(start, now - 7 * 24 * 3600);
+  } else {
+    sinceTime = now - 7 * 24 * 3600;
+  }
   const out: MentionItem[] = [];
   let cursor = "";
   try {
     while (out.length < CAP_MENTIONS) {
       const params: Record<string, string> = {
         userName: username,
-        sinceTime: String(sevenDaysAgo),
+        sinceTime: String(sinceTime),
         untilTime: String(now),
       };
       if (cursor) params.cursor = cursor;
@@ -255,10 +286,11 @@ export async function refreshXInsightsForProfile(profileId: string): Promise<Ref
   let rateLimited = false;
   let resetAt: string | undefined;
 
+  const weekStart = getCurrentWeekStart();
   try {
     const [top, mentions, feed] = await Promise.all([
       fetchTopFollowers(handle),
-      fetchMentions(handle),
+      fetchMentions(handle, weekStart),
       fetchAccountFeed(handle),
     ]);
     topPayload = top;
@@ -291,8 +323,6 @@ export async function refreshXInsightsForProfile(profileId: string): Promise<Ref
     console.error("[refreshXInsights] fetch failed", e);
     return { ok: false, error: e instanceof Error ? e.message : "Fetch failed" };
   }
-
-  const weekStart = getCurrentWeekStart();
 
   try {
     await supabase.from("x_top_followers_cache").upsert(

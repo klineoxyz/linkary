@@ -11,14 +11,15 @@ export function NotFoundOrUnpublished({ requestedUsername }: { requestedUsername
   const [status, setStatus] = useState<Status>("loading");
 
   useEffect(() => {
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+    const resolveStatus = async (session: { access_token: string } | null) => {
       if (!session?.access_token) {
         setStatus("not_found");
         return;
       }
       const res = await fetch(
-        `${typeof window !== "undefined" ? window.location.origin : ""}/api/me/profile-status?username=${encodeURIComponent(requestedUsername)}`,
+        `${origin}/api/me/profile-status?username=${encodeURIComponent(requestedUsername)}`,
         { headers: { Authorization: `Bearer ${session.access_token}` } }
       );
       if (!res.ok) {
@@ -31,7 +32,15 @@ export function NotFoundOrUnpublished({ requestedUsername }: { requestedUsername
       } else {
         setStatus("not_found");
       }
-    })();
+    };
+
+    // Wait for auth to be ready (session may restore from storage after load).
+    // Using only onAuthStateChange avoids showing "Claim" before session is restored.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      resolveStatus(session ?? null);
+    });
+
+    return () => subscription?.unsubscribe();
   }, [requestedUsername]);
 
   if (status === "loading") {

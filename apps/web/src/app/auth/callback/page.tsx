@@ -97,7 +97,10 @@ export default function AuthCallbackPage() {
         }
         next = next ?? REDIRECT_AFTER;
         setRedirectPath(next);
-        const redirectTo = next.startsWith("/") ? `${SITE_URL.replace(/\/$/, "")}${next}` : `${SITE_URL}/${next}`;
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const safeRes = origin ? await fetch(`${origin}/api/auth/safe-redirect-url?next=${encodeURIComponent(next)}`).catch(() => null) : null;
+        const safeJson = safeRes?.ok ? await safeRes.json().catch(() => ({})) : null;
+        const redirectTo = (safeJson?.redirectUrl as string) || (next.startsWith("/") ? `${SITE_URL.replace(/\/$/, "")}${next}` : `${SITE_URL}/${next}`);
 
         if (code) {
           setMessage("Exchanging code for session…");
@@ -141,7 +144,7 @@ export default function AuthCallbackPage() {
           await fetch(`${window.location.origin}/api/auth/post-login-bootstrap`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
-          }).catch(() => {});
+          }).catch((err) => console.error("[AUTH] post-login-bootstrap failed", err));
           const identity = extractTwitterIdentity(user as unknown as Parameters<typeof extractTwitterIdentity>[0]);
           if (identity) {
             const { error: saveErr } = await saveTwitterIdentityFromOAuth(user.id, identity);
@@ -180,18 +183,20 @@ export default function AuthCallbackPage() {
               });
               const ebfBody = await ebfRes.json().catch(() => ({}));
               if (!cancelled && isEnsureBackfillFailure(ebfRes, ebfBody)) {
-                let url = next.startsWith("/") ? `${SITE_URL.replace(/\/$/, "")}${next}` : `${SITE_URL}/${next}`;
+                console.error("[ANALYTICS_INIT_FAILED] ensure-backfill", ebfRes.status, ebfBody);
+                let url = redirectTo;
                 if (next === "/settings/integrations" || next?.includes("integrations")) url = url + (url.includes("?") ? "&" : "?") + "x_connected=1";
                 try {
                   if (sessionStorage.getItem("linkary_oauth_fallback") === "1") url = url + (url.includes("?") ? "&" : "?") + "x_fallback=1";
                 } catch { /* ignore */ }
                 setRedirectTo(url);
                 setStatus("analytics_failed");
-                setMessage("Analytics init failed. You can retry or continue.");
+                const reason = (ebfBody as { reason?: string }).reason ?? (ebfBody as { message?: string }).message;
+                setMessage(reason ? `Analytics init failed: ${reason}. You can retry or continue.` : "Analytics init failed. You can retry or continue.");
                 return;
               }
               // Refresh Ethos + XScore cache after X connect (fire-and-forget)
-              fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+              fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch((err) => console.error("[ANALYTICS_INIT_FAILED] refresh-scores", err));
             }
             if (!cancelled) {
               setStatus("ok");
@@ -263,7 +268,8 @@ export default function AuthCallbackPage() {
                 headers: { Authorization: `Bearer ${session.access_token}` },
               });
               if (!esxRes.ok) {
-                // non-blocking; continue
+                const errBody = await esxRes.json().catch(() => ({}));
+                console.error("[ANALYTICS_INIT_FAILED] ensure-social-x", esxRes.status, errBody);
               }
               const ebfRes = await fetch(`${window.location.origin}/api/analytics/ensure-backfill`, {
                 method: "POST",
@@ -271,13 +277,15 @@ export default function AuthCallbackPage() {
               });
               const ebfBody = await ebfRes.json().catch(() => ({}));
               if (!cancelled && isEnsureBackfillFailure(ebfRes, ebfBody)) {
+                console.error("[ANALYTICS_INIT_FAILED] ensure-backfill (session)", ebfRes.status, ebfBody);
                 setRedirectTo(redirectTo);
                 setStatus("analytics_failed");
-                setMessage("Analytics init failed. You can retry or continue.");
+                const reason = (ebfBody as { reason?: string }).reason ?? (ebfBody as { message?: string }).message;
+                setMessage(reason ? `Analytics init failed: ${reason}. You can retry or continue.` : "Analytics init failed. You can retry or continue.");
                 return;
               }
               // Refresh Ethos + XScore cache after X connect (fire-and-forget)
-              fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } }).catch(() => {});
+              fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } }).catch((err) => console.error("[ANALYTICS_INIT_FAILED] refresh-scores", err));
             }
             if (!cancelled) {
               setStatus("ok");
@@ -314,7 +322,15 @@ export default function AuthCallbackPage() {
     });
     const body = await res.json().catch(() => ({}));
     if (isEnsureBackfillFailure(res, body)) {
-      setMessage("Analytics init failed. You can retry or continue.");
+      console.error("[ANALYTICS_INIT_FAILED] ensure-backfill retry", res.status, body);
+      const code = (body as { code?: string }).code;
+      const msg = (body as { message?: string }).message;
+      const reason = (body as { reason?: string }).reason;
+      if (code === "RATE_LIMITED") {
+        setMessage(msg || "Too many requests. Please try again later.");
+      } else {
+        setMessage(reason ? `Analytics init failed: ${reason}. You can retry or continue.` : msg || "Analytics init failed. You can retry or continue.");
+      }
       return;
     }
     setStatus("ok");

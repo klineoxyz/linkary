@@ -98,7 +98,7 @@ export async function GET(request: Request) {
     ? reviewsList.reduce((s, r) => s + (Number(r.rating) || 0), 0) / count
     : 0;
 
-  // Verified gigs: public.deals has profile_id (creator), status; no verified column on deals. Count = completed deals where creator = me.
+  // Verified gigs: completed deals where creator = me. Affects Linkary Power score (computeLinkaryPower).
   const { count: dealsCount } = await supabase
     .from("deals")
     .select("id", { count: "exact", head: true })
@@ -106,6 +106,8 @@ export async function GET(request: Request) {
     .eq("status", "completed");
   const verifiedGigs = typeof dealsCount === "number" ? dealsCount : 0;
 
+  // TODO: caseStudyDeltas from case_studies.metrics when schema defines a delta/improvement field
+  const caseStudyDeltas: number[] | undefined = undefined;
   const { score100, score1000 } = computeLinkaryPower({
     ethosScore: ethosScore ?? undefined,
     xscore: xscore ?? undefined,
@@ -114,6 +116,7 @@ export async function GET(request: Request) {
     verifiedReviewsCount: count,
     verifiedGigsCount: verifiedGigs,
     ratingAvg: count > 0 ? avg : undefined,
+    caseStudyDeltas: caseStudyDeltas ?? undefined,
   });
 
   return NextResponse.json({

@@ -7,9 +7,6 @@ import { getProfileProfessions, setProfileProfessions } from "@/lib/profileProfe
 import ProfessionSelect from "./ProfessionSelect";
 import type { Profession } from "@/lib/professions";
 
-const SITE_URL = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin) : "http://localhost:3000";
-const AUTH_CALLBACK = `${SITE_URL.replace(/\/$/, "")}/auth/callback`;
-
 const LOCATION_REGIONS = [
   "",
   "Remote",
@@ -330,11 +327,14 @@ export default function OnboardingPage({
                   setXConnecting(true);
                   try {
                     sessionStorage.setItem("linkary_oauth_next", "/onboarding");
+                    const origin = typeof window !== "undefined" ? window.location.origin : "";
+                    const safeRes = origin ? await fetch(`${origin}/api/auth/safe-redirect-url?for=callback`).catch(() => null) : null;
+                    const safeJson = safeRes?.ok ? await safeRes.json().catch(() => ({})) : null;
+                    const callbackUrl = (safeJson?.redirectUrl as string) || `${origin}/auth/callback`;
+                    const redirectTo = `${callbackUrl}?next=/onboarding`;
                     const { data, error: err } = await supabase.auth.signInWithOAuth({
                       provider: "x",
-                      options: {
-                        redirectTo: `${AUTH_CALLBACK}?next=/onboarding`,
-                      },
+                      options: { redirectTo },
                     });
                     if (err) {
                       setError(err.message);

@@ -2,6 +2,8 @@
 
 **Scope:** Full platform audit. No feature building, no refactors, no schema guessing. Only real code, schema, routes, migrations, workers, and APIs were inspected.
 
+**Post-audit:** Pre-launch fix pack (A–D) applied — see **docs/PRE_LAUNCH_FIXES.md** (verified gigs in me-stats, invite notifications, OAuth redirect allowlist, analytics init error visibility).
+
 ---
 
 ## SECTION 1 — Identity & Auth

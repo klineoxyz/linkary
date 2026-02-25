@@ -45,6 +45,7 @@ async function ensureBackfill(request: NextRequest) {
   }
 
   if (!supabaseServiceKey) {
+    console.error("[ensure-backfill] no_service_key profile_id=" + user?.id);
     return ok({ enqueued: false, reason: "no_service_key" });
   }
 
@@ -105,6 +106,7 @@ async function ensureBackfill(request: NextRequest) {
     .maybeSingle();
 
   if (profileError || !profile?.id) {
+    console.error("[ensure-backfill] profile_not_found profile_id=" + targetProfileId);
     return ok({ enqueued: false, reason: "profile_not_found" });
   }
 
@@ -146,6 +148,7 @@ async function ensureBackfill(request: NextRequest) {
 
   if (!username) {
     const hasSocialRow = socialX != null;
+    console.error("[ensure-backfill] no_x_handle profile_id=" + targetProfileId + " hasSocialRow=" + hasSocialRow);
     return ok({
       enqueued: false,
       reason: "no_x_handle",
@@ -216,6 +219,7 @@ async function ensureBackfill(request: NextRequest) {
   });
 
   if (insertErr) {
+    console.error("[ensure-backfill] insert_failed profile_id=" + profile.id, insertErr.message);
     return fail("INTERNAL", insertErr.message, 500, { enqueued: false, reason: "insert_failed" });
   }
 

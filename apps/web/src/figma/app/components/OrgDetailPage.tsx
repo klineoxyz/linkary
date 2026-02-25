@@ -20,8 +20,6 @@ import {
   listOrgAffiliations,
   listOrgAmbassadors,
   getOrgMetrics,
-  inviteAffiliateByHandle,
-  inviteAmbassadorByHandle,
   recomputeOrgMetrics,
   isOrgAdmin,
   updateOrg,
@@ -316,12 +314,24 @@ export default function OrgDetailPage({
 
   const handleInvite = async (type: "affiliate" | "ambassador") => {
     const handle = type === "affiliate" ? affiliateHandle.trim() : ambassadorHandle.trim();
-    if (!org || !userId || !handle) return;
+    if (!org || !handle) return;
     setInviteError(null);
-    const fn = type === "affiliate" ? inviteAffiliateByHandle : inviteAmbassadorByHandle;
-    const { error } = await fn(org.id, userId, handle);
-    if (error) {
-      setInviteError(error);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setInviteError("Not signed in");
+      return;
+    }
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const path = type === "affiliate" ? "affiliates" : "ambassadors";
+    const res = await fetch(`${origin}/api/orgs/${org.id}/${path}/invite`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ profile_handle: handle }),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setInviteError((out as { message?: string }).message ?? (out as { error?: string }).error ?? "Invite failed");
       return;
     }
     if (type === "affiliate") {
@@ -331,12 +341,8 @@ export default function OrgDetailPage({
       setAmbassadorHandle("");
       setAmbassadors(await listOrgAmbassadors(org.id));
     }
-    // Keep influence rollup fresh after relationship change
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      if (token && origin) {
+      if (origin) {
         await fetch(`${origin}/api/orgs/${org.id}/refresh-influence`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
       }
     } catch (_) {
@@ -1046,12 +1052,14 @@ export default function OrgDetailPage({
                           setConnectXLoading(true);
                           try {
                             const origin = typeof window !== "undefined" ? window.location.origin : "";
-                            const callback = `${origin}/auth/callback`;
+                            const safeRes = origin ? await fetch(`${origin}/api/auth/safe-redirect-url?for=callback`).catch(() => null) : null;
+                            const safeJson = safeRes?.ok ? await safeRes.json().catch(() => ({})) : null;
+                            const callbackUrl = (safeJson?.redirectUrl as string) || `${origin}/auth/callback`;
                             sessionStorage.setItem("linkary_oauth_org_id", org.id);
                             sessionStorage.setItem("linkary_oauth_next", "/dashboard");
                             const { data, error: err } = await supabase.auth.signInWithOAuth({
                               provider: "x",
-                              options: { redirectTo: callback },
+                              options: { redirectTo: callbackUrl },
                             });
                             if (err) {
                               setSettingsError(err.message);

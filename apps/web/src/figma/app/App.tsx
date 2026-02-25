@@ -1036,8 +1036,10 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
     if (n.type === "deal_delivered") return "Work delivered";
     if (n.type === "deal_accepted") return "Deal accepted";
     if (n.type === "deal_completed") return "Deal completed";
+    if (n.type === "ambassador_invite") return "Ambassador invite";
     if (n.type === "ambassador_invite_accepted") return "Ambassador joined";
     if (n.type === "ambassador_removed") return "Ambassador removed";
+    if (n.type === "affiliate_invite") return "Affiliate invite";
     if (n.type === "affiliate_invite_accepted") return "Affiliate joined";
     if (n.type === "affiliate_removed") return "Affiliate removed";
     if (n.type === "speaker_request_created") return "Speaker request";
@@ -1052,8 +1054,8 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
     if (n.type === "application_rejected" && n.payload?.org_id) return `/org/${n.payload.org_id}?tab=jobs`;
     if (n.type === "application_rejected") return "/overview";
     if (n.entity_type === "deal" && n.entity_id) return `/deal/${n.entity_id}`;
-    if (n.type === "ambassador_invite_accepted" || n.type === "ambassador_removed") return n.payload?.org_id ? `/org/${n.payload.org_id}?tab=ambassadors` : null;
-    if (n.type === "affiliate_invite_accepted" || n.type === "affiliate_removed") return n.payload?.org_id ? `/org/${n.payload.org_id}?tab=affiliates` : null;
+    if (n.type === "ambassador_invite" || n.type === "ambassador_invite_accepted" || n.type === "ambassador_removed") return (n.payload?.org_id ?? n.entity_id) ? `/org/${n.payload?.org_id ?? n.entity_id}?tab=ambassadors` : null;
+    if (n.type === "affiliate_invite" || n.type === "affiliate_invite_accepted" || n.type === "affiliate_removed") return (n.payload?.org_id ?? n.entity_id) ? `/org/${n.payload?.org_id ?? n.entity_id}?tab=affiliates` : null;
     if (n.type === "speaker_request_created" || n.type === "speaker_request_approved" || n.type === "speaker_request_rejected") return "/calendar";
     return null;
   };
@@ -2794,7 +2796,7 @@ function LinkaryAppInner() {
     const authEmail = (session.user.email ?? "").toString().trim();
     const isWalletLikeEmail = (e: string) => e.includes("@wallet.") || /^0x[a-f0-9]+@/i.test(e);
     if (authEmail && profile?.id && !isWalletLikeEmail(authEmail)) {
-      updateMyProfile(session.user.id, { email: authEmail }).catch(() => {});
+      updateMyProfile(session.user.id, { email: authEmail }).catch((err) => console.error("[AUTH] updateMyProfile email", err));
     }
     if (!profile?.onboarding_completed_at) {
       setRoute({ name: "onboarding" });
@@ -2809,7 +2811,7 @@ function LinkaryAppInner() {
       fetch(`${window.location.origin}/api/auth/ensure-social-x`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}` },
-      }).catch(() => {});
+      }).catch((err) => console.error("[ANALYTICS_INIT_FAILED] ensure-social-x", err));
       fetch(`${window.location.origin}/api/analytics/ensure-backfill`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -2830,7 +2832,10 @@ function LinkaryAppInner() {
           const bad = !res.ok || (body?.enqueued === false && ["no_service_key", "no_x_handle", "profile_not_found", "insert_failed"].includes(body?.reason));
           if (bad) setAnalyticsInitFailed(true);
         })
-        .catch(() => setAnalyticsInitFailed(true));
+        .catch((err) => {
+          console.error("[ANALYTICS_INIT_FAILED] ensure-backfill", err);
+          setAnalyticsInitFailed(true);
+        });
     }
     setAuthBootstrapped(true);
   };

@@ -3,11 +3,9 @@
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-const SITE_URL = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin) : "http://localhost:3000";
-const AUTH_CALLBACK = `${SITE_URL.replace(/\/$/, "")}/auth/callback`;
-
 /**
  * Login: X only (Supabase OAuth). CDP is not an auth method; wallet is created after login via Settings → Wallet.
+ * Uses safe-redirect-url API so redirect only targets allowlisted hosts.
  */
 export default function LoginPage({
   onLoggedIn,
@@ -23,9 +21,14 @@ export default function LoginPage({
     setError(null);
     setLoading(true);
     try {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const safeRes = origin ? await fetch(`${origin}/api/auth/safe-redirect-url?for=callback`).catch(() => null) : null;
+      const safeJson = safeRes?.ok ? await safeRes.json().catch(() => ({})) : null;
+      const callbackUrl = (safeJson?.redirectUrl as string) || `${origin}/auth/callback`;
+      const redirectTo = `${callbackUrl}?next=/overview`;
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "x",
-        options: { redirectTo: AUTH_CALLBACK, queryParams: { next: "/overview" } },
+        options: { redirectTo, queryParams: { next: "/overview" } },
       });
       if (oauthError) {
         setError(oauthError.message);

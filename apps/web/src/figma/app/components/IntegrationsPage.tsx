@@ -8,9 +8,6 @@ import { getMySocialAccountX } from "@/lib/socialAccounts";
 import { syncProfileFromX } from "@/lib/x-sync";
 import type { Profile } from "@/lib/profiles";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
-const AUTH_CALLBACK = `${SITE_URL.replace(/\/$/, "")}/auth/callback`;
-
 type RoutePayload = { name: string };
 interface IntegrationsPageProps {
   setRoute: (r: RoutePayload) => void;
@@ -79,7 +76,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
       fetch(`${base}/api/auth/ensure-social-x`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}` },
-      }).catch(() => {});
+      }).catch((err) => console.error("[ANALYTICS_INIT_FAILED] ensure-social-x", err));
     }
   }, [userId]);
 
@@ -157,7 +154,11 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
     } catch {
       /* ignore */
     }
-    const oauthOpts = { provider: "x" as const, options: { redirectTo: AUTH_CALLBACK } };
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const safeRes = origin ? await fetch(`${origin}/api/auth/safe-redirect-url?for=callback`).catch(() => null) : null;
+    const safeJson = safeRes?.ok ? await safeRes.json().catch(() => ({})) : null;
+    const callbackUrl = (safeJson?.redirectUrl as string) || `${origin}/auth/callback`;
+    const oauthOpts = { provider: "x" as const, options: { redirectTo: callbackUrl } };
     const auth = supabase.auth as { linkIdentity: (opts: { provider: string; options?: { redirectTo?: string } }) => Promise<{ data: { url?: string }; error: { message: string } | null }> };
     const result = await auth.linkIdentity(oauthOpts);
     const data = result.data;

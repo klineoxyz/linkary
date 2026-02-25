@@ -1169,7 +1169,7 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
           <ProfileAvatar handle={me?.twitter_username || handle} alt={displayName} className="h-9 w-9 rounded-full shrink-0" fallbackGradient="from-primary to-primary/80" avatarUrl={me?.avatar_url} />
           <div className="hidden md:block min-w-0">
             <p className="text-sm font-medium leading-none text-zinc-900 truncate">{displayName}</p>
-            <span className="text-xs text-zinc-600 truncate block">{handle ? `${handle}@linkary.xyz` : "linkary.xyz"}</span>
+            <span className="text-xs text-zinc-800 truncate block">{handle ? `${handle}@linkary.xyz` : "linkary.xyz"}</span>
           </div>
         </div>
       </div>
@@ -2518,7 +2518,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                 <span className="text-lg font-semibold text-zinc-900 truncate">{u.name}</span>
                 {u.verified && <BadgeCheck className="h-5 w-5 text-primary stroke-[1.75]" />}
               </div>
-              <p className="text-sm text-zinc-600 truncate">@{u.handle} · {u.location}</p>
+              <p className="text-sm text-zinc-800 truncate">@{u.handle} · {u.location}</p>
             </div>
           </div>
 
@@ -2532,16 +2532,16 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           <div className="mt-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Stars value={u.reviews.avg} />
-              <span className="text-xs text-zinc-600">{u.reviews.avg} ({u.reviews.count})</span>
+              <span className="text-xs text-zinc-800 font-medium">{u.reviews.avg} ({u.reviews.count})</span>
             </div>
-            <div className="text-xs text-zinc-600">{formatMoneyEUR(u.volume.current)} volume</div>
+            <div className="text-xs text-zinc-800 font-medium">{formatMoneyEUR(u.volume.current)} volume</div>
           </div>
 
-          <p className="mt-4 text-sm text-zinc-600 leading-relaxed">{u.bio}</p>
+          <p className="mt-4 text-sm text-zinc-800 leading-relaxed">{u.bio}</p>
 
           {/* Role Tags */}
           <div className="mt-4">
-            <div className="text-xs font-medium text-zinc-500 mb-2">Roles</div>
+            <div className="text-xs font-medium text-zinc-700 mb-2">Roles</div>
             <div className="flex flex-wrap gap-2">
               {(u.roleTags ?? []).map((role) => (
                 <span key={role} className="rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-800">
@@ -2554,7 +2554,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           {/* Ambassador Of */}
           {u.ambassadorOf && u.ambassadorOf.length > 0 && (
             <div className="mt-4">
-              <div className="text-xs font-medium text-zinc-500 mb-2">Ambassador Of</div>
+              <div className="text-xs font-medium text-zinc-700 mb-2">Ambassador Of</div>
               <div className="flex flex-wrap gap-2">
                 {u.ambassadorOf.map((proj) => (
                   <span key={proj} className="rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-800">
@@ -2568,7 +2568,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           {/* Partnerships */}
           {u.partnerships && u.partnerships.length > 0 && (
             <div className="mt-4">
-              <div className="text-xs font-medium text-zinc-500 mb-2">Partnerships</div>
+              <div className="text-xs font-medium text-zinc-700 mb-2">Partnerships</div>
               <div className="space-y-2">
                 {u.partnerships.map((p) => (
                   <div key={p.name} className="relative overflow-hidden rounded-lg border-0 px-4 py-3 bg-cover bg-center" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)' }}>
@@ -2597,7 +2597,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                   <ExternalLink className="h-4 w-4 text-primary stroke-[1.75]" />
                   <span className="truncate font-medium text-zinc-900">{l.label}</span>
                 </div>
-                <span className="text-xs text-zinc-600">{l.clicks.toLocaleString()}</span>
+                <span className="text-xs text-zinc-800 font-medium">{l.clicks.toLocaleString()}</span>
               </div>
             ))}
           </div>
@@ -2609,14 +2609,14 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           {u.featuredWork && u.featuredWork.length > 0 && (
             <Card>
               <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold" style={{ color: '#000000' }}>Featured Work</h3>
-                <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "overview" })}>Add</Button>
+                <h3 className="font-semibold text-zinc-900">Featured Work</h3>
+                <Button variant="outline" size="sm" className="text-zinc-900" onClick={() => setRoute({ name: "overview" })}>Add</Button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {u.featuredWork.map((work, idx) => (
-                  <div key={idx} className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300">
-                    <p className="font-semibold" style={{ color: '#000000' }}>{work.title}</p>
-                    <div className="mt-2 flex items-center gap-1 text-xs" style={{ color: '#404040' }}>
+                  <div key={idx} className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 hover:bg-zinc-100 transition-colors">
+                    <p className="font-semibold text-zinc-900">{work.title}</p>
+                    <div className="mt-2 flex items-center gap-1 text-xs text-zinc-800">
                       <Eye className="h-3 w-3 stroke-[1.75]" />
                       {work.views.toLocaleString()} views
                     </div>
@@ -2631,26 +2631,25 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             <Card>
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="font-semibold" style={{ color: '#000000' }}>Upcoming Events</h3>
-                  <p className="mt-1 text-sm" style={{ color: '#1a1a1a' }}>X Spaces and podcasts</p>
+                  <h3 className="font-semibold text-zinc-900">Upcoming Events</h3>
+                  <p className="mt-1 text-sm text-zinc-800">X Spaces and podcasts</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setRoute({ name: "overview" })} style={{ color: '#000000' }}>
+                <Button variant="outline" size="sm" className="text-zinc-900" onClick={() => setRoute({ name: "overview" })}>
                   View All
                 </Button>
               </div>
               <div className="space-y-3">
                 {u.upcomingEvents.map((e) => (
-                  <div key={e.id} className="rounded-lg border border-border bg-card bg-accent backdrop-blur-xl p-3 hover:border-border transition-all duration-300">
+                  <div key={e.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 hover:bg-zinc-100 transition-colors">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={cn(
-                        "rounded-full border px-2.5 py-1 text-xs backdrop-blur-xl",
-                        e.type === "X Space" ? "border-border bg-accent text-primary" : "border-border bg-accent text-primary"
+                        "rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
                       )}>
                         {e.type}
                       </span>
-                      <span className="text-xs" style={{ color: '#666666' }}>{e.date}</span>
+                      <span className="text-xs text-zinc-700">{e.date}</span>
                     </div>
-                    <p className="font-semibold" style={{ color: '#000000' }}>{e.title}</p>
+                    <p className="font-semibold text-zinc-900">{e.title}</p>
                   </div>
                 ))}
               </div>
@@ -2660,42 +2659,42 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           {/* Case Studies */}
           <Card>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold" style={{ color: '#000000' }}>Case Studies</h3>
+              <h3 className="font-semibold text-zinc-900">Case Studies</h3>
               {isMyProfile && (
-                <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setShowCaseStudyModal(true)}>Add New</Button>
+                <Button variant="outline" size="sm" className="text-zinc-900" onClick={() => setShowCaseStudyModal(true)}>Add New</Button>
               )}
               {!isMyProfile && caseStudies.length === 0 && u.caseStudies?.length === 0 && (
-                <span className="text-xs text-zinc-500">No case studies yet</span>
+                <span className="text-xs text-zinc-700">No case studies yet</span>
               )}
             </div>
             <div className="space-y-3">
               {(displayCaseStudies ?? []).map((cs) => (
-                <div key={cs.id} className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300">
+                <div key={cs.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 hover:bg-zinc-100 transition-colors">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold" style={{ color: '#000000' }}>{cs.title ?? cs.projectName}</span>
+                        <span className="font-semibold text-zinc-900">{cs.title ?? cs.projectName}</span>
                         {cs.verified && <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />}
                       </div>
-                      {cs.role != null && <p className="mt-1 text-xs" style={{ color: '#404040' }}>{cs.role}{cs.duration ? ` · ${cs.duration}` : ""}</p>}
-                      {cs.description && <p className="mt-1 text-sm" style={{ color: '#404040' }}>{cs.description}</p>}
+                      {cs.role != null && <p className="mt-1 text-xs text-zinc-800">{cs.role}{cs.duration ? ` · ${cs.duration}` : ""}</p>}
+                      {cs.description && <p className="mt-1 text-sm text-zinc-800">{cs.description}</p>}
                     </div>
                     {cs.proof_url && (
-                      <a href={cs.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary">Proof</a>
+                      <a href={cs.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary">Proof</a>
                     )}
                   </div>
                   {cs.results && (
-                    <div className="rounded-lg border border-border bg-muted p-3">
+                    <div className="rounded-lg border border-zinc-200 bg-white p-3">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-primary stroke-[1.75]" />
-                        <span className="text-sm font-semibold" style={{ color: '#000000' }}>
+                        <span className="text-sm font-semibold text-zinc-900">
                           {cs.results.metric}: <span className="text-primary">{cs.results.value}</span>
                         </span>
                       </div>
                     </div>
                   )}
                   {cs.testimonial && (
-                    <div className="mt-3 border-l-2 border-primary/50 pl-3 text-sm italic text-zinc-400">
+                    <div className="mt-3 border-l-2 border-primary/50 pl-3 text-sm italic text-zinc-700">
                       "{cs.testimonial}"
                     </div>
                   )}
@@ -2708,19 +2707,19 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           <Card className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-zinc-900">Discover people</h3>
-              <p className="mt-1 text-xs text-zinc-500">Search and open other profiles&apos; insights</p>
+              <p className="mt-1 text-xs text-zinc-700">Search and open other profiles&apos; insights</p>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600" />
               <input
                 type="text"
                 value={profileSearchQuery}
                 onChange={(e) => setProfileSearchQuery(e.target.value)}
                 placeholder="Search by name or handle..."
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-900 placeholder:text-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-900 placeholder:text-zinc-600 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
               />
               {profileSearchLoading && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500">Searching…</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-700 font-medium">Searching…</span>
               )}
             </div>
             {profileSearchResults.length > 0 && (
@@ -2738,14 +2737,14 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                           <img src={r.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
                         ) : (
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-200">
-                            <Users className="h-4 w-4 text-zinc-500" />
+                            <Users className="h-4 w-4 text-zinc-600" />
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-zinc-900">{r.name || username || "—"}</p>
-                          <p className="truncate text-xs text-zinc-500">{username ? `@${username}` : "—"}</p>
+                          <p className="truncate text-xs text-zinc-700">{username ? `@${username}` : "—"}</p>
                         </div>
-                        <ArrowRight className="h-4 w-4 shrink-0 text-zinc-400" />
+                        <ArrowRight className="h-4 w-4 shrink-0 text-zinc-600" />
                       </button>
                     </li>
                   );
@@ -2753,7 +2752,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
               </ul>
             )}
             {profileSearchQuery.trim().length >= 2 && !profileSearchLoading && profileSearchResults.length === 0 && (
-              <p className="mt-3 text-xs text-zinc-500">No people found. Try a different search.</p>
+              <p className="mt-3 text-xs text-zinc-700">No people found. Try a different search.</p>
             )}
           </Card>
 
@@ -2776,40 +2775,40 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           <Card>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="font-semibold" style={{ color: '#000000' }}>Reviews</h3>
-                <p className="mt-1 text-sm" style={{ color: '#1a1a1a' }}>
+                <h3 className="font-semibold text-zinc-900">Reviews</h3>
+                <p className="mt-1 text-sm text-zinc-800">
                   Received: {u.reviews.count} · Given: {u.reviews?.given ?? 0}
                 </p>
               </div>
-              <Button variant="outline" size="sm" style={{ color: '#000000' }} onClick={() => setRoute({ name: "overview" })}>Leave Review</Button>
+              <Button variant="outline" size="sm" className="text-zinc-900" onClick={() => setRoute({ name: "overview" })}>Leave Review</Button>
             </div>
             <div className="space-y-3">
               {(u.reviews?.items ?? []).map((r, idx) => (
-                <div key={idx} className="rounded-lg border border-border bg-accent backdrop-blur-xl p-4 hover:border-border transition-all duration-300">
+                <div key={idx} className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 hover:bg-zinc-100 transition-colors">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold" style={{ color: '#000000' }}>{r.by}</span>
-                        <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
+                        <span className="font-semibold text-zinc-900">{r.by}</span>
+                        <span className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-800">
                           {r.byType}
                         </span>
                         {r.verifiedDeal && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-accent px-2 py-0.5 text-xs text-primary backdrop-blur-xl">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                             <BadgeCheck className="h-3 w-3 stroke-[1.75]" /> Verified Deal
                           </span>
                         )}
                       </div>
                       <div className="mt-1 flex items-center gap-2">
                         <Stars value={r.rating} />
-                        <span className="text-xs" style={{ color: '#666666' }}>{r.date}</span>
+                        <span className="text-xs text-zinc-700">{r.date}</span>
                       </div>
                     </div>
                   </div>
-                  <p className="font-semibold" style={{ color: '#000000' }}>{r.title}</p>
-                  <p className="mt-1 text-sm" style={{ color: '#404040' }}>{r.text}</p>
+                  <p className="font-semibold text-zinc-900">{r.title}</p>
+                  <p className="mt-1 text-sm text-zinc-800 leading-relaxed">{r.text}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(r.tags ?? []).map((t) => (
-                      <span key={t} className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
+                      <span key={t} className="rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-800">
                         {t}
                       </span>
                     ))}

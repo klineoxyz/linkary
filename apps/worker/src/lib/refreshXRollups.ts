@@ -91,7 +91,12 @@ export async function refreshXRollupsForProfile(
     const avgReplies = posts > 0 ? totalReplies / posts : 0;
     const engagementRate = posts > 0 ? (totalEngagement / posts) : 0;
     const totalReposts = list.reduce((s, t) => s + (t.repost_count ?? 0), 0);
-    const reachProxy = Math.round(totalLikes + totalReplies + totalReposts);
+    const totalEngagementCount = Math.round(totalLikes + totalReplies + totalReposts);
+    // Potential reach: estimated unique accounts that could see content; cap at followers (industry practice).
+    const reachProxy =
+      followersTotal != null && followersTotal > 0
+        ? Math.min(followersTotal, totalEngagementCount)
+        : totalEngagementCount;
 
     rollup["posts_" + days + "d"] = posts;
     rollup["avg_likes_" + days + "d"] = Math.round(avgLikes * 100) / 100;

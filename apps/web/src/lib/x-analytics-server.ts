@@ -187,7 +187,11 @@ export async function computeAndUpsertRollups(
     );
     const engagementRate =
       followersTotal > 0 ? (engagementScoreSum / n / followersTotal) * 100 : 0;
-    const reachProxy = Math.round(followersTotal * (engagementRate / 100) * 1.5); // simple multiplier
+    // Potential reach: followers × engagement rate, capped at followers (industry: reach ≤ audience).
+    const reachProxy = Math.min(
+      followersTotal,
+      Math.round(followersTotal * (engagementRate / 100))
+    );
     return {
       posts: n,
       avgLikes,

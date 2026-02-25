@@ -1085,7 +1085,7 @@ export default function OrgDetailPage({
                             const reach = snap.reach_proxy_30d != null ? String(snap.reach_proxy_30d) : "—";
                             return (
                               <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                                Shared analytics: 30d posts {posts} · avg likes {likes} · reach proxy {reach}
+                                Shared analytics: 30d posts {posts} · avg likes {likes} · potential reach {reach}
                               </div>
                             );
                           })()}

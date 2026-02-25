@@ -397,7 +397,7 @@ export default function AnalyticsTabContent({
           icon={Twitter}
         />
         <KPICard
-          label="Reach Proxy"
+          label="Potential Reach"
           value={xAnalytics.reachProxy}
           delta={xAnalytics.reachGrowth}
           signal="good"

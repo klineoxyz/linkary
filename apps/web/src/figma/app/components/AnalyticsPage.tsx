@@ -554,7 +554,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     },
     {
       id: "reach",
-      label: "Reach Proxy",
+      label: "Potential Reach",
       value: xAnalyticsData
         ? (reachProxyByPeriod >= 1e6 ? `${(reachProxyByPeriod / 1e6).toFixed(1)}M` : reachProxyByPeriod >= 1e3 ? `${(reachProxyByPeriod / 1e3).toFixed(1)}K` : String(Math.round(reachProxyByPeriod)))
         : "—",
@@ -562,7 +562,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       delta30D: reachDelta30 ?? 0,
       delta90D: reachDelta90 ?? 0,
       signal: "good",
-      insight: rollup ? "Engagement-based proxy (likes + replies + reposts), not total reach. From rollup for selected period." : "Sync from Integrations to see trends",
+      insight: rollup ? "Estimated unique accounts that could see your content; capped at follower count. From rollup for selected period." : "Sync from Integrations to see trends",
       sparklineData: undefined,
       sinceJoining: baseline && baselineReach30 > 0 ? pctSince(reachProxyByPeriod, baselineReach30) : undefined,
     },

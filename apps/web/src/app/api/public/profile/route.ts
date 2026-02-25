@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
 
   const dto = entityToPublicDTO(entity);
 
-  const ownerId = entity.type === "profile" ? entity.profile?.id : entity.org?.id";
+  const ownerId = entity.type === "profile" ? entity.profile?.id : entity.org?.id;
   const revieweeType = entity.type === "profile" ? "profile" : "org";
   const revieweeIdCol = entity.type === "profile" ? "reviewee_profile_id" : "reviewee_org_id";
 

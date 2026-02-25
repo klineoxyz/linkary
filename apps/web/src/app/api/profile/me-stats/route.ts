@@ -99,6 +99,8 @@ export async function GET(request: Request) {
     : 0;
 
   // Verified gigs: completed deals where creator = me. Affects Linkary Power score (computeLinkaryPower).
+  // Manual verification: SELECT COUNT(*) FROM deals WHERE profile_id = '<user_id>' AND status = 'completed';
+  // Expected: verifiedGigsCount in response matches that count; reputationIndex/socialPower increase when count increases. No double counting (one row per deal).
   const { count: dealsCount } = await supabase
     .from("deals")
     .select("id", { count: "exact", head: true })

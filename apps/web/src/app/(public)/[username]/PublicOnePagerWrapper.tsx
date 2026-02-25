@@ -102,6 +102,7 @@ export function PublicOnePagerWrapper({
         });
         const body = await res.json().catch(() => ({}));
         if (isEnsureBackfillFailure(res, body)) {
+          console.error("[ANALYTICS_INIT_FAILED] ensure-backfill (PublicOnePager)", res.status, body);
           setEnsureBackfillFailed(true);
           ensureBackfillCalled.current = false;
           return;
@@ -109,7 +110,8 @@ export function PublicOnePagerWrapper({
         if (typeof localStorage !== "undefined") {
           localStorage.setItem(ENSURE_BACKFILL_COOLDOWN_KEY, String(Date.now()));
         }
-      } catch {
+      } catch (err) {
+        console.error("[ANALYTICS_INIT_FAILED] ensure-backfill (PublicOnePager)", err);
         setEnsureBackfillFailed(true);
         ensureBackfillCalled.current = false;
       }

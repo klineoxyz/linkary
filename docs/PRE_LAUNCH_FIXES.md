@@ -6,8 +6,8 @@ Applied fixes from `PLATFORM_AUDIT_A_TO_Z.md` for controlled beta launch.
 
 ## A) Verified gigs in Linkary score (me-stats)
 
-- **Done:** `GET /api/profile/me-stats` already computed `verifiedGigsCount` (deals where `profile_id = user.id` and `status = 'completed'`) and passed it into `computeLinkaryPower`. Response includes `verifiedGigsCount` for debugging/UI.
-- **Optional:** `caseStudyDeltas` is left as TODO in me-stats (no schema for case_studies.metrics delta yet); comment added in code.
+- **Done:** `GET /api/profile/me-stats` computes `verifiedGigsCount` (deals where `profile_id = user.id` and `status = 'completed'`) and passes it into `computeLinkaryPower`. Response includes `verifiedGigsCount`. In-code comment documents manual verification query and expected behavior (no double counting).
+- **Optional:** `caseStudyDeltas` is left as TODO in me-stats (no schema for case_studies.metrics delta yet).
 - **Acceptance:** Completing a deal increases Linkary Power in me-stats; no double counting; response includes `verifiedGigsCount`.
 
 ---
@@ -29,8 +29,10 @@ Applied fixes from `PLATFORM_AUDIT_A_TO_Z.md` for controlled beta launch.
 - **Done:**
   - **GET /api/auth/safe-redirect-url** — query params: `?next=/path` (post-login destination) or `?for=callback` (OAuth callback URL). Returns `{ redirectUrl }` with host taken from **AUTH_REDIRECT_ALLOWLIST** (comma-separated hostnames) or, if empty/invalid, from **NEXT_PUBLIC_SITE_URL** or fallback `https://www.linkary.xyz`. Never uses client-supplied host.
   - **Auth callback** (`/auth/callback`): Builds post-login redirect by calling the safe-redirect API with `next=...` and uses the returned `redirectUrl` for all redirects.
-  - **OAuth initiation:** LoginPage, OnboardingPage, OrgDetailPage (connect X), IntegrationsPage now fetch `/api/auth/safe-redirect-url?for=callback` and use the returned URL as `redirectTo` for `signInWithOAuth` / `linkIdentity`.
-- **Env:** For production set `AUTH_REDIRECT_ALLOWLIST=linkary.xyz,www.linkary.xyz` (and any Vercel preview host if needed). For local dev add `localhost,localhost:3000` or rely on `NEXT_PUBLIC_SITE_URL` if it is in the allowlist (or set allowlist to include your local host).
+  - **OAuth initiation:** Production entry points (figma LoginPage, OnboardingPage, OrgDetailPage connect X, IntegrationsPage) fetch `/api/auth/safe-redirect-url?for=callback` and use the returned URL as `redirectTo`. Production app is `AppWithProviders` → LinkaryApp (figma), so these are the live paths.
+- **Required env (document for deploy):**
+  - **AUTH_REDIRECT_ALLOWLIST** — Comma-separated hostnames allowed for OAuth and post-login redirect. Example: `linkary.xyz,www.linkary.xyz,linkary.vercel.app`. If unset or host not in list, fallback is **NEXT_PUBLIC_SITE_URL** (if valid) or `https://www.linkary.xyz`.
+  - **Local dev:** Add `localhost,localhost:3000` to the allowlist or set **NEXT_PUBLIC_SITE_URL** to `http://localhost:3000` and ensure that host is allowlisted.
 - **Acceptance:** OAuth redirect only targets allowlisted hosts; misconfigured origin does not redirect users off-domain; login works in dev and prod when env is set.
 
 ---
@@ -38,11 +40,12 @@ Applied fixes from `PLATFORM_AUDIT_A_TO_Z.md` for controlled beta launch.
 ## D) Remove silent analytics init failures
 
 - **Done:**
-  - **Auth callback:** Replaced `.catch(() => {})` on post-login-bootstrap and refresh-scores with `console.error("[AUTH] post-login-bootstrap failed", err)` and `console.error("[ANALYTICS_INIT_FAILED] refresh-scores", err)`. ensure-backfill failures now log `[ANALYTICS_INIT_FAILED] ensure-backfill` with status and body. When showing the analytics_failed state, the message includes the API `reason` or `message` when present. **handleRetryAnalytics** shows the API error message (or rate limit message) on retry failure.
+  - **Auth callback:** Replaced `.catch(() => {})` on post-login-bootstrap and refresh-scores with `console.error(...)`. ensure-backfill failures log `[ANALYTICS_INIT_FAILED] ensure-backfill` with status and body. analytics_failed message includes API `reason`/`message`; **handleRetryAnalytics** shows error or RATE_LIMITED message.
   - **ensure-backfill route:** Server logs `[ensure-backfill]` with `profile_id` and reason when returning `no_service_key`, `profile_not_found`, `no_x_handle`, or `insert_failed`.
-  - **Figma App.tsx:** ensure-social-x and ensure-backfill fetches now use `.catch((err) => console.error("[ANALYTICS_INIT_FAILED] ...", err))` (and ensure-backfill still sets `setAnalyticsInitFailed(true)`).
+  - **Figma App.tsx:** ensure-social-x and ensure-backfill use `.catch((err) => console.error("[ANALYTICS_INIT_FAILED] ...", err))`.
   - **IntegrationsPage:** ensure-social-x fetch logs on catch.
-- **Acceptance:** No swallowed analytics init errors; failures visible in console and in UI (analytics_failed message and retry error); RATE_LIMITED + resetAt behavior unchanged.
+  - **PublicOnePagerWrapper** (production public profile): ensure-backfill failure and catch now call `console.error("[ANALYTICS_INIT_FAILED] ensure-backfill (PublicOnePager)", ...)` so production profile view does not swallow errors.
+- **Acceptance:** No swallowed analytics init errors; failures visible in console and in UI; RATE_LIMITED + resetAt behavior unchanged.
 
 ---
 

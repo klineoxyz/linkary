@@ -399,12 +399,12 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
       )}
 
       {isOwn && me?.twitter_username?.trim() && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm text-foreground">
           <button
             type="button"
             onClick={handleRefreshInsights}
             disabled={refreshDisabled}
-            className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-semibold text-foreground hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {refreshLoading ? "Refreshing…" : isRefreshRateLimited ? "Rate limited" : isRefreshCooldown ? "Refresh (cooldown)" : "Refresh insights"}
           </button>
@@ -420,6 +420,7 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className={island}>
           <ScoreCard
+            variant="light"
             reputationIndex={reputationIndex}
             tierLabel={tierLabel}
             breakdown={breakdown}
@@ -429,6 +430,7 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
         </div>
         <div className={island}>
           <TopFollowersCard
+            variant="light"
             tabs={[{ id: "influencers", label: "Influencers" }, { id: "projects", label: "Projects" }, { id: "funds", label: "Funds" }]}
             activeTab={topFollowersTab}
             onTabChange={setTopFollowersTab}
@@ -446,6 +448,7 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className={island}>
           <SocialGraphCard
+            variant="light"
             data={chartData}
             seriesEnabled={graphSeries}
             onToggleSeries={(key) => setGraphSeries((prev) => ({ ...prev, [key]: !prev[key] }))}
@@ -496,10 +499,11 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
       {/* Row 3: Affiliated Accounts | Recommended Accounts */}
       <div className="grid gap-6 lg:grid-cols-2">
         <div className={island}>
-          <AffiliatedAccountsCard accounts={insights?.affiliatedAccounts ?? []} emptyMessage="Nothing here yet" />
+          <AffiliatedAccountsCard variant="light" accounts={insights?.affiliatedAccounts ?? []} emptyMessage="Nothing here yet" />
         </div>
         <div className={island}>
           <RecommendedAccountsCard
+            variant="light"
             accounts={recommended}
             onAccountClick={(u) => setRoute({ name: "profile", data: { username: u, tab: "insights" } })}
             emptyMessage="Nothing here yet"

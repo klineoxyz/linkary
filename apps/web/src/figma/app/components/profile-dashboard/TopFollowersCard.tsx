@@ -38,6 +38,8 @@ export interface TopFollowersCardProps {
   /** Phase 7: cache status and last updated */
   cacheStatus?: "hit" | "miss" | "stale";
   updatedAt?: string | null;
+  /** Use "light" on light page backgrounds so text is readable */
+  variant?: "light" | "dark";
 }
 
 export function TopFollowersCard({
@@ -50,7 +52,9 @@ export function TopFollowersCard({
   emptyMessage = "Nothing here yet",
   cacheStatus,
   updatedAt,
+  variant = "dark",
 }: TopFollowersCardProps) {
+  const isLight = variant === "light";
   const statusLine =
     cacheStatus === "stale"
       ? "Data is stale, refreshing soon"
@@ -61,9 +65,15 @@ export function TopFollowersCard({
           : null;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/8 to-white/[0.03] p-6">
+    <div
+      className={
+        isLight
+          ? "rounded-2xl border border-border bg-card p-6"
+          : "rounded-2xl border border-white/10 bg-gradient-to-br from-white/8 to-white/[0.03] p-6"
+      }
+    >
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white/90">Top followers</h3>
+        <h3 className={isLight ? "text-sm font-semibold text-foreground" : "text-sm font-semibold text-white/90"}>Top followers</h3>
         {onSeeAll && (
           <button
             type="button"
@@ -75,17 +85,25 @@ export function TopFollowersCard({
         )}
       </div>
       {(sampleLabel || statusLine) && (
-        <p className="mt-1 text-xs text-white/50">{statusLine ?? sampleLabel}</p>
+        <p className={isLight ? "mt-1 text-xs font-medium text-foreground" : "mt-1 text-xs text-white/50"}>
+          {statusLine ?? sampleLabel}
+        </p>
       )}
-      <div className="mt-3 flex gap-2 border-b border-white/10 pb-2">
+      <div className={`mt-3 flex gap-2 border-b pb-2 ${isLight ? "border-border" : "border-white/10"}`}>
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => onTabChange(tab.id)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              activeTab === tab.id ? "bg-primary/20 text-primary" : "text-white/60 hover:bg-white/10"
-            }`}
+            className={
+              isLight
+                ? `rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                    activeTab === tab.id ? "bg-primary/20 text-primary" : "text-foreground hover:bg-secondary"
+                  }`
+                : `rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                    activeTab === tab.id ? "bg-primary/20 text-primary" : "text-white/60 hover:bg-white/10"
+                  }`
+            }
           >
             {tab.label}
           </button>
@@ -93,7 +111,9 @@ export function TopFollowersCard({
       </div>
       <div className="mt-3 space-y-2">
         {items.length === 0 ? (
-          <p className="py-4 text-center text-xs text-white/50">{emptyMessage}</p>
+          <p className={isLight ? "py-4 text-center text-xs font-medium text-foreground" : "py-4 text-center text-xs text-white/50"}>
+            {emptyMessage}
+          </p>
         ) : (
           items.slice(0, 5).map((item) => {
             const safeAvatar = item.avatar_url && !isPrivateStorageUrl(item.avatar_url)
@@ -102,21 +122,25 @@ export function TopFollowersCard({
             return (
               <div
                 key={item.username}
-                className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2"
+                className={`flex items-center gap-3 rounded-xl px-3 py-2 ${isLight ? "bg-secondary border border-border" : "bg-white/5"}`}
               >
                 {safeAvatar ? (
                   <img src={safeAvatar} alt="" className="h-8 w-8 rounded-lg object-cover" />
                 ) : (
-                  <div className="h-8 w-8 rounded-lg bg-white/10" />
+                  <div className={`h-8 w-8 rounded-lg ${isLight ? "bg-muted" : "bg-white/10"}`} />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-white/90">
+                  <p className={isLight ? "truncate text-sm font-medium text-foreground" : "truncate text-sm font-medium text-white/90"}>
                     {item.display_name || `@${item.username.replace(/^@/, "")}`}
                   </p>
-                  <p className="truncate text-xs text-white/50">@{item.username.replace(/^@/, "")}</p>
+                  <p className={isLight ? "truncate text-xs font-medium text-foreground" : "truncate text-xs text-white/50"}>
+                    @{item.username.replace(/^@/, "")}
+                  </p>
                 </div>
                 {item.followers != null && (
-                  <span className="text-xs text-white/50">{item.followers.toLocaleString()} followers</span>
+                  <span className={isLight ? "text-xs font-medium text-foreground" : "text-xs text-white/50"}>
+                    {item.followers.toLocaleString()} followers
+                  </span>
                 )}
               </div>
             );

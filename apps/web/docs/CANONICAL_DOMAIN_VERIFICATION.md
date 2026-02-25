@@ -1,6 +1,8 @@
 # Canonical domain verification
 
-**Canonical host:** `linkary.xyz` (apex, no www). All traffic from `www.linkary.xyz` is redirected with **308** to the apex so auth session cookies work on a single host.
+**Canonical host:** `linkary.xyz` (apex, no www). Auth and redirect URLs use this host so session cookies work on a single host.
+
+**Important:** Do not redirect www → apex in Next.js middleware if your host (e.g. Vercel) redirects apex → www, or you will get an **ERR_TOO_MANY_REDIRECTS** loop. Configure the host instead (see below).
 
 ## Verification steps (PR / deploy)
 
@@ -26,6 +28,7 @@
 - **NEXT_PUBLIC_SITE_URL**: set to `https://linkary.xyz` (no trailing slash). Used for auth callback and redirects.
 - **Supabase Dashboard → Auth → URL configuration**: Site URL = `https://linkary.xyz`; Redirect URLs include `https://linkary.xyz/auth/callback` and `https://linkary.xyz/**`.
 - **AUTH_REDIRECT_ALLOWLIST** (optional): include `linkary.xyz` so safe-redirect-url allows the canonical host. If unset, fallback is `https://linkary.xyz`.
+- **Vercel Domains** (to avoid redirect loops): Set **linkary.xyz** as the primary domain (no redirect). Add **www.linkary.xyz** and set it to **Redirect to linkary.xyz**. Do not set "Redirect linkary.xyz to www" or you will get ERR_TOO_MANY_REDIRECTS when middleware was also redirecting www → apex.
 
 ## Why apex (no www)
 

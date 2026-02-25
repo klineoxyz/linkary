@@ -1,33 +1,16 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-/** Canonical host: apex (no www). Auth cookies are set on this host so session works everywhere. */
-const CANONICAL_APEX = "linkary.xyz";
-
 /**
- * 1) Enforce canonical domain: redirect www to apex (308) so auth session works.
- *    Session cookies are scoped to the host; www and apex are different, so we use one host only.
- * 2) Redirect /@username to /username (canonical public profile path).
+ * Redirect /@username to /username (canonical public profile path).
+ *
+ * Canonical domain (www → apex): Do NOT redirect www in middleware here to avoid redirect loops
+ * when the host (e.g. Vercel) redirects apex → www. Configure your host instead:
+ * - Vercel: Domains → set linkary.xyz as primary; add www.linkary.xyz with "Redirect to linkary.xyz".
+ * - Set NEXT_PUBLIC_SITE_URL=https://linkary.xyz so auth and safe-redirect use apex.
  */
 export function middleware(request: NextRequest) {
   const url = request.nextUrl;
-  const hostname = (url.hostname ?? request.headers.get("host") ?? "").toLowerCase().split(":")[0];
-
-  // Redirect www to apex for our production domain only (skip localhost / 127.0.0.1)
-  if (
-    hostname !== "localhost" &&
-    hostname !== "127.0.0.1" &&
-    hostname === `www.${CANONICAL_APEX}`
-  ) {
-    const canonicalUrl = new URL(url);
-    canonicalUrl.host = CANONICAL_APEX;
-    canonicalUrl.protocol = url.protocol || "https:";
-    return NextResponse.redirect(canonicalUrl, 308);
-  }
-
-  // Optional: redirect non-canonical production host to apex (e.g. vercel.app -> linkary.xyz when we want one domain)
-  // Not applied here so preview deployments still work; set NEXT_PUBLIC_APP_URL / Vercel prod domain to linkary.xyz.
-
   const pathname = url.pathname;
   const segments = pathname.split("/").filter(Boolean);
   if (segments.length === 1 && segments[0].startsWith("@")) {

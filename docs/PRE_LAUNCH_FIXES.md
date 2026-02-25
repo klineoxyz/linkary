@@ -2,12 +2,14 @@
 
 Applied fixes from `PLATFORM_AUDIT_A_TO_Z.md` for controlled beta launch.
 
+**Post–fix pack hardening:** See **docs/PLATFORM_AUDIT_A_TO_Z_FINAL.md** (production app shell, supporters policy, connection rate limits, safe-redirect `next` hardening, media sweep, notification dedup, ensure-backfill rate limit 20/10min). **docs/LAUNCH_RISK_CHECKLIST.md** — short actionable checklist and env requirements.
+
 ---
 
 ## A) Verified gigs in Linkary score (me-stats)
 
 - **Done:** `GET /api/profile/me-stats` computes `verifiedGigsCount` (deals where `profile_id = user.id` and `status = 'completed'`) and passes it into `computeLinkaryPower`. Response includes `verifiedGigsCount`. In-code comment documents manual verification query and expected behavior (no double counting).
-- **Optional:** `caseStudyDeltas` is left as TODO in me-stats (no schema for case_studies.metrics delta yet).
+- **Optional:** `caseStudyDeltas` not implemented (no schema for numeric case study deltas); comment in me-stats and **docs/PLATFORM_AUDIT_A_TO_Z_FINAL.md**.
 - **Acceptance:** Completing a deal increases Linkary Power in me-stats; no double counting; response includes `verifiedGigsCount`.
 
 ---

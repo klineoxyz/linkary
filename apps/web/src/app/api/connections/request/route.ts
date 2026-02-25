@@ -1,13 +1,16 @@
 /**
  * POST /api/connections/request
  * Send a connection request (individual only). Requires requester_follow_attested: true.
+ * Rate limit: 20 requests per day per profile. requester !== recipient; duplicate pending prevented.
  */
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
 
 function norm(s: string): string {
   return s.trim().toLowerCase().replace(/^@/, "");
@@ -51,6 +54,19 @@ export async function POST(request: NextRequest) {
   const accountType = (myProfile as { account_type?: string } | null)?.account_type ?? null;
   if (accountType === "company") {
     return fail("FORBIDDEN", "Company accounts cannot send connection requests", 403);
+  }
+
+  if (serviceKey && supabaseUrl) {
+    const service = createClient(supabaseUrl, serviceKey);
+    const rl = await rateLimit({
+      key: `connections/request:u:${user.id}`,
+      limit: 20,
+      windowSeconds: 86400,
+      supabaseAdmin: service,
+    });
+    if (!rl.allowed) {
+      return fail("RATE_LIMITED", "Too many connection requests. Try again later.", 429, { resetAt: rl.resetAt });
+    }
   }
 
   const { data: recipient } = await supabase

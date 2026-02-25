@@ -1,13 +1,16 @@
 /**
  * POST /api/connections/respond
  * Accept or decline a connection request (recipient only). Accept requires recipient_followback_attested: true.
+ * Rate limit: 20 per day per profile. Only recipient can respond (recipient_profile_id === auth.uid()).
  */
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -38,6 +41,19 @@ export async function POST(request: NextRequest) {
   }
   if (action === "accept" && !recipientFollowbackAttested) {
     return fail("BAD_REQUEST", "You must confirm you followed back on X (recipient_followback_attested: true) to accept", 400);
+  }
+
+  if (serviceKey && supabaseUrl) {
+    const service = createClient(supabaseUrl, serviceKey);
+    const rl = await rateLimit({
+      key: `connections/respond:u:${user.id}`,
+      limit: 20,
+      windowSeconds: 86400,
+      supabaseAdmin: service,
+    });
+    if (!rl.allowed) {
+      return fail("RATE_LIMITED", "Too many responses. Try again later.", 429, { resetAt: rl.resetAt });
+    }
   }
 
   const { data: row, error: fetchErr } = await supabase

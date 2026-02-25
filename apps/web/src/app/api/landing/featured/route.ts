@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -32,10 +33,18 @@ export async function GET() {
     const orgs = (orgsRes.data ?? []).filter(
       (o: { slug?: string | null; name?: string | null }) => (o.slug ?? o.name) != null
     );
+    const safeProfiles = profiles.slice(0, 4).map((p: { avatar_url?: string | null; [k: string]: unknown }) => ({
+      ...p,
+      avatar_url: p.avatar_url && !isPrivateStorageUrl(p.avatar_url) ? p.avatar_url : null,
+    }));
+    const safeOrgs = orgs.slice(0, 2).map((o: { logo_url?: string | null; [k: string]: unknown }) => ({
+      ...o,
+      logo_url: o.logo_url && !isPrivateStorageUrl(o.logo_url) ? o.logo_url : null,
+    }));
 
     return NextResponse.json({
-      profiles: profiles.slice(0, 4),
-      orgs: orgs.slice(0, 2),
+      profiles: safeProfiles,
+      orgs: safeOrgs,
     });
   } catch (e) {
     console.error("[api/landing/featured] error:", e);

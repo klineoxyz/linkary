@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -127,7 +128,7 @@ export async function GET(request: NextRequest) {
         name,
         handleLabel,
         url,
-        avatar: p.avatar_url || "",
+        avatar: p.avatar_url && !isPrivateStorageUrl(p.avatar_url) ? p.avatar_url : "",
         verified: false,
         rank,
       });
@@ -172,7 +173,7 @@ export async function GET(request: NextRequest) {
         name: o.name,
         handleLabel,
         url,
-        avatar: o.logo_url || "",
+        avatar: o.logo_url && !isPrivateStorageUrl(o.logo_url) ? o.logo_url : "",
         verified: false,
         rank,
       });

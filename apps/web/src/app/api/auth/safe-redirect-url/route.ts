@@ -33,12 +33,26 @@ function getAllowedOrigin(): string {
   return FALLBACK_ORIGIN;
 }
 
+/** Allow only relative path: starts with /, no protocol, no //, no backslashes. */
+function sanitizeNext(next: string): string {
+  const s = (next ?? "").trim();
+  if (s === "" || !s.startsWith("/")) return "/";
+  const lower = s.toLowerCase();
+  if (lower.includes("//") || lower.includes("\\") || lower.includes("http") || lower.includes("javascript:") || lower.includes("%00")) {
+    return "/";
+  }
+  return s;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const next = searchParams.get("next") ?? "";
+  const nextRaw = searchParams.get("next") ?? "";
   const forCallback = searchParams.get("for") === "callback";
   const origin = getAllowedOrigin();
-  const path = forCallback ? "/auth/callback" : (next.startsWith("/") ? next : `/${next || ""}`);
+  const path = forCallback ? "/auth/callback" : sanitizeNext(nextRaw);
+  if (forCallback === false && nextRaw !== "" && path === "/" && nextRaw.trim() !== "") {
+    console.warn("[safe-redirect-url] invalid next param rejected:", nextRaw);
+  }
   const redirectUrl = `${origin.replace(/\/$/, "")}${path}`;
   return NextResponse.json({ redirectUrl });
 }

@@ -108,7 +108,7 @@ export async function GET(request: Request) {
     .eq("status", "completed");
   const verifiedGigs = typeof dealsCount === "number" ? dealsCount : 0;
 
-  // TODO: caseStudyDeltas from case_studies.metrics when schema defines a delta/improvement field
+  // caseStudyDeltas not implemented (no schema): case_studies.metrics is jsonb with no defined numeric delta/improvement field.
   const caseStudyDeltas: number[] | undefined = undefined;
   const { score100, score1000 } = computeLinkaryPower({
     ethosScore: ethosScore ?? undefined,

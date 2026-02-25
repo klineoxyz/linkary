@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BadgeCheck, Send, Link2, Share2 } from "lucide-react";
 import type { PublicEntity } from "@/lib/publicData";
 import type { PublicEntityView } from "@/lib/publicProfileDTO";
+import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 import { SendWalletModal } from "./SendWalletModal";
 import { ViewerActionsBar } from "./ViewerActionsBar";
 
@@ -23,7 +24,8 @@ export function PublicHeader({ entity, username, isLoggedIn, isOwner = false, br
   const profile = entity.profile;
   const org = entity.org;
   const displayName = isProfile ? profile?.display_name ?? username : org?.name ?? username;
-  const avatarUrl = isProfile ? profile?.avatar_url : org?.logo_url;
+  const rawAvatar = isProfile ? profile?.avatar_url : org?.logo_url;
+  const avatarUrl = rawAvatar && !isPrivateStorageUrl(rawAvatar) ? rawAvatar : null;
   const verified = false;
 
   const roleTags: string[] = [];

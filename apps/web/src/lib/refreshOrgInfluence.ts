@@ -54,11 +54,21 @@ export async function refreshOrgInfluenceRollup(orgId: string): Promise<{ total_
     .in("status", ["active", "invited"]);
   const activeAffiliatesCount = (affRows ?? []).length;
 
-  const { count: supportersCount } = await supabase
+  // Count only published supporters (consistent with GET /api/orgs/[orgId]/supporters which lists only published).
+  const { data: supporterRows } = await supabase
     .from("org_supporters")
-    .select("profile_id", { count: "exact", head: true })
+    .select("profile_id")
     .eq("org_id", orgId);
-  const supporters = typeof supportersCount === "number" ? supportersCount : 0;
+  const supporterProfileIds = [...new Set((supporterRows ?? []).map((r: { profile_id: string }) => r.profile_id))];
+  let supporters = 0;
+  if (supporterProfileIds.length > 0) {
+    const { count: publishedCount } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .in("id", supporterProfileIds)
+      .eq("published", true);
+    supporters = typeof publishedCount === "number" ? publishedCount : 0;
+  }
 
   const subsidiariesInfluence: number[] = [];
   const seen = new Set<string>([orgId]);
@@ -90,9 +100,11 @@ export async function refreshOrgInfluenceRollup(orgId: string): Promise<{ total_
     subsidiariesInfluence: subsidiariesInfluence.length ? subsidiariesInfluence : undefined,
   });
 
+  const totalSupporters = supporterProfileIds.length;
   const breakdown = {
     ...baseBreakdown,
     supportersCount: supporters,
+    supporters_total_count: totalSupporters,
     activeAmbassadorsCount,
     activeAffiliatesCount,
     verifiedReviewsCount,

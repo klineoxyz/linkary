@@ -53,7 +53,7 @@ async function ensureBackfill(request: NextRequest) {
   const rlKey = user?.id ? `analytics/ensure-backfill:u:${user.id}` : `analytics/ensure-backfill:ip:${getClientIp(request)}`;
   const rl = await rateLimit({
     key: rlKey,
-    limit: 10,
+    limit: 20,
     windowSeconds: 600,
     supabaseAdmin: service,
   });

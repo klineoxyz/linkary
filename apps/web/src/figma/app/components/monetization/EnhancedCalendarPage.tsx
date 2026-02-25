@@ -264,7 +264,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
 
       {/* Create Event Modal */}
       {showCreateEvent && (
-        <div className="fixed inset-0 bg-zinc-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-zinc-900/30 flex items-center justify-center z-50 p-4">
           <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-zinc-900">Create Event</h3>
@@ -391,7 +391,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
 
       {/* Speaker Request Modal */}
       {showSpeakerRequest && selectedEvent && (
-        <div className="fixed inset-0 bg-zinc-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-zinc-900/30 flex items-center justify-center z-50 p-4">
           <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-2xl max-w-lg w-full">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-zinc-900">Request to Speak</h3>

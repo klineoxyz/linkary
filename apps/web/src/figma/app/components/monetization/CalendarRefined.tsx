@@ -383,7 +383,7 @@ function CreateEventModal({ step, onStepChange, onClose }: any) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full max-w-2xl rounded-xl border border-zinc-200 bg-white shadow-2xl">
         <div className="p-6 border-b border-zinc-200">
           <div className="flex items-center justify-between mb-4">
@@ -579,7 +579,7 @@ function CreateEventModal({ step, onStepChange, onClose }: any) {
 function EventDetailModal({ event, userPlan, onClose, onRequestSpeak }: any) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full max-w-3xl rounded-xl border border-zinc-200 bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-zinc-200">
           <button
@@ -699,7 +699,7 @@ function SpeakerRequestModal({ event, onClose }: any) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full max-w-lg rounded-xl border border-zinc-200 bg-white shadow-2xl">
         <div className="p-6 border-b border-zinc-200">
           <button

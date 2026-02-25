@@ -111,7 +111,7 @@ export default function CreateCircleFlow({ onClose, setRoute }: { onClose: () =>
     .sort((a, b) => b.reach - a.reach);
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
       <div className="bg-gradient-to-br from-zinc-900 to-black border border-border rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">

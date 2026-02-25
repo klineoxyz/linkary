@@ -204,7 +204,7 @@ export default function BillingPage({ setRoute, onUpgradePlan }: any) {
 
       {/* Add Payment Modal */}
       {showAddPayment && (
-        <div className="fixed inset-0 bg-zinc-900/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-zinc-900/20 flex items-center justify-center z-50 p-4">
           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-xl max-w-md w-full">
             <h3 className="text-xl font-semibold text-zinc-900 mb-4">Update Payment Method</h3>
 

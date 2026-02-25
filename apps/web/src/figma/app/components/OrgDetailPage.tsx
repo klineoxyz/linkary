@@ -11,6 +11,7 @@ import {
   Loader2,
   Settings,
   Link2,
+  BarChart3,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
@@ -58,7 +59,7 @@ export default function OrgDetailPage({
   const orgId = data?.orgId ?? data?.slug;
   const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
-  const validTabs = ["dashboard", "members", "affiliates", "ambassadors", "jobs", "case_studies", "settings"] as const;
+  const validTabs = ["dashboard", "insights", "members", "affiliates", "ambassadors", "jobs", "case_studies", "settings"] as const;
   const [tab, setTab] = useState<typeof validTabs[number]>("dashboard");
 
   useEffect(() => {
@@ -465,6 +466,7 @@ export default function OrgDetailPage({
 
   const tabs = [
     { id: "dashboard" as const, label: "Dashboard", icon: TrendingUp },
+    { id: "insights" as const, label: "Insights", icon: BarChart3 },
     { id: "members" as const, label: "Members", icon: Users },
     { id: "affiliates" as const, label: "Affiliates", icon: UserPlus },
     { id: "ambassadors" as const, label: "Ambassadors", icon: UserPlus },
@@ -609,6 +611,54 @@ export default function OrgDetailPage({
         </div>
 
         <div className="p-6">
+          {tab === "insights" && (
+            <div className="space-y-6">
+              {influenceRollup != null && influenceRollup.total_influence > 0 ? (
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Influence rollup</h3>
+                  <p className="mt-1 text-2xl font-bold text-primary">{influenceRollup.total_influence}</p>
+                  {influenceRollup.computed_at && (
+                    <p className="mt-0.5 text-xs text-zinc-500">Updated: {formatRelativeTime(influenceRollup.computed_at)}</p>
+                  )}
+                  {influenceRollup.breakdown && Object.keys(influenceRollup.breakdown).length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+                      {Object.entries(influenceRollup.breakdown).map(([k, v]) => (
+                        <span key={k}>{k}: {typeof v === "number" ? v.toFixed(0) : String(v)}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Influence rollup</h3>
+                  <p className="mt-1 text-sm text-zinc-500">No influence data yet. Supporters and member activity will build this over time.</p>
+                </div>
+              )}
+              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Supporters</h3>
+                {(dashboardData?.supportersPreview?.length ?? 0) > 0 || supportersCount > 0 ? (
+                  <>
+                    <p className="mt-1 text-lg font-medium">{supportersCount || dashboardData?.supportersPreview?.length || 0} supporter{(supportersCount || dashboardData?.supportersPreview?.length || 0) !== 1 ? "s" : ""}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(dashboardData?.supportersPreview?.length ? dashboardData.supportersPreview : supportersSample).slice(0, 8).map((s) => (
+                        <div key={s.id} className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 px-2 py-1.5">
+                          {s.avatar_url ? <img src={s.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" /> : <div className="h-6 w-6 rounded-full bg-zinc-300 dark:bg-zinc-600" />}
+                          <span className="text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate max-w-[120px]">{s.display_name ?? s.username ?? "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="mt-1 text-sm text-zinc-500">No supporters yet. Invite people to support your org from the Support action in the header.</p>
+                )}
+              </div>
+              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Mentions</h3>
+                <p className="mt-1 text-sm text-zinc-500">Org-level mentions and affiliated accounts will appear here when available.</p>
+              </div>
+            </div>
+          )}
+
           {tab === "dashboard" && (
             <div className="space-y-6">
               {influenceRollup != null && (

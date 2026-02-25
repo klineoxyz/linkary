@@ -84,7 +84,7 @@ export default function LockedFeatureModal({
   const colors = colorClasses[plan.color as keyof typeof colorClasses];
 
   return (
-    <div className="fixed inset-0 bg-zinc-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-zinc-900/30 flex items-center justify-center z-50 p-4">
       <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-2xl max-w-md w-full relative">
         <button
           onClick={onClose}

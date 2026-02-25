@@ -142,7 +142,7 @@ import ComponentShowcase from "./components/ComponentShowcase";
 import CalendarPage from "./components/CalendarPage";
 import XSpacesPage from "./components/XSpacesPage";
 import DashboardPage from "./components/DashboardPage";
-import ProfileDashboardPage from "./components/ProfileDashboardPage";
+import InsightsTab from "./components/profile/InsightsTab";
 import OrgDetailPage from "./components/OrgDetailPage";
 import DealDetailPage from "./components/DealDetailPage";
 import AffiliationAmbassadorSection from "./components/AffiliationAmbassadorSection";
@@ -731,7 +731,6 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     onboarding: "/onboarding",
     profile: "/profile",
     profileEdit: "/profile/edit",
-    profileDashboard: "/profile/dashboard",
     market: "/market",
     messages: "/messages",
     circles: "/circles",
@@ -766,9 +765,14 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     wallet: "/settings/wallet",
     watchlist: "/watchlist",
   };
-  if (route.name === "profileDashboard") {
-    const u = route.data?.username;
-    return u ? `/profile/dashboard?username=${encodeURIComponent(u)}` : "/profile/dashboard";
+  if (route.name === "profile") {
+    const tab = route.data?.tab;
+    const username = route.data?.username;
+    const q = new URLSearchParams();
+    if (tab) q.set("tab", String(tab));
+    if (username) q.set("username", String(username));
+    const query = q.toString();
+    return query ? `/profile?${query}` : "/profile";
   }
   if (route.name === "orgDetail" && route.data?.orgId) {
     const tab = route.data.tab;
@@ -787,7 +791,12 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   if (parts[0] === "profile" && parts[1] === "edit") return { name: "profileEdit" };
   if (parts[0] === "profile" && parts[1] === "dashboard") {
     const username = searchParams?.get("username") ?? undefined;
-    return { name: "profileDashboard", data: username ? { username } : undefined };
+    return { name: "profile", data: { tab: "insights", username } };
+  }
+  if (parts[0] === "profile" && !parts[1]) {
+    const tab = searchParams?.get("tab") ?? undefined;
+    const username = searchParams?.get("username") ?? undefined;
+    return { name: "profile", data: { tab, username } };
   }
   if (parts[0] === "org" && parts[1]) {
     const tab = searchParams?.get("tab") ?? undefined;
@@ -2323,8 +2332,10 @@ function MessagesPage({ setRoute, initialConversationId }) {
   );
 }
 
-function ProfilePage({ setRoute, me }) {
+function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   const router = useRouter();
+  const tab = (route?.data?.tab ?? "overview") as string;
+  const viewUsername = route?.data?.username as string | undefined;
   const [profileProfessions, setProfileProfessions] = useState<{ id: string; name: string }[]>([]);
   const [caseStudies, setCaseStudies] = useState<any[]>([]);
   const [showCaseStudyModal, setShowCaseStudyModal] = useState(false);
@@ -2334,6 +2345,10 @@ function ProfilePage({ setRoute, me }) {
   const [csSubmitting, setCsSubmitting] = useState(false);
   const [meStats, setMeStats] = useState<{ ethos: number | null; xscore: number | null; reputationIndex: number; socialPower: number; reviews: { avg: number; count: number } } | null>(null);
   const [xHandle, setXHandle] = useState<string | null>(null);
+
+  const setProfileTab = (newTab: string) => {
+    setRoute({ name: "profile", data: { tab: newTab, username: viewUsername } });
+  };
 
   useEffect(() => {
     if (me?.id) getProfileProfessions(me.id).then(({ data }) => setProfileProfessions((data ?? []).map((p) => ({ id: p.id, name: p.name }))));
@@ -2396,8 +2411,48 @@ function ProfilePage({ setRoute, me }) {
   const displayCaseStudies = caseStudies.length > 0 ? caseStudies : (u.caseStudies ?? []);
   const isMyProfile = !!me?.id;
 
+  if (tab === "insights") {
+    return (
+      <div className="space-y-6">
+        <div className="mb-4 flex gap-2 border-b border-white/10 pb-2">
+          <button
+            type="button"
+            onClick={() => setProfileTab("overview")}
+            className="rounded-lg px-3 py-2 text-sm font-medium text-white/70 hover:text-white/90 hover:bg-white/10"
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            onClick={() => setProfileTab("insights")}
+            className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white/90"
+          >
+            Insights
+          </button>
+        </div>
+        <InsightsTab setRoute={setRoute} me={me} username={viewUsername} getAuthHeaders={getAuthHeaders} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      <div className="mb-4 flex gap-2 border-b border-white/10 pb-2">
+        <button
+          type="button"
+          onClick={() => setProfileTab("overview")}
+          className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white/90"
+        >
+          Overview
+        </button>
+        <button
+          type="button"
+          onClick={() => setProfileTab("insights")}
+          className="rounded-lg px-3 py-2 text-sm font-medium text-white/70 hover:text-white/90 hover:bg-white/10"
+        >
+          Insights
+        </button>
+      </div>
       <div className="mb-8 relative z-[10] flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
         <div className="flex flex-wrap gap-3">
           {isMyProfile && (
@@ -2870,7 +2925,7 @@ function LinkaryAppInner() {
 
   // Production route lockdown: only allowed routes are reachable; everything else redirects to Overview
   const ALLOWED_ROUTES = new Set([
-    "landing", "overview", "dashboard", "profile", "profileEdit", "profileDashboard", "userProfile", "market", "messages",
+    "landing", "overview", "dashboard", "profile", "profileEdit", "userProfile", "market", "messages",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding",
     "orgDetail", "brandProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
     "circles", "circleDetail", "connections", "kolLists", "calendar", "capitalPartners", "watchlist",
@@ -3267,7 +3322,7 @@ function LinkaryAppInner() {
         {/* Mobile Sidebar Backdrop */}
         {mobileOpen && !["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && (
           <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] lg:hidden"
+            className="fixed inset-0 bg-black/60 z-[90] lg:hidden"
             onClick={() => setMobileOpen(false)}
           />
         )}
@@ -3405,9 +3460,9 @@ function LinkaryAppInner() {
             <AnimatePresence mode="wait">
               <motion.div
                 key={route.name}
-                initial={{ opacity: 0, y: 20, scale: 0.98, filter: "blur(10px)" }}
-                animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -20, scale: 0.98, filter: "blur(10px)" }}
+                initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.98 }}
                 transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
                 className="relative z-[10]"
               >
@@ -3432,17 +3487,9 @@ function LinkaryAppInner() {
                   />
                 )}
                 {route.name === "landing" && <LandingPage setRoute={setRoute} />}
-                {route.name === "profile" && <ProfilePage setRoute={setRoute} me={me} />}
+                {route.name === "profile" && <ProfilePage setRoute={setRoute} me={me} route={route} getAuthHeaders={getAuthHeaders} />}
                 {route.name === "profileEdit" && (
                   <ProfileEditPage setRoute={setRoute} me={me} onSaved={() => { refreshMe(); refreshHeaderMedia(); }} />
-                )}
-                {route.name === "profileDashboard" && (
-                  <ProfileDashboardPage
-                    setRoute={setRoute}
-                    me={me}
-                    username={route.data?.username as string | undefined}
-                    getAuthHeaders={getAuthHeaders}
-                  />
                 )}
                 {route.name === "userProfile" && (
                   <UserProfilePage

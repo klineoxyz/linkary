@@ -56,5 +56,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: err }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, skipped: result.skipped ?? false });
+  const payload: Record<string, unknown> = { ok: true, skipped: result.skipped ?? false };
+  if (result.reason) payload.reason = result.reason;
+  if (result.resetAt) payload.resetAt = result.resetAt;
+  return NextResponse.json(payload);
 }

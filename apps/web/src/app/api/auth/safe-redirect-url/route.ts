@@ -2,12 +2,29 @@
  * GET /api/auth/safe-redirect-url?next=/path or ?for=callback
  * Returns a redirect URL whose host is in AUTH_REDIRECT_ALLOWLIST.
  * Use for OAuth redirect_uri and for post-login redirect to avoid wrong-host redirects.
+ * When the request comes from localhost/127.0.0.1, that origin is used so local dev stays on localhost.
  */
 import { NextRequest, NextResponse } from "next/server";
 
 const FALLBACK_ORIGIN = "https://www.linkary.xyz";
 
-function getAllowedOrigin(): string {
+function getRequestOrigin(request: NextRequest): string | null {
+  try {
+    const url = request.url ?? "";
+    if (!url) return null;
+    const origin = new URL(url).origin;
+    const hostname = new URL(url).hostname.toLowerCase();
+    if (hostname === "localhost" || hostname === "127.0.0.1") return origin;
+    const allowlistRaw = process.env.AUTH_REDIRECT_ALLOWLIST ?? "";
+    const hostnames = allowlistRaw.split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
+    if (hostnames.length > 0 && hostnames.includes(hostname)) return origin;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function getConfiguredOrigin(): string {
   const allowlistRaw = process.env.AUTH_REDIRECT_ALLOWLIST ?? "";
   const hostnames = allowlistRaw.split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim().replace(/\/$/, "");
@@ -48,7 +65,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const nextRaw = searchParams.get("next") ?? "";
   const forCallback = searchParams.get("for") === "callback";
-  const origin = getAllowedOrigin();
+  const origin = getRequestOrigin(request) ?? getConfiguredOrigin();
   const path = forCallback ? "/auth/callback" : sanitizeNext(nextRaw);
   if (forCallback === false && nextRaw !== "" && path === "/" && nextRaw.trim() !== "") {
     console.warn("[safe-redirect-url] invalid next param rejected:", nextRaw);

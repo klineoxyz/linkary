@@ -1,32 +1,179 @@
 /**
- * Phase 4: Refresh X insights from twitterapi.io and write to cache tables.
- * Used by POST /api/admin/social/x/refresh-insights. Stub fetchers until TWITTERAPI_IO_KEY is wired.
+ * Phase 4.1: Refresh X insights from twitterapi.io and write to cache tables.
+ * Real fetchers: followers, mentions, account feed. Partial writes; rate-limit does not overwrite cache.
  */
 import { createServiceSupabase } from "@/lib/x-analytics-server";
-import type {
-  XTopFollowersCachePayload,
-  XAccountFeedCachePayload,
-  XMentionsCachePayload,
+import { twitterapiFetch, TwitterApiError } from "@/lib/twitterapiClient";
+import {
+  stripPrivateStorageUrlsFromAvatar,
+  normalizeUsername,
+  type TopFollowerItem,
+  type XTopFollowersCachePayload,
+  type XAccountFeedCachePayload,
+  type XMentionsCachePayload,
+  type AccountFeedItem,
+  type MentionItem,
 } from "./socialInsightsContracts";
 
-export type RefreshResult = { ok: true; skipped?: boolean } | { ok: false; error: string };
+export type RefreshResult =
+  | { ok: true; skipped?: boolean; reason?: string; resetAt?: string }
+  | { ok: false; error: string };
 
-/** Stub: fetch top followers from twitterapi.io. TODO: implement when API contract is confirmed. */
-async function fetchTopFollowers(_username: string, _apiKey: string): Promise<XTopFollowersCachePayload> {
-  // TODO: GET /twitter/user/followers or equivalent; map to influencers/projects/funds by tier
-  return { influencers: [], projects: [], funds: [] };
+const CAP_MENTIONS = 50;
+const CAP_FOLLOWERS_TOP = 50;
+const CAP_LAST_TWEETS = 20;
+const CAP_NEW_FOLLOWERS = 20;
+
+/** Parse twitterapi.io createdAt to ISO. */
+function parseCreatedAt(createdAt: string | undefined): string {
+  if (!createdAt || typeof createdAt !== "string") return new Date().toISOString();
+  const d = new Date(createdAt);
+  return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
-/** Stub: fetch mentions for the last 7 days. TODO: implement when API available. */
-async function fetchMentions(_username: string, _apiKey: string): Promise<XMentionsCachePayload> {
-  // TODO: twitterapi.io mentions endpoint
-  return [];
+/** GET /twitter/user/followers — first page, map to XTopFollowersCachePayload. All as influencers for now. */
+async function fetchTopFollowers(username: string): Promise<XTopFollowersCachePayload> {
+  try {
+    const { data } = await twitterapiFetch("/twitter/user/followers", {
+      userName: username,
+      pageSize: String(Math.min(200, Math.max(20, CAP_FOLLOWERS_TOP))),
+    });
+    const obj = data as Record<string, unknown>;
+    const list = Array.isArray(obj.followers) ? obj.followers : [];
+    const items: TopFollowerItem[] = [];
+    for (const u of list.slice(0, CAP_FOLLOWERS_TOP)) {
+      const row = u as Record<string, unknown>;
+      const uname = normalizeUsername((row.userName ?? row.user_name ?? row.screen_name) as string);
+      if (!uname) continue;
+      const avatar = (row.profilePicture ?? row.profile_picture ?? row.avatar) as string | undefined;
+      items.push({
+        username: uname,
+        name: (row.name as string) || undefined,
+        avatar: stripPrivateStorageUrlsFromAvatar(avatar) ?? null,
+        followers: typeof row.followers === "number" ? row.followers : null,
+        score: null,
+        tier: null,
+        category: "influencer",
+      });
+    }
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[refreshXInsights] top_followers count=" + items.length);
+    }
+    return { influencers: items, projects: [], funds: [] };
+  } catch (e) {
+    if (e instanceof TwitterApiError && e.code === "RATE_LIMITED") throw e;
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[refreshXInsights] fetchTopFollowers failed", e instanceof Error ? e.message : e);
+    }
+    return { influencers: [], projects: [], funds: [] };
+  }
 }
 
-/** Stub: fetch account feed (actions, new followers). TODO: implement when API available. */
-async function fetchAccountFeed(_username: string, _apiKey: string): Promise<XAccountFeedCachePayload> {
-  // TODO: twitterapi.io feed/timeline endpoint
-  return { actions: [], newFollowers: [] };
+/** GET /twitter/user/mentions — sinceTime (7 days ago), cap 50. */
+async function fetchMentions(username: string): Promise<XMentionsCachePayload> {
+  const now = Math.floor(Date.now() / 1000);
+  const sevenDaysAgo = now - 7 * 24 * 3600;
+  const out: MentionItem[] = [];
+  let cursor = "";
+  try {
+    while (out.length < CAP_MENTIONS) {
+      const params: Record<string, string> = {
+        userName: username,
+        sinceTime: String(sevenDaysAgo),
+        untilTime: String(now),
+      };
+      if (cursor) params.cursor = cursor;
+      const { data } = await twitterapiFetch("/twitter/user/mentions", params);
+      const obj = data as Record<string, unknown>;
+      const tweets = Array.isArray(obj.tweets) ? obj.tweets : [];
+      for (const t of tweets) {
+        if (out.length >= CAP_MENTIONS) break;
+        const row = t as Record<string, unknown>;
+        const author = row.author as Record<string, unknown> | undefined;
+        const at = parseCreatedAt(row.createdAt as string);
+        const tweetId = (row.id ?? row.id_str) as string | undefined;
+        const text = (row.text ?? row.full_text) as string | undefined;
+        const url = (row.url ?? (tweetId ? `https://x.com/i/status/${tweetId}` : undefined)) as string | undefined;
+        const authorName = author
+          ? normalizeUsername((author.userName ?? author.user_name ?? author.screen_name) as string)
+          : "";
+        out.push({
+          at,
+          tweet_id: tweetId,
+          username: authorName || "unknown",
+          text: text ?? undefined,
+          url: url ?? undefined,
+        });
+      }
+      if (tweets.length === 0 || !obj.has_next_page || !obj.next_cursor) break;
+      cursor = String(obj.next_cursor ?? "");
+    }
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[refreshXInsights] mentions count=" + out.length);
+    }
+    return out;
+  } catch (e) {
+    if (e instanceof TwitterApiError && e.code === "RATE_LIMITED") throw e;
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[refreshXInsights] fetchMentions failed", e instanceof Error ? e.message : e);
+    }
+    return [];
+  }
+}
+
+/** Actions from last_tweets; newFollowers from first page of followers. */
+async function fetchAccountFeed(username: string): Promise<XAccountFeedCachePayload> {
+  const actions: AccountFeedItem[] = [];
+  const newFollowers: AccountFeedItem[] = [];
+
+  try {
+    const { data: tweetsData } = await twitterapiFetch("/twitter/user/last_tweets", {
+      userName: username,
+    });
+    const tweetsObj = tweetsData as Record<string, unknown>;
+    const tweets = Array.isArray(tweetsObj.tweets) ? tweetsObj.tweets : [];
+    for (const t of tweets.slice(0, CAP_LAST_TWEETS)) {
+      const row = t as Record<string, unknown>;
+      actions.push({
+        type: "tweet",
+        at: parseCreatedAt(row.createdAt as string),
+        text: (row.text ?? row.full_text) as string | undefined,
+        username,
+      });
+    }
+  } catch (e) {
+    if (e instanceof TwitterApiError && e.code === "RATE_LIMITED") throw e;
+  }
+
+  try {
+    const { data: followersData } = await twitterapiFetch("/twitter/user/followers", {
+      userName: username,
+      pageSize: String(Math.min(200, Math.max(20, CAP_NEW_FOLLOWERS))),
+    });
+    const followersObj = followersData as Record<string, unknown>;
+    const list = Array.isArray(followersObj.followers) ? followersObj.followers : [];
+    const nowIso = new Date().toISOString();
+    for (const u of list.slice(0, CAP_NEW_FOLLOWERS)) {
+      const row = u as Record<string, unknown>;
+      const uname = normalizeUsername((row.userName ?? row.user_name) as string);
+      if (!uname) continue;
+      const avatar = (row.profilePicture ?? row.profile_picture) as string | undefined;
+      const safeAvatar = stripPrivateStorageUrlsFromAvatar(avatar) ?? null;
+      newFollowers.push({
+        type: "new_follower",
+        at: nowIso,
+        username: uname,
+        avatar: safeAvatar,
+      });
+    }
+  } catch (e) {
+    if (e instanceof TwitterApiError && e.code === "RATE_LIMITED") throw e;
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[refreshXInsights] feed actions=" + actions.length + " newFollowers=" + newFollowers.length);
+  }
+  return { actions, newFollowers };
 }
 
 /** Monday of current week (ISO) as YYYY-MM-DD. */
@@ -40,8 +187,8 @@ function getCurrentWeekStart(): string {
 }
 
 /**
- * Refresh X insights for a profile: fetch from twitterapi.io (or stub) and write to cache tables.
- * Returns { ok: true, skipped: true } when TWITTERAPI_IO_KEY is not set (safe for dev).
+ * Refresh X insights for a profile. Partial success: write each section that succeeds.
+ * On RATE_LIMITED: return { ok: true, skipped: true, reason, resetAt } and do NOT write (keep existing cache).
  */
 export async function refreshXInsightsForProfile(profileId: string): Promise<RefreshResult> {
   const apiKey = process.env.TWITTERAPI_IO_KEY ?? process.env.TWITTERAPI_API_KEY;
@@ -78,29 +225,49 @@ export async function refreshXInsightsForProfile(profileId: string): Promise<Ref
     return { ok: false, error: "Invalid twitter_username" };
   }
 
+  let topPayload: XTopFollowersCachePayload = { influencers: [], projects: [], funds: [] };
+  let mentionsPayload: XMentionsCachePayload = [];
+  let feedPayload: XAccountFeedCachePayload = { actions: [], newFollowers: [] };
+  let rateLimited = false;
+  let resetAt: string | undefined;
+
   try {
-    const [topPayload, mentionsPayload, feedPayload] = await Promise.all([
-      fetchTopFollowers(handle, apiKey),
-      fetchMentions(handle, apiKey),
-      fetchAccountFeed(handle, apiKey),
+    const [top, mentions, feed] = await Promise.all([
+      fetchTopFollowers(handle),
+      fetchMentions(handle),
+      fetchAccountFeed(handle),
     ]);
+    topPayload = top;
+    mentionsPayload = mentions;
+    feedPayload = feed;
+  } catch (e) {
+    if (e instanceof TwitterApiError && e.code === "RATE_LIMITED") {
+      rateLimited = true;
+      resetAt = e.resetAt;
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[refreshXInsights] RATE_LIMITED; not overwriting cache resetAt=" + resetAt);
+      }
+      return { ok: true, skipped: true, reason: "RATE_LIMITED", resetAt };
+    }
+    console.error("[refreshXInsights] fetch failed", e);
+    return { ok: false, error: e instanceof Error ? e.message : "Fetch failed" };
+  }
 
-    const weekStart = getCurrentWeekStart();
+  const weekStart = getCurrentWeekStart();
 
-    await Promise.all([
-      supabase.from("x_top_followers_cache").upsert(
-        { profile_id: profileId, data: topPayload, updated_at: new Date().toISOString() },
-        { onConflict: "profile_id" }
-      ),
-      supabase.from("x_account_feed_cache").upsert(
-        { profile_id: profileId, data: feedPayload, updated_at: new Date().toISOString() },
-        { onConflict: "profile_id" }
-      ),
-      supabase.from("x_mentions_weekly_cache").upsert(
-        { profile_id: profileId, week_start: weekStart, data: mentionsPayload, updated_at: new Date().toISOString() },
-        { onConflict: "profile_id,week_start" }
-      ),
-    ]);
+  try {
+    await supabase.from("x_top_followers_cache").upsert(
+      { profile_id: profileId, data: topPayload, updated_at: new Date().toISOString() },
+      { onConflict: "profile_id" }
+    );
+    await supabase.from("x_account_feed_cache").upsert(
+      { profile_id: profileId, data: feedPayload, updated_at: new Date().toISOString() },
+      { onConflict: "profile_id" }
+    );
+    await supabase.from("x_mentions_weekly_cache").upsert(
+      { profile_id: profileId, week_start: weekStart, data: mentionsPayload, updated_at: new Date().toISOString() },
+      { onConflict: "profile_id,week_start" }
+    );
   } catch (e) {
     console.error("[refreshXInsights] write failed", e);
     return { ok: false, error: e instanceof Error ? e.message : "Write failed" };

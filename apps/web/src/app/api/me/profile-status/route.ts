@@ -30,23 +30,39 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ status: "not_found" }, { status: 200 });
   }
 
-  const { data: profile, error: profileError } = await supabase
+  // 1) Look up by profiles.username (canonical slug)
+  const { data: profileByUsername, error: profileError } = await supabase
     .from("profiles")
     .select("id, published")
     .ilike("username", segment)
     .maybeSingle();
 
-  if (profileError || !profile) {
-    return NextResponse.json({ status: "not_found" }, { status: 200 });
+  if (!profileError && profileByUsername && (profileByUsername as { id: string }).id === user.id) {
+    const published = (profileByUsername as { published?: boolean }).published === true;
+    return NextResponse.json(
+      { status: published ? "published" : "unpublished" },
+      { status: 200 }
+    );
   }
 
-  if ((profile as { id: string }).id !== user.id) {
-    return NextResponse.json({ status: "not_found" }, { status: 200 });
+  // 2) Fallback: current user may have twitter_username = segment but username not set yet (e.g. claim failed or not run).
+  // So every X signup can see "Your profile / Unpublished" at /@theirhandle instead of "Claim this username".
+  const { data: myProfile, error: myError } = await supabase
+    .from("profiles")
+    .select("id, username, twitter_username, published")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!myError && myProfile) {
+    const row = myProfile as { username?: string | null; twitter_username?: string | null; published?: boolean };
+    const twitterNorm = (row.twitter_username ?? "").trim().toLowerCase().replace(/^@/, "");
+    if (twitterNorm === segment) {
+      return NextResponse.json(
+        { status: row.published === true ? "published" : "unpublished" },
+        { status: 200 }
+      );
+    }
   }
 
-  const published = (profile as { published?: boolean }).published === true;
-  return NextResponse.json(
-    { status: published ? "published" : "unpublished" },
-    { status: 200 }
-  );
+  return NextResponse.json({ status: "not_found" }, { status: 200 });
 }

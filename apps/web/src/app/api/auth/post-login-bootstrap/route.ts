@@ -119,5 +119,11 @@ export async function POST(request: Request) {
   }
   await supabase.from("profiles").update(updates).eq("id", user.id);
 
+  // Claim username from X handle so linkary.xyz/@handle resolves to this user's page (published or unpublished).
+  const normalizedHandle = handle?.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-") ?? null;
+  if (normalizedHandle && normalizedHandle.length >= 2) {
+    await supabase.rpc("claim_username_for_profile", { desired_username: normalizedHandle });
+  }
+
   return NextResponse.json({ ok: true, userId: user.id, username: handle });
 }

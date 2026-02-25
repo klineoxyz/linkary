@@ -1,13 +1,27 @@
 /**
  * GET /api/social/x/insights?username=...
  * Social insights for profile dashboard. Filled from public_profile_view + x_daily_snapshots.
- * Optional: caches (x_top_followers_cache, etc.) when Phase 4 is active.
+ * Phase 4: reads from cache tables (x_top_followers_cache, x_mentions_weekly_cache, x_account_feed_cache) when present and fresh.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createServiceSupabase } from "@/lib/x-analytics-server";
+import {
+  type XTopFollowersCachePayload,
+  type XAccountFeedCachePayload,
+  type XMentionsCachePayload,
+  sanitizeTopFollowerItem,
+  sanitizeAccountFeedItem,
+  stripPrivateStorageUrlsFromAvatar,
+} from "@/lib/socialInsightsContracts";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+/** Staleness: consider cache stale after this many ms (24h). */
+const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
+
+type CacheStatus = "hit" | "miss" | "stale";
 
 export interface SocialInsightsProfile {
   username: string;
@@ -48,6 +62,10 @@ export interface SocialInsightsResponse {
     newFollowers: unknown[];
   };
   recommendedAccounts: unknown[];
+  /** Phase 4: cache status for topFollowers, feed, mentions. */
+  meta?: {
+    cache: { topFollowers: CacheStatus; feed: CacheStatus; mentions: CacheStatus };
+  };
 }
 
 function norm(s: string): string {
@@ -105,6 +123,7 @@ export async function GET(request: NextRequest) {
       affiliatedAccounts: [],
       accountFeed: { actions: [], newFollowers: [] },
       recommendedAccounts: [],
+      meta: { cache: { topFollowers: "miss", feed: "miss", mentions: "miss" } },
     };
     return NextResponse.json(empty);
   }
@@ -175,24 +194,119 @@ export async function GET(request: NextRequest) {
           id: row.id,
           name: (row.display_name ?? u) as string,
           username: u,
-          avatar_url: row.avatar_url ?? null,
+          avatar_url: stripPrivateStorageUrlsFromAvatar(row.avatar_url) ?? null,
         });
       }
     }
   }
 
+  // Phase 4: load from cache tables (service role only; RLS denies anon)
+  let topFollowersByTier: SocialInsightsResponse["topFollowersByTier"] = {
+    influencers: [],
+    projects: [],
+    funds: [],
+  };
+  let mentionsLastWeek: unknown[] = [];
+  let accountFeed: SocialInsightsResponse["accountFeed"] = { actions: [], newFollowers: [] };
+  let cacheMeta: SocialInsightsResponse["meta"] = {
+    cache: { topFollowers: "miss", feed: "miss", mentions: "miss" },
+  };
+
+  try {
+    const service = createServiceSupabase();
+    const now = Date.now();
+
+    // Monday of current week (ISO) for mentions
+    const today = new Date();
+    const dayOfWeek = today.getUTCDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setUTCDate(today.getUTCDate() + mondayOffset);
+    const weekStart = monday.toISOString().slice(0, 10);
+
+    const [topRes, feedRes, mentionsRes] = await Promise.all([
+      service.from("x_top_followers_cache").select("data, updated_at").eq("profile_id", profileId).maybeSingle(),
+      service.from("x_account_feed_cache").select("data, updated_at").eq("profile_id", profileId).maybeSingle(),
+      service
+        .from("x_mentions_weekly_cache")
+        .select("data, updated_at")
+        .eq("profile_id", profileId)
+        .eq("week_start", weekStart)
+        .maybeSingle(),
+    ]);
+
+    const topRow = topRes?.data as { data?: unknown; updated_at?: string } | null;
+    const topPayload = topRow?.data as unknown as XTopFollowersCachePayload | null | undefined;
+    const topUpdated = topRow?.updated_at ? new Date(topRow.updated_at).getTime() : 0;
+    const topFresh = topUpdated && now - topUpdated <= CACHE_STALE_MS;
+    if (topPayload && typeof topPayload === "object") {
+      cacheMeta!.cache.topFollowers = topFresh ? "hit" : "stale";
+      const infl = (Array.isArray(topPayload.influencers) ? topPayload.influencers : []).map(sanitizeTopFollowerItem);
+      const proj = (Array.isArray(topPayload.projects) ? topPayload.projects : []).map(sanitizeTopFollowerItem);
+      const funds = (Array.isArray(topPayload.funds) ? topPayload.funds : []).map(sanitizeTopFollowerItem);
+      topFollowersByTier = {
+        influencers: infl.map((i) => ({
+          username: i.username,
+          display_name: i.name ?? null,
+          avatar_url: i.avatar ?? null,
+          followers: i.followers ?? null,
+          tier: i.tier ?? undefined,
+        })),
+        projects: proj.map((i) => ({
+          username: i.username,
+          display_name: i.name ?? null,
+          avatar_url: i.avatar ?? null,
+          followers: i.followers ?? null,
+          tier: i.tier ?? undefined,
+        })),
+        funds: funds.map((i) => ({
+          username: i.username,
+          display_name: i.name ?? null,
+          avatar_url: i.avatar ?? null,
+          followers: i.followers ?? null,
+          tier: i.tier ?? undefined,
+        })),
+      };
+    } else if (topRow?.data != null) {
+      cacheMeta!.cache.topFollowers = topFresh ? "hit" : "stale";
+    }
+
+    const feedRow = feedRes?.data as { data?: unknown; updated_at?: string } | null;
+    const feedData = feedRow?.data as unknown as XAccountFeedCachePayload | null;
+    const feedUpdated = feedRow?.updated_at ? new Date(feedRow.updated_at).getTime() : 0;
+    const feedFresh = feedUpdated && now - feedUpdated <= CACHE_STALE_MS;
+    if (feedData && typeof feedData === "object") {
+      cacheMeta!.cache.feed = feedFresh ? "hit" : "stale";
+      const actions = (Array.isArray(feedData.actions) ? feedData.actions : []).map(sanitizeAccountFeedItem);
+      const newFollowers = (Array.isArray(feedData.newFollowers) ? feedData.newFollowers : []).map(sanitizeAccountFeedItem);
+      accountFeed = { actions, newFollowers };
+    } else if (feedRow?.data != null) {
+      cacheMeta!.cache.feed = feedFresh ? "hit" : "stale";
+    }
+
+    const mentionsRow = mentionsRes?.data as { data?: unknown; updated_at?: string } | null;
+    const mentionsData = mentionsRow?.data as unknown as XMentionsCachePayload | null;
+    const mentionsUpdated = mentionsRow?.updated_at ? new Date(mentionsRow.updated_at).getTime() : 0;
+    const mentionsFresh = mentionsUpdated && now - mentionsUpdated <= CACHE_STALE_MS;
+    if (Array.isArray(mentionsData)) {
+      cacheMeta!.cache.mentions = mentionsFresh ? "hit" : "stale";
+      mentionsLastWeek = mentionsData;
+    } else if (mentionsRow?.data != null) {
+      cacheMeta!.cache.mentions = mentionsFresh ? "hit" : "stale";
+    }
+  } catch {
+    // No service role or tables missing: keep empty arrays and meta miss
+  }
+
   const response: SocialInsightsResponse = {
     profile,
     series: { followers: seriesFollowers, score: seriesScore },
-    topFollowersByTier: {
-      influencers: [],
-      projects: [],
-      funds: [],
-    },
-    mentionsLastWeek: [],
+    topFollowersByTier,
+    mentionsLastWeek,
     affiliatedAccounts: [],
-    accountFeed: { actions: [], newFollowers: [] },
+    accountFeed,
     recommendedAccounts,
+    meta: cacheMeta,
   };
 
   return NextResponse.json(response);

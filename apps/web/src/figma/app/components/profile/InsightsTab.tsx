@@ -7,15 +7,13 @@ import {
   scoreToTier,
   SocialGraphCard,
   TopFollowersCard,
-  AccountFeedCard,
-  MentionsCard,
   AffiliatedAccountsCard,
   RecommendedAccountsCard,
   EmptyStateCard,
 } from "../profile-dashboard";
 import type { SocialGraphDataPoint } from "../profile-dashboard";
 import type { ScoreBreakdownRow } from "../profile-dashboard";
-import { Bot, BarChart3 } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { computeLinkaryPower } from "@/lib/linkaryScore";
 
 export interface InsightsTabProps {
@@ -135,7 +133,6 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
   const [loading, setLoading] = useState(true);
   const [graphSeries, setGraphSeries] = useState({ followers: true, score: true, influencers: false, projects: false, vc: false });
   const [topFollowersTab, setTopFollowersTab] = useState("influencers");
-  const [accountFeedTab, setAccountFeedTab] = useState<"actions" | "newFollowers">("actions");
   const [seeAllModalOpen, setSeeAllModalOpen] = useState(false);
   const [recommended, setRecommended] = useState<Array<{ id: string; name: string; username: string; avatar_url: string | null; url?: string }>>([]);
   const [watchlistList, setWatchlistList] = useState<{ people: Array<{ entity_id: string }>; orgs: Array<{ entity_id: string }> } | null>(null);
@@ -338,13 +335,38 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
     ? (insights.topFollowersByTier[topFollowersTab as keyof typeof insights.topFollowersByTier] ?? []) as Array<{ username: string; display_name: string | null; avatar_url: string | null; followers: number | null }>
     : [];
 
+  const cacheTop = insights?.meta?.cache?.topFollowers && typeof insights.meta.cache.topFollowers === "object" ? insights.meta.cache.topFollowers : undefined;
+  const cacheFeed = insights?.meta?.cache?.feed && typeof insights.meta.cache.feed === "object" ? insights.meta.cache.feed : undefined;
+  const cacheMentions = insights?.meta?.cache?.mentions && typeof insights.meta.cache.mentions === "object" ? insights.meta.cache.mentions : undefined;
+  const topStatus = cacheTop?.status as "hit" | "miss" | "stale" | undefined;
+  const feedStatus = cacheFeed?.status as "hit" | "miss" | "stale" | undefined;
+  const mentionsStatus = cacheMentions?.status as "hit" | "miss" | "stale" | undefined;
+
+  function formatRelative(iso: string | null | undefined): string {
+    if (!iso) return "—";
+    try {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return "—";
+      const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+      if (sec < 60) return "just now";
+      if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+      if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+      if (sec < 604800) return `${Math.floor(sec / 86400)}d ago`;
+      return d.toLocaleDateString();
+    } catch {
+      return "—";
+    }
+  }
+
   if (loading && !meStats && !publicDto && !insights) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-sm text-white/50">Loading insights…</p>
+        <p className="text-sm text-zinc-500">Loading insights…</p>
       </div>
     );
   }
+
+  const island = "rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden";
 
   return (
     <div className="space-y-6 pb-10">
@@ -361,20 +383,12 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
         onToggleWatchlist={me && profileEntityId ? handleToggleWatchlist : undefined}
       />
 
-      <ScoreCard
-        reputationIndex={reputationIndex}
-        tierLabel={tierLabel}
-        breakdown={breakdown}
-        verifiedGigsLabel={isOwn ? `Verified gigs: ${verifiedGigsCount}` : "Data pending"}
-        tips={tips}
-      />
-
       {isOwn && !me?.twitter_username?.trim() && (
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/8 to-white/[0.03] p-6">
-          <h3 className="text-sm font-semibold text-white/90">X insights</h3>
+        <div className={`${island} p-6`}>
+          <h3 className="text-sm font-semibold text-zinc-900">X insights</h3>
           <EmptyStateCard
             title="Connect X to start insights"
-            message="Link your X account in Integrations to see top followers, mentions, and account feed here."
+            message="Link your X account in Integrations to see top followers and score here."
             icon={<BarChart3 className="h-10 w-10" />}
             className="mt-3 border-0 bg-transparent p-0"
             actionLabel="Go to Integrations"
@@ -383,78 +397,121 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
         </div>
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/8 to-white/[0.03] p-6">
-        <h3 className="text-sm font-semibold text-white/90">Bot followers</h3>
-        <EmptyStateCard title="Coming soon" message="No blur, no gating." icon={<Bot className="h-10 w-10" />} className="mt-3 border-0 bg-transparent p-0" />
-      </div>
-
-      <SocialGraphCard
-        data={chartData}
-        seriesEnabled={graphSeries}
-        onToggleSeries={(key) => setGraphSeries((prev) => ({ ...prev, [key]: !prev[key] }))}
-      />
-
       {isOwn && me?.twitter_username?.trim() && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-br from-white/8 to-white/[0.03] px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
           <button
             type="button"
             onClick={handleRefreshInsights}
             disabled={refreshDisabled}
-            className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white/90 hover:bg-white/15 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {refreshLoading ? "Refreshing…" : isRefreshRateLimited ? "Rate limited" : isRefreshCooldown ? "Refresh (cooldown)" : "Refresh insights"}
           </button>
           {isRefreshRateLimited && refreshResetAt && (
-            <span className="text-xs text-white/50">
+            <span className="text-xs text-zinc-500">
               Try again after {new Date(refreshResetAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
         </div>
       )}
 
-      <TopFollowersCard
-        tabs={[{ id: "influencers", label: "Influencers" }, { id: "projects", label: "Projects" }, { id: "funds", label: "Funds" }]}
-        activeTab={topFollowersTab}
-        onTabChange={setTopFollowersTab}
-        items={topFollowersItems}
-        sampleLabel={topFollowersItems.length > 0 ? "Sample" : null}
-        onSeeAll={() => setSeeAllModalOpen(true)}
-        emptyMessage="Nothing here yet"
-        cacheStatus={(insights?.meta?.cache?.topFollowers && typeof insights.meta.cache.topFollowers === "object" ? insights.meta.cache.topFollowers.status : undefined) as "hit" | "miss" | "stale" | undefined}
-        updatedAt={insights?.meta?.cache?.topFollowers && typeof insights.meta.cache.topFollowers === "object" ? insights.meta.cache.topFollowers.updatedAt : undefined}
-      />
+      {/* Row 1: Linkary Score | Top Followers */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className={island}>
+          <ScoreCard
+            reputationIndex={reputationIndex}
+            tierLabel={tierLabel}
+            breakdown={breakdown}
+            verifiedGigsLabel={isOwn ? `Verified gigs: ${verifiedGigsCount}` : "Data pending"}
+            tips={tips}
+          />
+        </div>
+        <div className={island}>
+          <TopFollowersCard
+            tabs={[{ id: "influencers", label: "Influencers" }, { id: "projects", label: "Projects" }, { id: "funds", label: "Funds" }]}
+            activeTab={topFollowersTab}
+            onTabChange={setTopFollowersTab}
+            items={topFollowersItems}
+            sampleLabel={topFollowersItems.length > 0 ? "Sample" : null}
+            onSeeAll={() => setSeeAllModalOpen(true)}
+            emptyMessage="Nothing here yet"
+            cacheStatus={topStatus}
+            updatedAt={cacheTop?.updatedAt ?? undefined}
+          />
+        </div>
+      </div>
 
-      <AccountFeedCard
-        activeTab={accountFeedTab}
-        onTabChange={setAccountFeedTab}
-        actions={insights?.accountFeed?.actions ?? []}
-        newFollowers={insights?.accountFeed?.newFollowers ?? []}
-        emptyMessage="No data yet. Sync will run automatically."
-        cacheStatus={(insights?.meta?.cache?.feed && typeof insights.meta.cache.feed === "object" ? insights.meta.cache.feed.status : undefined) as "hit" | "miss" | "stale" | undefined}
-        updatedAt={insights?.meta?.cache?.feed && typeof insights.meta.cache.feed === "object" ? insights.meta.cache.feed.updatedAt : undefined}
-      />
+      {/* Row 2: Social Graph | Insights Summary */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className={island}>
+          <SocialGraphCard
+            data={chartData}
+            seriesEnabled={graphSeries}
+            onToggleSeries={(key) => setGraphSeries((prev) => ({ ...prev, [key]: !prev[key] }))}
+          />
+        </div>
+        <div className={`${island} p-6`}>
+          <h3 className="text-sm font-semibold text-zinc-900">Insights summary</h3>
+          <dl className="mt-4 space-y-3">
+            <div>
+              <dt className="text-xs font-medium text-zinc-500">Followers</dt>
+              <dd className="mt-0.5 text-lg font-semibold text-zinc-900">
+                {insightsProfile?.followers != null ? insightsProfile.followers.toLocaleString() : me?.followers_total != null ? me.followers_total.toLocaleString() : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-zinc-500">Connected X</dt>
+              <dd className="mt-0.5 text-sm text-zinc-900">
+                {isOwn && me?.twitter_username?.trim() ? `@${me.twitter_username.replace(/^@/, "")}` : isOwn ? "Not connected" : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-zinc-500">Data health</dt>
+              <dd className="mt-1 flex flex-wrap gap-2">
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${topStatus === "hit" ? "bg-emerald-100 text-emerald-800" : topStatus === "stale" ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-600"}`}>
+                  Top followers: {topStatus ?? "—"}
+                </span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${feedStatus === "hit" ? "bg-emerald-100 text-emerald-800" : feedStatus === "stale" ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-600"}`}>
+                  Feed: {feedStatus ?? "—"}
+                </span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${mentionsStatus === "hit" ? "bg-emerald-100 text-emerald-800" : mentionsStatus === "stale" ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-600"}`}>
+                  Mentions: {mentionsStatus ?? "—"}
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-zinc-500">Last updated</dt>
+              <dd className="mt-0.5 text-sm text-zinc-700">
+                {formatRelative(cacheTop?.updatedAt ?? null)}
+                {cacheTop?.updatedAt ? " (top followers)" : ""}
+                {!cacheTop?.updatedAt && !cacheFeed?.updatedAt && !cacheMentions?.updatedAt ? "No cache yet" : ""}
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-3 text-xs text-zinc-500">Mentions & account feed coming later.</p>
+        </div>
+      </div>
 
-      <MentionsCard
-        mentions={insights?.mentionsLastWeek ?? []}
-        emptyMessage="No data yet. Sync will run automatically."
-        cacheStatus={(insights?.meta?.cache?.mentions && typeof insights.meta.cache.mentions === "object" ? insights.meta.cache.mentions.status : undefined) as "hit" | "miss" | "stale" | undefined}
-        updatedAt={insights?.meta?.cache?.mentions && typeof insights.meta.cache.mentions === "object" ? insights.meta.cache.mentions.updatedAt : undefined}
-      />
-
-      <AffiliatedAccountsCard accounts={insights?.affiliatedAccounts ?? []} emptyMessage="Nothing here yet" />
-
-      <RecommendedAccountsCard
-        accounts={recommended}
-        onAccountClick={(u) => setRoute({ name: "profile", data: { username: u, tab: "insights" } })}
-        emptyMessage="Nothing here yet"
-      />
+      {/* Row 3: Affiliated Accounts | Recommended Accounts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className={island}>
+          <AffiliatedAccountsCard accounts={insights?.affiliatedAccounts ?? []} emptyMessage="Nothing here yet" />
+        </div>
+        <div className={island}>
+          <RecommendedAccountsCard
+            accounts={recommended}
+            onAccountClick={(u) => setRoute({ name: "profile", data: { username: u, tab: "insights" } })}
+            emptyMessage="Nothing here yet"
+          />
+        </div>
+      </div>
 
       {seeAllModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setSeeAllModalOpen(false)}>
-          <div className="max-h-[80vh] w-full max-w-md overflow-auto rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold text-white/90">Top followers</h3>
-            <p className="mt-2 text-xs text-white/50">Nothing here yet</p>
-            <button type="button" className="mt-4 rounded-lg bg-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/15" onClick={() => setSeeAllModalOpen(false)}>Close</button>
+          <div className="max-h-[80vh] w-full max-w-md overflow-auto rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-zinc-900">Top followers</h3>
+            <p className="mt-2 text-xs text-zinc-500">Nothing here yet</p>
+            <button type="button" className="mt-4 rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-200" onClick={() => setSeeAllModalOpen(false)}>Close</button>
           </div>
         </div>
       )}

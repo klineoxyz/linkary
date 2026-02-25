@@ -2705,22 +2705,22 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           </Card>
 
           {/* Discover people - search other profiles */}
-          <Card className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/8 to-white/[0.03]">
+          <Card className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
             <div className="mb-4">
-              <h3 className="text-sm font-semibold text-white/90">Discover people</h3>
-              <p className="mt-1 text-xs text-white/50">Search and open other profiles&apos; insights</p>
+              <h3 className="text-sm font-semibold text-zinc-900">Discover people</h3>
+              <p className="mt-1 text-xs text-zinc-500">Search and open other profiles&apos; insights</p>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
               <input
                 type="text"
                 value={profileSearchQuery}
                 onChange={(e) => setProfileSearchQuery(e.target.value)}
                 placeholder="Search by name or handle..."
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-white/20"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-900 placeholder:text-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
               />
               {profileSearchLoading && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/50">Searching…</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500">Searching…</span>
               )}
             </div>
             {profileSearchResults.length > 0 && (
@@ -2732,20 +2732,20 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                       <button
                         type="button"
                         onClick={() => setRoute({ name: "profile", data: { tab: "insights", username } })}
-                        className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-left transition-colors hover:bg-white/10 hover:border-white/20"
+                        className="flex w-full items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-left transition-colors hover:bg-zinc-100 hover:border-zinc-300"
                       >
                         {r.avatar ? (
                           <img src={r.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
                         ) : (
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
-                            <Users className="h-4 w-4 text-white/50" />
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-200">
+                            <Users className="h-4 w-4 text-zinc-500" />
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-white/90">{r.name || username || "—"}</p>
-                          <p className="truncate text-xs text-white/50">{username ? `@${username}` : "—"}</p>
+                          <p className="truncate text-sm font-medium text-zinc-900">{r.name || username || "—"}</p>
+                          <p className="truncate text-xs text-zinc-500">{username ? `@${username}` : "—"}</p>
                         </div>
-                        <ArrowRight className="h-4 w-4 shrink-0 text-white/40" />
+                        <ArrowRight className="h-4 w-4 shrink-0 text-zinc-400" />
                       </button>
                     </li>
                   );
@@ -2753,7 +2753,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
               </ul>
             )}
             {profileSearchQuery.trim().length >= 2 && !profileSearchLoading && profileSearchResults.length === 0 && (
-              <p className="mt-3 text-xs text-white/50">No people found. Try a different search.</p>
+              <p className="mt-3 text-xs text-zinc-500">No people found. Try a different search.</p>
             )}
           </Card>
 
@@ -3051,12 +3051,12 @@ function LinkaryAppInner() {
     }
   }, []);
 
-  // Routes that use Linkary dark UI: no full-screen decorative overlays, dark shell
-  const darkUIRoutes = ["profile", "dashboard", "orgDetail"];
-  const isDarkUIRoute = darkUIRoutes.includes(route.name);
+  // Routes where we hide full-screen decorative layers to avoid haze (keep Linkary light shell)
+  const routesWithoutDecorativeLayers = ["profile", "dashboard", "orgDetail"];
+  const hideDecorativeLayers = routesWithoutDecorativeLayers.includes(route.name);
 
   return (
-    <div className={`scrollbar min-h-screen relative ${isDarkUIRoute ? "bg-zinc-950 text-zinc-100" : "bg-[#F7F8FB] text-gray-900"}`}>
+    <div className="scrollbar min-h-screen bg-[#F7F8FB] text-gray-900 relative">
       <GlobalStyles />
       {analyticsInitFailed && (
         <div className="sticky top-0 z-[100] flex items-center justify-between gap-4 px-4 py-2 bg-amber-100 border-b border-amber-300 text-amber-900 text-sm">
@@ -3091,7 +3091,7 @@ function LinkaryAppInner() {
       )}
       
       {/* Animated Floating Squares - hidden on profile/dashboard/org to avoid white haze */}
-      {!isDarkUIRoute && (
+      {!hideDecorativeLayers && (
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-[1]">
         {/* Cyan Squares */}
         <motion.div
@@ -3425,8 +3425,8 @@ function LinkaryAppInner() {
         )}
 
         <main className={`flex-1 ${["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) ? "" : "p-6 lg:p-10"} overflow-y-auto relative min-h-screen`}>
-          {/* Animated Mesh Gradient Background - hidden for public and for dark UI (profile/dashboard/org) to avoid haze */}
-          {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && !isDarkUIRoute && (
+          {/* Animated Mesh Gradient Background - hidden for public and for profile/dashboard/org to avoid haze */}
+          {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && !hideDecorativeLayers && (
           <>
             <div className="fixed inset-0 pointer-events-none z-[2]">
               <motion.div

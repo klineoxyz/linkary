@@ -2345,6 +2345,9 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   const [csSubmitting, setCsSubmitting] = useState(false);
   const [meStats, setMeStats] = useState<{ ethos: number | null; xscore: number | null; reputationIndex: number; socialPower: number; reviews: { avg: number; count: number } } | null>(null);
   const [xHandle, setXHandle] = useState<string | null>(null);
+  const [profileSearchQuery, setProfileSearchQuery] = useState("");
+  const [profileSearchResults, setProfileSearchResults] = useState<Array<{ id: string; type: string; name: string; handleLabel?: string; handle?: string; url?: string; avatar?: string; verified?: boolean }>>([]);
+  const [profileSearchLoading, setProfileSearchLoading] = useState(false);
 
   const setProfileTab = (newTab: string) => {
     setRoute({ name: "profile", data: { tab: newTab, username: viewUsername } });
@@ -2374,6 +2377,29 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
       }
     })();
   }, [me?.id]);
+
+  // Debounced profile search (people only)
+  useEffect(() => {
+    if (profileSearchQuery.trim().length < 2) {
+      setProfileSearchResults([]);
+      setProfileSearchLoading(false);
+      return;
+    }
+    setProfileSearchLoading(true);
+    const t = setTimeout(() => {
+      const q = profileSearchQuery.trim();
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      fetch(`${base}/api/search?q=${encodeURIComponent(q)}&filter=people`)
+        .then((res) => res.json())
+        .then((data) => {
+          const raw = Array.isArray(data?.results) ? data.results : [];
+          setProfileSearchResults(raw.slice(0, 8));
+        })
+        .catch(() => setProfileSearchResults([]))
+        .finally(() => setProfileSearchLoading(false));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [profileSearchQuery]);
 
   const publicSlug = (me?.username || me?.twitter_username || xHandle || "").replace(/^@/, "").toLowerCase().trim();
   const hasPublicSlug = publicSlug.length > 0;
@@ -2676,6 +2702,59 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                 </div>
               ))}
             </div>
+          </Card>
+
+          {/* Discover people - search other profiles */}
+          <Card className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/8 to-white/[0.03]">
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-white/90">Discover people</h3>
+              <p className="mt-1 text-xs text-white/50">Search and open other profiles&apos; insights</p>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+              <input
+                type="text"
+                value={profileSearchQuery}
+                onChange={(e) => setProfileSearchQuery(e.target.value)}
+                placeholder="Search by name or handle..."
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-white/20"
+              />
+              {profileSearchLoading && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/50">Searching…</span>
+              )}
+            </div>
+            {profileSearchResults.length > 0 && (
+              <ul className="mt-3 space-y-2 max-h-64 overflow-y-auto">
+                {profileSearchResults.map((r) => {
+                  const username = (r.handleLabel ?? r.handle ?? r.url ?? "").replace(/^@/, "").trim() || r.id;
+                  return (
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        onClick={() => setRoute({ name: "profile", data: { tab: "insights", username } })}
+                        className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-left transition-colors hover:bg-white/10 hover:border-white/20"
+                      >
+                        {r.avatar ? (
+                          <img src={r.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+                        ) : (
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+                            <Users className="h-4 w-4 text-white/50" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-white/90">{r.name || username || "—"}</p>
+                          <p className="truncate text-xs text-white/50">{username ? `@${username}` : "—"}</p>
+                        </div>
+                        <ArrowRight className="h-4 w-4 shrink-0 text-white/40" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {profileSearchQuery.trim().length >= 2 && !profileSearchLoading && profileSearchResults.length === 0 && (
+              <p className="mt-3 text-xs text-white/50">No people found. Try a different search.</p>
+            )}
           </Card>
 
           {showCaseStudyModal && (

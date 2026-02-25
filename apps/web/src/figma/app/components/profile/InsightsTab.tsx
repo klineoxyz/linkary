@@ -371,6 +371,7 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
   return (
     <div className="space-y-6 pb-10">
       <ProfileHeaderCard
+        variant="light"
         displayName={displayName ?? null}
         username={targetUsername ? `@${targetUsername}` : "@"}
         bio={bio}

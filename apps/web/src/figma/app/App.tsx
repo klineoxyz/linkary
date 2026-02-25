@@ -604,9 +604,9 @@ function JobStatusBadge({ status }) {
 function GlobalStyles() {
   return (
     <style>{`
-      body { font-family: 'Inter', sans-serif; }
+      body, .font-app { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', 'Helvetica Neue', Arial, sans-serif; }
       .scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-      .scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 3px; }
+      .scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); border-radius: 3px; }
     `}</style>
   );
 }
@@ -2515,10 +2515,10 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             <ProfileAvatar handle={me?.twitter_username || u.handle} alt={u.name} fallbackGradient="from-primary to-primary/80" avatarUrl={me?.avatar_url} />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold truncate" style={{ color: '#000000' }}>{u.name}</span>
+                <span className="text-lg font-semibold text-zinc-900 truncate">{u.name}</span>
                 {u.verified && <BadgeCheck className="h-5 w-5 text-primary stroke-[1.75]" />}
               </div>
-              <p className="text-sm truncate" style={{ color: '#404040' }}>@{u.handle} · {u.location}</p>
+              <p className="text-sm text-zinc-600 truncate">@{u.handle} · {u.location}</p>
             </div>
           </div>
 
@@ -2532,19 +2532,19 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           <div className="mt-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Stars value={u.reviews.avg} />
-              <span className="text-xs" style={{ color: '#404040' }}>{u.reviews.avg} ({u.reviews.count})</span>
+              <span className="text-xs text-zinc-600">{u.reviews.avg} ({u.reviews.count})</span>
             </div>
-            <div className="text-xs" style={{ color: '#404040' }}>{formatMoneyEUR(u.volume.current)} volume</div>
+            <div className="text-xs text-zinc-600">{formatMoneyEUR(u.volume.current)} volume</div>
           </div>
 
-          <p className="mt-4 text-sm" style={{ color: '#404040' }}>{u.bio}</p>
+          <p className="mt-4 text-sm text-zinc-600 leading-relaxed">{u.bio}</p>
 
           {/* Role Tags */}
           <div className="mt-4">
-            <div className="text-xs font-medium mb-2" style={{ color: '#666666' }}>Roles</div>
+            <div className="text-xs font-medium text-zinc-500 mb-2">Roles</div>
             <div className="flex flex-wrap gap-2">
               {(u.roleTags ?? []).map((role) => (
-                <span key={role} className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
+                <span key={role} className="rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-800">
                   {role}
                 </span>
               ))}
@@ -2554,10 +2554,10 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           {/* Ambassador Of */}
           {u.ambassadorOf && u.ambassadorOf.length > 0 && (
             <div className="mt-4">
-              <div className="text-xs font-medium mb-2" style={{ color: '#666666' }}>Ambassador Of</div>
+              <div className="text-xs font-medium text-zinc-500 mb-2">Ambassador Of</div>
               <div className="flex flex-wrap gap-2">
                 {u.ambassadorOf.map((proj) => (
-                  <span key={proj} className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs backdrop-blur-xl" style={{ color: '#1a1a1a' }}>
+                  <span key={proj} className="rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-800">
                     {proj}
                   </span>
                 ))}
@@ -2568,7 +2568,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           {/* Partnerships */}
           {u.partnerships && u.partnerships.length > 0 && (
             <div className="mt-4">
-              <div className="text-xs font-medium mb-2" style={{ color: '#666666' }}>Partnerships</div>
+              <div className="text-xs font-medium text-zinc-500 mb-2">Partnerships</div>
               <div className="space-y-2">
                 {u.partnerships.map((p) => (
                   <div key={p.name} className="relative overflow-hidden rounded-lg border-0 px-4 py-3 bg-cover bg-center" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)' }}>
@@ -2591,13 +2591,13 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             {(u.links ?? []).map((l) => (
               <div
                 key={l.label}
-                className="flex items-center justify-between rounded-lg border border-border bg-accent backdrop-blur-xl px-4 py-3 hover:border-border transition-all duration-300"
+                className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 hover:bg-zinc-100 transition-colors"
               >
                 <div className="flex min-w-0 items-center gap-2">
                   <ExternalLink className="h-4 w-4 text-primary stroke-[1.75]" />
-                  <span className="truncate font-medium" style={{ color: '#000000' }}>{l.label}</span>
+                  <span className="truncate font-medium text-zinc-900">{l.label}</span>
                 </div>
-                <span className="text-xs" style={{ color: '#404040' }}>{l.clicks.toLocaleString()}</span>
+                <span className="text-xs text-zinc-600">{l.clicks.toLocaleString()}</span>
               </div>
             ))}
           </div>
@@ -3056,7 +3056,7 @@ function LinkaryAppInner() {
   const hideDecorativeLayers = routesWithoutDecorativeLayers.includes(route.name);
 
   return (
-    <div className="scrollbar min-h-screen bg-[#F7F8FB] text-gray-900 relative">
+    <div className="scrollbar min-h-screen bg-[#F7F8FB] text-gray-900 relative font-app">
       <GlobalStyles />
       {analyticsInitFailed && (
         <div className="sticky top-0 z-[100] flex items-center justify-between gap-4 px-4 py-2 bg-amber-100 border-b border-amber-300 text-amber-900 text-sm">
@@ -3424,7 +3424,7 @@ function LinkaryAppInner() {
           />
         )}
 
-        <main className={`flex-1 ${["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) ? "" : "p-6 lg:p-10"} overflow-y-auto relative min-h-screen`}>
+        <main className={`flex-1 font-app text-base antialiased ${["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) ? "" : "p-6 lg:p-10"} overflow-y-auto relative min-h-screen`}>
           {/* Animated Mesh Gradient Background - hidden for public and for profile/dashboard/org to avoid haze */}
           {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && !hideDecorativeLayers && (
           <>

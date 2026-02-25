@@ -38,6 +38,11 @@ interface AnalyticsXResponse {
   snapshots?: Array<{ snapshot_date: string; followers_total: number | null; tweets_count?: number | null; engagement_rate?: number | null }>;
 }
 
+interface CacheBucketMeta {
+  status: "hit" | "miss" | "stale";
+  updatedAt: string | null;
+}
+
 interface SocialInsightsResponse {
   profile: { username: string; followers: number | null; following: number | null; tweets: number | null; joinedAt: string | null };
   series?: { followers: Array<{ date: string; value: number }>; score: Array<{ date: string; value: number }> };
@@ -46,6 +51,13 @@ interface SocialInsightsResponse {
   affiliatedAccounts: unknown[];
   accountFeed: { actions: unknown[]; newFollowers: unknown[] };
   recommendedAccounts: unknown[];
+  meta?: {
+    cache?: {
+      topFollowers?: CacheBucketMeta;
+      feed?: CacheBucketMeta;
+      mentions?: CacheBucketMeta;
+    };
+  };
 }
 
 function buildBreakdown(
@@ -329,6 +341,20 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
         tips={tips}
       />
 
+      {isOwn && !me?.twitter_username?.trim() && (
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/8 to-white/[0.03] p-6">
+          <h3 className="text-sm font-semibold text-white/90">X insights</h3>
+          <EmptyStateCard
+            title="Connect X to start insights"
+            message="Link your X account in Integrations to see top followers, mentions, and account feed here."
+            icon={<BarChart3 className="h-10 w-10" />}
+            className="mt-3 border-0 bg-transparent p-0"
+            actionLabel="Go to Integrations"
+            onAction={() => setRoute({ name: "integrations" })}
+          />
+        </div>
+      )}
+
       <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/8 to-white/[0.03] p-6">
         <h3 className="text-sm font-semibold text-white/90">Bot followers</h3>
         <EmptyStateCard title="Coming soon" message="No blur, no gating." icon={<Bot className="h-10 w-10" />} className="mt-3 border-0 bg-transparent p-0" />
@@ -352,6 +378,8 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
         sampleLabel={topFollowersItems.length > 0 ? "Sample" : null}
         onSeeAll={() => setSeeAllModalOpen(true)}
         emptyMessage="Nothing here yet"
+        cacheStatus={insights?.meta?.cache?.topFollowers?.status}
+        updatedAt={insights?.meta?.cache?.topFollowers?.updatedAt}
       />
 
       <AccountFeedCard
@@ -359,10 +387,17 @@ export default function ProfileDashboardPage({ setRoute, me, username, getAuthHe
         onTabChange={setAccountFeedTab}
         actions={insights?.accountFeed?.actions ?? []}
         newFollowers={insights?.accountFeed?.newFollowers ?? []}
-        emptyMessage="Coming soon (twitterapi.io feed)"
+        emptyMessage="No data yet. Sync will run automatically."
+        cacheStatus={insights?.meta?.cache?.feed?.status}
+        updatedAt={insights?.meta?.cache?.feed?.updatedAt}
       />
 
-      <MentionsCard mentions={insights?.mentionsLastWeek ?? []} emptyMessage="Coming soon (twitterapi.io mentions)" />
+      <MentionsCard
+        mentions={insights?.mentionsLastWeek ?? []}
+        emptyMessage="No data yet. Sync will run automatically."
+        cacheStatus={insights?.meta?.cache?.mentions?.status}
+        updatedAt={insights?.meta?.cache?.mentions?.updatedAt}
+      />
 
       <AffiliatedAccountsCard accounts={insights?.affiliatedAccounts ?? []} emptyMessage="Nothing here yet" />
 

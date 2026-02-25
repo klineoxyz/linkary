@@ -11,6 +11,22 @@ export interface TopFollowerItem {
   tier?: string;
 }
 
+function relativeTime(iso: string | null | undefined): string {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (sec < 60) return "just now";
+    if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+    if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+    if (sec < 604800) return `${Math.floor(sec / 86400)}d ago`;
+    return d.toLocaleDateString();
+  } catch {
+    return "";
+  }
+}
+
 export interface TopFollowersCardProps {
   tabs: { id: string; label: string }[];
   activeTab: string;
@@ -19,6 +35,9 @@ export interface TopFollowersCardProps {
   sampleLabel?: string | null;
   onSeeAll?: () => void;
   emptyMessage?: string;
+  /** Phase 7: cache status and last updated */
+  cacheStatus?: "hit" | "miss" | "stale";
+  updatedAt?: string | null;
 }
 
 export function TopFollowersCard({
@@ -29,7 +48,18 @@ export function TopFollowersCard({
   sampleLabel,
   onSeeAll,
   emptyMessage = "Nothing here yet",
+  cacheStatus,
+  updatedAt,
 }: TopFollowersCardProps) {
+  const statusLine =
+    cacheStatus === "stale"
+      ? "Data is stale, refreshing soon"
+      : cacheStatus === "miss"
+        ? "No data yet. Sync will run automatically."
+        : updatedAt
+          ? `Updated: ${relativeTime(updatedAt)}`
+          : null;
+
   return (
     <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/8 to-white/[0.03] p-6">
       <div className="flex items-center justify-between">
@@ -44,7 +74,9 @@ export function TopFollowersCard({
           </button>
         )}
       </div>
-      {sampleLabel && <p className="mt-1 text-xs text-white/50">{sampleLabel}</p>}
+      {(sampleLabel || statusLine) && (
+        <p className="mt-1 text-xs text-white/50">{statusLine ?? sampleLabel}</p>
+      )}
       <div className="mt-3 flex gap-2 border-b border-white/10 pb-2">
         {tabs.map((tab) => (
           <button

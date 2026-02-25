@@ -23,6 +23,11 @@ const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
 
 type CacheStatus = "hit" | "miss" | "stale";
 
+export interface CacheBucketMeta {
+  status: CacheStatus;
+  updatedAt: string | null;
+}
+
 export interface SocialInsightsProfile {
   username: string;
   followers: number | null;
@@ -62,9 +67,13 @@ export interface SocialInsightsResponse {
     newFollowers: unknown[];
   };
   recommendedAccounts: unknown[];
-  /** Phase 4: cache status for topFollowers, feed, mentions. */
+  /** Phase 4/7: cache status and updatedAt per bucket. */
   meta?: {
-    cache: { topFollowers: CacheStatus; feed: CacheStatus; mentions: CacheStatus };
+    cache: {
+      topFollowers: CacheBucketMeta;
+      feed: CacheBucketMeta;
+      mentions: CacheBucketMeta;
+    };
   };
 }
 
@@ -123,7 +132,13 @@ export async function GET(request: NextRequest) {
       affiliatedAccounts: [],
       accountFeed: { actions: [], newFollowers: [] },
       recommendedAccounts: [],
-      meta: { cache: { topFollowers: "miss", feed: "miss", mentions: "miss" } },
+      meta: {
+        cache: {
+          topFollowers: { status: "miss", updatedAt: null },
+          feed: { status: "miss", updatedAt: null },
+          mentions: { status: "miss", updatedAt: null },
+        },
+      },
     };
     return NextResponse.json(empty);
   }
@@ -209,7 +224,11 @@ export async function GET(request: NextRequest) {
   let mentionsLastWeek: unknown[] = [];
   let accountFeed: SocialInsightsResponse["accountFeed"] = { actions: [], newFollowers: [] };
   let cacheMeta: SocialInsightsResponse["meta"] = {
-    cache: { topFollowers: "miss", feed: "miss", mentions: "miss" },
+    cache: {
+      topFollowers: { status: "miss", updatedAt: null },
+      feed: { status: "miss", updatedAt: null },
+      mentions: { status: "miss", updatedAt: null },
+    },
   };
 
   try {
@@ -240,7 +259,10 @@ export async function GET(request: NextRequest) {
     const topUpdated = topRow?.updated_at ? new Date(topRow.updated_at).getTime() : 0;
     const topFresh = topUpdated && now - topUpdated <= CACHE_STALE_MS;
     if (topPayload && typeof topPayload === "object") {
-      cacheMeta!.cache.topFollowers = topFresh ? "hit" : "stale";
+      cacheMeta!.cache.topFollowers = {
+        status: topFresh ? "hit" : "stale",
+        updatedAt: topRow?.updated_at ?? null,
+      };
       const infl = (Array.isArray(topPayload.influencers) ? topPayload.influencers : []).map(sanitizeTopFollowerItem);
       const proj = (Array.isArray(topPayload.projects) ? topPayload.projects : []).map(sanitizeTopFollowerItem);
       const funds = (Array.isArray(topPayload.funds) ? topPayload.funds : []).map(sanitizeTopFollowerItem);
@@ -268,7 +290,10 @@ export async function GET(request: NextRequest) {
         })),
       };
     } else if (topRow?.data != null) {
-      cacheMeta!.cache.topFollowers = topFresh ? "hit" : "stale";
+      cacheMeta!.cache.topFollowers = {
+        status: topFresh ? "hit" : "stale",
+        updatedAt: topRow?.updated_at ?? null,
+      };
     }
 
     const feedRow = feedRes?.data as { data?: unknown; updated_at?: string } | null;
@@ -276,12 +301,18 @@ export async function GET(request: NextRequest) {
     const feedUpdated = feedRow?.updated_at ? new Date(feedRow.updated_at).getTime() : 0;
     const feedFresh = feedUpdated && now - feedUpdated <= CACHE_STALE_MS;
     if (feedData && typeof feedData === "object") {
-      cacheMeta!.cache.feed = feedFresh ? "hit" : "stale";
+      cacheMeta!.cache.feed = {
+        status: feedFresh ? "hit" : "stale",
+        updatedAt: feedRow?.updated_at ?? null,
+      };
       const actions = (Array.isArray(feedData.actions) ? feedData.actions : []).map(sanitizeAccountFeedItem);
       const newFollowers = (Array.isArray(feedData.newFollowers) ? feedData.newFollowers : []).map(sanitizeAccountFeedItem);
       accountFeed = { actions, newFollowers };
     } else if (feedRow?.data != null) {
-      cacheMeta!.cache.feed = feedFresh ? "hit" : "stale";
+      cacheMeta!.cache.feed = {
+        status: feedFresh ? "hit" : "stale",
+        updatedAt: feedRow?.updated_at ?? null,
+      };
     }
 
     const mentionsRow = mentionsRes?.data as { data?: unknown; updated_at?: string } | null;
@@ -289,10 +320,16 @@ export async function GET(request: NextRequest) {
     const mentionsUpdated = mentionsRow?.updated_at ? new Date(mentionsRow.updated_at).getTime() : 0;
     const mentionsFresh = mentionsUpdated && now - mentionsUpdated <= CACHE_STALE_MS;
     if (Array.isArray(mentionsData)) {
-      cacheMeta!.cache.mentions = mentionsFresh ? "hit" : "stale";
+      cacheMeta!.cache.mentions = {
+        status: mentionsFresh ? "hit" : "stale",
+        updatedAt: mentionsRow?.updated_at ?? null,
+      };
       mentionsLastWeek = mentionsData;
     } else if (mentionsRow?.data != null) {
-      cacheMeta!.cache.mentions = mentionsFresh ? "hit" : "stale";
+      cacheMeta!.cache.mentions = {
+        status: mentionsFresh ? "hit" : "stale",
+        updatedAt: mentionsRow?.updated_at ?? null,
+      };
     }
   } catch {
     // No service role or tables missing: keep empty arrays and meta miss

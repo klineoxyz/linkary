@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
-import { Calendar, Users, UserPlus, MessageCircle } from "lucide-react";
+import { Calendar, Users, UserPlus, MessageCircle, Link2 } from "lucide-react";
 
 export interface ProfileHeaderCardProps {
   displayName: string | null;
@@ -31,9 +31,25 @@ export function ProfileHeaderCard({
   onWatchlist,
   onToggleWatchlist,
 }: ProfileHeaderCardProps) {
+  const [copied, setCopied] = useState(false);
   const safeAvatar = avatarUrl && !isPrivateStorageUrl(avatarUrl) ? avatarUrl : null;
-  const handle = username.replace(/^@/, "");
+  const handle = username.replace(/^@/, "").toLowerCase() || "";
   const unavatarFallback = handle ? `https://unavatar.io/twitter/${encodeURIComponent(handle)}` : null;
+
+  const copyProfileLink = useCallback(() => {
+    if (!handle) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = `${origin}/${handle}`;
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(
+        () => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        },
+        () => {}
+      );
+    }
+  }, [handle]);
 
   const formatJoin = (s: string | null) => {
     if (!s) return null;
@@ -90,9 +106,21 @@ export function ProfileHeaderCard({
             ))}
           </div>
         </div>
-        {(watchlistButton != null || onToggleWatchlist != null) && (
-          <div className="flex-shrink-0">
-            {onToggleWatchlist != null ? (
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+          {handle && (
+            <button
+              type="button"
+              onClick={copyProfileLink}
+              className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white/80 hover:bg-white/15"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Link2 className="h-3.5 w-3.5" />
+                {copied ? "Copied" : "Copy link"}
+              </span>
+            </button>
+          )}
+          {(watchlistButton != null || onToggleWatchlist != null) && (
+            onToggleWatchlist != null ? (
               <button
                 type="button"
                 onClick={onToggleWatchlist}
@@ -106,9 +134,9 @@ export function ProfileHeaderCard({
               </button>
             ) : (
               watchlistButton
-            )}
-          </div>
-        )}
+            )
+          )}
+        </div>
       </div>
     </div>
   );

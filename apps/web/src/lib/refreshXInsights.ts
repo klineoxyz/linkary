@@ -186,9 +186,11 @@ function getCurrentWeekStart(): string {
   return monday.toISOString().slice(0, 10);
 }
 
+const GLOBAL_STATE_KEY = "global";
+
 /**
  * Refresh X insights for a profile. Partial success: write each section that succeeds.
- * On RATE_LIMITED: return { ok: true, skipped: true, reason, resetAt } and do NOT write (keep existing cache).
+ * Phase 6: Check global rate limit before any API call; on RATE_LIMITED persist and do NOT write cache.
  */
 export async function refreshXInsightsForProfile(profileId: string): Promise<RefreshResult> {
   const apiKey = process.env.TWITTERAPI_IO_KEY ?? process.env.TWITTERAPI_API_KEY;
@@ -203,6 +205,28 @@ export async function refreshXInsightsForProfile(profileId: string): Promise<Ref
   } catch (e) {
     console.error("[refreshXInsights] createServiceSupabase failed", e);
     return { ok: false, error: "Service unavailable" };
+  }
+
+  // Phase 6: respect global rate limit (do not call twitterapi until resetAt)
+  const { data: stateRow } = await supabase
+    .from("x_insights_refresh_state")
+    .select("rate_limited_until")
+    .eq("key", GLOBAL_STATE_KEY)
+    .maybeSingle();
+  const rateLimitedUntil = (stateRow as { rate_limited_until: string | null } | null)?.rate_limited_until;
+  if (rateLimitedUntil) {
+    const until = new Date(rateLimitedUntil).getTime();
+    if (Date.now() < until) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[refreshXInsights] GLOBAL_RATE_LIMIT; backoff until", rateLimitedUntil);
+      }
+      return {
+        ok: true,
+        skipped: true,
+        reason: "GLOBAL_RATE_LIMIT",
+        resetAt: rateLimitedUntil,
+      };
+    }
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -247,6 +271,21 @@ export async function refreshXInsightsForProfile(profileId: string): Promise<Ref
       if (process.env.NODE_ENV !== "production") {
         console.log("[refreshXInsights] RATE_LIMITED; not overwriting cache resetAt=" + resetAt);
       }
+      if (resetAt) {
+        try {
+          await supabase.from("x_insights_refresh_state").upsert(
+            {
+              key: GLOBAL_STATE_KEY,
+              rate_limited_until: resetAt,
+              last_error: "RATE_LIMITED",
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "key" }
+          );
+        } catch (writeErr) {
+          console.warn("[refreshXInsights] failed to persist rate limit state", writeErr);
+        }
+      }
       return { ok: true, skipped: true, reason: "RATE_LIMITED", resetAt };
     }
     console.error("[refreshXInsights] fetch failed", e);
@@ -267,6 +306,10 @@ export async function refreshXInsightsForProfile(profileId: string): Promise<Ref
     await supabase.from("x_mentions_weekly_cache").upsert(
       { profile_id: profileId, week_start: weekStart, data: mentionsPayload, updated_at: new Date().toISOString() },
       { onConflict: "profile_id,week_start" }
+    );
+    await supabase.from("x_insights_refresh_state").upsert(
+      { key: GLOBAL_STATE_KEY, rate_limited_until: null, last_error: null, updated_at: new Date().toISOString() },
+      { onConflict: "key" }
     );
   } catch (e) {
     console.error("[refreshXInsights] write failed", e);

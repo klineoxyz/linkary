@@ -52,9 +52,15 @@ function mapXToUnified(xJson: {
     },
     meta: {
       cache: {
-        topFollowers: (xJson.meta?.cache?.topFollowers as "hit" | "miss" | "stale") ?? "miss",
-        feed: (xJson.meta?.cache?.feed as "hit" | "miss" | "stale") ?? "miss",
-        mentions: (xJson.meta?.cache?.mentions as "hit" | "miss" | "stale") ?? "miss",
+        topFollowers: ((typeof xJson.meta?.cache?.topFollowers === "string"
+          ? xJson.meta.cache.topFollowers
+          : (xJson.meta?.cache?.topFollowers as { status?: string })?.status) ?? "miss") as "hit" | "miss" | "stale",
+        feed: ((typeof xJson.meta?.cache?.feed === "string"
+          ? xJson.meta.cache.feed
+          : (xJson.meta?.cache?.feed as { status?: string })?.status) ?? "miss") as "hit" | "miss" | "stale",
+        mentions: ((typeof xJson.meta?.cache?.mentions === "string"
+          ? xJson.meta.cache.mentions
+          : (xJson.meta?.cache?.mentions as { status?: string })?.status) ?? "miss") as "hit" | "miss" | "stale",
       },
       providerVersion: 1,
     },

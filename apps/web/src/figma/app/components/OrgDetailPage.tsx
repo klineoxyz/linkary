@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   Loader2,
   Settings,
+  Link2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
@@ -31,6 +32,21 @@ import {
 import { listJobs, listApplicationsForJobs, type Application } from "@/lib/jobs";
 import { listCaseStudiesForOrg, createCaseStudyForOrg, type CaseStudy } from "@/lib/caseStudies";
 import { Briefcase } from "lucide-react";
+
+function formatRelativeTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (sec < 60) return "just now";
+    if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+    if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+    if (sec < 604800) return `${Math.floor(sec / 86400)}d ago`;
+    return d.toLocaleDateString();
+  } catch {
+    return "";
+  }
+}
 
 export default function OrgDetailPage({
   setRoute,
@@ -98,6 +114,7 @@ export default function OrgDetailPage({
   const [transferTargetUserId, setTransferTargetUserId] = useState("");
   const [transferLoading, setTransferLoading] = useState(false);
   const [supportersCount, setSupportersCount] = useState(0);
+  const [orgLinkCopied, setOrgLinkCopied] = useState(false);
   const [supportersSample, setSupportersSample] = useState<Array<{ id: string; display_name: string | null; avatar_url: string | null; username: string | null }>>([]);
   const [supporting, setSupporting] = useState(false);
   const [influenceRollup, setInfluenceRollup] = useState<{ total_influence: number; breakdown: Record<string, unknown>; computed_at: string | null } | null>(null);
@@ -410,6 +427,21 @@ export default function OrgDetailPage({
     setRecomputeLoading(false);
   };
 
+  const copyOrgLink = () => {
+    if (!org?.id) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = `${origin}/org/${org.id}`;
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(
+        () => {
+          setOrgLinkCopied(true);
+          setTimeout(() => setOrgLinkCopied(false), 2000);
+        },
+        () => {}
+      );
+    }
+  };
+
   if (loading || !orgId) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
@@ -483,6 +515,14 @@ export default function OrgDetailPage({
               </div>
             )}
             <div className="flex flex-wrap items-center gap-3 mt-2">
+              <button
+                type="button"
+                onClick={copyOrgLink}
+                className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+              >
+                <Link2 className="w-3.5 h-3.5" />
+                {orgLinkCopied ? "Copied" : "Copy link"}
+              </button>
               {supportersCount > 0 && (
                 <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
                   <Users className="w-3.5 h-3.5" />
@@ -575,6 +615,9 @@ export default function OrgDetailPage({
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
                   <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Influence rollup</h3>
                   <p className="mt-1 text-2xl font-bold text-primary">{influenceRollup.total_influence}</p>
+                  {influenceRollup.computed_at && (
+                    <p className="mt-0.5 text-xs text-zinc-500">Updated: {formatRelativeTime(influenceRollup.computed_at)}</p>
+                  )}
                   {influenceRollup.breakdown && Object.keys(influenceRollup.breakdown).length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-600 dark:text-zinc-400">
                       {Object.entries(influenceRollup.breakdown).map(([k, v]) => (
@@ -599,7 +642,7 @@ export default function OrgDetailPage({
                       </div>
                     </>
                   ) : (
-                    <p className="mt-1 text-sm text-zinc-500">No supporters yet</p>
+                    <p className="mt-1 text-sm text-zinc-500">No supporters yet. Invite people to support your org from the Support tab.</p>
                   )}
                 </div>
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
@@ -615,7 +658,7 @@ export default function OrgDetailPage({
                       <button type="button" onClick={() => setTab("jobs")} className="mt-2 text-xs font-medium text-primary hover:underline">View all jobs</button>
                     </>
                   ) : (
-                    <p className="mt-1 text-sm text-zinc-500">No jobs yet</p>
+                    <p className="mt-1 text-sm text-zinc-500">No jobs yet. Create a job from the Jobs tab to start hiring.</p>
                   )}
                 </div>
               </div>
@@ -637,7 +680,7 @@ export default function OrgDetailPage({
                       ))}
                     </ul>
                   ) : (
-                    <p className="mt-1 text-sm text-zinc-500">Nothing here yet</p>
+                    <p className="mt-1 text-sm text-zinc-500">Nothing here yet. Supporters with published profiles and X connected will appear here.</p>
                   )}
                 </div>
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">

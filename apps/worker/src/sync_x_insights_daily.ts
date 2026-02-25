@@ -45,7 +45,8 @@ async function main() {
   let err = 0;
   let skipped = 0;
 
-  for (const profile of list) {
+  for (let i = 0; i < list.length; i++) {
+    const profile = list[i];
     const username = String(profile.twitter_username).trim().replace(/^@/, "");
     if (!username) {
       skipped += 1;
@@ -60,9 +61,15 @@ async function main() {
         },
         body: JSON.stringify({ username }),
       });
+      const body = await res.json().catch(() => ({}));
+
+      if (res.ok && body.skipped === true && (body.reason === "GLOBAL_RATE_LIMIT" || body.reason === "RATE_LIMITED") && body.resetAt) {
+        console.log("[sync_x_insights_daily] backoff active; reason=" + body.reason + " resetAt=" + body.resetAt + "; stopping run.");
+        process.exit(0);
+      }
+
       await sleep(DELAY_MS);
 
-      const body = await res.json().catch(() => ({}));
       if (res.ok && (body.ok === true || body.skipped === true)) {
         if (body.skipped === true) skipped += 1;
         else ok += 1;

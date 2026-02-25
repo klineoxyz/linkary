@@ -6,6 +6,7 @@ import { getPublicDTOByUsername } from "@/lib/getPublicDTO";
 import { dtoToEntityView, entityToPublicDTO } from "@/lib/publicProfileDTO";
 import { resolveEntityMediaToSignedUrls } from "@/lib/resolveEntityMediaUrls";
 import AppWithProviders from "../../AppWithProviders";
+import { PublicProfileContent } from "./PublicProfileContent";
 import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
 import { NotFoundOrUnpublished } from "./NotFoundOrUnpublished";
 import { NotFoundClaimView } from "./NotFoundClaimView";
@@ -114,25 +115,21 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
   }
 
   if (kind === "slug") {
-    const result = await getPublicDTOByUsername(segment, {
-      serviceSupabase: serviceSupabase ?? undefined,
-    });
-
-    if (result.ok) {
-      const entityView = dtoToEntityView(result.dto);
-      return (
-        <PublicOnePagerWrapper
-          entityView={entityView}
-          username={result.canonicalUsername}
-          analyticsSource={result.dto.analytics.source}
-          analyticsInitialized={result.dto.analytics.initialized}
-          hasXConnected={result.dto.type === "profile" && !!result.dto.twitter_username}
-          brochure={viewBrochure}
-        />
-      );
+    const base = baseUrl();
+    const res = await fetch(
+      `${base}/api/public/profile?username=${encodeURIComponent(segment)}`,
+      { next: { revalidate: 300 } }
+    );
+    if (!res.ok) {
+      return <NotFoundOrUnpublished requestedUsername={segmentLower} />;
     }
-
-    return <NotFoundOrUnpublished requestedUsername={segmentLower} />;
+    const data = await res.json();
+    return (
+      <PublicProfileContent
+        data={data}
+        username={data.profile?.username ?? segmentLower}
+      />
+    );
   }
 
   let entity = await resolvePublicEntity(segment, { serviceSupabase: serviceSupabase ?? undefined });

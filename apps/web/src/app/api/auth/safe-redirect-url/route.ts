@@ -2,11 +2,12 @@
  * GET /api/auth/safe-redirect-url?next=/path or ?for=callback
  * Returns a redirect URL whose host is in AUTH_REDIRECT_ALLOWLIST.
  * Use for OAuth redirect_uri and for post-login redirect to avoid wrong-host redirects.
- * When the request comes from localhost/127.0.0.1, that origin is used so local dev stays on localhost.
+ * Canonical domain is apex (linkary.xyz) so auth cookies work consistently; avoid www.
  */
 import { NextRequest, NextResponse } from "next/server";
 
-const FALLBACK_ORIGIN = "https://www.linkary.xyz";
+/** Canonical production origin (apex, no www) so session cookies work on a single host. */
+const FALLBACK_ORIGIN = "https://linkary.xyz";
 
 function getRequestOrigin(request: NextRequest): string | null {
   try {

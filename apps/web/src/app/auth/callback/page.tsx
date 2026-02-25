@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { ensureProfileForSession, saveTwitterIdentityFromOAuth, updateMyProfile } from "@/lib/profiles";
 import type { TwitterIdentity } from "@/lib/profiles";
 
+/** Use canonical apex in production (e.g. https://linkary.xyz) so auth redirects land where session cookies are set. */
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 const REDIRECT_AFTER = "/settings/integrations";
 

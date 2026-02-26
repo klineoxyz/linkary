@@ -189,10 +189,9 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       const isUnpublished = !isPublished;
 
       const viewCols = "id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, xscore, profile_type, hero_image_url, hero_video_url, hero_title";
-      const profileDisplaySource = isPublished
-        ? await serviceSupabase.from("public_profile_view").select(viewCols).eq("id", profileId).maybeSingle()
-        : await serviceSupabase.from("profiles").select(viewCols + ", show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle();
-      const profileRow = profileDisplaySource.data as {
+      const displayView = isPublished ? "public_profile_view" : "public_profile_preview_view";
+      const { data: profileDisplayData } = await serviceSupabase.from(displayView).select(viewCols).eq("id", profileId).maybeSingle();
+      const profileRow = profileDisplayData as {
         id: string;
         username?: string | null;
         twitter_username?: string | null;
@@ -208,8 +207,6 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         hero_image_url?: string | null;
         hero_video_url?: string | null;
         hero_title?: string | null;
-        show_reviews?: boolean | null;
-        token_dexscreener_url?: string | null;
       } | null;
 
       if (!profileRow) {
@@ -217,9 +214,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       }
 
       const [profileExtRow, socialsRow, reviewRows, caseRows, linksRows, relationsRows, skillsRows, achievementsRows] = await Promise.all([
-        isPublished
-          ? serviceSupabase.from("profiles").select("show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle()
-          : Promise.resolve({ data: { show_reviews: profileRow.show_reviews, token_dexscreener_url: profileRow.token_dexscreener_url } as { show_reviews?: boolean | null; token_dexscreener_url?: string | null } }),
+        serviceSupabase.from("profiles").select("show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle(),
         serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url").eq("profile_id", profileId).maybeSingle(),
         serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type, verified_deal").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10),
         serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20),

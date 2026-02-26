@@ -131,7 +131,6 @@ export default function AuthCallbackPage() {
           }
           if (oauthOrgId) {
             setMessage("Verifying org X account…");
-            const token = sessionData?.session?.access_token ?? "";
             const res = await fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/orgs/connect-x-callback`, {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -152,7 +151,6 @@ export default function AuthCallbackPage() {
           }
           setMessage("Saving your X profile…");
           await ensureProfileForSession(user.id);
-          const token = sessionData?.session?.access_token ?? "";
           await fetch(`${window.location.origin}/api/auth/post-login-bootstrap`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },

@@ -11,7 +11,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const BUCKET = "media";
 
-const MEDIA_TYPES = ["profile_header", "org_logo", "partner_logo", "case_study_proof"] as const;
+const MEDIA_TYPES = ["profile_header", "profile_hero", "org_logo", "partner_logo", "case_study_proof"] as const;
 
 function getToken(request: Request): string | null {
   const authHeader = request.headers.get("authorization");
@@ -47,17 +47,19 @@ export async function POST(request: Request) {
   const expectedPrefix =
     type === "profile_header"
       ? `profile/${owner_id}/header/`
-      : type === "org_logo"
-        ? `org/${owner_id}/logo/`
-        : type === "partner_logo"
-          ? `partner/${owner_id}/logo/`
-          : `case_study/${owner_id}/proof/`;
+      : type === "profile_hero"
+        ? `profile/${owner_id}/hero/`
+        : type === "org_logo"
+          ? `org/${owner_id}/logo/`
+          : type === "partner_logo"
+            ? `partner/${owner_id}/logo/`
+            : `case_study/${owner_id}/proof/`;
   if (!file_path.startsWith(expectedPrefix)) {
     return NextResponse.json({ error: "Invalid file_path for type/owner" }, { status: 400 });
   }
 
   // Authz same as upload-url
-  if (type === "profile_header") {
+  if (type === "profile_header" || type === "profile_hero") {
     if (owner_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   } else if (type === "org_logo") {
     const { data: member } = await supabase.from("org_members").select("org_id").eq("org_id", owner_id).eq("user_id", user.id).maybeSingle();
@@ -90,6 +92,11 @@ export async function POST(request: Request) {
       { profile_id: owner_id, header_media_type: "IMAGE", header_media_file_path: file_path, header_media_url: null, updated_at: new Date().toISOString() },
       { onConflict: "profile_id" }
     );
+  } else if (type === "profile_hero") {
+    const { data: existing } = await supabase.from("profiles").select("hero_image_url").eq("id", owner_id).maybeSingle();
+    const oldPath = (existing as { hero_image_url?: string } | null)?.hero_image_url;
+    if (oldPath && oldPath.startsWith("profile/")) await supabase.storage.from(BUCKET).remove([oldPath]);
+    await supabase.from("profiles").update({ hero_image_url: file_path, hero_video_url: null, updated_at: new Date().toISOString() }).eq("id", owner_id);
   } else if (type === "org_logo") {
     const { data: existing } = await supabase.from("orgs").select("logo_file_path").eq("id", owner_id).maybeSingle();
     const oldPath = (existing as { logo_file_path?: string } | null)?.logo_file_path;

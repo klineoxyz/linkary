@@ -10,7 +10,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const BUCKET = "media";
 
-const MEDIA_TYPES = ["profile_header", "org_logo", "partner_logo", "case_study_proof"] as const;
+const MEDIA_TYPES = ["profile_header", "profile_hero", "org_logo", "partner_logo", "case_study_proof"] as const;
 
 function getToken(request: Request): string | null {
   const authHeader = request.headers.get("authorization");
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   }
 
   // Authz: user must be allowed to upload for this owner
-  if (type === "profile_header") {
+  if (type === "profile_header" || type === "profile_hero") {
     if (owner_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   } else if (type === "org_logo") {
     const { data: member } = await supabase.from("org_members").select("org_id").eq("org_id", owner_id).eq("user_id", user.id).maybeSingle();
@@ -79,7 +79,9 @@ export async function POST(request: Request) {
   const filePath =
     type === "profile_header"
       ? `profile/${owner_id}/header/${uuid}.${ext}`
-      : type === "org_logo"
+      : type === "profile_hero"
+        ? `profile/${owner_id}/hero/${uuid}.${ext}`
+        : type === "org_logo"
         ? `org/${owner_id}/logo/${uuid}.${ext}`
         : type === "partner_logo"
           ? `partner/${owner_id}/logo/${uuid}.${ext}`

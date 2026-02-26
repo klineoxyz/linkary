@@ -252,6 +252,12 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         url: c.proof_url ?? null,
       }));
 
+      let resolvedHeroImageUrl: string | null = heroImageUrl;
+      if (heroImageUrl && typeof heroImageUrl === "string" && heroImageUrl.startsWith("profile/")) {
+        const { createSignedUrlForPath } = await import("@/lib/mediaSignedUrlServer");
+        resolvedHeroImageUrl = await createSignedUrlForPath(serviceSupabase, heroImageUrl) ?? heroImageUrl;
+      }
+
       const payload: PublicProfileApiPayload = {
         profile: {
           username: profileRow.username ?? profileRow.twitter_username ?? null,
@@ -267,9 +273,9 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           profile_type: profileType,
         },
         hero:
-          heroImageUrl || heroVideoUrl || heroTitle
+          resolvedHeroImageUrl || heroVideoUrl || heroTitle
             ? {
-                hero_image_url: heroImageUrl,
+                hero_image_url: resolvedHeroImageUrl,
                 hero_video_url: heroVideoUrl,
                 hero_title: heroTitle,
               }

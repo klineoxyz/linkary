@@ -15,6 +15,20 @@ import type { Profile } from "@/lib/profiles";
 
 type HeaderMediaType = "NONE" | "IMAGE" | "VIDEO";
 
+type ProfileType = "individual" | "project" | "company";
+
+type TeamMemberRow = {
+  id: string;
+  name: string;
+  role: string | null;
+  avatar_url: string | null;
+  linkedin_url: string | null;
+  x_url: string | null;
+  website_url: string | null;
+  is_public: boolean;
+  sort_order: number;
+};
+
 type PartnerRow = {
   id: string;
   owner_type: string;
@@ -130,6 +144,137 @@ function PartnerProgramsEditor({
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+function TeamEditor({
+  me,
+  profileType,
+  team,
+  teamLoading,
+  onReload,
+  getAuthHeaders,
+  onOpenModal,
+  onOpenEditModal,
+}: {
+  me: Profile;
+  profileType: ProfileType;
+  team: TeamMemberRow[];
+  teamLoading: boolean;
+  onReload: () => void;
+  getAuthHeaders: () => Promise<Record<string, string>>;
+  onOpenModal: () => void;
+  onOpenEditModal: (m: TeamMemberRow) => void;
+}) {
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+
+  const move = async (member: TeamMemberRow, direction: "up" | "down") => {
+    const idx = team.findIndex((t) => t.id === member.id);
+    if (idx < 0) return;
+    const next = direction === "up" ? team[idx - 1] : team[idx + 1];
+    if (!next) return;
+    const headers = await getAuthHeaders();
+    const orderedIds = [...team].sort((a, b) => a.sort_order - b.sort_order).map((t) => t.id);
+    const fromIdx = orderedIds.indexOf(member.id);
+    const toIdx = orderedIds.indexOf(next.id);
+    if (fromIdx < 0 || toIdx < 0) return;
+    [orderedIds[fromIdx], orderedIds[toIdx]] = [orderedIds[toIdx], orderedIds[fromIdx]];
+    await fetch(`${base}/api/org-team/reorder`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify({ orderedIds }),
+    });
+    onReload();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Remove this team member?")) return;
+    const headers = await getAuthHeaders();
+    await fetch(`${base}/api/org-team/${id}`, { method: "DELETE", headers });
+    onReload();
+  };
+
+  if (profileType !== "company") return null;
+
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <label className="text-sm font-medium text-zinc-700">Team</label>
+        <button type="button" onClick={onOpenModal} className="text-sm text-primary font-medium hover:underline">+ Add member</button>
+      </div>
+      <p className="text-xs text-zinc-500">Shown on your public company profile. Only members marked public are visible.</p>
+      {teamLoading ? (
+        <p className="text-sm text-zinc-500">Loading…</p>
+      ) : (
+        <>
+          <ul className="space-y-2">
+            {team.map((m, idx) => (
+              <li key={m.id} className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white p-2">
+                {m.avatar_url ? (
+                  <img src={m.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-zinc-200 shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-zinc-900 truncate">{m.name}</div>
+                  {m.role && <div className="text-xs text-zinc-500 truncate">{m.role}</div>}
+                </div>
+                {!m.is_public && <span className="shrink-0 text-xs text-zinc-500">Hidden</span>}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button type="button" onClick={() => move(m, "up")} disabled={idx === 0} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↑</button>
+                  <button type="button" onClick={() => move(m, "down")} disabled={idx === team.length - 1} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↓</button>
+                  <button type="button" onClick={() => onOpenEditModal(m)} className="text-xs text-primary hover:underline">Edit</button>
+                  <button type="button" onClick={() => remove(m.id)} className="text-xs text-red-600 hover:underline">Delete</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {team.length === 0 && (
+            <p className="text-sm text-zinc-500">No team members yet. Add members to show them on your public page.</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function TeamMemberModal({
+  edit,
+  form,
+  setForm,
+  saving,
+  onClose,
+  onSubmit,
+}: {
+  edit?: TeamMemberRow | null;
+  form: { name: string; role: string; avatar_url: string; linkedin_url: string; x_url: string; website_url: string; is_public: boolean };
+  setForm: React.Dispatch<React.SetStateAction<{ name: string; role: string; avatar_url: string; linkedin_url: string; x_url: string; website_url: string; is_public: boolean }>>;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-4 space-y-3 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-semibold text-zinc-900">{edit ? "Edit team member" : "Add team member"}</h3>
+        <input type="text" placeholder="Name (required)" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
+        <input type="text" placeholder="Role" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
+        <input type="url" placeholder="Avatar URL" value={form.avatar_url} onChange={(e) => setForm((f) => ({ ...f, avatar_url: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
+        <input type="url" placeholder="LinkedIn URL" value={form.linkedin_url} onChange={(e) => setForm((f) => ({ ...f, linkedin_url: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
+        <input type="url" placeholder="X (Twitter) URL" value={form.x_url} onChange={(e) => setForm((f) => ({ ...f, x_url: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
+        <input type="url" placeholder="Website URL" value={form.website_url} onChange={(e) => setForm((f) => ({ ...f, website_url: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={form.is_public} onChange={(e) => setForm((f) => ({ ...f, is_public: e.target.checked }))} />
+          <span className="text-sm text-zinc-700">Show on public profile</span>
+        </label>
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
+          <button type="button" disabled={!form.name.trim() || saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50">
+            {saving ? "Saving…" : edit ? "Update" : "Add"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -315,6 +460,16 @@ export default function ProfileEditPage({
   const [cvFileName, setCvFileName] = useState<string | null>(null);
   const [cvUploading, setCvUploading] = useState(false);
   const [cvDeleting, setCvDeleting] = useState(false);
+  const [profileType, setProfileType] = useState<ProfileType>("individual");
+  const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
+  const [heroVideoUrl, setHeroVideoUrl] = useState("");
+  const [heroTitle, setHeroTitle] = useState("");
+  const [team, setTeam] = useState<TeamMemberRow[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamModal, setTeamModal] = useState<{ open: true; edit?: TeamMemberRow } | { open: false }>({ open: false });
+  const [teamForm, setTeamForm] = useState({ name: "", role: "", avatar_url: "", linkedin_url: "", x_url: "", website_url: "", is_public: true });
+  const [teamSaving, setTeamSaving] = useState(false);
+  const [heroMode, setHeroMode] = useState<"none" | "image" | "video">("none");
 
   const getAuthHeaders = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -345,16 +500,43 @@ export default function ProfileEditPage({
     setCaseStudies(list);
   }, [me?.id]);
 
+  const loadTeam = useCallback(async () => {
+    if (!me?.id) return;
+    setTeamLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/org-team?profileId=${encodeURIComponent(me.id)}`, { headers });
+      const json = await res.json().catch(() => ({}));
+      if (json.ok && Array.isArray(json.team)) setTeam(json.team as TeamMemberRow[]);
+      else setTeam([]);
+    } catch {
+      setTeam([]);
+    } finally {
+      setTeamLoading(false);
+    }
+  }, [me?.id, getAuthHeaders]);
+
   const load = useCallback(async () => {
     if (!me?.id) return;
     setLoading(true);
-    const [profResult, mediaData, socialsData] = await Promise.all([
+    const [profResult, mediaData, socialsData, profileExt] = await Promise.all([
       getProfileProfessions(me.id),
       supabase.from("profile_media").select("header_media_type, header_media_url, header_media_file_path").eq("profile_id", me.id).maybeSingle(),
       supabase.from("profile_socials").select("x_url, linkedin_url, youtube_url, website_url, telegram_url").eq("profile_id", me.id).maybeSingle(),
+      supabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title").eq("id", me.id).maybeSingle(),
     ]);
     loadPartners();
     loadCaseStudies();
+    if (profileExt?.data) {
+      const p = profileExt.data as { profile_type?: string; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null };
+      if (p.profile_type === "project" || p.profile_type === "company") setProfileType(p.profile_type as ProfileType);
+      else setProfileType("individual");
+      setHeroImageUrl(p.hero_image_url ?? null);
+      setHeroVideoUrl((p.hero_video_url ?? "") || "");
+      setHeroTitle((p.hero_title ?? "") || "");
+      setHeroMode(p.hero_image_url ? "image" : (p.hero_video_url ?? "").trim() ? "video" : "none");
+    }
     setLoading(false);
     if (me.display_name != null) setDisplayName(me.display_name);
     if (me.email != null) setEmail(me.email);
@@ -387,7 +569,10 @@ export default function ProfileEditPage({
     } else {
       setCvFileName(null);
     }
-  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies]);
+    if ((profileExt?.data as { profile_type?: string } | null)?.profile_type === "company") {
+      loadTeam();
+    }
+  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam]);
 
   useEffect(() => {
     load();
@@ -410,17 +595,49 @@ export default function ProfileEditPage({
     }
   }, [partnerModal]);
 
+  useEffect(() => {
+    if (!teamModal.open) return;
+    const edit = teamModal.open && "edit" in teamModal ? teamModal.edit : undefined;
+    if (edit) {
+      setTeamForm({
+        name: edit.name,
+        role: edit.role ?? "",
+        avatar_url: edit.avatar_url ?? "",
+        linkedin_url: edit.linkedin_url ?? "",
+        x_url: edit.x_url ?? "",
+        website_url: edit.website_url ?? "",
+        is_public: edit.is_public,
+      });
+    } else {
+      setTeamForm({ name: "", role: "", avatar_url: "", linkedin_url: "", x_url: "", website_url: "", is_public: true });
+    }
+  }, [teamModal]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!me?.id) return;
     setError(null);
     setSaving(true);
+    let effectiveHeroImageUrl: string | null = null;
+    let effectiveHeroVideoUrl: string | null = null;
+    if (heroMode === "video") {
+      const videoTrim = heroVideoUrl.trim();
+      if (videoTrim.startsWith("https://")) effectiveHeroVideoUrl = videoTrim;
+    } else if (heroMode === "image" && heroImageUrl?.trim()) {
+      effectiveHeroImageUrl = heroImageUrl.trim();
+    }
+    const effectiveHeroTitle = heroTitle.trim() || null;
+
     const { error: profileErr } = await updateMyProfile(me.id, {
       display_name: displayName.trim() || null,
       email: email.trim() || null,
       bio: bio.trim() || null,
       website: website.trim() || null,
       location: location.trim() || null,
+      profile_type: profileType,
+      hero_image_url: effectiveHeroImageUrl,
+      hero_video_url: effectiveHeroVideoUrl,
+      hero_title: effectiveHeroTitle,
     });
     if (profileErr) {
       setSaving(false);
@@ -545,17 +762,6 @@ export default function ProfileEditPage({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1">Email</label>
-          <p className="text-xs text-zinc-500 mb-2">Contact email (stored in your profile).</p>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
-          />
-        </div>
-        <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Bio</label>
           <textarea
             value={bio}
@@ -620,6 +826,91 @@ export default function ProfileEditPage({
               <option key={opt || "empty"} value={opt}>{opt || "Select…"}</option>
             ))}
           </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Profile type</label>
+          <p className="text-xs text-zinc-500 mb-2">Determines which sections appear on your public page. Company profiles can show a Team section.</p>
+          <select
+            value={profileType}
+            onChange={(e) => {
+              const v = e.target.value as ProfileType;
+              setProfileType(v);
+              if (v === "company") loadTeam();
+            }}
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+          >
+            <option value="individual">Individual</option>
+            <option value="project">Project</option>
+            <option value="company">Company</option>
+          </select>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+          <label className="block text-sm font-medium text-zinc-700">Hero (public profile top)</label>
+          <p className="text-xs text-zinc-500 mb-2">Optional banner at the top of your public page. Use either an image (upload) or a video URL (e.g. YouTube), not both.</p>
+          <select
+            value={heroMode}
+            onChange={(e) => {
+              const v = e.target.value as "none" | "image" | "video";
+              setHeroMode(v);
+              if (v === "image") setHeroVideoUrl("");
+              else if (v === "video") setHeroImageUrl(null);
+              else {
+                setHeroImageUrl(null);
+                setHeroVideoUrl("");
+              }
+            }}
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 mb-2"
+          >
+            <option value="none">None</option>
+            <option value="image">Upload image</option>
+            <option value="video">Paste video URL</option>
+          </select>
+          {heroMode !== "none" && (
+            <>
+              {heroMode === "image" && me?.id && (
+                <MediaUploadField
+                  label="Hero image"
+                  type="profile_hero"
+                  ownerId={me.id}
+                  value={heroImageUrl}
+                  onChange={(path) => {
+                    setHeroImageUrl(path);
+                    setHeroVideoUrl("");
+                  }}
+                  accept="image/*"
+                  maxSizeMB={5}
+                  getAuthHeaders={getAuthHeaders}
+                  onSaved={() => load()}
+                  className="mt-2"
+                />
+              )}
+              {heroMode === "video" && (
+                <div className="mt-2">
+                  <label className="block text-xs font-medium text-zinc-600 mb-1">Video URL (must start with https://)</label>
+                  <input
+                    type="url"
+                    value={heroVideoUrl}
+                    onChange={(e) => setHeroVideoUrl(e.target.value)}
+                    placeholder="https://www.youtube.com/..."
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+                  />
+                  {heroVideoUrl.trim() && !heroVideoUrl.trim().startsWith("https://") && (
+                    <p className="text-xs text-amber-600 mt-1">URL must start with https://</p>
+                  )}
+                </div>
+              )}
+              <div className="mt-2">
+                <label className="block text-xs font-medium text-zinc-600 mb-1">Hero title (optional)</label>
+                <input
+                  type="text"
+                  value={heroTitle}
+                  onChange={(e) => setHeroTitle(e.target.value)}
+                  placeholder="Short title or caption"
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+                />
+              </div>
+            </>
+          )}
         </div>
         <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
           <label className="block text-sm font-medium text-zinc-700">CV (PDF)</label>
@@ -884,6 +1175,28 @@ export default function ProfileEditPage({
           onOpenModal={(programType, edit) => setPartnerModal({ open: true, programType, edit })}
         />
 
+        <TeamEditor
+          me={me}
+          profileType={profileType}
+          team={team}
+          teamLoading={teamLoading}
+          onReload={loadTeam}
+          getAuthHeaders={getAuthHeaders}
+          onOpenModal={() => setTeamModal({ open: true })}
+          onOpenEditModal={(m) => {
+            setTeamForm({
+              name: m.name,
+              role: m.role ?? "",
+              avatar_url: m.avatar_url ?? "",
+              linkedin_url: m.linkedin_url ?? "",
+              x_url: m.x_url ?? "",
+              website_url: m.website_url ?? "",
+              is_public: m.is_public,
+            });
+            setTeamModal({ open: true, edit: m });
+          }}
+        />
+
         <CaseStudiesEditor
           me={me}
           caseStudies={caseStudies}
@@ -1021,6 +1334,70 @@ export default function ProfileEditPage({
                 loadCaseStudies();
                 setCaseStudyModal(false);
               }
+            }
+          }}
+        />
+      )}
+
+      {teamModal.open && (
+        <TeamMemberModal
+          edit={teamModal.open && "edit" in teamModal ? teamModal.edit : undefined}
+          form={teamForm}
+          setForm={setTeamForm}
+          saving={teamSaving}
+          onClose={() => setTeamModal({ open: false })}
+          onSubmit={async () => {
+            if (!me?.id) return;
+            setTeamSaving(true);
+            const base = typeof window !== "undefined" ? window.location.origin : "";
+            const headers = await getAuthHeaders();
+            const edit = teamModal.open && "edit" in teamModal ? teamModal.edit : undefined;
+            try {
+              if (edit) {
+                const res = await fetch(`${base}/api/org-team/${edit.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json", ...headers },
+                  body: JSON.stringify({
+                    name: teamForm.name.trim(),
+                    role: teamForm.role.trim() || null,
+                    avatar_url: teamForm.avatar_url.trim() || null,
+                    linkedin_url: teamForm.linkedin_url.trim() || null,
+                    x_url: teamForm.x_url.trim() || null,
+                    website_url: teamForm.website_url.trim() || null,
+                    is_public: teamForm.is_public,
+                  }),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  setError(json.message ?? "Update failed");
+                } else {
+                  loadTeam();
+                  setTeamModal({ open: false });
+                }
+              } else {
+                const res = await fetch(`${base}/api/org-team`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", ...headers },
+                  body: JSON.stringify({
+                    name: teamForm.name.trim(),
+                    role: teamForm.role.trim() || null,
+                    avatar_url: teamForm.avatar_url.trim() || null,
+                    linkedin_url: teamForm.linkedin_url.trim() || null,
+                    x_url: teamForm.x_url.trim() || null,
+                    website_url: teamForm.website_url.trim() || null,
+                    is_public: teamForm.is_public,
+                  }),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  setError(json.message ?? json.code ?? "Create failed");
+                } else {
+                  loadTeam();
+                  setTeamModal({ open: false });
+                }
+              }
+            } finally {
+              setTeamSaving(false);
             }
           }}
         />

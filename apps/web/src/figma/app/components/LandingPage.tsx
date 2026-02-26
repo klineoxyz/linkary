@@ -193,7 +193,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 Verifiable reputation
                 <br />
                 <span className="text-primary">
-                  for Web3 work
+                  for digital world
                 </span>
               </h1>
               <p className="text-xl text-gray-600 mb-4">
@@ -783,7 +783,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
             </div>
 
             <p className="text-sm text-gray-500">
-              © 2026 Linkary. Verifiable reputation for Web3.
+              © 2026 Linkary. Verifiable reputation for digital world.
             </p>
           </div>
         </div>

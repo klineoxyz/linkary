@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 
-const MEDIA_TYPES = ["profile_header", "org_logo", "partner_logo", "case_study_proof"] as const;
+const MEDIA_TYPES = ["profile_header", "profile_hero", "org_logo", "partner_logo", "case_study_proof"] as const;
 type MediaType = (typeof MEDIA_TYPES)[number];
 
 export type MediaUploadFieldProps = {

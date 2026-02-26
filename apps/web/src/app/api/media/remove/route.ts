@@ -9,7 +9,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const BUCKET = "media";
 
-const MEDIA_TYPES = ["profile_header", "org_logo", "partner_logo", "case_study_proof"] as const;
+const MEDIA_TYPES = ["profile_header", "profile_hero", "org_logo", "partner_logo", "case_study_proof"] as const;
 
 function getToken(request: Request): string | null {
   const authHeader = request.headers.get("authorization");
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "type and owner_id required" }, { status: 400 });
   }
 
-  if (type === "profile_header") {
+  if (type === "profile_header" || type === "profile_hero") {
     if (owner_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   } else if (type === "org_logo") {
     const { data: member } = await supabase.from("org_members").select("org_id").eq("org_id", owner_id).eq("user_id", user.id).maybeSingle();
@@ -72,6 +72,11 @@ export async function POST(request: Request) {
     file_path = (row as { header_media_file_path?: string } | null)?.header_media_file_path ?? null;
     if (file_path) await supabase.storage.from(BUCKET).remove([file_path]);
     await supabase.from("profile_media").upsert({ profile_id: owner_id, header_media_type: "NONE", header_media_file_path: null, header_media_url: null, updated_at: new Date().toISOString() }, { onConflict: "profile_id" });
+  } else if (type === "profile_hero") {
+    const { data: row } = await supabase.from("profiles").select("hero_image_url").eq("id", owner_id).maybeSingle();
+    file_path = (row as { hero_image_url?: string } | null)?.hero_image_url ?? null;
+    if (file_path && file_path.startsWith("profile/")) await supabase.storage.from(BUCKET).remove([file_path]);
+    await supabase.from("profiles").update({ hero_image_url: null, updated_at: new Date().toISOString() }).eq("id", owner_id);
   } else if (type === "org_logo") {
     const { data: row } = await supabase.from("orgs").select("logo_file_path").eq("id", owner_id).maybeSingle();
     file_path = (row as { logo_file_path?: string } | null)?.logo_file_path ?? null;

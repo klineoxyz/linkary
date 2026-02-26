@@ -137,6 +137,10 @@ export async function updateMyProfile(
     avg_engagement_rate?: number;
     share_analytics_on_apply?: boolean;
     share_cv_on_apply?: boolean;
+    profile_type?: 'individual' | 'project' | 'company' | null;
+    hero_image_url?: string | null;
+    hero_video_url?: string | null;
+    hero_title?: string | null;
   }
 ): Promise<{ error: string | null }> {
   const updates: Record<string, unknown> = { ...payload };

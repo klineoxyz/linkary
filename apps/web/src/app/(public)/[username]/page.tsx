@@ -49,16 +49,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const url = `${baseUrl()}/${encodeURIComponent(segment)}`;
   if (kind === "slug" && serviceSupabase) {
     const [u, t] = await Promise.all([
-      serviceSupabase.from("profiles").select("username, display_name, bio, published").ilike("username", segmentLower).maybeSingle(),
-      serviceSupabase.from("profiles").select("username, display_name, bio, published").ilike("twitter_username", segmentLower).maybeSingle(),
+      serviceSupabase.from("profiles").select("id, username, twitter_username, published").ilike("username", segmentLower).maybeSingle(),
+      serviceSupabase.from("profiles").select("id, username, twitter_username, published").ilike("twitter_username", segmentLower).maybeSingle(),
     ]);
-    const row = (u.data ?? t.data) as { display_name?: string | null; username?: string | null; bio?: string | null; published?: boolean } | null;
+    const row = (u.data ?? t.data) as { id: string; username?: string | null; twitter_username?: string | null; published?: boolean } | null;
     if (row) {
-      title = `${row.display_name || row.username || segment} on Linkary`;
-      if (row.bio && typeof row.bio === "string") {
-        description = row.bio.length > 160 ? row.bio.slice(0, 157) + "…" : row.bio;
-      }
       published = row.published === true;
+      if (published) {
+        const { data: viewRow } = await serviceSupabase
+          .from("public_profile_view")
+          .select("display_name, username, bio")
+          .eq("id", row.id)
+          .maybeSingle();
+        const v = viewRow as { display_name?: string | null; username?: string | null; bio?: string | null } | null;
+        if (v) {
+          title = `${v.display_name || v.username || segment} on Linkary`;
+          if (v.bio && typeof v.bio === "string") {
+            description = v.bio.length > 160 ? v.bio.slice(0, 157) + "…" : v.bio;
+          }
+        }
+      }
     } else {
       published = false;
     }
@@ -146,12 +156,43 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
     }
 
     try {
-      const viewCols = "id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, xscore, published";
+      const minimalCols = "id, username, twitter_username, published";
       const [byUsername, byTwitter] = await Promise.all([
-        serviceSupabase.from("profiles").select(viewCols).ilike("username", segmentLower).maybeSingle(),
-        serviceSupabase.from("profiles").select(viewCols).ilike("twitter_username", segmentLower).maybeSingle(),
+        serviceSupabase.from("profiles").select(minimalCols).ilike("username", segmentLower).maybeSingle(),
+        serviceSupabase.from("profiles").select(minimalCols).ilike("twitter_username", segmentLower).maybeSingle(),
       ]);
-      const profileRow = (byUsername.data ?? byTwitter.data) as {
+      const minimalRow = (byUsername.data ?? byTwitter.data) as {
+        id: string;
+        username?: string | null;
+        twitter_username?: string | null;
+        published?: boolean;
+      } | null;
+      const matchedBy = byUsername.data ? "username" : byTwitter.data ? "twitter_username" : null;
+
+      if (!minimalRow) {
+        return <NotFoundClaimView requestedUsername={segmentLower} />;
+      }
+
+      const profileId = minimalRow.id;
+      const isPublished = minimalRow.published === true;
+      let isOwner = false;
+      if (!isPublished) {
+        const { createServerSupabase } = await import("@/lib/supabase/server");
+        const serverSupabase = await createServerSupabase();
+        const { data: { user } } = await serverSupabase.auth.getUser();
+        isOwner = user?.id === profileId;
+        if (!isOwner) {
+          return <NotFoundClaimView requestedUsername={segmentLower} />;
+        }
+      }
+
+      const isUnpublished = !isPublished;
+
+      const viewCols = "id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, xscore, profile_type, hero_image_url, hero_video_url, hero_title";
+      const profileDisplaySource = isPublished
+        ? await serviceSupabase.from("public_profile_view").select(viewCols).eq("id", profileId).maybeSingle()
+        : await serviceSupabase.from("profiles").select(viewCols + ", show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle();
+      const profileRow = profileDisplaySource.data as {
         id: string;
         username?: string | null;
         twitter_username?: string | null;
@@ -163,19 +204,22 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         followers_total?: number;
         avg_engagement_rate?: number;
         xscore?: number | null;
-        published?: boolean;
+        profile_type?: string | null;
+        hero_image_url?: string | null;
+        hero_video_url?: string | null;
+        hero_title?: string | null;
+        show_reviews?: boolean | null;
+        token_dexscreener_url?: string | null;
       } | null;
-      const matchedBy = byUsername.data ? "username" : byTwitter.data ? "twitter_username" : null;
 
       if (!profileRow) {
         return <NotFoundClaimView requestedUsername={segmentLower} />;
       }
 
-      const profileId = profileRow.id;
-      const isUnpublished = profileRow.published !== true;
-
       const [profileExtRow, socialsRow, reviewRows, caseRows, linksRows, relationsRows, skillsRows, achievementsRows] = await Promise.all([
-        serviceSupabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title, show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle(),
+        isPublished
+          ? serviceSupabase.from("profiles").select("show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle()
+          : Promise.resolve({ data: { show_reviews: profileRow.show_reviews, token_dexscreener_url: profileRow.token_dexscreener_url } as { show_reviews?: boolean | null; token_dexscreener_url?: string | null } }),
         serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url").eq("profile_id", profileId).maybeSingle(),
         serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type, verified_deal").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10),
         serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20),
@@ -185,13 +229,13 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         serviceSupabase.from("profile_achievements").select("title, description, proof_url").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
       ]);
 
-      const profileExt = profileExtRow.data as { profile_type?: string | null; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null; show_reviews?: boolean | null; token_dexscreener_url?: string | null } | null;
-      const profileType = (profileExt?.profile_type === "project" || profileExt?.profile_type === "company" ? profileExt.profile_type : "individual") as "individual" | "project" | "company";
-      const heroImageUrl = profileExt?.hero_image_url ?? null;
-      const heroVideoUrl = profileExt?.hero_video_url ?? null;
-      const heroTitle = profileExt?.hero_title ?? null;
-      const showReviews = profileExt?.show_reviews !== false;
-      const tokenDexscreenerUrl = (profileExt?.token_dexscreener_url ?? "").trim();
+      const ext = profileExtRow.data as { show_reviews?: boolean | null; token_dexscreener_url?: string | null } | null;
+      const profileType = (profileRow.profile_type === "project" || profileRow.profile_type === "company" ? profileRow.profile_type : "individual") as "individual" | "project" | "company";
+      const heroImageUrl = profileRow.hero_image_url ?? null;
+      const heroVideoUrl = profileRow.hero_video_url ?? null;
+      const heroTitle = profileRow.hero_title ?? null;
+      const showReviews = ext?.show_reviews !== false;
+      const tokenDexscreenerUrl = (ext?.token_dexscreener_url ?? "").trim();
 
       let teamList: Array<{ name: string; role: string | null; avatar_url: string | null; linkedin_url?: string | null; x_url?: string | null; website_url?: string | null; is_public: boolean }> = [];
       if (profileType === "company") {

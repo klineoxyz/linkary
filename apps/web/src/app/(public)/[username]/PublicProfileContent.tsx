@@ -126,11 +126,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     alt=""
                     className="h-full w-full object-cover"
                   />
-                  {heroTitle && (
-                    <p className="absolute bottom-0 left-0 right-0 bg-background/80 px-4 py-2 text-sm font-medium text-foreground backdrop-blur-sm">
-                      {heroTitle}
-                    </p>
-                  )}
                 </div>
               )}
               {hasHeroVideo && (
@@ -158,12 +153,12 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                       </a>
                     </div>
                   )}
-                  {heroTitle && (
-                    <p className="px-4 py-2 text-sm font-medium text-foreground">{heroTitle}</p>
-                  )}
                 </div>
               )}
             </div>
+            {heroTitle && (
+              <p className="mt-2 text-sm text-muted-foreground" aria-hidden>{heroTitle}</p>
+            )}
           </section>
         )}
 
@@ -220,7 +215,17 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           <section className="mb-8">
             <SectionTitle>Team</SectionTitle>
             <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {team.map((member, i) => (
+              {team.map((member, i) => {
+                const initials = member.name.trim()
+                  ? member.name
+                      .trim()
+                      .split(/\s+/)
+                      .map((w) => w[0])
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase()
+                  : "?";
+                return (
                 <li key={i} className="rounded-xl border border-border bg-card p-4">
                   <div className="flex items-start gap-3">
                     {member.avatar_url ? (
@@ -230,7 +235,9 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                         className="h-12 w-12 shrink-0 rounded-full object-cover border border-border"
                       />
                     ) : (
-                      <div className="h-12 w-12 shrink-0 rounded-full bg-muted border border-border" />
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-sm font-medium text-muted-foreground" aria-hidden>
+                        {initials}
+                      </div>
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-foreground">{member.name}</p>
@@ -257,7 +264,8 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     </div>
                   </div>
                 </li>
-              ))}
+              );
+              })}
             </ul>
           </section>
         )}

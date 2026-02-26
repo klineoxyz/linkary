@@ -2,14 +2,18 @@
  * PATCH: Update an org team member (profile owner only).
  * DELETE: Delete an org team member (profile owner only).
  */
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-async function assertOwnership(supabase: SupabaseClient, id: string, userId: string): Promise<{ org_profile_id: string } | ReturnType<typeof fail>> {
+async function assertOwnership(
+  supabase: SupabaseClient,
+  id: string,
+  userId: string
+): Promise<NextResponse | { org_profile_id: string }> {
   const { data, error } = await supabase
     .from("org_team_members")
     .select("org_profile_id")
@@ -44,7 +48,7 @@ export async function PATCH(
   if (!id) return fail("BAD_REQUEST", "id required", 400);
 
   const ownership = await assertOwnership(supabase, id, user.id);
-  if (ownership && "code" in ownership) return ownership;
+  if (ownership instanceof NextResponse) return ownership;
 
   let body: {
     name?: string;
@@ -106,7 +110,7 @@ export async function DELETE(
   if (!id) return fail("BAD_REQUEST", "id required", 400);
 
   const ownership = await assertOwnership(supabase, id, user.id);
-  if (ownership && "code" in ownership) return ownership;
+  if (ownership instanceof NextResponse) return ownership;
 
   const { error } = await supabase.from("org_team_members").delete().eq("id", id);
   if (error) return fail("DB_ERROR", error.message, 500);

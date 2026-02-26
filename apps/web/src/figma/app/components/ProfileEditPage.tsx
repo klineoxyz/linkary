@@ -40,6 +40,26 @@ type ProfileLinkRow = {
   updated_at: string;
 };
 
+type SkillRow = {
+  id: string;
+  name: string;
+  level: number | null;
+  is_public: boolean;
+  sort_order: number;
+  created_at?: string;
+};
+
+type AchievementRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  url?: string | null;
+  proof_url?: string | null;
+  is_public: boolean;
+  sort_order: number;
+  created_at?: string;
+};
+
 type RelationType = "ambassador" | "affiliate" | "ecosystem" | "subsidiary";
 
 type ProfileRelationRow = {
@@ -322,6 +342,232 @@ function LinkModal({
           <button type="button" disabled={!canSubmit || saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
             {saving ? "Saving…" : edit ? "Update" : "Add"}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkillsEditor({
+  title,
+  skills,
+  skillsLoading,
+  onReload,
+  getAuthHeaders,
+  onOpenModal,
+  onOpenEditModal,
+}: {
+  title: string;
+  skills: SkillRow[];
+  skillsLoading: boolean;
+  onReload: () => void;
+  getAuthHeaders: () => Promise<Record<string, string>>;
+  onOpenModal: () => void;
+  onOpenEditModal: (skill: SkillRow) => void;
+}) {
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+  const sorted = [...skills].sort((a, b) => a.sort_order - b.sort_order);
+
+  const move = async (skill: SkillRow, direction: "up" | "down") => {
+    const idx = sorted.findIndex((s) => s.id === skill.id);
+    if (idx < 0) return;
+    const next = direction === "up" ? sorted[idx - 1] : sorted[idx + 1];
+    if (!next) return;
+    const headers = await getAuthHeaders();
+    const orderedIds = sorted.map((s) => s.id);
+    const fromIdx = orderedIds.indexOf(skill.id);
+    const toIdx = orderedIds.indexOf(next.id);
+    [orderedIds[fromIdx], orderedIds[toIdx]] = [orderedIds[toIdx], orderedIds[fromIdx]];
+    await fetch(`${base}/api/profile/skills/reorder`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify({ orderedIds }) });
+    onReload();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Remove this skill?")) return;
+    const headers = await getAuthHeaders();
+    await fetch(`${base}/api/profile/skills/${id}`, { method: "DELETE", headers });
+    onReload();
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <label className="text-sm font-medium text-foreground">{title}</label>
+        <button type="button" onClick={onOpenModal} className="text-sm text-primary font-medium hover:underline">+ Add</button>
+      </div>
+      <p className="text-xs text-muted-foreground">Shown on your public profile. Only items marked public are visible.</p>
+      {skillsLoading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {sorted.map((skill, idx) => (
+              <span key={skill.id} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-sm">
+                <span className="font-medium text-foreground">{skill.name}</span>
+                {skill.level != null && <span className="text-muted-foreground text-xs">({skill.level}/5)</span>}
+                {!skill.is_public && <span className="text-xs text-muted-foreground">Hidden</span>}
+                <button type="button" onClick={() => move(skill, "up")} disabled={idx === 0} className="text-muted-foreground hover:text-foreground text-xs px-0.5 disabled:opacity-50">↑</button>
+                <button type="button" onClick={() => move(skill, "down")} disabled={idx === sorted.length - 1} className="text-muted-foreground hover:text-foreground text-xs px-0.5 disabled:opacity-50">↓</button>
+                <button type="button" onClick={() => onOpenEditModal(skill)} className="text-xs text-primary hover:underline">Edit</button>
+                <button type="button" onClick={() => remove(skill.id)} className="text-xs text-destructive hover:underline">Delete</button>
+              </span>
+            ))}
+          </div>
+          {skills.length === 0 && <p className="text-sm text-muted-foreground">None yet. Add items to show on your public page.</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
+function SkillModal({
+  edit,
+  form,
+  setForm,
+  saving,
+  onClose,
+  onSubmit,
+}: {
+  edit?: SkillRow | null;
+  form: { name: string; level: number | null; is_public: boolean };
+  setForm: React.Dispatch<React.SetStateAction<{ name: string; level: number | null; is_public: boolean }>>;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  const canSubmit = form.name.trim().length >= 1 && form.name.trim().length <= 40;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl shadow-lg max-w-md w-full p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-semibold text-foreground">{edit ? "Edit skill" : "Add skill"}</h3>
+        <input type="text" placeholder="Name (max 40 chars)" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value.slice(0, 40) }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" maxLength={40} />
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1">Level (optional, 1–5)</label>
+          <select value={form.level ?? ""} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground">
+            <option value="">None</option>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>{n} / 5</option>
+            ))}
+          </select>
+        </div>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={form.is_public} onChange={(e) => setForm((f) => ({ ...f, is_public: e.target.checked }))} />
+          <span className="text-sm text-foreground">Show on public profile</span>
+        </label>
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-border text-foreground bg-background">Cancel</button>
+          <button type="button" disabled={!canSubmit || saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">{saving ? "Saving…" : edit ? "Update" : "Add"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AchievementsEditor({
+  achievements,
+  achievementsLoading,
+  onReload,
+  getAuthHeaders,
+  onOpenModal,
+  onOpenEditModal,
+}: {
+  achievements: AchievementRow[];
+  achievementsLoading: boolean;
+  onReload: () => void;
+  getAuthHeaders: () => Promise<Record<string, string>>;
+  onOpenModal: () => void;
+  onOpenEditModal: (a: AchievementRow) => void;
+}) {
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+  const sorted = [...achievements].sort((a, b) => a.sort_order - b.sort_order);
+
+  const move = async (item: AchievementRow, direction: "up" | "down") => {
+    const idx = sorted.findIndex((a) => a.id === item.id);
+    if (idx < 0) return;
+    const next = direction === "up" ? sorted[idx - 1] : sorted[idx + 1];
+    if (!next) return;
+    const headers = await getAuthHeaders();
+    const orderedIds = sorted.map((a) => a.id);
+    const fromIdx = orderedIds.indexOf(item.id);
+    const toIdx = orderedIds.indexOf(next.id);
+    [orderedIds[fromIdx], orderedIds[toIdx]] = [orderedIds[toIdx], orderedIds[fromIdx]];
+    await fetch(`${base}/api/profile/achievements/reorder`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify({ orderedIds }) });
+    onReload();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Remove this achievement?")) return;
+    const headers = await getAuthHeaders();
+    await fetch(`${base}/api/profile/achievements/${id}`, { method: "DELETE", headers });
+    onReload();
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <label className="text-sm font-medium text-foreground">Achievements</label>
+        <button type="button" onClick={onOpenModal} className="text-sm text-primary font-medium hover:underline">+ Add</button>
+      </div>
+      <p className="text-xs text-muted-foreground">Shown on your public profile. Only items marked public are visible.</p>
+      {achievementsLoading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <>
+          <ul className="space-y-2">
+            {sorted.map((a, idx) => (
+              <li key={a.id} className="flex items-start gap-2 rounded-lg border border-border bg-background p-2">
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-foreground">{a.title}</div>
+                  {a.description && <div className="text-xs text-muted-foreground line-clamp-2">{a.description}</div>}
+                  {(a.url ?? a.proof_url) && <div className="text-xs text-primary truncate">{(a.url ?? a.proof_url) as string}</div>}
+                  {!a.is_public && <span className="text-xs text-muted-foreground">Hidden</span>}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button type="button" onClick={() => move(a, "up")} disabled={idx === 0} className="text-muted-foreground hover:text-foreground text-xs px-1 disabled:opacity-50">↑</button>
+                  <button type="button" onClick={() => move(a, "down")} disabled={idx === sorted.length - 1} className="text-muted-foreground hover:text-foreground text-xs px-1 disabled:opacity-50">↓</button>
+                  <button type="button" onClick={() => onOpenEditModal(a)} className="text-xs text-primary hover:underline">Edit</button>
+                  <button type="button" onClick={() => remove(a.id)} className="text-xs text-destructive hover:underline">Delete</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {achievements.length === 0 && <p className="text-sm text-muted-foreground">None yet. Add achievements to show on your public page.</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
+function AchievementModal({
+  edit,
+  form,
+  setForm,
+  saving,
+  onClose,
+  onSubmit,
+}: {
+  edit?: AchievementRow | null;
+  form: { title: string; description: string; url: string; is_public: boolean };
+  setForm: React.Dispatch<React.SetStateAction<{ title: string; description: string; url: string; is_public: boolean }>>;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  const canSubmit = form.title.trim().length >= 1 && form.title.trim().length <= 80;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl shadow-lg max-w-md w-full p-4 space-y-3 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-semibold text-foreground">{edit ? "Edit achievement" : "Add achievement"}</h3>
+        <input type="text" placeholder="Title (max 80 chars) *" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value.slice(0, 80) }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" maxLength={80} />
+        <textarea placeholder="Description (optional, max 280 chars)" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value.slice(0, 280) }))} rows={2} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground resize-none" maxLength={280} />
+        <input type="url" placeholder="URL (optional, https:// or http://)" value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" />
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={form.is_public} onChange={(e) => setForm((f) => ({ ...f, is_public: e.target.checked }))} />
+          <span className="text-sm text-foreground">Show on public profile</span>
+        </label>
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-border text-foreground bg-background">Cancel</button>
+          <button type="button" disabled={!canSubmit || saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">{saving ? "Saving…" : edit ? "Update" : "Add"}</button>
         </div>
       </div>
     </div>
@@ -995,6 +1241,16 @@ export default function ProfileEditPage({
   const [applicationsLoading, setApplicationsLoading] = useState(false);
   const [applicationStatusSaving, setApplicationStatusSaving] = useState<string | null>(null);
   const [dealCreatedNote, setDealCreatedNote] = useState(false);
+  const [skills, setSkills] = useState<SkillRow[]>([]);
+  const [skillsLoading, setSkillsLoading] = useState(false);
+  const [skillModal, setSkillModal] = useState<{ open: true; edit?: SkillRow } | { open: false }>({ open: false });
+  const [skillForm, setSkillForm] = useState({ name: "", level: null as number | null, is_public: true });
+  const [skillSaving, setSkillSaving] = useState(false);
+  const [achievements, setAchievements] = useState<AchievementRow[]>([]);
+  const [achievementsLoading, setAchievementsLoading] = useState(false);
+  const [achievementModal, setAchievementModal] = useState<{ open: true; edit?: AchievementRow } | { open: false }>({ open: false });
+  const [achievementForm, setAchievementForm] = useState({ title: "", description: "", url: "", is_public: true });
+  const [achievementSaving, setAchievementSaving] = useState(false);
 
   const getAuthHeaders = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -1092,6 +1348,41 @@ export default function ProfileEditPage({
     }
   }, [me?.id, getAuthHeaders]);
 
+  const loadSkills = useCallback(async () => {
+    if (!me?.id) return;
+    setSkillsLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/profile/skills`, { headers });
+      const json = await res.json().catch(() => ({}));
+      if (json.ok && Array.isArray(json.skills)) setSkills(json.skills as SkillRow[]);
+      else setSkills([]);
+    } catch {
+      setSkills([]);
+    } finally {
+      setSkillsLoading(false);
+    }
+  }, [me?.id, getAuthHeaders]);
+
+  const loadAchievements = useCallback(async () => {
+    if (!me?.id) return;
+    setAchievementsLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/profile/achievements`, { headers });
+      const json = await res.json().catch(() => ({}));
+      if (json.ok && Array.isArray(json.achievements)) {
+        setAchievements((json.achievements as Array<AchievementRow & { url?: string | null }>).map((a) => ({ ...a, url: a.url ?? a.proof_url ?? null })));
+      } else setAchievements([]);
+    } catch {
+      setAchievements([]);
+    } finally {
+      setAchievementsLoading(false);
+    }
+  }, [me?.id, getAuthHeaders]);
+
   const loadRelations = useCallback(async () => {
     if (!me?.id) return;
     setRelationsLoading(true);
@@ -1170,7 +1461,9 @@ export default function ProfileEditPage({
     if ((profileExt?.data as { profile_type?: string } | null)?.profile_type === "company") {
       loadTeam();
     }
-  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam, loadGigs, loadLinks, loadRelations]);
+    loadSkills();
+    loadAchievements();
+  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam, loadGigs, loadLinks, loadSkills, loadAchievements, loadRelations]);
 
   useEffect(() => {
     load();
@@ -1852,6 +2145,29 @@ export default function ProfileEditPage({
           onOpenEditModal={(link) => setLinkModal({ open: true, edit: link })}
         />
 
+        {(profileType === "individual" || profileType === "company") && (
+          <SkillsEditor
+            title={profileType === "company" ? "Services / Expertise" : "Skills"}
+            skills={skills}
+            skillsLoading={skillsLoading}
+            onReload={loadSkills}
+            getAuthHeaders={getAuthHeaders}
+            onOpenModal={() => { setSkillForm({ name: "", level: null, is_public: true }); setSkillModal({ open: true }); }}
+            onOpenEditModal={(skill) => { setSkillForm({ name: skill.name, level: skill.level, is_public: skill.is_public }); setSkillModal({ open: true, edit: skill }); }}
+          />
+        )}
+
+        {profileType === "individual" && (
+          <AchievementsEditor
+            achievements={achievements}
+            achievementsLoading={achievementsLoading}
+            onReload={loadAchievements}
+            getAuthHeaders={getAuthHeaders}
+            onOpenModal={() => { setAchievementForm({ title: "", description: "", url: "", is_public: true }); setAchievementModal({ open: true }); }}
+            onOpenEditModal={(a) => { setAchievementForm({ title: a.title, description: a.description ?? "", url: (a.url ?? a.proof_url ?? "") as string, is_public: a.is_public }); setAchievementModal({ open: true, edit: a }); }}
+          />
+        )}
+
         <RelationsEditor
           relations={relations}
           relationsLoading={relationsLoading}
@@ -2317,6 +2633,91 @@ export default function ProfileEditPage({
               }
             } finally {
               setLinkSaving(false);
+            }
+          }}
+        />
+      )}
+
+      {skillModal.open && (
+        <SkillModal
+          edit={skillModal.open && "edit" in skillModal ? skillModal.edit : undefined}
+          form={skillForm}
+          setForm={setSkillForm}
+          saving={skillSaving}
+          onClose={() => setSkillModal({ open: false })}
+          onSubmit={async () => {
+            setSkillSaving(true);
+            const base = typeof window !== "undefined" ? window.location.origin : "";
+            const headers = await getAuthHeaders();
+            const edit = skillModal.open && "edit" in skillModal ? skillModal.edit : undefined;
+            try {
+              if (edit) {
+                const res = await fetch(`${base}/api/profile/skills/${edit.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json", ...headers },
+                  body: JSON.stringify({ name: skillForm.name.trim(), level: skillForm.level, is_public: skillForm.is_public }),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) setError(json.message ?? "Update failed");
+                else { loadSkills(); setSkillModal({ open: false }); }
+              } else {
+                const res = await fetch(`${base}/api/profile/skills`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", ...headers },
+                  body: JSON.stringify({ name: skillForm.name.trim(), level: skillForm.level, is_public: skillForm.is_public }),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) setError(json.message ?? json.code ?? "Create failed");
+                else { loadSkills(); setSkillModal({ open: false }); }
+              }
+            } finally {
+              setSkillSaving(false);
+            }
+          }}
+        />
+      )}
+
+      {achievementModal.open && (
+        <AchievementModal
+          edit={achievementModal.open && "edit" in achievementModal ? achievementModal.edit : undefined}
+          form={achievementForm}
+          setForm={setAchievementForm}
+          saving={achievementSaving}
+          onClose={() => setAchievementModal({ open: false })}
+          onSubmit={async () => {
+            setAchievementSaving(true);
+            const base = typeof window !== "undefined" ? window.location.origin : "";
+            const headers = await getAuthHeaders();
+            const edit = achievementModal.open && "edit" in achievementModal ? achievementModal.edit : undefined;
+            const url = achievementForm.url.trim();
+            const payload = {
+              title: achievementForm.title.trim(),
+              description: achievementForm.description.trim() || null,
+              url: url && (url.startsWith("http://") || url.startsWith("https://")) ? url : null,
+              is_public: achievementForm.is_public,
+            };
+            try {
+              if (edit) {
+                const res = await fetch(`${base}/api/profile/achievements/${edit.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json", ...headers },
+                  body: JSON.stringify(payload),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) setError(json.message ?? "Update failed");
+                else { loadAchievements(); setAchievementModal({ open: false }); }
+              } else {
+                const res = await fetch(`${base}/api/profile/achievements`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", ...headers },
+                  body: JSON.stringify(payload),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) setError(json.message ?? json.code ?? "Create failed");
+                else { loadAchievements(); setAchievementModal({ open: false }); }
+              }
+            } finally {
+              setAchievementSaving(false);
             }
           }}
         />

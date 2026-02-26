@@ -130,7 +130,7 @@ type Props = {
 };
 
 export function PublicProfileContent({ data, username, profileUrl: profileUrlProp }: Props) {
-  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations } = data;
+  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations, skills = [], achievements = [] } = data;
   const profileType = profile.profile_type ?? "individual";
   const displayName = profile.display_name ?? profile.username ?? username;
   const handle = profile.username ?? username;
@@ -441,6 +441,66 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     </li>
                   ))}
                 </ul>
+              </section>
+            )}
+
+            {/* Skills (individual) or Services / Expertise (company) — pill chips, optional level */}
+            {(profileType === "individual" || profileType === "company") && (
+              <section className={rightSectionSpacing}>
+                <SectionTitle>{profileType === "company" ? "Services / Expertise" : "Skills"}</SectionTitle>
+                {skills.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {profileType === "company" ? "No services or expertise listed yet" : "No skills listed yet"}
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {skills.map((s, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-foreground hover:border-primary/30 hover:bg-accent/50 transition-colors"
+                      >
+                        <span>{s.name}</span>
+                        {s.level != null && s.level >= 1 && s.level <= 5 && (
+                          <span className="text-xs text-muted-foreground tabular-nums" aria-label={`Level ${s.level} of 5`}>
+                            {s.level}/5
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* Achievements (individual only) — compact cards with optional link */}
+            {profileType === "individual" && (
+              <section className={rightSectionSpacing}>
+                <SectionTitle>Achievements</SectionTitle>
+                {achievements.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No achievements yet</p>
+                ) : (
+                  <ul className="space-y-3">
+                    {achievements.map((a, i) => (
+                      <li key={i} className="rounded-xl border border-border bg-card p-4">
+                        <h3 className="font-semibold text-foreground">{a.title}</h3>
+                        {a.description && (
+                          <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{a.description}</p>
+                        )}
+                        {a.url && (
+                          <a
+                            href={a.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                          >
+                            View
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
             )}
 

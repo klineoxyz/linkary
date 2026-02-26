@@ -172,13 +172,15 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
       const profileId = profileRow.id;
 
-      const [profileExtRow, socialsRow, reviewRows, caseRows, linksRows, relationsRows] = await Promise.all([
+      const [profileExtRow, socialsRow, reviewRows, caseRows, linksRows, relationsRows, skillsRows, achievementsRows] = await Promise.all([
         serviceSupabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title, show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle(),
         serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url").eq("profile_id", profileId).maybeSingle(),
         serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type, verified_deal").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10),
         serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20),
         serviceSupabase.from("profile_links").select("title, url, icon").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
         serviceSupabase.from("profile_relations").select("source_profile_id, target_profile_id, relation_type, sort_order").or(`source_profile_id.eq.${profileId},target_profile_id.eq.${profileId}`).eq("is_public", true).order("relation_type").order("sort_order", { ascending: true }),
+        serviceSupabase.from("profile_skills").select("name, level").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
+        serviceSupabase.from("profile_achievements").select("title, description, proof_url").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
       ]);
 
       const profileExt = profileExtRow.data as { profile_type?: string | null; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null; show_reviews?: boolean | null; token_dexscreener_url?: string | null } | null;
@@ -260,6 +262,12 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         tags: tagsFromMetrics(c.metrics),
         url: c.proof_url ?? null,
       }));
+
+      const skillsList = (skillsRows.data ?? []) as Array<{ name: string; level: number | null }>;
+      const skills = skillsList.map((s) => ({ name: s.name, level: s.level }));
+
+      const achievementsList = (achievementsRows.data ?? []) as Array<{ title: string; description: string | null; proof_url: string | null }>;
+      const achievements = achievementsList.map((a) => ({ title: a.title, description: a.description ?? null, url: a.proof_url ?? null }));
 
       let resolvedHeroImageUrl: string | null = heroImageUrl;
       if (heroImageUrl && typeof heroImageUrl === "string" && heroImageUrl.startsWith("profile/")) {
@@ -394,6 +402,8 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         token: tokenPayload,
         ...(Object.keys(relationsPayload).length > 0 ? { relations: relationsPayload } : {}),
         ...(gigsPayload.length > 0 ? { gigs: gigsPayload } : {}),
+        ...(skills.length > 0 ? { skills } : {}),
+        ...(achievements.length > 0 ? { achievements } : {}),
       };
 
       const displayUsername = payload.profile.username ?? segmentLower;

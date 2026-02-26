@@ -105,6 +105,10 @@ export type PublicProfileApiPayload = {
     remote: boolean;
     created_at: string;
   }>;
+  /** Skills (individual) or Services/Expertise (company). Public only. */
+  skills?: Array<{ name: string; level?: number | null }>;
+  /** Achievements (individual). Public only. */
+  achievements?: Array<{ title: string; description: string | null; url: string | null }>;
 };
 
 function tagsFromMetrics(metrics: unknown): string[] {

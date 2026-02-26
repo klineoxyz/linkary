@@ -117,9 +117,8 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
   }
 
   if (kind === "slug") {
-    const base = baseUrl();
     const profileRes = await fetch(
-      `${base}/api/public/profile?username=${encodeURIComponent(segmentLower)}`,
+      `/api/public/profile?username=${encodeURIComponent(segmentLower)}`,
       { cache: "no-store" }
     );
     if (profileRes.ok) {
@@ -131,6 +130,12 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         />
       );
     }
+    const txt = await profileRes.text();
+    console.error("[PUBLIC_SLUG] api/public/profile failed", {
+      slug: segmentLower,
+      status: profileRes.status,
+      body: txt.slice(0, 300),
+    });
     return <NotFoundClaimView requestedUsername={segmentLower} />;
   }
 

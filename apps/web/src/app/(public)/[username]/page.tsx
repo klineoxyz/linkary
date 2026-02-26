@@ -131,7 +131,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       );
     }
     const txt = await profileRes.text();
-    console.error("[PUBLIC_SLUG] api/public/profile failed", {
+    console.error("[PUBLIC_SLUG] /api/public/profile failed", {
       slug: segmentLower,
       status: profileRes.status,
       body: txt.slice(0, 300),

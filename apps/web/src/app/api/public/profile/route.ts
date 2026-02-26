@@ -85,6 +85,18 @@ export type PublicProfileApiPayload = {
     ecosystemProjects?: Array<{ id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string }>;
     subsidiaries?: Array<{ id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string }>;
   };
+  /** Open public gigs (project/company only). */
+  gigs?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    gig_type: string;
+    compensation_type: string;
+    budget_text: string | null;
+    location: string | null;
+    remote: boolean;
+    created_at: string;
+  }>;
 };
 
 function tagsFromMetrics(metrics: unknown): string[] {

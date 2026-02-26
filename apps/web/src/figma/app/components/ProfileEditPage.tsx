@@ -71,6 +71,37 @@ type PartnerRow = {
   updated_at: string;
 };
 
+const GIG_TYPES = ["ambassador", "affiliate", "ugc", "marketing", "partnership", "other"] as const;
+const COMP_TYPES = ["paid", "revshare", "token", "equity", "unpaid", "other"] as const;
+
+type GigRow = {
+  id: string;
+  owner_profile_id: string;
+  title: string;
+  description: string;
+  gig_type: string;
+  compensation_type: string;
+  budget_text: string | null;
+  location: string | null;
+  remote: boolean;
+  is_public: boolean;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type GigApplicationRow = {
+  id: string;
+  gig_id: string;
+  applicant_profile_id: string;
+  message: string | null;
+  case_study_ids: string[];
+  status: string;
+  created_at: string;
+  applicant?: { username: string | null; display_name: string | null; avatar_url: string | null; profile_type: string };
+  case_studies?: Array<{ id: string; title: string | null; proof_url: string | null }>;
+};
+
 const LOCATION_OPTIONS = [
   "",
   "Remote",
@@ -651,6 +682,88 @@ function TeamMemberModal({
   );
 }
 
+function GigsEditor({
+  me,
+  gigs,
+  gigsLoading,
+  onReload,
+  getAuthHeaders,
+  onOpenGigModal,
+  onOpenApplications,
+  setError,
+}: {
+  me: Profile | null;
+  gigs: GigRow[];
+  gigsLoading: boolean;
+  onReload: () => void;
+  getAuthHeaders: () => Promise<Record<string, string>>;
+  onOpenGigModal: (edit?: GigRow) => void;
+  onOpenApplications: (gigId: string) => void;
+  setError: (s: string | null) => void;
+}) {
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+
+  const closeGig = async (id: string) => {
+    if (!confirm("Close this gig? It will no longer accept applications.")) return;
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${base}/api/gigs/${id}/close`, { method: "POST", headers });
+    if (res.ok) onReload();
+    else {
+      const j = await res.json().catch(() => ({}));
+      setError(j.message ?? "Failed to close");
+    }
+  };
+
+  const deleteGig = async (id: string) => {
+    if (!confirm("Delete this gig? This cannot be undone.")) return;
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${base}/api/gigs/${id}`, { method: "DELETE", headers });
+    if (res.ok) onReload();
+    else {
+      const j = await res.json().catch(() => ({}));
+      setError(j.message ?? "Failed to delete");
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <label className="text-sm font-medium text-foreground">Gigs</label>
+        <button type="button" onClick={() => onOpenGigModal()} className="text-sm text-primary font-medium hover:underline">+ Create gig</button>
+      </div>
+      <p className="text-xs text-muted-foreground">Public opportunities. Only project/company profiles can create gigs.</p>
+      {gigsLoading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : gigs.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No gigs yet. Create one to accept applications.</p>
+      ) : (
+        <ul className="space-y-2">
+          {gigs.map((g) => (
+            <li key={g.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background p-2">
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-foreground truncate">{g.title}</div>
+                <div className="flex flex-wrap gap-1.5 mt-1 text-xs text-muted-foreground">
+                  <span className="rounded border border-border bg-muted/50 px-1.5 py-0.5 capitalize">{g.gig_type}</span>
+                  <span className="rounded border border-border bg-muted/50 px-1.5 py-0.5 capitalize">{g.compensation_type}</span>
+                  <span className="rounded border border-border bg-muted/50 px-1.5 py-0.5">{g.status}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button type="button" onClick={() => onOpenApplications(g.id)} className="text-xs text-primary hover:underline">Applications</button>
+                <button type="button" onClick={() => onOpenGigModal(g)} className="text-xs text-primary hover:underline">Edit</button>
+                {g.status === "open" && (
+                  <button type="button" onClick={() => closeGig(g.id)} className="text-xs text-muted-foreground hover:underline">Close</button>
+                )}
+                <button type="button" onClick={() => deleteGig(g.id)} className="text-xs text-destructive hover:underline">Delete</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function CaseStudiesEditor({
   me,
   caseStudies,
@@ -863,6 +976,24 @@ export default function ProfileEditPage({
   const [relationSearchLoading, setRelationSearchLoading] = useState(false);
   const [selectedRelationTarget, setSelectedRelationTarget] = useState<{ id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string } | null>(null);
   const [heroMode, setHeroMode] = useState<"none" | "image" | "video">("none");
+  const [myGigs, setMyGigs] = useState<GigRow[]>([]);
+  const [gigsLoading, setGigsLoading] = useState(false);
+  const [gigModal, setGigModal] = useState<{ open: true; edit?: GigRow } | { open: false }>({ open: false });
+  const [gigForm, setGigForm] = useState({
+    title: "",
+    description: "",
+    gig_type: "ambassador",
+    compensation_type: "paid",
+    budget_text: "",
+    location: "",
+    remote: true,
+    is_public: true,
+  });
+  const [gigSaving, setGigSaving] = useState(false);
+  const [applicationsGigId, setApplicationsGigId] = useState<string | null>(null);
+  const [applicationsList, setApplicationsList] = useState<GigApplicationRow[]>([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
+  const [applicationStatusSaving, setApplicationStatusSaving] = useState<string | null>(null);
 
   const getAuthHeaders = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -892,6 +1023,39 @@ export default function ProfileEditPage({
     const list = await listCaseStudiesForProfile(me.id);
     setCaseStudies(list);
   }, [me?.id]);
+
+  const loadGigs = useCallback(async () => {
+    if (!me?.id) return;
+    setGigsLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/gigs/mine`, { headers });
+      const json = await res.json().catch(() => ({}));
+      if (json.ok && Array.isArray(json.gigs)) setMyGigs(json.gigs);
+      else setMyGigs([]);
+    } catch {
+      setMyGigs([]);
+    } finally {
+      setGigsLoading(false);
+    }
+  }, [me?.id, getAuthHeaders]);
+
+  const loadApplications = useCallback(async (gigId: string) => {
+    const headers = await getAuthHeaders();
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    setApplicationsLoading(true);
+    try {
+      const res = await fetch(`${base}/api/gigs/${gigId}/applications`, { headers });
+      const json = await res.json().catch(() => ({}));
+      if (json.ok && Array.isArray(json.applications)) setApplicationsList(json.applications);
+      else setApplicationsList([]);
+    } catch {
+      setApplicationsList([]);
+    } finally {
+      setApplicationsLoading(false);
+    }
+  }, [getAuthHeaders]);
 
   const loadTeam = useCallback(async () => {
     if (!me?.id) return;
@@ -959,8 +1123,10 @@ export default function ProfileEditPage({
     loadRelations();
     if (profileExt?.data) {
       const p = profileExt.data as { profile_type?: string; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null; token_dexscreener_url?: string | null };
-      if (p.profile_type === "project" || p.profile_type === "company") setProfileType(p.profile_type as ProfileType);
-      else setProfileType("individual");
+      if (p.profile_type === "project" || p.profile_type === "company") {
+        setProfileType(p.profile_type as ProfileType);
+        loadGigs();
+      } else setProfileType("individual");
       setHeroImageUrl(p.hero_image_url ?? null);
       setHeroVideoUrl((p.hero_video_url ?? "") || "");
       setHeroTitle((p.hero_title ?? "") || "");
@@ -1003,7 +1169,7 @@ export default function ProfileEditPage({
     if ((profileExt?.data as { profile_type?: string } | null)?.profile_type === "company") {
       loadTeam();
     }
-  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam, loadLinks, loadRelations]);
+  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam, loadGigs, loadLinks, loadRelations]);
 
   useEffect(() => {
     load();
@@ -1308,6 +1474,7 @@ export default function ProfileEditPage({
               const v = e.target.value as ProfileType;
               setProfileType(v);
               if (v === "company") loadTeam();
+              if (v === "project" || v === "company") loadGigs();
             }}
             className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
           >
@@ -1736,6 +1903,48 @@ export default function ProfileEditPage({
           }}
         />
 
+        {(profileType === "project" || profileType === "company") && (
+          <GigsEditor
+            me={me}
+            gigs={myGigs}
+            gigsLoading={gigsLoading}
+            onReload={loadGigs}
+            getAuthHeaders={getAuthHeaders}
+            onOpenGigModal={(edit) => {
+              if (edit) {
+                setGigForm({
+                  title: edit.title,
+                  description: edit.description,
+                  gig_type: edit.gig_type,
+                  compensation_type: edit.compensation_type,
+                  budget_text: edit.budget_text ?? "",
+                  location: edit.location ?? "",
+                  remote: edit.remote,
+                  is_public: edit.is_public,
+                });
+                setGigModal({ open: true, edit });
+              } else {
+                setGigForm({
+                  title: "",
+                  description: "",
+                  gig_type: "ambassador",
+                  compensation_type: "paid",
+                  budget_text: "",
+                  location: "",
+                  remote: true,
+                  is_public: true,
+                });
+                setGigModal({ open: true });
+              }
+            }}
+            onOpenApplications={(gigId) => {
+              setApplicationsGigId(gigId);
+              loadApplications(gigId);
+            }}
+            setError={setError}
+          />
+        )}
+
         <CaseStudiesEditor
           me={me}
           caseStudies={caseStudies}
@@ -1823,6 +2032,170 @@ export default function ProfileEditPage({
             setPartnerSaving(false);
           }}
         />
+      )}
+
+      {gigModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setGigModal({ open: false })}>
+          <div className="rounded-xl border border-border bg-card shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-foreground">{gigModal.edit ? "Edit gig" : "Create gig"}</h3>
+            <input type="text" placeholder="Title *" value={gigForm.title} onChange={(e) => setGigForm((f) => ({ ...f, title: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" />
+            <textarea placeholder="Description *" value={gigForm.description} onChange={(e) => setGigForm((f) => ({ ...f, description: e.target.value }))} rows={3} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" />
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Type</label>
+              <select value={gigForm.gig_type} onChange={(e) => setGigForm((f) => ({ ...f, gig_type: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground">
+                {GIG_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Compensation</label>
+              <select value={gigForm.compensation_type} onChange={(e) => setGigForm((f) => ({ ...f, compensation_type: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground">
+                {COMP_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            <input type="text" placeholder="Budget (free text)" value={gigForm.budget_text} onChange={(e) => setGigForm((f) => ({ ...f, budget_text: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" />
+            <input type="text" placeholder="Location (optional)" value={gigForm.location} onChange={(e) => setGigForm((f) => ({ ...f, location: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" />
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={gigForm.remote} onChange={(e) => setGigForm((f) => ({ ...f, remote: e.target.checked }))} />
+              <span className="text-sm text-foreground">Remote</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={gigForm.is_public} onChange={(e) => setGigForm((f) => ({ ...f, is_public: e.target.checked }))} />
+              <span className="text-sm text-foreground">Public (show on profile)</span>
+            </label>
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setGigModal({ open: false })} className="px-3 py-1.5 rounded-lg border border-border text-foreground bg-background">Cancel</button>
+              <button
+                type="button"
+                disabled={!gigForm.title.trim() || !gigForm.description.trim() || gigSaving}
+                onClick={async () => {
+                  if (!me?.id) return;
+                  setGigSaving(true);
+                  const headers = await getAuthHeaders();
+                  const base = typeof window !== "undefined" ? window.location.origin : "";
+                  const body = {
+                    title: gigForm.title.trim(),
+                    description: gigForm.description.trim(),
+                    gig_type: gigForm.gig_type,
+                    compensation_type: gigForm.compensation_type,
+                    budget_text: gigForm.budget_text.trim() || null,
+                    location: gigForm.location.trim() || null,
+                    remote: gigForm.remote,
+                    is_public: gigForm.is_public,
+                  };
+                  if (gigModal.edit) {
+                    const res = await fetch(`${base}/api/gigs/${gigModal.edit.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
+                    const j = await res.json().catch(() => ({}));
+                    setGigSaving(false);
+                    if (res.ok) { loadGigs(); setGigModal({ open: false }); }
+                    else setError(j.message ?? "Update failed");
+                  } else {
+                    const res = await fetch(`${base}/api/gigs`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
+                    const j = await res.json().catch(() => ({}));
+                    setGigSaving(false);
+                    if (res.ok) { loadGigs(); setGigModal({ open: false }); }
+                    else setError(j.message ?? "Create failed");
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"
+              >
+                {gigSaving ? "Saving…" : gigModal.edit ? "Update" : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {applicationsGigId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setApplicationsGigId(null)}>
+          <div className="rounded-xl border border-border bg-card shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-foreground">Applications</h3>
+            {applicationsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : applicationsList.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No applications yet.</p>
+            ) : (
+              <ul className="space-y-3">
+                {applicationsList.map((app) => (
+                  <li key={app.id} className="rounded-lg border border-border bg-background p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {app.applicant?.avatar_url ? (
+                          <img src={app.applicant.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover border border-border shrink-0" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-muted border border-border shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground truncate">{app.applicant?.display_name ?? app.applicant?.username ?? "Applicant"}</p>
+                          {app.applicant?.username && <p className="text-xs text-muted-foreground">@{app.applicant.username}</p>}
+                        </div>
+                      </div>
+                      <span className="rounded border border-border bg-muted/50 px-1.5 py-0.5 text-xs text-muted-foreground capitalize shrink-0">{app.status}</span>
+                    </div>
+                    {app.message && <p className="mt-2 text-sm text-muted-foreground line-clamp-3">{app.message}</p>}
+                    {app.case_studies && app.case_studies.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {app.case_studies.map((cs) => (
+                          <a key={cs.id} href={cs.proof_url ?? "#"} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded border border-border bg-muted/50 px-2 py-0.5 text-xs text-foreground hover:bg-accent/50">
+                            {cs.title || "Proof"}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    {app.status === "submitted" && (
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          disabled={applicationStatusSaving === app.id}
+                          onClick={async () => {
+                            setApplicationStatusSaving(app.id);
+                            const headers = await getAuthHeaders();
+                            const base = typeof window !== "undefined" ? window.location.origin : "";
+                            await fetch(`${base}/api/gig-applications/${app.id}/status`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json", ...headers },
+                              body: JSON.stringify({ status: "accepted" }),
+                            });
+                            setApplicationStatusSaving(null);
+                            loadApplications(applicationsGigId!);
+                          }}
+                          className="px-2 py-1 rounded text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          disabled={applicationStatusSaving === app.id}
+                          onClick={async () => {
+                            setApplicationStatusSaving(app.id);
+                            const headers = await getAuthHeaders();
+                            const base = typeof window !== "undefined" ? window.location.origin : "";
+                            await fetch(`${base}/api/gig-applications/${app.id}/status`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json", ...headers },
+                              body: JSON.stringify({ status: "rejected" }),
+                            });
+                            setApplicationStatusSaving(null);
+                            loadApplications(applicationsGigId!);
+                          }}
+                          className="px-2 py-1 rounded text-xs font-medium border border-border text-foreground hover:bg-muted disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex justify-end">
+              <button type="button" onClick={() => setApplicationsGigId(null)} className="px-3 py-1.5 rounded-lg border border-border text-foreground bg-background">Close</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {caseStudyModal && (

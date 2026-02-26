@@ -323,6 +323,19 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         if (subsidiaries.length) relationsPayload.subsidiaries = subsidiaries;
       }
 
+      let gigsPayload: PublicProfileApiPayload["gigs"] = [];
+      if (profileType === "project" || profileType === "company") {
+        const gigsRes = await serviceSupabase
+          .from("gigs")
+          .select("id, title, description, gig_type, compensation_type, budget_text, location, remote, created_at")
+          .eq("owner_profile_id", profileId)
+          .eq("is_public", true)
+          .eq("status", "open")
+          .order("created_at", { ascending: false })
+          .limit(20);
+        gigsPayload = (gigsRes.data ?? []) as PublicProfileApiPayload["gigs"];
+      }
+
       const payload: PublicProfileApiPayload = {
         profile: {
           username: profileRow.username ?? profileRow.twitter_username ?? null,
@@ -375,6 +388,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         show_reviews: showReviews,
         token: tokenPayload,
         ...(Object.keys(relationsPayload).length > 0 ? { relations: relationsPayload } : {}),
+        ...(gigsPayload.length > 0 ? { gigs: gigsPayload } : {}),
       };
 
       const displayUsername = payload.profile.username ?? segmentLower;

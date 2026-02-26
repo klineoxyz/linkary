@@ -2,6 +2,7 @@ import type { PublicProfileApiPayload } from "@/app/api/public/profile/route";
 import { BadgeCheck, ChevronRight, ExternalLink, Globe, Link2 } from "lucide-react";
 import Link from "next/link";
 import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
+import { ApplyToGigButton } from "./ApplyToGigButton";
 
 type RelationCard = { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string };
 
@@ -395,6 +396,38 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   </>
                 )}
               </>
+            )}
+
+            {/* Open gigs (project/company only) */}
+            {data.gigs && data.gigs.length > 0 && (
+              <section className={rightSectionSpacing}>
+                <SectionTitle>Open gigs</SectionTitle>
+                <ul className="space-y-3">
+                  {data.gigs.map((gig) => (
+                    <li key={gig.id} className="rounded-xl border border-border bg-card p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-foreground">{gig.title}</h3>
+                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            <span className="rounded border border-border bg-muted/50 px-1.5 py-0.5 capitalize">{gig.gig_type}</span>
+                            <span className="rounded border border-border bg-muted/50 px-1.5 py-0.5 capitalize">{gig.compensation_type}</span>
+                            {gig.remote && <span className="rounded border border-border bg-muted/50 px-1.5 py-0.5">Remote</span>}
+                          </div>
+                          {gig.description && (
+                            <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{gig.description}</p>
+                          )}
+                          {gig.budget_text && (
+                            <p className="mt-1 text-xs text-muted-foreground">{gig.budget_text}</p>
+                          )}
+                        </div>
+                        <div className="shrink-0">
+                          <ApplyToGigButton gig={gig} ownerUsername={handle} basePath={basePath} />
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
 
             {/* Links — full-width buttons, hover lift; empty = compact muted */}

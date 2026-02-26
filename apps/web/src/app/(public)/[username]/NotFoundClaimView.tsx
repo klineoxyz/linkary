@@ -22,6 +22,18 @@ export function NotFoundClaimView({ requestedUsername }: { requestedUsername: st
             Log in with X
           </Link>
         </div>
+        {process.env.NODE_ENV !== "production" && (
+          <p className="mt-4 text-center">
+            <Link
+              href="/api/debug/session"
+              className="text-xs text-muted-foreground hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Debug session
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );

@@ -521,10 +521,15 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     <ul className="space-y-3">
                       {reviews.latest.map((r, i) => (
                         <li key={i} className="rounded-xl border border-border bg-card p-4">
-                          <div className="flex items-center gap-2 text-sm">
+                          <div className="flex flex-wrap items-center gap-2 text-sm">
                             <span className="font-medium text-foreground">{r.rating}/5</span>
                             {r.reviewer_display && (
                               <span className="text-muted-foreground">· {r.reviewer_display}</span>
+                            )}
+                            {(r as { verified_deal?: boolean }).verified_deal !== false && (
+                              <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                                Verified deal
+                              </span>
                             )}
                           </div>
                           {r.text && <p className="mt-1 text-sm text-foreground">{r.text}</p>}

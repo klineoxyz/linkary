@@ -57,7 +57,7 @@ export type PublicProfileApiPayload = {
   reviews: {
     average: number | null;
     count: number;
-    latest: Array<{ rating: number; text: string | null; created_at: string; reviewer_display: string | null }>;
+    latest: Array<{ rating: number; text: string | null; created_at: string; reviewer_display: string | null; verified_deal?: boolean }>;
   };
   /** When false, Reviews section is hidden on public profile */
   show_reviews?: boolean;

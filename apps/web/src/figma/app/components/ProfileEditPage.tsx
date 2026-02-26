@@ -994,6 +994,7 @@ export default function ProfileEditPage({
   const [applicationsList, setApplicationsList] = useState<GigApplicationRow[]>([]);
   const [applicationsLoading, setApplicationsLoading] = useState(false);
   const [applicationStatusSaving, setApplicationStatusSaving] = useState<string | null>(null);
+  const [dealCreatedNote, setDealCreatedNote] = useState(false);
 
   const getAuthHeaders = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -2110,9 +2111,15 @@ export default function ProfileEditPage({
       )}
 
       {applicationsGigId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setApplicationsGigId(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { setApplicationsGigId(null); setDealCreatedNote(false); }}>
           <div className="rounded-xl border border-border bg-card shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-foreground">Applications</h3>
+            {dealCreatedNote && (
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-foreground">
+                Deal created.{" "}
+                <a href="/profile/deals" className="font-medium text-primary hover:underline">View in Deals</a>
+              </div>
+            )}
             {applicationsLoading ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
             ) : applicationsList.length === 0 ? (
@@ -2152,15 +2159,18 @@ export default function ProfileEditPage({
                           disabled={applicationStatusSaving === app.id}
                           onClick={async () => {
                             setApplicationStatusSaving(app.id);
+                            setDealCreatedNote(false);
                             const headers = await getAuthHeaders();
                             const base = typeof window !== "undefined" ? window.location.origin : "";
-                            await fetch(`${base}/api/gig-applications/${app.id}/status`, {
+                            const res = await fetch(`${base}/api/gig-applications/${app.id}/status`, {
                               method: "PATCH",
                               headers: { "Content-Type": "application/json", ...headers },
                               body: JSON.stringify({ status: "accepted" }),
                             });
+                            const json = await res.json().catch(() => ({}));
                             setApplicationStatusSaving(null);
                             loadApplications(applicationsGigId!);
+                            if (json.ok && json.dealCreated) setDealCreatedNote(true);
                           }}
                           className="px-2 py-1 rounded text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                         >
@@ -2192,7 +2202,7 @@ export default function ProfileEditPage({
               </ul>
             )}
             <div className="flex justify-end">
-              <button type="button" onClick={() => setApplicationsGigId(null)} className="px-3 py-1.5 rounded-lg border border-border text-foreground bg-background">Close</button>
+              <button type="button" onClick={() => { setApplicationsGigId(null); setDealCreatedNote(false); }} className="px-3 py-1.5 rounded-lg border border-border text-foreground bg-background">Close</button>
             </div>
           </div>
         </div>

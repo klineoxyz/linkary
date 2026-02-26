@@ -175,7 +175,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       const [profileExtRow, socialsRow, reviewRows, caseRows, linksRows, relationsRows] = await Promise.all([
         serviceSupabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title, show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle(),
         serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url").eq("profile_id", profileId).maybeSingle(),
-        serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10),
+        serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type, verified_deal").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10),
         serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20),
         serviceSupabase.from("profile_links").select("title, url, icon").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
         serviceSupabase.from("profile_relations").select("source_profile_id, target_profile_id, relation_type, sort_order").or(`source_profile_id.eq.${profileId},target_profile_id.eq.${profileId}`).eq("is_public", true).order("relation_type").order("sort_order", { ascending: true }),
@@ -213,6 +213,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         created_at: string;
         reviewer_profile_id: string | null;
         reviewer_type: string;
+        verified_deal?: boolean;
       }>;
       const caseStudiesList = (caseRows.data ?? []) as Array<{ id: string; title: string | null; description: string | null; proof_url: string | null; metrics: unknown; created_at: string }>;
 
@@ -236,6 +237,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           text: r.body ?? null,
           created_at: r.created_at,
           reviewer_display: r.reviewer_type === "profile" && r.reviewer_profile_id ? (displayByProfileId[r.reviewer_profile_id] ?? "Anonymous") : "Anonymous",
+          verified_deal: r.verified_deal ?? true,
         }));
       }
 

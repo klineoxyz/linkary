@@ -9,21 +9,23 @@ import { getProfileIdForAuthUser } from "@/lib/profiles";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-async function assertOwnerOfGig(supabase: SupabaseClient, applicationId: string, ownerProfileId: string): Promise<NextResponse | null> {
+type AppRow = { id: string; gig_id: string; applicant_profile_id: string };
+
+async function assertOwnerOfGig(supabase: SupabaseClient, applicationId: string, ownerProfileId: string): Promise<{ app: AppRow; gigId: string } | NextResponse> {
   const { data: app, error: appErr } = await supabase
     .from("gig_applications")
-    .select("id, gig_id")
+    .select("id, gig_id, applicant_profile_id")
     .eq("id", applicationId)
     .maybeSingle();
   if (appErr || !app) return fail("NOT_FOUND", "Application not found", 404);
   const { data: gig, error: gigErr } = await supabase
     .from("gigs")
     .select("owner_profile_id")
-    .eq("id", (app as { gig_id: string }).gig_id)
+    .eq("id", (app as AppRow).gig_id)
     .maybeSingle();
   if (gigErr || !gig) return fail("NOT_FOUND", "Gig not found", 404);
   if ((gig as { owner_profile_id: string }).owner_profile_id !== ownerProfileId) return fail("FORBIDDEN", "Not your gig", 403);
-  return null;
+  return { app: app as AppRow, gigId: (app as AppRow).gig_id };
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -40,8 +42,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { id } = await params;
   if (!id) return fail("BAD_REQUEST", "id required", 400);
   const ownerProfileId = getProfileIdForAuthUser(user.id);
-  const err = await assertOwnerOfGig(supabase, id, ownerProfileId);
-  if (err) return err;
+  const assertResult = await assertOwnerOfGig(supabase, id, ownerProfileId);
+  if (assertResult instanceof NextResponse) return assertResult;
+  const { app, gigId } = assertResult;
 
   let body: { status?: string };
   try {
@@ -61,5 +64,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .single();
 
   if (error) return fail("DB_ERROR", error.message, 500);
-  return ok({ application: row });
+
+  let dealCreated = false;
+  if (status === "accepted") {
+    const { error: dealErr } = await supabase.from("gig_deals").insert({
+      gig_id: gigId,
+      owner_profile_id: ownerProfileId,
+      participant_profile_id: app.applicant_profile_id,
+      status: "active",
+    });
+    dealCreated = !dealErr;
+  }
+
+  return ok({ application: row, dealCreated });
 }

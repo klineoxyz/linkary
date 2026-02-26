@@ -731,6 +731,8 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     onboarding: "/onboarding",
     profile: "/profile",
     profileEdit: "/profile/edit",
+    profileDeals: "/profile/deals",
+    profileApplications: "/profile/applications",
     market: "/market",
     messages: "/messages",
     circles: "/circles",
@@ -789,6 +791,8 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   if (parts[0] === "settings" && parts[1] === "roles-skills") return { name: "rolesSkills" };
   if (parts[0] === "settings" && parts[1] === "wallet") return { name: "wallet" };
   if (parts[0] === "profile" && parts[1] === "edit") return { name: "profileEdit" };
+  if (parts[0] === "profile" && parts[1] === "deals") return { name: "profileDeals" };
+  if (parts[0] === "profile" && parts[1] === "applications") return { name: "profileApplications" };
   if (parts[0] === "profile" && parts[1] === "dashboard") {
     const username = searchParams?.get("username") ?? undefined;
     return { name: "profile", data: { tab: "insights", username } };

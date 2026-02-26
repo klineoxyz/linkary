@@ -74,6 +74,7 @@ export async function GET(_request: NextRequest) {
       created_at: d.created_at,
       updated_at: d.updated_at,
       is_owner: d.owner_profile_id === myProfileId,
+      counterparty_id: counterpartyId,
       counterparty: profile
         ? {
             username: profile.username,

@@ -89,6 +89,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/** Force server render every request; avoid serving stale/cached Claim for slugs that exist in public_profile_view. */
+export const dynamic = "force-dynamic";
+
 /**
  * Public URL: /[identifier] — slug, UUID, X handle, or wallet.
  * Uses single source (DTO) for public data; never sends profile/id or org id to client.
@@ -117,7 +120,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
     const base = baseUrl();
     const profileRes = await fetch(
       `${base}/api/public/profile?username=${encodeURIComponent(segmentLower)}`,
-      { next: { revalidate: 300 } }
+      { cache: "no-store" }
     );
     if (profileRes.ok) {
       const data = await profileRes.json();

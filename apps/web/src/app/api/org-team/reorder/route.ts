@@ -5,6 +5,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
+import { getProfileIdForAuthUser } from "@/lib/profiles";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -34,10 +35,12 @@ export async function POST(request: NextRequest) {
   const orderedIds = Array.isArray(body?.orderedIds) ? body.orderedIds.filter((id) => typeof id === "string") : [];
   if (orderedIds.length === 0) return ok({ reordered: true });
 
+  const profileId = getProfileIdForAuthUser(user.id);
+
   const { data: rows, error: fetchError } = await supabase
     .from("org_team_members")
     .select("id")
-    .eq("org_profile_id", user.id)
+    .eq("org_profile_id", profileId)
     .in("id", orderedIds);
 
   if (fetchError) return fail("DB_ERROR", fetchError.message, 500);

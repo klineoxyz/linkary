@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
+import { getProfileIdForAuthUser } from "@/lib/profiles";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -12,7 +13,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 async function assertOwnership(
   supabase: SupabaseClient,
   id: string,
-  userId: string
+  profileId: string
 ): Promise<NextResponse | { org_profile_id: string }> {
   const { data, error } = await supabase
     .from("org_team_members")
@@ -22,7 +23,7 @@ async function assertOwnership(
   if (error) return fail("DB_ERROR", error.message, 500);
   const row = data as { org_profile_id: string } | null;
   if (!row) return fail("NOT_FOUND", "Team member not found", 404);
-  if (row.org_profile_id !== userId) return fail("FORBIDDEN", "You can only edit your own profile's team.", 403);
+  if (row.org_profile_id !== profileId) return fail("FORBIDDEN", "You can only edit your own profile's team.", 403);
   return row;
 }
 
@@ -47,7 +48,8 @@ export async function PATCH(
   const { id } = await params;
   if (!id) return fail("BAD_REQUEST", "id required", 400);
 
-  const ownership = await assertOwnership(supabase, id, user.id);
+  const profileId = getProfileIdForAuthUser(user.id);
+  const ownership = await assertOwnership(supabase, id, profileId);
   if (ownership instanceof NextResponse) return ownership;
 
   let body: {
@@ -109,7 +111,8 @@ export async function DELETE(
   const { id } = await params;
   if (!id) return fail("BAD_REQUEST", "id required", 400);
 
-  const ownership = await assertOwnership(supabase, id, user.id);
+  const profileId = getProfileIdForAuthUser(user.id);
+  const ownership = await assertOwnership(supabase, id, profileId);
   if (ownership instanceof NextResponse) return ownership;
 
   const { error } = await supabase.from("org_team_members").delete().eq("id", id);

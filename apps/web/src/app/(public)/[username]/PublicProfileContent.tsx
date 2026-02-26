@@ -45,7 +45,7 @@ function SocialLink({ name, url }: { name: string; url: string }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center justify-center rounded-md p-2 text-foreground hover:bg-accent hover:text-primary min-h-[2.25rem] min-w-[2.25rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-primary/30 hover:bg-accent hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       aria-label={name}
     >
       {icon}
@@ -55,8 +55,8 @@ function SocialLink({ name, url }: { name: string; url: string }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
-      <span className="h-4 w-0.5 shrink-0 self-stretch rounded-full bg-primary/80" aria-hidden />
+    <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <span className="h-0.5 w-6 shrink-0 rounded-full bg-primary/80" aria-hidden />
       {children}
     </h2>
   );
@@ -114,13 +114,13 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
-      <main className="mx-auto max-w-xl px-4 py-6 sm:py-8">
-        {/* A. Hero block */}
+      <main className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-10">
+        {/* A. Hero block — banner card, no huge whitespace */}
         {(hasHeroImage || hasHeroVideo) && (
-          <section className="mb-6 sm:mb-8">
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <section className="mb-8">
+            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
               {hasHeroImage && (
-                <div className="relative aspect-[21/9] w-full sm:aspect-[3/1]">
+                <div className="relative h-[180px] w-full sm:h-[220px]">
                   <img
                     src={hero!.hero_image_url!}
                     alt=""
@@ -131,7 +131,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               {hasHeroVideo && (
                 <div className="relative">
                   {hero!.hero_video_url!.startsWith("https://") && isYouTubeUrl(hero!.hero_video_url!) ? (
-                    <div className="relative aspect-video w-full">
+                    <div className="relative aspect-video w-full max-h-[280px] sm:max-h-[320px]">
                       <iframe
                         src={youtubeEmbedUrl(hero!.hero_video_url!)}
                         title="Hero video"
@@ -162,48 +162,48 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </section>
         )}
 
-        {/* B. Profile header */}
-        <header className="mb-6 text-center sm:mb-8">
-          <div className="flex justify-center">
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt=""
-                className="h-24 w-24 rounded-full object-cover border border-border"
-              />
-            ) : (
-              <div className="h-24 w-24 rounded-full bg-muted border border-border" />
-            )}
-          </div>
-          <div className="mt-4 flex flex-col items-center gap-1">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <h1 className="text-xl font-semibold text-foreground">{displayName}</h1>
-              {profile.is_verified && (
-                <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified" />
+        {/* B. Profile header — avatar, name, type badge, verified, copy */}
+        <header className="mb-8">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4 sm:text-left">
+              {profile.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt=""
+                  className="h-20 w-20 shrink-0 rounded-full object-cover border-2 border-border"
+                />
+              ) : (
+                <div className="h-20 w-20 shrink-0 rounded-full bg-muted border-2 border-border" />
               )}
-              <span
-                className="rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-foreground"
-                aria-label="Profile type"
-              >
-                {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
-              </span>
+              <div className="flex min-w-0 flex-col items-center gap-1 sm:items-start">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                  <h1 className="text-xl font-semibold text-foreground sm:text-2xl">{displayName}</h1>
+                  {profile.is_verified && (
+                    <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified" />
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">@{handle}</p>
+                <span
+                  className="rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-foreground"
+                  aria-label="Profile type"
+                >
+                  {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
+                </span>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">@{handle}</p>
             {profile.location && (
               <p className="text-sm text-muted-foreground">{profile.location}</p>
             )}
             {profile.bio && (
-              <p className="mt-2 max-w-md text-sm text-foreground">{profile.bio}</p>
+              <p className="max-w-md text-sm text-foreground">{profile.bio}</p>
             )}
-          </div>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
             <CopyProfileLinkButton url={profileUrl} />
           </div>
         </header>
 
-        {/* C. Social links row */}
+        {/* C. Social links row — consistent icon size and hover */}
         {socialLinks.length > 0 && (
-          <div className="mb-6 flex flex-wrap items-center justify-center gap-2 sm:mb-8">
+          <div className="mb-8 flex flex-wrap items-center justify-center gap-1">
             {socialLinks.map((l) => (
               <SocialLink key={l.name} name={l.name} url={l.url} />
             ))}
@@ -212,7 +212,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
 
         {/* D. Team (company only) */}
         {profileType === "company" && team.length > 0 && (
-          <section className="mb-8">
+          <section className="mb-10">
             <SectionTitle>Team</SectionTitle>
             <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {team.map((member, i) => {
@@ -271,11 +271,11 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         )}
 
         {/* E. Links (Linktree-style) */}
-        <section className="mb-8">
+        <section className="mb-10">
           <SectionTitle>Links</SectionTitle>
           {links.length === 0 ? (
-            <div className="rounded-xl border border-border bg-muted/30 px-4 py-6 text-center">
-              <Link2 className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
+              <Link2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
               <p className="text-sm text-muted-foreground">No links yet</p>
             </div>
           ) : (
@@ -303,10 +303,10 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         </section>
 
         {/* F. Case studies */}
-        <section className="mb-8">
+        <section className="mb-10">
           <SectionTitle>Case studies</SectionTitle>
           {caseStudies.length === 0 ? (
-            <div className="rounded-xl border border-border bg-muted/30 px-4 py-6 text-center">
+            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
               <p className="text-sm text-muted-foreground">No case studies yet</p>
             </div>
           ) : (
@@ -351,10 +351,10 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         </section>
 
         {/* G. Reviews */}
-        <section className="mb-8">
+        <section className="mb-10">
           <SectionTitle>Reviews</SectionTitle>
           {reviews.count === 0 ? (
-            <div className="rounded-xl border border-border bg-muted/30 px-4 py-6 text-center">
+            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
               <p className="text-sm text-muted-foreground">No reviews yet</p>
             </div>
           ) : (
@@ -389,7 +389,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         </section>
 
         {/* H. Proof stats */}
-        <section className="rounded-xl border border-border bg-card p-4">
+        <section className="mb-10 rounded-xl border border-border bg-card p-5">
           <SectionTitle>Proof</SectionTitle>
           <div className="flex flex-wrap gap-4">
             {profile.ethos_score != null && (

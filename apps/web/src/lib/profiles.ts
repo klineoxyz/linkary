@@ -70,6 +70,17 @@ export type TwitterIdentity = {
 
 const PROFILES = "profiles";
 
+/**
+ * Canonical mapping: auth user → profile id for ownership checks.
+ * In this repo, profiles.id = auth.uid() (profile row PK is the user id).
+ * Use this helper everywhere we need "the current user's profile id" so that
+ * if a separate auth→profile mapping is introduced later, one place is updated.
+ * @see RLS policies use profile_id = auth.uid() / owner_profile_id = auth.uid()
+ */
+export function getProfileIdForAuthUser(authUserId: string): string {
+  return authUserId;
+}
+
 /** Get current user's profile by auth.uid(). */
 export async function getMyProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase

@@ -5,6 +5,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
+import { getProfileIdForAuthUser } from "@/lib/profiles";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -24,12 +25,14 @@ export async function GET(request: NextRequest) {
     return fail("INVALID_SESSION", "Invalid session", 401);
   }
 
+  const profileId = getProfileIdForAuthUser(user.id);
+
   const { searchParams } = new URL(request.url);
-  const profileId = searchParams.get("profileId")?.trim();
-  if (!profileId) {
+  const requestedProfileId = searchParams.get("profileId")?.trim();
+  if (!requestedProfileId) {
     return fail("BAD_REQUEST", "profileId is required", 400);
   }
-  if (profileId !== user.id) {
+  if (requestedProfileId !== profileId) {
     return fail("FORBIDDEN", "You can only list your own profile's team.", 403);
   }
 
@@ -76,10 +79,12 @@ export async function POST(request: NextRequest) {
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   if (!name) return fail("BAD_REQUEST", "name is required", 400);
 
+  const profileId = getProfileIdForAuthUser(user.id);
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, profile_type")
-    .eq("id", user.id)
+    .eq("id", profileId)
     .maybeSingle();
   const p = profile as { id: string; profile_type?: string } | null;
   if (!p) return fail("NOT_FOUND", "Profile not found", 404);
@@ -90,7 +95,7 @@ export async function POST(request: NextRequest) {
   const { data: maxOrder } = await supabase
     .from("org_team_members")
     .select("sort_order")
-    .eq("org_profile_id", user.id)
+    .eq("org_profile_id", profileId)
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -98,7 +103,7 @@ export async function POST(request: NextRequest) {
   const sort_order = nextOrder + 1;
 
   const insert: Record<string, unknown> = {
-    org_profile_id: user.id,
+    org_profile_id: profileId,
     name,
     role: typeof body?.role === "string" ? body.role.trim() || null : null,
     avatar_url: typeof body?.avatar_url === "string" ? body.avatar_url.trim() || null : null,

@@ -6,7 +6,7 @@ export const RESERVED_PATHS = new Set([
   "leaderboards", "creator", "brand", "agency", "calendar", "host", "availability",
   "monetization", "monetization-flow", "kol-lists", "capital-partners",
   "preferences", "support", "notifications", "verification-inbox", "showcase",
-  "integrations", "roles-skills",
+  "integrations", "roles-skills", "u",
 ]);
 
 export function isReservedPath(segment: string): boolean {

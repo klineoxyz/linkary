@@ -827,9 +827,10 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   return { name: "userProfile", data: { username: decodeURIComponent(path) }, handle: decodeURIComponent(path) };
 }
 
-function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSignOut }) {
+function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSignOut, me }) {
   const isActive = (name) => route?.name === name;
   const isLoggedIn = !!authUserId;
+  const myProfileSlug = me ? ((me.username || me.twitter_username || "").replace(/^@/, "").trim().toLowerCase()) : "";
 
   const NavLink = ({ name, icon: Icon, label, badge, onClick }) => (
     <button
@@ -902,7 +903,21 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
         <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Profile</span>
         <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
-          <NavLink name="profile" icon={Users} label="My Profile" />
+          {myProfileSlug ? (
+            <Link
+              href={`/u/${encodeURIComponent(myProfileSlug)}`}
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              )}
+            >
+              <Users className="h-4 w-4" />
+              <span className="truncate">My Profile</span>
+            </Link>
+          ) : (
+            <NavLink name="profile" icon={Users} label="My Profile" />
+          )}
           <NavLink name="profileEdit" icon={FileText} label="Profile Builder" />
         </div>
 
@@ -3420,6 +3435,7 @@ function LinkaryAppInner() {
             setMobileOpen={setMobileOpen}
             authUserId={authUserId}
             onSignOut={handleSignOut}
+            me={me}
           />
         )}
 

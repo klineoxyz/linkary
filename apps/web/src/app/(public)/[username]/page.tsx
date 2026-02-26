@@ -1,17 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
 import { getIdentifierKind, normalizeIdentifier, resolvePublicEntity } from "@/lib/entityResolver";
 import { isReservedPath } from "@/lib/reservedPaths";
 import { getPublicDTOByUsername } from "@/lib/getPublicDTO";
 import { dtoToEntityView, entityToPublicDTO } from "@/lib/publicProfileDTO";
 import { resolveEntityMediaToSignedUrls } from "@/lib/resolveEntityMediaUrls";
-import { createServerSupabase } from "@/lib/supabase/server";
-import { resolveSlugForOwner } from "@/lib/slugResolve";
-import { resolveSlug } from "@/lib/resolveSlugServer";
 import AppWithProviders from "../../AppWithProviders";
 import { PublicProfileContent } from "./PublicProfileContent";
-import { OwnerUnpublishedProfile } from "./OwnerUnpublishedProfile";
 import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
 import { NotFoundClaimView } from "./NotFoundClaimView";
 
@@ -52,19 +47,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       const bio = d.type === "profile" ? d.bio : d.tagline;
       if (bio && typeof bio === "string") {
         description = bio.length > 160 ? bio.slice(0, 157) + "…" : bio;
-      }
-    } else {
-      const segmentLower = normalizeIdentifier(segment);
-      const supabase = await createServerSupabase();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.id) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("username, twitter_username, published")
-          .eq("id", user.id)
-          .maybeSingle();
-        const resolution = resolveSlugForOwner(segmentLower, profile ?? null);
-        if (resolution.kind === "owner_unpublished") published = false;
       }
     }
   } else {
@@ -133,46 +115,19 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
   if (kind === "slug") {
     const base = baseUrl();
-    const cookieStore = await cookies();
-    const cookieHeader = cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; ");
-    // Resolve in-process so session is read from this request's cookies (no fetch)
-    const resolveResult = await resolveSlug(segmentLower);
-    const resolveKind = resolveResult.kind;
-    const resolvedSlug = resolveResult.slug ?? segmentLower;
-
-    if (resolveKind === "public") {
-      const profileRes = await fetch(
-        `${base}/api/public/profile?username=${encodeURIComponent(segment)}`,
-        { next: { revalidate: 300 } }
+    const profileRes = await fetch(
+      `${base}/api/public/profile?username=${encodeURIComponent(segment)}`,
+      { next: { revalidate: 300 } }
+    );
+    if (profileRes.ok) {
+      const data = await profileRes.json();
+      return (
+        <PublicProfileContent
+          data={data}
+          username={data.profile?.username ?? segmentLower}
+        />
       );
-      if (profileRes.ok) {
-        const data = await profileRes.json();
-        return (
-          <PublicProfileContent
-            data={data}
-            username={data.profile?.username ?? segmentLower}
-          />
-        );
-      }
     }
-
-    if (resolveKind === "owner" && resolvedSlug) {
-      const previewRes = await fetch(
-        `${base}/api/me/public-preview?slug=${encodeURIComponent(resolvedSlug)}`,
-        { headers: cookieHeader ? { Cookie: cookieHeader } : undefined, cache: "no-store" }
-      );
-      if (previewRes.ok) {
-        const data = await previewRes.json();
-        return (
-          <PublicProfileContent
-            data={data}
-            username={data.profile?.username ?? resolvedSlug}
-          />
-        );
-      }
-      return <OwnerUnpublishedProfile username={resolvedSlug} />;
-    }
-
     return <NotFoundClaimView requestedUsername={segmentLower} />;
   }
 

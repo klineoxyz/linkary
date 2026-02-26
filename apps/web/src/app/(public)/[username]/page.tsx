@@ -194,7 +194,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
     try {
       const minimalCols = "id, username, twitter_username, published";
-      const [byUsername, byTwitter] = await Promise.all([
+      const [byUsername, byTwitter] = await globalThis.Promise.all([
         serviceSupabase.from("profiles").select(minimalCols).ilike("username", segmentLower).maybeSingle(),
         serviceSupabase.from("profiles").select(minimalCols).ilike("twitter_username", segmentLower).maybeSingle(),
       ]);
@@ -281,19 +281,19 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         }
       };
 
-      const promises: Promise<unknown>[] = [
+      const promiseList: Promise<unknown>[] = [
         safeSingle(serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url, youtube_url").eq("profile_id", profileId).maybeSingle()),
-        showReviews ? safe(serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type, verified_deal").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10)) : Promise.resolve([]),
+        showReviews ? safe(serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type, verified_deal").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10)) : globalThis.Promise.resolve([]),
         safe(serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20)),
         safe(serviceSupabase.from("profile_links").select("title, url, icon").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true })),
         safe(serviceSupabase.from("profile_relations").select("source_profile_id, target_profile_id, relation_type, sort_order").or(`source_profile_id.eq.${profileId},target_profile_id.eq.${profileId}`).eq("is_public", true).order("relation_type").order("sort_order", { ascending: true })),
         safe(serviceSupabase.from("profile_skills").select("name, level").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true })),
-        profileType === "individual" ? safe(serviceSupabase.from("profile_achievements").select("title, description, proof_url").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true })) : Promise.resolve([]),
-        profileType === "company" ? safe(serviceSupabase.from("org_team_members").select("name, role, avatar_url, linkedin_url, x_url, website_url, is_public").eq("org_profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true })) : Promise.resolve([]),
-        profileType === "project" || profileType === "company" ? safe(serviceSupabase.from("gigs").select("id, title, description, gig_type, compensation_type, budget_text, location, remote, created_at").eq("owner_profile_id", profileId).eq("is_public", true).eq("status", "open").order("created_at", { ascending: false }).limit(20)) : Promise.resolve([]),
+        profileType === "individual" ? safe(serviceSupabase.from("profile_achievements").select("title, description, proof_url").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true })) : globalThis.Promise.resolve([]),
+        profileType === "company" ? safe(serviceSupabase.from("org_team_members").select("name, role, avatar_url, linkedin_url, x_url, website_url, is_public").eq("org_profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true })) : globalThis.Promise.resolve([]),
+        profileType === "project" || profileType === "company" ? safe(serviceSupabase.from("gigs").select("id, title, description, gig_type, compensation_type, budget_text, location, remote, created_at").eq("owner_profile_id", profileId).eq("is_public", true).eq("status", "open").order("created_at", { ascending: false }).limit(20)) : globalThis.Promise.resolve([]),
       ];
 
-      const [socialsRow, reviewsList, caseStudiesList, linksList, relationsList, skillsList, achievementsList, teamList, gigsPayload] = await Promise.all(promises) as [
+      const [socialsRow, reviewsList, caseStudiesList, linksList, relationsList, skillsList, achievementsList, teamList, gigsPayload] = await globalThis.Promise.all(promiseList) as [
         { x_url?: string | null; linkedin_url?: string | null; website_url?: string | null; telegram_url?: string | null; youtube_url?: string | null } | null,
         ReviewRow[],
         Array<{ id: string; title: string | null; description: string | null; proof_url: string | null; metrics: unknown; created_at: string }>,

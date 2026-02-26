@@ -449,6 +449,7 @@ function CaseStudiesEditor({
               <div className="font-medium text-zinc-900 truncate">{cs.title || "Untitled"}</div>
               {cs.description && <div className="text-xs text-zinc-500 line-clamp-2">{cs.description}</div>}
             </div>
+            {!(cs as { is_public?: boolean }).is_public && <span className="shrink-0 text-xs text-zinc-500">Hidden</span>}
             <div className="flex items-center gap-2 shrink-0">
               <button type="button" onClick={() => onOpenEditModal(cs)} className="text-xs text-primary hover:underline">Edit</button>
               <button type="button" onClick={() => remove(cs.id)} className="text-xs text-red-600 hover:underline">Delete</button>
@@ -522,8 +523,8 @@ function CaseStudyModal({
   getAuthHeaders,
 }: {
   edit?: CaseStudy | null;
-  form: { title: string; description: string; proofUrl: string };
-  setForm: React.Dispatch<React.SetStateAction<{ title: string; description: string; proofUrl: string }>>;
+  form: { title: string; description: string; proofUrl: string; is_public: boolean };
+  setForm: React.Dispatch<React.SetStateAction<{ title: string; description: string; proofUrl: string; is_public: boolean }>>;
   saving: boolean;
   onClose: () => void;
   onSubmit: () => void;
@@ -545,6 +546,10 @@ function CaseStudyModal({
             className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900"
           />
         </div>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={form.is_public} onChange={(e) => setForm((f) => ({ ...f, is_public: e.target.checked }))} />
+          <span className="text-sm text-zinc-700">Show on public profile</span>
+        </label>
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
           <button type="button" disabled={saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50">{saving ? "Saving…" : edit ? "Update" : "Add"}</button>
@@ -577,6 +582,7 @@ export default function ProfileEditPage({
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [telegramUrl, setTelegramUrl] = useState("");
   const [published, setPublished] = useState(false);
+  const [showReviews, setShowReviews] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -589,7 +595,7 @@ export default function ProfileEditPage({
   const [editingCaseStudy, setEditingCaseStudy] = useState<CaseStudy | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [partnerForm, setPartnerForm] = useState({ name: "", websiteUrl: "", logoUrl: "", description: "", sinceDate: "", isFeatured: false });
-  const [caseStudyForm, setCaseStudyForm] = useState({ title: "", description: "", proofUrl: "" });
+  const [caseStudyForm, setCaseStudyForm] = useState({ title: "", description: "", proofUrl: "", is_public: true });
   const [partnerSaving, setPartnerSaving] = useState(false);
   const [caseStudySaving, setCaseStudySaving] = useState(false);
   const [cvFileName, setCvFileName] = useState<string | null>(null);
@@ -716,6 +722,7 @@ export default function ProfileEditPage({
       setTelegramUrl(s.telegram_url ?? "");
     }
     if (me?.published != null) setPublished(!!me.published);
+    if ((me as { show_reviews?: boolean })?.show_reviews !== undefined) setShowReviews((me as { show_reviews: boolean }).show_reviews !== false);
     if ((me as { cv_document_id?: string | null })?.cv_document_id) {
       const { data: cvDoc } = await supabase
         .from("profile_documents")
@@ -1292,6 +1299,27 @@ export default function ProfileEditPage({
           <p className="text-xs text-zinc-500">
             {published ? "Your public page is live." : "When on, your page is visible at the URL below."}
           </p>
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-200 mt-2">
+            <label className="text-sm font-medium text-zinc-700">Show reviews on public profile</label>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showReviews}
+              onClick={async () => {
+                if (!me?.id) return;
+                setError(null);
+                setSaving(true);
+                const { error: err } = await updateMyProfile(me.id, { show_reviews: !showReviews });
+                setSaving(false);
+                if (err) setError(err);
+                else setShowReviews(!showReviews);
+              }}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border border-zinc-300 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${showReviews ? "bg-primary" : "bg-zinc-200"}`}
+            >
+              <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition translate-y-0.5 translate-x-0.5 ${showReviews ? "translate-x-5" : ""}`} />
+            </button>
+          </div>
+          <p className="text-xs text-zinc-500">When off, the Reviews section is hidden on your public page.</p>
           {(me?.username || me?.twitter_username) && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-zinc-600 font-mono">
@@ -1385,7 +1413,7 @@ export default function ProfileEditPage({
           onReload={loadCaseStudies}
           onOpenAddModal={() => {
             setEditingCaseStudy(null);
-            setCaseStudyForm({ title: "", description: "", proofUrl: "" });
+            setCaseStudyForm({ title: "", description: "", proofUrl: "", is_public: true });
             setCaseStudyModal(true);
           }}
           onOpenEditModal={(cs) => {
@@ -1394,6 +1422,7 @@ export default function ProfileEditPage({
               title: cs.title ?? "",
               description: cs.description ?? "",
               proofUrl: cs.proof_url ?? "",
+              is_public: (cs as { is_public?: boolean }).is_public ?? true,
             });
             setCaseStudyModal(true);
           }}
@@ -1491,6 +1520,7 @@ export default function ProfileEditPage({
                   title: caseStudyForm.title.trim() || null,
                   description: caseStudyForm.description.trim() || null,
                   proof_url: caseStudyForm.proofUrl.trim() || null,
+                  is_public: caseStudyForm.is_public,
                 }),
               });
               const json = await res.json().catch(() => ({}));
@@ -1498,7 +1528,7 @@ export default function ProfileEditPage({
               if (!res.ok) {
                 setError(json.message ?? "Update failed");
               } else {
-                setCaseStudyForm({ title: "", description: "", proofUrl: "" });
+                setCaseStudyForm({ title: "", description: "", proofUrl: "", is_public: true });
                 loadCaseStudies();
                 setCaseStudyModal(false);
                 setEditingCaseStudy(null);
@@ -1508,11 +1538,12 @@ export default function ProfileEditPage({
                 title: caseStudyForm.title.trim() || undefined,
                 description: caseStudyForm.description.trim() || undefined,
                 proof_url: caseStudyForm.proofUrl.trim() || undefined,
+                is_public: caseStudyForm.is_public,
               });
               setCaseStudySaving(false);
               if (err) setError(err);
               else {
-                setCaseStudyForm({ title: "", description: "", proofUrl: "" });
+                setCaseStudyForm({ title: "", description: "", proofUrl: "", is_public: true });
                 loadCaseStudies();
                 setCaseStudyModal(false);
               }

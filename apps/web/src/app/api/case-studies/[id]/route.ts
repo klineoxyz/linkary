@@ -53,14 +53,14 @@ export async function PATCH(
   const ownership = await assertOwnership(supabase, id, user.id);
   if (ownership !== "ok") return ownership;
 
-  let body: { title?: string; description?: string; proof_url?: string } | null = null;
+  let body: { title?: string; description?: string; proof_url?: string; is_public?: boolean } | null = null;
   try {
     body = await request.json();
   } catch {
     return fail("BAD_REQUEST", "Invalid JSON body", 400);
   }
 
-  const updates: { title?: string | null; description?: string | null; proof_url?: string | null } = {};
+  const updates: { title?: string | null; description?: string | null; proof_url?: string | null; is_public?: boolean } = {};
   if (body && typeof body.title !== "undefined") {
     updates.title = typeof body.title === "string" ? body.title.trim() || null : null;
   }
@@ -71,9 +71,12 @@ export async function PATCH(
     const raw = typeof body.proof_url === "string" ? body.proof_url.trim() : "";
     updates.proof_url = raw ? sanitizeUrl(raw) ?? null : null;
   }
+  if (body && typeof body.is_public === "boolean") {
+    updates.is_public = body.is_public;
+  }
 
   if (Object.keys(updates).length === 0) {
-    const { data: existing } = await supabase.from("case_studies").select("id, title, description, proof_url, owner_type, owner_profile_id, owner_org_id, created_at").eq("id", id).single();
+    const { data: existing } = await supabase.from("case_studies").select("id, title, description, proof_url, is_public, owner_type, owner_profile_id, owner_org_id, created_at").eq("id", id).single();
     if (existing) return ok({ caseStudy: existing });
     return fail("NOT_FOUND", "Case study not found.", 404);
   }
@@ -82,7 +85,7 @@ export async function PATCH(
     .from("case_studies")
     .update(updates)
     .eq("id", id)
-    .select("id, title, description, proof_url, owner_type, owner_profile_id, owner_org_id, created_at")
+    .select("id, title, description, proof_url, is_public, owner_type, owner_profile_id, owner_org_id, created_at")
     .single();
 
   if (error) return fail("DB_ERROR", error.message, 500);

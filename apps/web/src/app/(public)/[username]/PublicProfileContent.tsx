@@ -93,7 +93,7 @@ type Props = {
 };
 
 export function PublicProfileContent({ data, username, profileUrl: profileUrlProp }: Props) {
-  const { profile, hero, team = [], socials, links, caseStudies, reviews } = data;
+  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true } = data;
   const profileType = profile.profile_type ?? "individual";
   const displayName = profile.display_name ?? profile.username ?? username;
   const handle = profile.username ?? username;
@@ -350,43 +350,45 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           )}
         </section>
 
-        {/* G. Reviews */}
-        <section className="mb-10">
-          <SectionTitle>Reviews</SectionTitle>
-          {reviews.count === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
-              <p className="text-sm text-muted-foreground">No reviews yet</p>
-            </div>
-          ) : (
-            <>
-              {reviews.average != null && (
-                <p className="mb-3 text-sm text-muted-foreground">
-                  Average rating: <span className="font-semibold text-foreground">{reviews.average.toFixed(1)}</span> ({reviews.count} review{reviews.count !== 1 ? "s" : ""})
-                </p>
-              )}
-              <ul className="space-y-3">
-                {reviews.latest.map((r, i) => (
-                  <li key={i} className="rounded-xl border border-border bg-card p-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="font-medium text-foreground">{r.rating}/5</span>
-                      {r.reviewer_display && (
-                        <span className="text-muted-foreground">· {r.reviewer_display}</span>
-                      )}
-                    </div>
-                    {r.text && <p className="mt-1 text-sm text-foreground">{r.text}</p>}
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {new Date(r.created_at).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </section>
+        {/* G. Reviews (only when profile.show_reviews is true) */}
+        {showReviews && (
+          <section className="mb-10">
+            <SectionTitle>Reviews</SectionTitle>
+            {reviews.count === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
+                <p className="text-sm text-muted-foreground">No reviews yet</p>
+              </div>
+            ) : (
+              <>
+                {reviews.average != null && (
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    Average rating: <span className="font-semibold text-foreground">{reviews.average.toFixed(1)}</span> ({reviews.count} review{reviews.count !== 1 ? "s" : ""})
+                  </p>
+                )}
+                <ul className="space-y-3">
+                  {reviews.latest.map((r, i) => (
+                    <li key={i} className="rounded-xl border border-border bg-card p-4">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium text-foreground">{r.rating}/5</span>
+                        {r.reviewer_display && (
+                          <span className="text-muted-foreground">· {r.reviewer_display}</span>
+                        )}
+                      </div>
+                      {r.text && <p className="mt-1 text-sm text-foreground">{r.text}</p>}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {new Date(r.created_at).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        )}
 
         {/* H. Proof stats */}
         <section className="mb-10 rounded-xl border border-border bg-card p-5">

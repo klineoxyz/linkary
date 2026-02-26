@@ -59,6 +59,8 @@ export type PublicProfileApiPayload = {
     count: number;
     latest: Array<{ rating: number; text: string | null; created_at: string; reviewer_display: string | null }>;
   };
+  /** When false, Reviews section is hidden on public profile */
+  show_reviews?: boolean;
 };
 
 function tagsFromMetrics(metrics: unknown): string[] {

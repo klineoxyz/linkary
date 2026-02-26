@@ -173,18 +173,19 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       const profileId = profileRow.id;
 
       const [profileExtRow, socialsRow, reviewRows, caseRows, linksRows] = await Promise.all([
-        serviceSupabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title").eq("id", profileId).maybeSingle(),
+        serviceSupabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title, show_reviews").eq("id", profileId).maybeSingle(),
         serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url").eq("profile_id", profileId).maybeSingle(),
         serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10),
-        serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).order("created_at", { ascending: false }).limit(20),
+        serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20),
         serviceSupabase.from("profile_links").select("title, url, icon").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
       ]);
 
-      const profileExt = profileExtRow.data as { profile_type?: string | null; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null } | null;
+      const profileExt = profileExtRow.data as { profile_type?: string | null; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null; show_reviews?: boolean | null } | null;
       const profileType = (profileExt?.profile_type === "project" || profileExt?.profile_type === "company" ? profileExt.profile_type : "individual") as "individual" | "project" | "company";
       const heroImageUrl = profileExt?.hero_image_url ?? null;
       const heroVideoUrl = profileExt?.hero_video_url ?? null;
       const heroTitle = profileExt?.hero_title ?? null;
+      const showReviews = profileExt?.show_reviews !== false;
 
       let teamList: Array<{ name: string; role: string | null; avatar_url: string | null; linkedin_url?: string | null; x_url?: string | null; website_url?: string | null; is_public: boolean }> = [];
       if (profileType === "company") {
@@ -308,6 +309,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           count: reviewsList.length,
           latest: reviewsLatest,
         },
+        show_reviews: showReviews,
       };
 
       const displayUsername = payload.profile.username ?? segmentLower;

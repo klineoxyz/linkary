@@ -15,6 +15,7 @@ export type CaseStudy = {
   proof_file_path: string | null;
   metrics: Record<string, unknown>;
   created_at: string;
+  is_public?: boolean;
 };
 
 const CASE_STUDIES = "case_studies";
@@ -43,7 +44,7 @@ export async function listCaseStudiesForOrg(orgId: string): Promise<CaseStudy[]>
 
 export async function createCaseStudyForProfile(
   profileId: string,
-  payload: { title?: string; description?: string; proof_url?: string; metrics?: Record<string, unknown> }
+  payload: { title?: string; description?: string; proof_url?: string; metrics?: Record<string, unknown>; is_public?: boolean }
 ): Promise<{ data: CaseStudy | null; error: string | null }> {
   const clean = payload.proof_url?.trim() ?? "";
   const safeProofUrl = clean ? sanitizeUrl(clean) ?? null : null;
@@ -57,6 +58,7 @@ export async function createCaseStudyForProfile(
       description: payload.description?.trim() || null,
       proof_url: safeProofUrl,
       metrics: payload.metrics ?? {},
+      is_public: payload.is_public ?? true,
     })
     .select()
     .single();

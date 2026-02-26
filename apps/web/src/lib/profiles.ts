@@ -49,6 +49,8 @@ export type Profile = {
   share_cv_on_apply?: boolean;
   /** Current CV document id (profile_documents) */
   cv_document_id?: string | null;
+  /** When false, Reviews section is hidden on public profile */
+  show_reviews?: boolean;
 };
 
 /** Identity shape from Supabase auth (user.identities or provider raw_user_meta) */
@@ -152,6 +154,7 @@ export async function updateMyProfile(
     hero_image_url?: string | null;
     hero_video_url?: string | null;
     hero_title?: string | null;
+    show_reviews?: boolean;
   }
 ): Promise<{ error: string | null }> {
   const updates: Record<string, unknown> = { ...payload };

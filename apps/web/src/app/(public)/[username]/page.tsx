@@ -114,7 +114,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export const dynamic = "force-dynamic";
+// Revalidate: full page ISR 300s (profile view, links, skills, case studies, reviews, relations).
+// Gigs 120s / token 60s could be done via unstable_cache if needed; single revalidate keeps one round trip.
+export const revalidate = 300;
 
 /**
  * Public URL: /[identifier] — slug, UUID, X handle, or wallet.
@@ -213,56 +215,65 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         return <NotFoundClaimView requestedUsername={segmentLower} />;
       }
 
-      const [profileExtRow, socialsRow, reviewRows, caseRows, linksRows, relationsRows, skillsRows, achievementsRows] = await Promise.all([
-        serviceSupabase.from("profiles").select("show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle(),
-        serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url").eq("profile_id", profileId).maybeSingle(),
-        serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type, verified_deal").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10),
-        serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20),
-        serviceSupabase.from("profile_links").select("title, url, icon").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
-        serviceSupabase.from("profile_relations").select("source_profile_id, target_profile_id, relation_type, sort_order").or(`source_profile_id.eq.${profileId},target_profile_id.eq.${profileId}`).eq("is_public", true).order("relation_type").order("sort_order", { ascending: true }),
-        serviceSupabase.from("profile_skills").select("name, level").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
-        serviceSupabase.from("profile_achievements").select("title, description, proof_url").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
-      ]);
-
-      const ext = profileExtRow.data as { show_reviews?: boolean | null; token_dexscreener_url?: string | null } | null;
       const profileType = (profileRow.profile_type === "project" || profileRow.profile_type === "company" ? profileRow.profile_type : "individual") as "individual" | "project" | "company";
       const heroImageUrl = profileRow.hero_image_url ?? null;
       const heroVideoUrl = profileRow.hero_video_url ?? null;
       const heroTitle = profileRow.hero_title ?? null;
+
+      const { data: profileExtData } = await serviceSupabase.from("profiles").select("show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle();
+      const ext = profileExtData as { show_reviews?: boolean | null; token_dexscreener_url?: string | null } | null;
       const showReviews = ext?.show_reviews !== false;
       const tokenDexscreenerUrl = (ext?.token_dexscreener_url ?? "").trim();
 
-      let teamList: Array<{ name: string; role: string | null; avatar_url: string | null; linkedin_url?: string | null; x_url?: string | null; website_url?: string | null; is_public: boolean }> = [];
-      if (profileType === "company") {
-        try {
-          const teamRes = await serviceSupabase
-            .from("org_team_members")
-            .select("name, role, avatar_url, linkedin_url, x_url, website_url, is_public")
-            .eq("org_profile_id", profileId)
-            .eq("is_public", true)
-            .order("sort_order", { ascending: true });
-          teamList = (teamRes.data ?? []) as typeof teamList;
-        } catch {
-          teamList = [];
-        }
-      }
+      type ReviewRow = { id: string; rating: number; body: string | null; title: string | null; created_at: string; reviewer_profile_id: string | null; reviewer_type: string; verified_deal?: boolean };
+      type TeamRow = { name: string; role: string | null; avatar_url: string | null; linkedin_url?: string | null; x_url?: string | null; website_url?: string | null; is_public: boolean };
 
-      const socials = socialsRow.data as { x_url?: string | null; linkedin_url?: string | null; website_url?: string | null; telegram_url?: string | null } | null;
-      const reviewsList = (reviewRows.data ?? []) as Array<{
-        id: string;
-        rating: number;
-        body: string | null;
-        title: string | null;
-        created_at: string;
-        reviewer_profile_id: string | null;
-        reviewer_type: string;
-        verified_deal?: boolean;
-      }>;
-      const caseStudiesList = (caseRows.data ?? []) as Array<{ id: string; title: string | null; description: string | null; proof_url: string | null; metrics: unknown; created_at: string }>;
+      const safe = async <T>(p: Promise<{ data: T }>): Promise<T> => {
+        try {
+          const r = await p;
+          return (r?.data ?? []) as T;
+        } catch {
+          return [] as unknown as T;
+        }
+      };
+      const safeSingle = async <T>(p: Promise<{ data: T | null }>): Promise<T | null> => {
+        try {
+          const r = await p;
+          return r?.data ?? null;
+        } catch {
+          return null;
+        }
+      };
+
+      const promises: Promise<unknown>[] = [
+        safeSingle(serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url").eq("profile_id", profileId).maybeSingle()),
+        showReviews ? safe(serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type, verified_deal").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10)) : Promise.resolve([]),
+        safe(serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20)),
+        safe(serviceSupabase.from("profile_links").select("title, url, icon").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true })),
+        safe(serviceSupabase.from("profile_relations").select("source_profile_id, target_profile_id, relation_type, sort_order").or(`source_profile_id.eq.${profileId},target_profile_id.eq.${profileId}`).eq("is_public", true).order("relation_type").order("sort_order", { ascending: true })),
+        safe(serviceSupabase.from("profile_skills").select("name, level").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true })),
+        profileType === "individual" ? safe(serviceSupabase.from("profile_achievements").select("title, description, proof_url").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true })) : Promise.resolve([]),
+        profileType === "company" ? safe(serviceSupabase.from("org_team_members").select("name, role, avatar_url, linkedin_url, x_url, website_url, is_public").eq("org_profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true })) : Promise.resolve([]),
+        profileType === "project" || profileType === "company" ? safe(serviceSupabase.from("gigs").select("id, title, description, gig_type, compensation_type, budget_text, location, remote, created_at").eq("owner_profile_id", profileId).eq("is_public", true).eq("status", "open").order("created_at", { ascending: false }).limit(20)) : Promise.resolve([]),
+      ];
+
+      const [socialsRow, reviewsList, caseStudiesList, linksList, relationsList, skillsList, achievementsList, teamList, gigsPayload] = await Promise.all(promises) as [
+        { x_url?: string | null; linkedin_url?: string | null; website_url?: string | null; telegram_url?: string | null } | null,
+        ReviewRow[],
+        Array<{ id: string; title: string | null; description: string | null; proof_url: string | null; metrics: unknown; created_at: string }>,
+        Array<{ title: string; url: string; icon?: string | null }>,
+        Array<{ source_profile_id: string; target_profile_id: string; relation_type: string; sort_order: number }>,
+        Array<{ name: string; level: number | null }>,
+        Array<{ title: string; description: string | null; proof_url: string | null }>,
+        TeamRow[],
+        PublicProfileApiPayload["gigs"],
+      ];
+
+      const socials = socialsRow;
 
       let reviewsAverage: number | null = null;
       let reviewsLatest: PublicProfileApiPayload["reviews"]["latest"] = [];
-      if (reviewsList.length > 0) {
+      if (showReviews && reviewsList.length > 0) {
         reviewsAverage = reviewsList.reduce((s, r) => s + r.rating, 0) / reviewsList.length;
         const latest3 = reviewsList.slice(0, 3);
         const reviewerIds = [...new Set(latest3.filter((r) => r.reviewer_type === "profile" && r.reviewer_profile_id).map((r) => r.reviewer_profile_id as string))];
@@ -304,10 +315,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         url: c.proof_url ?? null,
       }));
 
-      const skillsList = (skillsRows.data ?? []) as Array<{ name: string; level: number | null }>;
       const skills = skillsList.map((s) => ({ name: s.name, level: s.level }));
-
-      const achievementsList = (achievementsRows.data ?? []) as Array<{ title: string; description: string | null; proof_url: string | null }>;
       const achievements = achievementsList.map((a) => ({ title: a.title, description: a.description ?? null, url: a.proof_url ?? null }));
 
       let resolvedHeroImageUrl: string | null = heroImageUrl;
@@ -331,7 +339,6 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       }
 
       type RelationRow = { source_profile_id: string; target_profile_id: string; relation_type: string; sort_order: number };
-      const relationsList = (relationsRows.data ?? []) as RelationRow[];
       const partnerIds = new Set<string>();
       for (const r of relationsList) {
         if (r.source_profile_id === profileId) partnerIds.add(r.target_profile_id);
@@ -377,19 +384,6 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         if (subsidiaries.length) relationsPayload.subsidiaries = subsidiaries;
       }
 
-      let gigsPayload: PublicProfileApiPayload["gigs"] = [];
-      if (profileType === "project" || profileType === "company") {
-        const gigsRes = await serviceSupabase
-          .from("gigs")
-          .select("id, title, description, gig_type, compensation_type, budget_text, location, remote, created_at")
-          .eq("owner_profile_id", profileId)
-          .eq("is_public", true)
-          .eq("status", "open")
-          .order("created_at", { ascending: false })
-          .limit(20);
-        gigsPayload = (gigsRes.data ?? []) as PublicProfileApiPayload["gigs"];
-      }
-
       const payload: PublicProfileApiPayload = {
         profile: {
           username: profileRow.username ?? profileRow.twitter_username ?? null,
@@ -428,7 +422,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           linkedin: socials?.linkedin_url ?? null,
           website: socials?.website_url ?? profileRow.website ?? null,
         },
-        links: ((linksRows.data ?? []) as Array<{ title: string; url: string; icon?: string | null }>).map((l) => ({
+        links: linksList.map((l) => ({
           title: l.title,
           url: l.url,
           icon: l.icon ?? undefined,
@@ -442,7 +436,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         show_reviews: showReviews,
         token: tokenPayload,
         ...(Object.keys(relationsPayload).length > 0 ? { relations: relationsPayload } : {}),
-        ...(gigsPayload.length > 0 ? { gigs: gigsPayload } : {}),
+        ...((gigsPayload ?? []).length > 0 ? { gigs: gigsPayload ?? [] } : {}),
         ...(skills.length > 0 ? { skills } : {}),
         ...(achievements.length > 0 ? { achievements } : {}),
       };

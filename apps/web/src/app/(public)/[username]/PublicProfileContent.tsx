@@ -1,5 +1,5 @@
 import type { PublicProfileApiPayload } from "@/app/api/public/profile/route";
-import { BadgeCheck, ExternalLink, Globe, Link2 } from "lucide-react";
+import { BadgeCheck, ChevronRight, ExternalLink, Globe, Link2 } from "lucide-react";
 import Link from "next/link";
 import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
 
@@ -55,8 +55,8 @@ function SocialLink({ name, url }: { name: string; url: string }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-      <span className="h-0.5 w-6 shrink-0 rounded-full bg-primary/80" aria-hidden />
+    <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className="h-px w-5 shrink-0 bg-primary/80" aria-hidden />
       {children}
     </h2>
   );
@@ -112,10 +112,16 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const hasHeroVideo = !!(hero?.hero_video_url?.trim()) && !hasHeroImage;
   const heroTitle = hero?.hero_title?.trim() || null;
 
+  const hasProofStats =
+    profile.ethos_score != null || profile.xscore != null || profile.reputation_index != null;
+
+  const sectionSpacing = "mb-8";
+  const rightSectionSpacing = "mb-8";
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
-      <main className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-10">
-        {/* A. Hero block — banner card, no huge whitespace */}
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        {/* Hero — full width */}
         {(hasHeroImage || hasHeroVideo) && (
           <section className="mb-8">
             <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -162,306 +168,314 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </section>
         )}
 
-        {/* B. Profile header — avatar, name, type badge, verified, copy */}
-        <header className="mb-8">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4 sm:text-left">
-              {profile.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt=""
-                  className="h-20 w-20 shrink-0 rounded-full object-cover border-2 border-border"
-                />
-              ) : (
-                <div className="h-20 w-20 shrink-0 rounded-full bg-muted border-2 border-border" />
+        {/* Two-column on lg; single column on smaller */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-10 lg:items-start">
+          {/* ——— LEFT COLUMN (~40%): Header, bio, socials, proof ——— */}
+          <div className="space-y-6 lg:sticky lg:top-6">
+            {/* Header upgrade: larger avatar, name + badge inline, reputation chip, accent under */}
+            <header className="pb-6 border-b border-border">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                {profile.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt=""
+                    className="h-24 w-24 shrink-0 rounded-full object-cover border-2 border-border"
+                  />
+                ) : (
+                  <div className="h-24 w-24 shrink-0 rounded-full bg-muted border-2 border-border" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="text-2xl font-semibold text-foreground">{displayName}</h1>
+                    {profile.is_verified && (
+                      <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified" />
+                    )}
+                    <span
+                      className="rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-foreground"
+                      aria-label="Profile type"
+                    >
+                      {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
+                    </span>
+                    {profile.reputation_index != null && (
+                      <span className="rounded-md border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-foreground tabular-nums">
+                        {profile.reputation_index} rep
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">@{handle}</p>
+                </div>
+              </div>
+              {profile.location && (
+                <p className="mt-3 text-sm text-muted-foreground">{profile.location}</p>
               )}
-              <div className="flex min-w-0 flex-col items-center gap-1 sm:items-start">
-                <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                  <h1 className="text-xl font-semibold text-foreground sm:text-2xl">{displayName}</h1>
-                  {profile.is_verified && (
-                    <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified" />
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground">@{handle}</p>
-                <span
-                  className="rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-foreground"
-                  aria-label="Profile type"
-                >
-                  {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
-                </span>
+              {profile.bio && (
+                <p className="mt-3 text-sm text-foreground leading-relaxed">{profile.bio}</p>
+              )}
+              <div className="mt-4">
+                <CopyProfileLinkButton url={profileUrl} />
               </div>
-            </div>
-            {profile.location && (
-              <p className="text-sm text-muted-foreground">{profile.location}</p>
-            )}
-            {profile.bio && (
-              <p className="max-w-md text-sm text-foreground">{profile.bio}</p>
-            )}
-            <CopyProfileLinkButton url={profileUrl} />
-          </div>
-        </header>
+            </header>
 
-        {/* C. Social links row — consistent icon size and hover */}
-        {socialLinks.length > 0 && (
-          <div className="mb-8 flex flex-wrap items-center justify-center gap-1">
-            {socialLinks.map((l) => (
-              <SocialLink key={l.name} name={l.name} url={l.url} />
-            ))}
-          </div>
-        )}
+            {/* Socials */}
+            {socialLinks.length > 0 && (
+              <div className={`flex flex-wrap gap-2 ${sectionSpacing}`}>
+                {socialLinks.map((l) => (
+                  <SocialLink key={l.name} name={l.name} url={l.url} />
+                ))}
+              </div>
+            )}
 
-        {/* D. Team (company only) */}
-        {profileType === "company" && team.length > 0 && (
-          <section className="mb-10">
-            <SectionTitle>Team</SectionTitle>
-            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {team.map((member, i) => {
-                const initials = member.name.trim()
-                  ? member.name
-                      .trim()
-                      .split(/\s+/)
-                      .map((w) => w[0])
-                      .slice(0, 2)
-                      .join("")
-                      .toUpperCase()
-                  : "?";
-                return (
-                <li key={i} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-start gap-3">
-                    {member.avatar_url ? (
-                      <img
-                        src={member.avatar_url}
-                        alt=""
-                        className="h-12 w-12 shrink-0 rounded-full object-cover border border-border"
-                      />
-                    ) : (
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-sm font-medium text-muted-foreground" aria-hidden>
-                        {initials}
+            {/* Proof card — only when at least one stat; stronger typography, accent border */}
+            {hasProofStats && (
+              <section className={sectionSpacing}>
+                <SectionTitle>Proof</SectionTitle>
+                <div className="rounded-xl border border-border border-primary/20 bg-card p-5 shadow-sm">
+                  <div className="flex flex-wrap gap-6">
+                    {profile.reputation_index != null && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linkary reputation</p>
+                        <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile.reputation_index}</p>
                       </div>
                     )}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-foreground">{member.name}</p>
-                      {member.role && (
-                        <p className="text-sm text-muted-foreground">{member.role}</p>
+                    {profile.xscore != null && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">XScore</p>
+                        <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile.xscore}</p>
+                      </div>
+                    )}
+                    {profile.ethos_score != null && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ethos score</p>
+                        <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile.ethos_score}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+          </div>
+
+          {/* ——— RIGHT COLUMN (~60%): Token, Links, Case studies, Reviews, Team ——— */}
+          <div className="space-y-8 lg:pt-0">
+            {/* Token (project only) */}
+            {profileType === "project" && token && (
+              <section className={rightSectionSpacing}>
+                <SectionTitle>Token</SectionTitle>
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <div className="flex flex-col gap-3">
+                    {token.priceUsd != null && (
+                      <div className="text-2xl font-semibold text-foreground">
+                        ${token.priceUsd < 0.0001 ? token.priceUsd.toExponential(2) : token.priceUsd < 1 ? token.priceUsd.toFixed(6) : token.priceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                      </div>
+                    )}
+                    {token.priceChangeH24 != null && (
+                      <span className={`text-sm font-medium ${token.priceChangeH24 >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {token.priceChangeH24 >= 0 ? "+" : ""}{token.priceChangeH24.toFixed(2)}% (24h)
+                      </span>
+                    )}
+                    {(token.baseSymbol || token.quoteSymbol) && (
+                      <p className="text-sm text-muted-foreground">
+                        {[token.baseSymbol, token.quoteSymbol].filter(Boolean).join(" / ")}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                      {token.liquidityUsd != null && (
+                        <span>Liquidity: ${token.liquidityUsd >= 1e6 ? (token.liquidityUsd / 1e6).toFixed(2) + "M" : token.liquidityUsd >= 1e3 ? (token.liquidityUsd / 1e3).toFixed(2) + "K" : token.liquidityUsd.toFixed(0)}</span>
                       )}
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {member.linkedin_url && (
-                          <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-muted-foreground hover:text-primary">
-                            <IconLinkedIn />
-                          </a>
-                        )}
-                        {member.x_url && (
-                          <a href={member.x_url} target="_blank" rel="noopener noreferrer" aria-label="X" className="text-muted-foreground hover:text-primary">
-                            <IconX />
-                          </a>
-                        )}
-                        {member.website_url && (
-                          <a href={member.website_url} target="_blank" rel="noopener noreferrer" aria-label="Website" className="text-muted-foreground hover:text-primary">
-                            <Globe className="h-5 w-5" />
-                          </a>
-                        )}
-                      </div>
+                      {token.volumeH24 != null && (
+                        <span>Vol 24h: ${token.volumeH24 >= 1e6 ? (token.volumeH24 / 1e6).toFixed(2) + "M" : token.volumeH24 >= 1e3 ? (token.volumeH24 / 1e3).toFixed(2) + "K" : token.volumeH24.toFixed(0)}</span>
+                      )}
                     </div>
+                    <a
+                      href={token.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
+                    >
+                      View on Dexscreener
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
                   </div>
-                </li>
-              );
-              })}
-            </ul>
-          </section>
-        )}
-
-        {/* E. Token (project only, above Links) */}
-        {profileType === "project" && token && (
-          <section className="mb-10">
-            <SectionTitle>Token</SectionTitle>
-            <div className="rounded-xl border border-border bg-card p-5">
-              <div className="flex flex-col gap-3">
-                {token.priceUsd != null && (
-                  <div className="text-2xl font-semibold text-foreground">
-                    ${token.priceUsd < 0.0001 ? token.priceUsd.toExponential(2) : token.priceUsd < 1 ? token.priceUsd.toFixed(6) : token.priceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
-                  </div>
-                )}
-                {token.priceChangeH24 != null && (
-                  <span className={`text-sm font-medium ${token.priceChangeH24 >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {token.priceChangeH24 >= 0 ? "+" : ""}{token.priceChangeH24.toFixed(2)}% (24h)
-                  </span>
-                )}
-                {(token.baseSymbol || token.quoteSymbol) && (
-                  <p className="text-sm text-muted-foreground">
-                    {[token.baseSymbol, token.quoteSymbol].filter(Boolean).join(" / ")}
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                  {token.liquidityUsd != null && (
-                    <span>Liquidity: ${token.liquidityUsd >= 1e6 ? (token.liquidityUsd / 1e6).toFixed(2) + "M" : token.liquidityUsd >= 1e3 ? (token.liquidityUsd / 1e3).toFixed(2) + "K" : token.liquidityUsd.toFixed(0)}</span>
-                  )}
-                  {token.volumeH24 != null && (
-                    <span>Vol 24h: ${token.volumeH24 >= 1e6 ? (token.volumeH24 / 1e6).toFixed(2) + "M" : token.volumeH24 >= 1e3 ? (token.volumeH24 / 1e3).toFixed(2) + "K" : token.volumeH24.toFixed(0)}</span>
-                  )}
                 </div>
-                <a
-                  href={token.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
-                >
-                  View on Dexscreener
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              </div>
-            </div>
-          </section>
-        )}
+              </section>
+            )}
 
-        {/* F. Links (Linktree-style) */}
-        <section className="mb-10">
-          <SectionTitle>Links</SectionTitle>
-          {links.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
-              <Link2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
-              <p className="text-sm text-muted-foreground">No links yet</p>
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {links.map((link, i) => (
-                <li key={i}>
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-foreground hover:bg-accent/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  >
-                    {link.icon ? (
-                      <img src={link.icon} alt="" className="h-6 w-6 shrink-0 rounded object-cover" />
-                    ) : (
-                      <Link2 className="h-5 w-5 shrink-0 text-muted-foreground" />
-                    )}
-                    <span className="min-w-0 flex-1 font-medium truncate">{link.title}</span>
-                    <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* G. Case studies */}
-        <section className="mb-10">
-          <SectionTitle>Case studies</SectionTitle>
-          {caseStudies.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
-              <p className="text-sm text-muted-foreground">No case studies yet</p>
-            </div>
-          ) : (
-            <ul className="space-y-3">
-              {caseStudies.map((c) => (
-                <li key={c.id}>
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    {c.title && (
-                      <h3 className="font-semibold text-foreground">{c.title}</h3>
-                    )}
-                    {c.summary && (
-                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{c.summary}</p>
-                    )}
-                    {c.tags.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {c.tags.map((t) => (
-                          <span
-                            key={t}
-                            className="rounded-full bg-muted px-2 py-0.5 text-xs text-foreground"
-                          >
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {c.url && (
+            {/* Links — full-width buttons, hover lift; empty = compact muted */}
+            <section className={rightSectionSpacing}>
+              <SectionTitle>Links</SectionTitle>
+              {links.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No links yet</p>
+              ) : (
+                <ul className="space-y-2">
+                  {links.map((link, i) => (
+                    <li key={i}>
                       <a
-                        href={c.url}
+                        href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                        className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left font-medium text-foreground transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                       >
-                        View proof
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* H. Reviews (only when profile.show_reviews is true) */}
-        {showReviews && (
-          <section className="mb-10">
-            <SectionTitle>Reviews</SectionTitle>
-            {reviews.count === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
-                <p className="text-sm text-muted-foreground">No reviews yet</p>
-              </div>
-            ) : (
-              <>
-                {reviews.average != null && (
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    Average rating: <span className="font-semibold text-foreground">{reviews.average.toFixed(1)}</span> ({reviews.count} review{reviews.count !== 1 ? "s" : ""})
-                  </p>
-                )}
-                <ul className="space-y-3">
-                  {reviews.latest.map((r, i) => (
-                    <li key={i} className="rounded-xl border border-border bg-card p-4">
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="font-medium text-foreground">{r.rating}/5</span>
-                        {r.reviewer_display && (
-                          <span className="text-muted-foreground">· {r.reviewer_display}</span>
+                        {link.icon ? (
+                          <img src={link.icon} alt="" className="h-6 w-6 shrink-0 rounded object-cover" />
+                        ) : (
+                          <Link2 className="h-5 w-5 shrink-0 text-muted-foreground" />
                         )}
-                      </div>
-                      {r.text && <p className="mt-1 text-sm text-foreground">{r.text}</p>}
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {new Date(r.created_at).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </p>
+                        <span className="min-w-0 flex-1 truncate">{link.title}</span>
+                        <ChevronRight className="h-5 w-5 shrink-0 text-primary" />
+                      </a>
                     </li>
                   ))}
                 </ul>
-              </>
-            )}
-          </section>
-        )}
+              )}
+            </section>
 
-        {/* I. Proof stats */}
-        <section className="mb-10 rounded-xl border border-border bg-card p-5">
-          <SectionTitle>Proof</SectionTitle>
-          <div className="flex flex-wrap gap-4">
-            {profile.ethos_score != null && (
-              <div className="rounded-lg bg-muted/50 px-4 py-2">
-                <p className="text-xs font-medium text-muted-foreground">Ethos score</p>
-                <p className="text-lg font-semibold tabular-nums text-foreground">{profile.ethos_score}</p>
-              </div>
+            {/* Case studies — compact empty state */}
+            <section className={rightSectionSpacing}>
+              <SectionTitle>Case studies</SectionTitle>
+              {caseStudies.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No case studies yet</p>
+              ) : (
+                <ul className="space-y-3">
+                  {caseStudies.map((c) => (
+                    <li key={c.id}>
+                      <div className="rounded-xl border border-border bg-card p-4">
+                        {c.title && (
+                          <h3 className="font-semibold text-foreground">{c.title}</h3>
+                        )}
+                        {c.summary && (
+                          <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{c.summary}</p>
+                        )}
+                        {c.tags.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {c.tags.map((t) => (
+                              <span
+                                key={t}
+                                className="rounded-full bg-muted px-2 py-0.5 text-xs text-foreground"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {c.url && (
+                          <a
+                            href={c.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                          >
+                            View proof
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {/* Reviews — compact empty state */}
+            {showReviews && (
+              <section className={rightSectionSpacing}>
+                <SectionTitle>Reviews</SectionTitle>
+                {reviews.count === 0 ? (
+                  <p className="text-sm text-muted-foreground">No reviews yet</p>
+                ) : (
+                  <>
+                    {reviews.average != null && (
+                      <p className="mb-3 text-sm text-muted-foreground">
+                        Average rating: <span className="font-semibold text-foreground">{reviews.average.toFixed(1)}</span> ({reviews.count} review{reviews.count !== 1 ? "s" : ""})
+                      </p>
+                    )}
+                    <ul className="space-y-3">
+                      {reviews.latest.map((r, i) => (
+                        <li key={i} className="rounded-xl border border-border bg-card p-4">
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-medium text-foreground">{r.rating}/5</span>
+                            {r.reviewer_display && (
+                              <span className="text-muted-foreground">· {r.reviewer_display}</span>
+                            )}
+                          </div>
+                          {r.text && <p className="mt-1 text-sm text-foreground">{r.text}</p>}
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {new Date(r.created_at).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </section>
             )}
-            {profile.xscore != null && (
-              <div className="rounded-lg bg-muted/50 px-4 py-2">
-                <p className="text-xs font-medium text-muted-foreground">Wallchain XScore</p>
-                <p className="text-lg font-semibold tabular-nums text-foreground">{profile.xscore}</p>
-              </div>
-            )}
-            {profile.reputation_index != null && (
-              <div className="rounded-lg bg-muted/50 px-4 py-2">
-                <p className="text-xs font-medium text-muted-foreground">Linkary reputation</p>
-                <p className="text-lg font-semibold tabular-nums text-foreground">{profile.reputation_index}</p>
-              </div>
-            )}
-            {profile.ethos_score == null && profile.xscore == null && profile.reputation_index == null && (
-              <p className="text-sm text-muted-foreground">No proof scores yet</p>
+
+            {/* Team (company only) */}
+            {profileType === "company" && team.length > 0 && (
+              <section className={rightSectionSpacing}>
+                <SectionTitle>Team</SectionTitle>
+                <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {team.map((member, i) => {
+                    const initials = member.name.trim()
+                      ? member.name
+                          .trim()
+                          .split(/\s+/)
+                          .map((w) => w[0])
+                          .slice(0, 2)
+                          .join("")
+                          .toUpperCase()
+                      : "?";
+                    return (
+                      <li key={i} className="rounded-xl border border-border bg-card p-4">
+                        <div className="flex items-start gap-3">
+                          {member.avatar_url ? (
+                            <img
+                              src={member.avatar_url}
+                              alt=""
+                              className="h-12 w-12 shrink-0 rounded-full object-cover border border-border"
+                            />
+                          ) : (
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-sm font-medium text-muted-foreground" aria-hidden>
+                              {initials}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-foreground">{member.name}</p>
+                            {member.role && (
+                              <p className="text-sm text-muted-foreground">{member.role}</p>
+                            )}
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {member.linkedin_url && (
+                                <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-muted-foreground hover:text-primary">
+                                  <IconLinkedIn />
+                                </a>
+                              )}
+                              {member.x_url && (
+                                <a href={member.x_url} target="_blank" rel="noopener noreferrer" aria-label="X" className="text-muted-foreground hover:text-primary">
+                                  <IconX />
+                                </a>
+                              )}
+                              {member.website_url && (
+                                <a href={member.website_url} target="_blank" rel="noopener noreferrer" aria-label="Website" className="text-muted-foreground hover:text-primary">
+                                  <Globe className="h-5 w-5" />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             )}
           </div>
-        </section>
+        </div>
 
-        <footer className="mt-12 text-center">
+        <footer className="mt-12 pt-8 text-center border-t border-border">
           <Link
             href="/"
             className="text-sm font-medium text-primary hover:underline"

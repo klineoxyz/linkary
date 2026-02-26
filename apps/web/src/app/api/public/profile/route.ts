@@ -61,6 +61,21 @@ export type PublicProfileApiPayload = {
   };
   /** When false, Reviews section is hidden on public profile */
   show_reviews?: boolean;
+  /** Project token data from Dexscreener (profile_type=project only) */
+  token?: {
+    url: string;
+    chainId?: string;
+    pairAddress?: string;
+    baseSymbol?: string;
+    quoteSymbol?: string;
+    priceUsd?: number;
+    priceChangeH24?: number;
+    liquidityUsd?: number;
+    volumeH24?: number;
+    fdv?: number;
+    marketCap?: number;
+    updatedAt?: string;
+  } | null;
 };
 
 function tagsFromMetrics(metrics: unknown): string[] {

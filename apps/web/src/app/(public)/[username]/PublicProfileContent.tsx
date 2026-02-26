@@ -93,7 +93,7 @@ type Props = {
 };
 
 export function PublicProfileContent({ data, username, profileUrl: profileUrlProp }: Props) {
-  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true } = data;
+  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token } = data;
   const profileType = profile.profile_type ?? "individual";
   const displayName = profile.display_name ?? profile.username ?? username;
   const handle = profile.username ?? username;
@@ -270,7 +270,50 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </section>
         )}
 
-        {/* E. Links (Linktree-style) */}
+        {/* E. Token (project only, above Links) */}
+        {profileType === "project" && token && (
+          <section className="mb-10">
+            <SectionTitle>Token</SectionTitle>
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex flex-col gap-3">
+                {token.priceUsd != null && (
+                  <div className="text-2xl font-semibold text-foreground">
+                    ${token.priceUsd < 0.0001 ? token.priceUsd.toExponential(2) : token.priceUsd < 1 ? token.priceUsd.toFixed(6) : token.priceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                  </div>
+                )}
+                {token.priceChangeH24 != null && (
+                  <span className={`text-sm font-medium ${token.priceChangeH24 >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {token.priceChangeH24 >= 0 ? "+" : ""}{token.priceChangeH24.toFixed(2)}% (24h)
+                  </span>
+                )}
+                {(token.baseSymbol || token.quoteSymbol) && (
+                  <p className="text-sm text-muted-foreground">
+                    {[token.baseSymbol, token.quoteSymbol].filter(Boolean).join(" / ")}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                  {token.liquidityUsd != null && (
+                    <span>Liquidity: ${token.liquidityUsd >= 1e6 ? (token.liquidityUsd / 1e6).toFixed(2) + "M" : token.liquidityUsd >= 1e3 ? (token.liquidityUsd / 1e3).toFixed(2) + "K" : token.liquidityUsd.toFixed(0)}</span>
+                  )}
+                  {token.volumeH24 != null && (
+                    <span>Vol 24h: ${token.volumeH24 >= 1e6 ? (token.volumeH24 / 1e6).toFixed(2) + "M" : token.volumeH24 >= 1e3 ? (token.volumeH24 / 1e3).toFixed(2) + "K" : token.volumeH24.toFixed(0)}</span>
+                  )}
+                </div>
+                <a
+                  href={token.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
+                >
+                  View on Dexscreener
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* F. Links (Linktree-style) */}
         <section className="mb-10">
           <SectionTitle>Links</SectionTitle>
           {links.length === 0 ? (
@@ -302,7 +345,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           )}
         </section>
 
-        {/* F. Case studies */}
+        {/* G. Case studies */}
         <section className="mb-10">
           <SectionTitle>Case studies</SectionTitle>
           {caseStudies.length === 0 ? (
@@ -350,7 +393,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           )}
         </section>
 
-        {/* G. Reviews (only when profile.show_reviews is true) */}
+        {/* H. Reviews (only when profile.show_reviews is true) */}
         {showReviews && (
           <section className="mb-10">
             <SectionTitle>Reviews</SectionTitle>
@@ -390,7 +433,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </section>
         )}
 
-        {/* H. Proof stats */}
+        {/* I. Proof stats */}
         <section className="mb-10 rounded-xl border border-border bg-card p-5">
           <SectionTitle>Proof</SectionTitle>
           <div className="flex flex-wrap gap-4">

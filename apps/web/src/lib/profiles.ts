@@ -51,6 +51,8 @@ export type Profile = {
   cv_document_id?: string | null;
   /** When false, Reviews section is hidden on public profile */
   show_reviews?: boolean;
+  /** Dexscreener pair URL for project token (profile_type=project) */
+  token_dexscreener_url?: string | null;
 };
 
 /** Identity shape from Supabase auth (user.identities or provider raw_user_meta) */
@@ -155,6 +157,7 @@ export async function updateMyProfile(
     hero_video_url?: string | null;
     hero_title?: string | null;
     show_reviews?: boolean;
+    token_dexscreener_url?: string | null;
   }
 ): Promise<{ error: string | null }> {
   const updates: Record<string, unknown> = { ...payload };

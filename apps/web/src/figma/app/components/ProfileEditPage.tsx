@@ -583,6 +583,7 @@ export default function ProfileEditPage({
   const [telegramUrl, setTelegramUrl] = useState("");
   const [published, setPublished] = useState(false);
   const [showReviews, setShowReviews] = useState(true);
+  const [tokenDexscreenerUrl, setTokenDexscreenerUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -687,18 +688,19 @@ export default function ProfileEditPage({
       getProfileProfessions(me.id),
       supabase.from("profile_media").select("header_media_type, header_media_url, header_media_file_path").eq("profile_id", me.id).maybeSingle(),
       supabase.from("profile_socials").select("x_url, linkedin_url, youtube_url, website_url, telegram_url").eq("profile_id", me.id).maybeSingle(),
-      supabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title").eq("id", me.id).maybeSingle(),
+      supabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title, token_dexscreener_url").eq("id", me.id).maybeSingle(),
     ]);
     loadPartners();
     loadCaseStudies();
     loadLinks();
     if (profileExt?.data) {
-      const p = profileExt.data as { profile_type?: string; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null };
+      const p = profileExt.data as { profile_type?: string; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null; token_dexscreener_url?: string | null };
       if (p.profile_type === "project" || p.profile_type === "company") setProfileType(p.profile_type as ProfileType);
       else setProfileType("individual");
       setHeroImageUrl(p.hero_image_url ?? null);
       setHeroVideoUrl((p.hero_video_url ?? "") || "");
       setHeroTitle((p.hero_title ?? "") || "");
+      setTokenDexscreenerUrl((p.token_dexscreener_url ?? "") || "");
       setHeroMode(p.hero_image_url ? "image" : (p.hero_video_url ?? "").trim() ? "video" : "none");
     }
     setLoading(false);
@@ -818,6 +820,9 @@ export default function ProfileEditPage({
       hero_image_url: effectiveHeroImageUrl,
       hero_video_url: effectiveHeroVideoUrl,
       hero_title: effectiveHeroTitle,
+      token_dexscreener_url: profileType === "project"
+        ? (tokenDexscreenerUrl.trim().startsWith("https://") && tokenDexscreenerUrl.trim().includes("dexscreener.com/") ? tokenDexscreenerUrl.trim() : null)
+        : null,
     });
     if (profileErr) {
       setSaving(false);
@@ -1024,6 +1029,22 @@ export default function ProfileEditPage({
             <option value="company">Company</option>
           </select>
         </div>
+        {profileType === "project" && (
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+            <label className="block text-sm font-medium text-zinc-700">Token</label>
+            <p className="text-xs text-zinc-500 mb-2">Paste a Dexscreener pair URL to show a token price card on your public page.</p>
+            <input
+              type="url"
+              value={tokenDexscreenerUrl}
+              onChange={(e) => setTokenDexscreenerUrl(e.target.value)}
+              placeholder="https://dexscreener.com/ethereum/0x..."
+              className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+            />
+            {tokenDexscreenerUrl.trim() && (!tokenDexscreenerUrl.trim().startsWith("https://") || !tokenDexscreenerUrl.trim().includes("dexscreener.com/")) && (
+              <p className="text-xs text-amber-600">URL must start with https:// and contain dexscreener.com/</p>
+            )}
+          </div>
+        )}
         <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
           <label className="block text-sm font-medium text-zinc-700">Hero (public profile top)</label>
           <p className="text-xs text-zinc-500 mb-2">Optional banner at the top of your public page. Use either an image (upload) or a video URL (e.g. YouTube), not both.</p>

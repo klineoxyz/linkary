@@ -30,6 +30,8 @@ export type PublicProfileApiPayload = {
     xscore: number | null;
     reputation_index: number | null;
     profile_type?: "individual" | "project" | "company";
+    /** Layout preset: classic (default), spotlight, showcase, compact */
+    public_layout?: "classic" | "spotlight" | "showcase" | "compact" | null;
   };
   hero?: {
     hero_image_url: string | null;
@@ -358,6 +360,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (dto.type === "profile") {
+    const layoutObj = dto.publicLayout && typeof dto.publicLayout === "object" && "preset" in dto.publicLayout ? (dto.publicLayout as { preset?: string }) : null;
+    const layoutPreset = layoutObj?.preset && ["spotlight", "showcase", "compact"].includes(layoutObj.preset) ? layoutObj.preset : "classic";
     const payload: PublicProfileApiPayload = {
       profile: {
         username: dto.username,
@@ -370,6 +374,7 @@ export async function GET(request: NextRequest) {
         ethos_score: dto.ethosScore,
         xscore: dto.xscore,
         reputation_index: dto.linkaryPower ?? null,
+        public_layout: layoutPreset,
       },
       socials: {
         x: dto.socials?.x_url ?? null,

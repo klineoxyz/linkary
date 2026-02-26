@@ -158,10 +158,19 @@ export async function updateMyProfile(
     hero_title?: string | null;
     show_reviews?: boolean;
     token_dexscreener_url?: string | null;
+    /** Public page layout preset: classic, spotlight, showcase, compact. Merged into existing public_layout jsonb. */
+    public_layout_preset?: "classic" | "spotlight" | "showcase" | "compact" | null;
   }
 ): Promise<{ error: string | null }> {
   const updates: Record<string, unknown> = { ...payload };
   delete updates.xscore;
+  if (updates.public_layout_preset !== undefined) {
+    const preset = updates.public_layout_preset as string | null;
+    delete updates.public_layout_preset;
+    const { data: row } = await supabase.from(PROFILES).select("public_layout").eq("id", userId).maybeSingle();
+    const current = (row as { public_layout?: { order?: string[]; hidden?: string[] } | null } | null)?.public_layout ?? {};
+    updates.public_layout = { ...current, preset: preset ?? "classic" };
+  }
   if (updates.twitter_username !== undefined) {
     const { data: row } = await supabase.from(PROFILES).select("twitter_username").eq("id", userId).maybeSingle();
     const current = (row?.twitter_username ?? "").toString().trim();

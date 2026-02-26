@@ -225,7 +225,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
       const isUnpublished = !isPublished;
 
-      const viewCols = "id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, xscore, profile_type, hero_image_url, hero_video_url, hero_title";
+      const viewCols = "id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, xscore, profile_type, hero_image_url, hero_video_url, hero_title, public_layout";
       const displayView = isPublished ? "public_profile_view" : "public_profile_preview_view";
       const { data: profileDisplayData } = await serviceSupabase.from(displayView).select(viewCols).eq("id", profileId).maybeSingle();
       const profileRow = profileDisplayData as {
@@ -244,6 +244,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         hero_image_url?: string | null;
         hero_video_url?: string | null;
         hero_title?: string | null;
+        public_layout?: { preset?: string } | null;
       } | null;
 
       if (!profileRow) {
@@ -419,6 +420,11 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         if (subsidiaries.length) relationsPayload.subsidiaries = subsidiaries;
       }
 
+      const rawPreset = (profileRow.public_layout && typeof profileRow.public_layout === "object" && "preset" in profileRow.public_layout && typeof (profileRow.public_layout as { preset?: string }).preset === "string")
+        ? (profileRow.public_layout as { preset: string }).preset
+        : "classic";
+      const layoutPreset: "classic" | "spotlight" | "showcase" | "compact" =
+        rawPreset === "spotlight" || rawPreset === "showcase" || rawPreset === "compact" ? rawPreset : "classic";
       const payload: PublicProfileApiPayload = {
         profile: {
           username: profileRow.username ?? profileRow.twitter_username ?? null,
@@ -432,6 +438,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           xscore: profileRow.xscore ?? null,
           reputation_index: reputationIndex,
           profile_type: profileType,
+          public_layout: layoutPreset,
         },
         hero:
           resolvedHeroImageUrl || heroVideoUrl || heroTitle

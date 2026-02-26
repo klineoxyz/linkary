@@ -1202,6 +1202,7 @@ export default function ProfileEditPage({
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
   const [heroVideoUrl, setHeroVideoUrl] = useState("");
   const [heroTitle, setHeroTitle] = useState("");
+  const [publicLayoutPreset, setPublicLayoutPreset] = useState<"classic" | "spotlight" | "showcase" | "compact">("classic");
   const [team, setTeam] = useState<TeamMemberRow[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamModal, setTeamModal] = useState<{ open: true; edit?: TeamMemberRow } | { open: false }>({ open: false });
@@ -1407,14 +1408,14 @@ export default function ProfileEditPage({
       getProfileProfessions(me.id),
       supabase.from("profile_media").select("header_media_type, header_media_url, header_media_file_path").eq("profile_id", me.id).maybeSingle(),
       supabase.from("profile_socials").select("x_url, linkedin_url, youtube_url, website_url, telegram_url").eq("profile_id", me.id).maybeSingle(),
-      supabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title, token_dexscreener_url").eq("id", me.id).maybeSingle(),
+      supabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title, token_dexscreener_url, public_layout").eq("id", me.id).maybeSingle(),
     ]);
     loadPartners();
     loadCaseStudies();
     loadLinks();
     loadRelations();
     if (profileExt?.data) {
-      const p = profileExt.data as { profile_type?: string; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null; token_dexscreener_url?: string | null };
+      const p = profileExt.data as { profile_type?: string; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null; token_dexscreener_url?: string | null; public_layout?: { preset?: string } | null };
       if (p.profile_type === "project" || p.profile_type === "company") {
         setProfileType(p.profile_type as ProfileType);
         loadGigs();
@@ -1424,6 +1425,9 @@ export default function ProfileEditPage({
       setHeroTitle((p.hero_title ?? "") || "");
       setTokenDexscreenerUrl((p.token_dexscreener_url ?? "") || "");
       setHeroMode(p.hero_image_url ? "image" : (p.hero_video_url ?? "").trim() ? "video" : "none");
+      const preset = p.public_layout?.preset;
+      if (preset === "spotlight" || preset === "showcase" || preset === "compact") setPublicLayoutPreset(preset);
+      else setPublicLayoutPreset("classic");
     }
     setLoading(false);
     if (me.display_name != null) setDisplayName(me.display_name);
@@ -1570,6 +1574,7 @@ export default function ProfileEditPage({
       token_dexscreener_url: profileType === "project"
         ? (tokenDexscreenerUrl.trim().startsWith("https://") && tokenDexscreenerUrl.trim().includes("dexscreener.com/") ? tokenDexscreenerUrl.trim() : null)
         : null,
+      public_layout_preset: publicLayoutPreset,
     });
     if (profileErr) {
       setSaving(false);
@@ -1775,6 +1780,20 @@ export default function ProfileEditPage({
             <option value="individual">Individual</option>
             <option value="project">Project</option>
             <option value="company">Company</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Public page layout</label>
+          <p className="text-xs text-zinc-500 mb-2">How your public page is arranged. Classic = two columns; Spotlight = single column; Showcase = larger case studies &amp; gigs; Compact = denser.</p>
+          <select
+            value={publicLayoutPreset}
+            onChange={(e) => setPublicLayoutPreset(e.target.value as "classic" | "spotlight" | "showcase" | "compact")}
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
+          >
+            <option value="classic">Classic (2 columns)</option>
+            <option value="spotlight">Spotlight (single column)</option>
+            <option value="showcase">Showcase (featured cards)</option>
+            <option value="compact">Compact (denser)</option>
           </select>
         </div>
         {profileType === "project" && (

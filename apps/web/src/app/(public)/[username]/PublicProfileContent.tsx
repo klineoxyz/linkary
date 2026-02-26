@@ -66,6 +66,22 @@ function IconTelegram() {
   );
 }
 
+function IconYouTube() {
+  return (
+    <svg width={socialIconSize} height={socialIconSize} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+    </svg>
+  );
+}
+
+function IconDiscord() {
+  return (
+    <svg width={socialIconSize} height={socialIconSize} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.182 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+    </svg>
+  );
+}
+
 function SocialLink({ name, url }: { name: string; url: string }) {
   const icon =
     name === "X" ? (
@@ -74,6 +90,10 @@ function SocialLink({ name, url }: { name: string; url: string }) {
       <IconLinkedIn />
     ) : name === "Telegram" ? (
       <IconTelegram />
+    ) : name === "YouTube" ? (
+      <IconYouTube />
+    ) : name === "Discord" ? (
+      <IconDiscord />
     ) : (
       <Globe className="size-5 shrink-0" aria-hidden />
     );
@@ -83,7 +103,7 @@ function SocialLink({ name, url }: { name: string; url: string }) {
       target="_blank"
       rel="noopener noreferrer"
       className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:border-primary/40 hover:bg-accent hover:text-primary hover:shadow-md hover:shadow-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-      aria-label={name}
+      aria-label={`${name} profile or link`}
     >
       {icon}
     </a>
@@ -137,6 +157,64 @@ function youtubeEmbedUrl(url: string): string {
   return url;
 }
 
+function isVimeoUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.hostname === "vimeo.com" || u.hostname === "www.vimeo.com" || u.hostname === "player.vimeo.com";
+  } catch {
+    return false;
+  }
+}
+
+function vimeoEmbedUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    let id = "";
+    if (u.hostname === "player.vimeo.com" && u.pathname.startsWith("/video/")) {
+      id = u.pathname.replace("/video/", "").split("/")[0];
+    } else if (u.pathname && u.pathname !== "/") {
+      id = u.pathname.slice(1).split("/")[0];
+    }
+    if (id) return `https://player.vimeo.com/video/${id}`;
+  } catch {
+    /* ignore */
+  }
+  return url;
+}
+
+function isLoomUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.hostname === "www.loom.com" || u.hostname === "loom.com" || u.hostname === "share.loom.com";
+  } catch {
+    return false;
+  }
+}
+
+function loomEmbedUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const embedMatch = u.pathname.match(/\/embed\/([^/]+)/);
+    if (embedMatch) return url;
+    const shareMatch = u.pathname.match(/\/share\/([^/]+)/);
+    if (shareMatch) return `https://www.loom.com/embed/${shareMatch[1]}`;
+    const firstSegment = u.pathname.slice(1).split("/")[0];
+    if (firstSegment) return `https://www.loom.com/embed/${firstSegment}`;
+  } catch {
+    /* ignore */
+  }
+  return url;
+}
+
+function isXVideoUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.hostname === "twitter.com" || u.hostname === "www.twitter.com" || u.hostname === "x.com" || u.hostname === "www.x.com";
+  } catch {
+    return false;
+  }
+}
+
 type Props = {
   data: PublicProfileApiPayload;
   username: string;
@@ -168,20 +246,27 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const hasProofStats =
     profile.ethos_score != null || profile.xscore != null || profile.reputation_index != null;
 
-  const sectionSpacing = "mb-8";
-  const rightSectionSpacing = "mb-8";
+  const layoutPreset = (profile.public_layout === "spotlight" || profile.public_layout === "showcase" || profile.public_layout === "compact")
+    ? profile.public_layout
+    : "classic";
+  const isSpotlight = layoutPreset === "spotlight";
+  const isShowcase = layoutPreset === "showcase";
+  const isCompact = layoutPreset === "compact";
+  const sectionSpacing = isCompact ? "mb-5" : "mb-8";
+  const rightSectionSpacing = isCompact ? "mb-5" : "mb-8";
+  const featuredCardClass = isShowcase ? "rounded-2xl border-2 border-primary/25 bg-card shadow-lg hover:shadow-primary/15 hover:border-primary/35" : sectionCardClass;
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans relative">
       {/* Subtle background gradient / glow using tokens */}
       <div className="fixed inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-transparent to-accent/[0.04] pointer-events-none" aria-hidden />
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-        {/* Hero — full width with gradient overlay, title overlay, share row */}
+      <main className={`mx-auto max-w-6xl px-4 sm:px-6 ${isCompact ? "py-5 sm:py-6" : "py-8 sm:py-10"}`}>
+        {/* Hero — full width; height varies by layout (compact = smaller) */}
         {(hasHeroImage || hasHeroVideo) && (
-          <section className="mb-8">
+          <section className={isCompact ? "mb-5" : "mb-8"}>
             <div className={`overflow-hidden rounded-2xl border shadow-lg transition-all hover:border-primary/20 hover:shadow-primary/10 ${hasHeroImage ? "border-primary/20" : "border-border"} bg-card`}>
               {hasHeroImage && (
-                <div className="relative h-[200px] w-full sm:h-[260px]">
+                <div className={`relative w-full ${isCompact ? "h-[140px] sm:h-[180px]" : "h-[200px] sm:h-[260px]"}`}>
                   <img
                     src={hero!.hero_image_url!}
                     alt=""
@@ -189,9 +274,12 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-primary/85 via-accent/15 to-transparent" aria-hidden />
                   {heroTitle && (
-                    <p className="absolute bottom-5 left-5 right-5 text-xl font-bold tracking-tight text-white drop-shadow-lg sm:text-2xl" aria-hidden>
-                      {heroTitle}
-                    </p>
+                    <div className="absolute bottom-0 left-0 right-0 p-5 pt-8">
+                      <p className="text-xl font-bold tracking-tight text-white drop-shadow-lg sm:text-2xl" aria-hidden>
+                        {heroTitle}
+                      </p>
+                      <div className="mt-2 h-1 w-24 rounded-full bg-accent shadow-sm" aria-hidden />
+                    </div>
                   )}
                   <div className="absolute top-3 right-3 flex items-center gap-2">
                     <CopyProfileLinkButton url={profileUrl} />
@@ -213,17 +301,74 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     <div className="relative aspect-video w-full max-h-[300px] sm:max-h-[340px]">
                       <iframe
                         src={youtubeEmbedUrl(hero!.hero_video_url!)}
-                        title="Hero video"
+                        title="Hero video (YouTube)"
                         className="absolute inset-0 h-full w-full rounded-2xl"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
                       />
-                      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+                      <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between gap-2 p-3 bg-gradient-to-t from-black/60 to-transparent rounded-b-2xl">
                         {heroTitle && <p className="text-sm font-medium text-white drop-shadow-md">{heroTitle}</p>}
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 shrink-0">
                           <CopyProfileLinkButton url={profileUrl} />
                           <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/30 bg-black/40 px-2.5 text-xs text-white backdrop-blur-sm hover:bg-white/20" aria-label="Open in new tab"><Share2 className="h-3.5 w-3.5" /></a>
                         </div>
+                      </div>
+                      {heroTitle && <div className="absolute bottom-3 left-3 h-0.5 w-16 rounded-full bg-accent" aria-hidden />}
+                    </div>
+                  ) : hero!.hero_video_url!.startsWith("https://") && isVimeoUrl(hero!.hero_video_url!) ? (
+                    <div className="relative aspect-video w-full max-h-[300px] sm:max-h-[340px]">
+                      <iframe
+                        src={vimeoEmbedUrl(hero!.hero_video_url!)}
+                        title="Hero video (Vimeo)"
+                        className="absolute inset-0 h-full w-full rounded-2xl"
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between gap-2 p-3 bg-gradient-to-t from-black/60 to-transparent rounded-b-2xl">
+                        {heroTitle && <p className="text-sm font-medium text-white drop-shadow-md">{heroTitle}</p>}
+                        <div className="flex gap-2 shrink-0">
+                          <CopyProfileLinkButton url={profileUrl} />
+                          <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/30 bg-black/40 px-2.5 text-xs text-white backdrop-blur-sm hover:bg-white/20" aria-label="Open in new tab"><Share2 className="h-3.5 w-3.5" /></a>
+                        </div>
+                      </div>
+                      {heroTitle && <div className="absolute bottom-3 left-3 h-0.5 w-16 rounded-full bg-accent" aria-hidden />}
+                    </div>
+                  ) : hero!.hero_video_url!.startsWith("https://") && isLoomUrl(hero!.hero_video_url!) ? (
+                    <div className="relative aspect-video w-full max-h-[300px] sm:max-h-[340px]">
+                      <iframe
+                        src={loomEmbedUrl(hero!.hero_video_url!)}
+                        title="Hero video (Loom)"
+                        className="absolute inset-0 h-full w-full rounded-2xl"
+                        allowFullScreen
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between gap-2 p-3 bg-gradient-to-t from-black/60 to-transparent rounded-b-2xl">
+                        {heroTitle && <p className="text-sm font-medium text-white drop-shadow-md">{heroTitle}</p>}
+                        <div className="flex gap-2 shrink-0">
+                          <CopyProfileLinkButton url={profileUrl} />
+                          <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/30 bg-black/40 px-2.5 text-xs text-white backdrop-blur-sm hover:bg-white/20" aria-label="Open in new tab"><Share2 className="h-3.5 w-3.5" /></a>
+                        </div>
+                      </div>
+                      {heroTitle && <div className="absolute bottom-3 left-3 h-0.5 w-16 rounded-full bg-accent" aria-hidden />}
+                    </div>
+                  ) : hero!.hero_video_url!.startsWith("https://") && isXVideoUrl(hero!.hero_video_url!) ? (
+                    <div className="flex aspect-video w-full flex-col items-center justify-center gap-4 rounded-2xl bg-gradient-to-br from-muted/80 to-muted/40 p-6 border border-border">
+                      <div className="rounded-2xl border-2 border-primary/30 bg-primary/10 p-6 flex flex-col items-center gap-2">
+                        <IconX />
+                        <span className="text-lg font-bold text-foreground">Watch on X</span>
+                      </div>
+                      <a
+                        href={hero!.hero_video_url!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-xl border-2 border-primary bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md transition hover:bg-primary/90 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      >
+                        Watch on X
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                      {heroTitle && <p className="text-sm text-muted-foreground text-center">{heroTitle}</p>}
+                      <div className="flex gap-2">
+                        <CopyProfileLinkButton url={profileUrl} />
+                        <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center rounded-lg border border-border bg-card px-3 text-sm text-foreground hover:bg-accent/50" aria-label="Open in new tab"><Share2 className="h-4 w-4" /></a>
                       </div>
                     </div>
                   ) : (
@@ -249,16 +394,20 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 </div>
               )}
             </div>
-            {heroTitle && hasHeroImage === false && hasHeroVideo && !(hero!.hero_video_url!.startsWith("https://") && isYouTubeUrl(hero!.hero_video_url!)) && (
+            {heroTitle && hasHeroImage === false && hasHeroVideo && !(hero!.hero_video_url!.startsWith("https://") && (isYouTubeUrl(hero!.hero_video_url!) || isVimeoUrl(hero!.hero_video_url!) || isLoomUrl(hero!.hero_video_url!))) && (
               <p className="mt-2 text-sm text-muted-foreground" aria-hidden>{heroTitle}</p>
             )}
           </section>
         )}
 
-        {/* Two-column on lg; single column on smaller */}
-        <div className="lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-10 lg:items-start">
+        {/* Layout: classic/showcase = 2-col; spotlight = single column stacked; compact = 2-col tighter */}
+        <div className={
+          isSpotlight
+            ? "space-y-8"
+            : `lg:grid lg:gap-10 lg:items-start ${isCompact ? "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-6" : "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"}`
+        }>
           {/* ——— LEFT COLUMN (~40%): Header, bio, socials, proof ——— */}
-          <div className="space-y-6 lg:sticky lg:top-6">
+          <div className={`space-y-6 ${!isSpotlight ? "lg:sticky lg:top-6" : ""}`}>
             {/* Header: stronger typography, branded reputation pill, profile type badge */}
             <header className="pb-6 border-b border-border">
               <div className="flex flex-col sm:flex-row sm:items-start gap-4">
@@ -533,13 +682,13 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               </>
             )}
 
-            {/* Open gigs (project/company only) — opportunities style */}
+            {/* Open gigs (project/company only) — opportunities style; featured in showcase */}
             {data.gigs && data.gigs.length > 0 && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>Open gigs</SectionTitle>
                 <ul className="space-y-3">
                   {data.gigs.map((gig) => (
-                    <li key={gig.id} className={`${sectionCardClass} p-4`}>
+                    <li key={gig.id} className={`${isShowcase ? featuredCardClass : sectionCardClass} p-4 ${isShowcase ? "p-5" : ""}`}>
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <h3 className="font-semibold text-foreground">{gig.title}</h3>
@@ -627,7 +776,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               </section>
             )}
 
-            {/* Case studies — above Links per hierarchy (Individual: Skills, Achievements, Case studies, Links) */}
+            {/* Case studies — above Links; featured in showcase */}
             <section className={rightSectionSpacing}>
               <SectionTitle>Case studies</SectionTitle>
               {caseStudies.length === 0 ? (
@@ -635,8 +784,8 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               ) : (
                 <ul className="space-y-3">
                   {caseStudies.map((c) => (
-                    <li key={c.id} className={sectionCardClass}>
-                      <div className="p-4">
+                    <li key={c.id} className={isShowcase ? featuredCardClass : sectionCardClass}>
+                      <div className={isShowcase ? "p-5" : "p-4"}>
                         {c.title && (
                           <h3 className="font-semibold text-foreground">{c.title}</h3>
                         )}

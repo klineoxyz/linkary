@@ -5,8 +5,11 @@ import { isReservedPath } from "@/lib/reservedPaths";
 import { getPublicDTOByUsername } from "@/lib/getPublicDTO";
 import { dtoToEntityView, entityToPublicDTO } from "@/lib/publicProfileDTO";
 import { resolveEntityMediaToSignedUrls } from "@/lib/resolveEntityMediaUrls";
+import { createServerSupabase } from "@/lib/supabase/server";
+import { resolveSlugForOwner } from "@/lib/slugResolve";
 import AppWithProviders from "../../AppWithProviders";
 import { PublicProfileContent } from "./PublicProfileContent";
+import { OwnerUnpublishedProfile } from "./OwnerUnpublishedProfile";
 import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
 import { NotFoundOrUnpublished } from "./NotFoundOrUnpublished";
 import { NotFoundClaimView } from "./NotFoundClaimView";
@@ -48,6 +51,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       const bio = d.type === "profile" ? d.bio : d.tagline;
       if (bio && typeof bio === "string") {
         description = bio.length > 160 ? bio.slice(0, 157) + "…" : bio;
+      }
+    } else {
+      const segmentLower = normalizeIdentifier(segment);
+      const supabase = await createServerSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username, twitter_username, published")
+          .eq("id", user.id)
+          .maybeSingle();
+        const resolution = resolveSlugForOwner(segmentLower, profile ?? null);
+        if (resolution.kind === "owner_unpublished") published = false;
       }
     }
   } else {
@@ -120,16 +136,34 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       `${base}/api/public/profile?username=${encodeURIComponent(segment)}`,
       { next: { revalidate: 300 } }
     );
-    if (!res.ok) {
-      return <NotFoundOrUnpublished requestedUsername={segmentLower} />;
+    if (res.ok) {
+      const data = await res.json();
+      return (
+        <PublicProfileContent
+          data={data}
+          username={data.profile?.username ?? segmentLower}
+        />
+      );
     }
-    const data = await res.json();
-    return (
-      <PublicProfileContent
-        data={data}
-        username={data.profile?.username ?? segmentLower}
-      />
-    );
+    // 404: resolve owner so owners see unpublished view, not claim
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    let resolution: { kind: "owner_unpublished"; username: string } | { kind: "claim" } = { kind: "claim" };
+    if (user?.id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username, twitter_username, published")
+        .eq("id", user.id)
+        .maybeSingle();
+      const result = resolveSlugForOwner(segmentLower, profile ?? null);
+      if (result.kind === "owner_unpublished") {
+        resolution = { kind: "owner_unpublished", username: result.username };
+      }
+    }
+    if (resolution.kind === "owner_unpublished") {
+      return <OwnerUnpublishedProfile username={resolution.username} />;
+    }
+    return <NotFoundOrUnpublished requestedUsername={segmentLower} />;
   }
 
   let entity = await resolvePublicEntity(segment, { serviceSupabase: serviceSupabase ?? undefined });

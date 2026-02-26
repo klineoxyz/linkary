@@ -118,6 +118,17 @@ export default function AuthCallbackPage() {
             setMessage("No session after exchange. Try again.");
             return;
           }
+          // Store session in cookies so server (e.g. slug page) can recognize the owner
+          const token = sessionData?.session?.access_token ?? "";
+          const refreshToken = sessionData?.session?.refresh_token ?? "";
+          if (token && refreshToken) {
+            await fetch(`${typeof window !== "undefined" ? window.location.origin : ""}/api/auth/set-session`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ access_token: token, refresh_token: refreshToken }),
+              credentials: "include",
+            }).catch(() => {});
+          }
           if (oauthOrgId) {
             setMessage("Verifying org X account…");
             const token = sessionData?.session?.access_token ?? "";
@@ -228,6 +239,14 @@ export default function AuthCallbackPage() {
           const { data: { session } } = await supabase.auth.getSession();
           if (cancelled) return;
           if (session?.user) {
+            if (session.access_token && session.refresh_token) {
+              await fetch(`${window.location.origin}/api/auth/set-session`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ access_token: session.access_token, refresh_token: session.refresh_token }),
+                credentials: "include",
+              }).catch(() => {});
+            }
             setMessage("Updating profile…");
             const user = session.user as unknown as Parameters<typeof extractTwitterIdentity>[0];
             await ensureProfileForSession(session.user.id);

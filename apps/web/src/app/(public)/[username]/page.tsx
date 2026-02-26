@@ -8,6 +8,7 @@ import { dtoToEntityView, entityToPublicDTO } from "@/lib/publicProfileDTO";
 import { resolveEntityMediaToSignedUrls } from "@/lib/resolveEntityMediaUrls";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { resolveSlugForOwner } from "@/lib/slugResolve";
+import { resolveSlug } from "@/lib/resolveSlugServer";
 import AppWithProviders from "../../AppWithProviders";
 import { PublicProfileContent } from "./PublicProfileContent";
 import { OwnerUnpublishedProfile } from "./OwnerUnpublishedProfile";
@@ -134,17 +135,10 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
     const base = baseUrl();
     const cookieStore = await cookies();
     const cookieHeader = cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; ");
-    const resolveRes = await fetch(
-      `${base}/api/public/resolve?slug=${encodeURIComponent(segmentLower)}`,
-      { headers: cookieHeader ? { Cookie: cookieHeader } : undefined, cache: "no-store" }
-    );
-    const resolveJson = (await resolveRes.json().catch(() => ({}))) as {
-      kind?: "public" | "owner" | "claim";
-      slug?: string;
-      profile_id?: string;
-    };
-    const resolveKind = resolveJson.kind ?? "claim";
-    const resolvedSlug = resolveJson.slug ?? segmentLower;
+    // Resolve in-process so session is read from this request's cookies (no fetch)
+    const resolveResult = await resolveSlug(segmentLower);
+    const resolveKind = resolveResult.kind;
+    const resolvedSlug = resolveResult.slug ?? segmentLower;
 
     if (resolveKind === "public") {
       const profileRes = await fetch(

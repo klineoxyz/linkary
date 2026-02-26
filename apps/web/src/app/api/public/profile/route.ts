@@ -4,6 +4,8 @@
  * No private analytics (followers/engagement snapshot); only proof numbers (ethos, xscore, reputation).
  * Cache: s-maxage=300, stale-while-revalidate=3600.
  */
+export const runtime = "nodejs";
+
 import { NextRequest, NextResponse } from "next/server";
 import { getPublicEntityByUsername } from "@/lib/publicData";
 import { entityToPublicDTO } from "@/lib/publicProfileDTO";
@@ -52,6 +54,45 @@ function tagsFromMetrics(metrics: unknown): string[] {
   return [];
 }
 
+async function getDebugPayload(
+  segment: string,
+  norm: string,
+  serviceSupabase: ReturnType<typeof createServiceSupabase> | null,
+  serviceClientError: string | null
+): Promise<{
+  requestedUsername: string;
+  normalizedUsername: string;
+  hasServiceClient: boolean;
+  serviceClientError: string | null;
+  publicViewQuery: { ok: boolean; error: string | null; matchedUsername: string | null };
+}> {
+  let publicViewQuery: { ok: boolean; error: string | null; matchedUsername: string | null } = {
+    ok: false,
+    error: serviceSupabase ? null : "no client",
+    matchedUsername: null,
+  };
+  if (serviceSupabase) {
+    const { data, error } = await serviceSupabase
+      .from("public_profile_view")
+      .select("username")
+      .eq("username", norm)
+      .maybeSingle();
+    const row = data as { username?: string | null } | null;
+    publicViewQuery = {
+      ok: !error,
+      error: error?.message ?? null,
+      matchedUsername: row?.username ?? null,
+    };
+  }
+  return {
+    requestedUsername: segment,
+    normalizedUsername: norm,
+    hasServiceClient: !!serviceSupabase,
+    serviceClientError,
+    publicViewQuery,
+  };
+}
+
 export async function GET(request: NextRequest) {
   const username = request.nextUrl.searchParams.get("username");
   const debugParam = request.nextUrl.searchParams.get("debug");
@@ -67,46 +108,46 @@ export async function GET(request: NextRequest) {
   }
 
   let serviceSupabase: ReturnType<typeof createServiceSupabase> | null = null;
+  let serviceClientError: string | null = null;
   try {
     serviceSupabase = createServiceSupabase();
-  } catch {
-    /* optional */
+  } catch (err) {
+    serviceClientError = err instanceof Error ? err.message : String(err);
+    if (isDebug) {
+      const debug = await getDebugPayload(segment, norm, null, serviceClientError);
+      return NextResponse.json(
+        { error: "Service client unavailable", debug },
+        { status: 500, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+    return NextResponse.json(
+      { error: "Not found" },
+      { status: 404, headers: { "Cache-Control": CACHE_404, Vary: "Accept-Encoding" } }
+    );
   }
 
-  let entity = await getPublicEntityByUsername(norm, serviceSupabase ?? undefined);
+  if (!serviceSupabase) {
+    if (isDebug) {
+      const debug = await getDebugPayload(segment, norm, null, serviceClientError ?? "createServiceSupabase returned null");
+      return NextResponse.json(
+        { error: "Service client unavailable", debug },
+        { status: 500, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+    return NextResponse.json(
+      { error: "Not found" },
+      { status: 404, headers: { "Cache-Control": CACHE_404, Vary: "Accept-Encoding" } }
+    );
+  }
 
-  if (entity && serviceSupabase) {
+  let entity = await getPublicEntityByUsername(norm, serviceSupabase);
+
+  if (entity) {
     entity = await resolveEntityMediaToSignedUrls(entity, serviceSupabase);
   }
 
   if (!entity) {
-    let debug: { requestedUsername: string; normalizedUsername: string; foundInPublicView: boolean; matchedRowUsername: string | null } | undefined;
-    if (isDebug && serviceSupabase) {
-      const [byUser, byTwitter] = await Promise.all([
-        serviceSupabase.from("public_profile_view").select("username").ilike("username", norm).maybeSingle(),
-        serviceSupabase.from("public_profile_view").select("username").ilike("twitter_username", norm).maybeSingle(),
-      ]);
-      const row = (byUser.data ?? byTwitter.data) as { username?: string | null } | null;
-      debug = {
-        requestedUsername: segment,
-        normalizedUsername: norm,
-        foundInPublicView: !!row,
-        matchedRowUsername: row?.username ?? null,
-      };
-    }
-    if (serviceSupabase) {
-      const { data: row } = await serviceSupabase
-        .from("profiles")
-        .select("username, published")
-        .ilike("username", norm)
-        .maybeSingle();
-      if (row && (row as { published?: boolean }).published === false) {
-        return NextResponse.json(
-          { error: "Not available", ...(debug && { debug }) },
-          { status: 404, headers: { "Cache-Control": CACHE_404, Vary: "Accept-Encoding" } }
-        );
-      }
-    }
+    const debug = isDebug ? await getDebugPayload(segment, norm, serviceSupabase, serviceClientError) : undefined;
     return NextResponse.json(
       { error: "Not found", ...(debug && { debug }) },
       { status: 404, headers: { "Cache-Control": CACHE_404, Vary: "Accept-Encoding" } }
@@ -246,15 +287,7 @@ export async function GET(request: NextRequest) {
     };
 
     const body = isDebug
-      ? {
-          ...payload,
-          debug: {
-            requestedUsername: segment,
-            normalizedUsername: norm,
-            foundInPublicView: true,
-            matchedRowUsername: dto.username ?? null,
-          },
-        }
+      ? { ...payload, debug: await getDebugPayload(segment, norm, serviceSupabase, serviceClientError) }
       : payload;
 
     return NextResponse.json(body, {
@@ -295,15 +328,7 @@ export async function GET(request: NextRequest) {
   };
 
   const body = isDebug
-    ? {
-        ...payload,
-        debug: {
-          requestedUsername: segment,
-          normalizedUsername: norm,
-          foundInPublicView: true,
-          matchedRowUsername: dto.slug ?? null,
-        },
-      }
+    ? { ...payload, debug: await getDebugPayload(segment, norm, serviceSupabase, serviceClientError) }
     : payload;
 
   return NextResponse.json(body, {

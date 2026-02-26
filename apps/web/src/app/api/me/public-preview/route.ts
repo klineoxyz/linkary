@@ -125,28 +125,31 @@ export async function GET(request: NextRequest) {
         .map((r) => r.reviewer_profile_id as string);
       const uniqueIds = [...new Set(ids)];
 
-      let displayByProfileId: Record<string, string> = {};
+      let reviewerByProfileId: Record<string, { display_name: string | null; avatar_url: string | null }> = {};
       if (uniqueIds.length > 0) {
         const { data: profiles } = await serviceSupabase
           .from("public_profile_view")
-          .select("id, display_name")
+          .select("id, display_name, avatar_url")
           .in("id", uniqueIds);
         if (profiles) {
-          for (const row of profiles as Array<{ id: string; display_name: string | null }>) {
-            displayByProfileId[row.id] = row.display_name ?? "Anonymous";
+          for (const row of profiles as Array<{ id: string; display_name: string | null; avatar_url: string | null }>) {
+            reviewerByProfileId[row.id] = { display_name: row.display_name ?? null, avatar_url: row.avatar_url ?? null };
           }
         }
       }
 
-      reviewsLatest = latest3.map((r) => ({
-        rating: r.rating,
-        text: r.body ?? null,
-        created_at: r.created_at,
-        reviewer_display:
-          r.reviewer_type === "profile" && r.reviewer_profile_id
-            ? displayByProfileId[r.reviewer_profile_id] ?? "Anonymous"
-            : "Anonymous",
-      }));
+      reviewsLatest = latest3.map((r) => {
+        const reviewer = r.reviewer_type === "profile" && r.reviewer_profile_id ? reviewerByProfileId[r.reviewer_profile_id] : null;
+        return {
+          rating: r.rating,
+          title: r.title ?? null,
+          text: r.body ?? null,
+          created_at: r.created_at,
+          reviewer_display: reviewer?.display_name ?? "Anonymous",
+          reviewer_avatar_url: reviewer?.avatar_url ?? null,
+          verified_deal: true,
+        };
+      });
     }
   }
 
@@ -156,9 +159,12 @@ export async function GET(request: NextRequest) {
     if (reviewsLatest.length === 0) {
       reviewsLatest = dto.reviews.slice(0, 3).map((r) => ({
         rating: r.rating,
+        title: (r as { title?: string | null }).title ?? null,
         text: r.body ?? null,
         created_at: r.created_at,
         reviewer_display: null as string | null,
+        reviewer_avatar_url: null as string | null,
+        verified_deal: true,
       }));
     }
   }

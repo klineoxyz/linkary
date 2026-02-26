@@ -5,7 +5,7 @@ import { isReservedPath } from "@/lib/reservedPaths";
 import { getPublicDTOByUsername } from "@/lib/getPublicDTO";
 import { dtoToEntityView, entityToPublicDTO } from "@/lib/publicProfileDTO";
 import { resolveEntityMediaToSignedUrls } from "@/lib/resolveEntityMediaUrls";
-import { computeLinkaryPower } from "@/lib/linkaryScore";
+import { computeReputationIndex } from "@/lib/reputationIndex";
 import AppWithProviders from "../../AppWithProviders";
 import type { PublicProfileApiPayload } from "@/app/api/public/profile/route";
 import { PublicProfileContent } from "./PublicProfileContent";
@@ -223,32 +223,35 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         reviewsAverage = reviewsList.reduce((s, r) => s + r.rating, 0) / reviewsList.length;
         const latest3 = reviewsList.slice(0, 3);
         const reviewerIds = [...new Set(latest3.filter((r) => r.reviewer_type === "profile" && r.reviewer_profile_id).map((r) => r.reviewer_profile_id as string))];
-        let displayByProfileId: Record<string, string> = {};
+        let reviewerByProfileId: Record<string, { display_name: string | null; avatar_url: string | null }> = {};
         if (reviewerIds.length > 0) {
-          const { data: profiles } = await serviceSupabase.from("public_profile_view").select("id, display_name").in("id", reviewerIds);
+          const { data: profiles } = await serviceSupabase.from("public_profile_view").select("id, display_name, avatar_url").in("id", reviewerIds);
           if (profiles) {
-            for (const p of profiles as Array<{ id: string; display_name: string | null }>) {
-              displayByProfileId[p.id] = p.display_name ?? "Anonymous";
+            for (const p of profiles as Array<{ id: string; display_name: string | null; avatar_url: string | null }>) {
+              reviewerByProfileId[p.id] = { display_name: p.display_name ?? null, avatar_url: p.avatar_url ?? null };
             }
           }
         }
-        reviewsLatest = latest3.map((r) => ({
-          rating: r.rating,
-          text: r.body ?? null,
-          created_at: r.created_at,
-          reviewer_display: r.reviewer_type === "profile" && r.reviewer_profile_id ? (displayByProfileId[r.reviewer_profile_id] ?? "Anonymous") : "Anonymous",
-          verified_deal: r.verified_deal ?? true,
-        }));
+        reviewsLatest = latest3.map((r) => {
+          const reviewer = r.reviewer_type === "profile" && r.reviewer_profile_id ? reviewerByProfileId[r.reviewer_profile_id] : null;
+          return {
+            rating: r.rating,
+            title: r.title ?? null,
+            text: r.body ?? null,
+            created_at: r.created_at,
+            reviewer_display: reviewer?.display_name ?? "Anonymous",
+            reviewer_avatar_url: reviewer?.avatar_url ?? null,
+            verified_deal: r.verified_deal ?? true,
+          };
+        });
       }
 
-      const ratingAvg = reviewsList.length > 0 ? reviewsList.reduce((s, r) => s + r.rating, 0) / reviewsList.length : undefined;
-      const { score1000: reputationIndex } = computeLinkaryPower({
-        xscore: profileRow.xscore ?? undefined,
-        followers: profileRow.followers_total ?? 0,
-        engagementRate: profileRow.avg_engagement_rate ?? undefined,
-        verifiedReviewsCount: reviewsList.length,
-        ratingAvg,
-      });
+      let reputationIndex: number;
+      try {
+        reputationIndex = await computeReputationIndex(profileId, serviceSupabase, { debug: isDebug });
+      } catch {
+        reputationIndex = 0;
+      }
 
       const caseStudies = caseStudiesList.map((c) => ({
         id: c.id,
@@ -408,6 +411,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
                   matchedBy,
                   profile_id: profileId,
                   counts: { reviewsCount: reviewsList.length, caseStudiesCount: caseStudiesList.length },
+                  reputation_index: reputationIndex,
                   token: tokenPayload ? "present" : "null",
                 },
                 null,

@@ -85,6 +85,20 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Star rating display (1–5). Filled stars by rating, empty for rest. */
+function Stars({ rating, className = "" }: { rating: number; className?: string }) {
+  const n = Math.max(0, Math.min(5, Math.round(rating)));
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-amber-500 ${className}`} aria-label={`${n} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span key={i} className="text-lg leading-none" aria-hidden>
+          {i <= n ? "★" : "☆"}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function isYouTubeUrl(url: string): boolean {
   try {
     const u = new URL(url);
@@ -505,7 +519,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               )}
             </section>
 
-            {/* Reviews — compact empty state */}
+            {/* Reviews — premium cards with stars and verified badge */}
             {showReviews && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>Reviews</SectionTitle>
@@ -513,33 +527,47 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   <p className="text-sm text-muted-foreground">No reviews yet</p>
                 ) : (
                   <>
-                    {reviews.average != null && (
-                      <p className="mb-3 text-sm text-muted-foreground">
-                        Average rating: <span className="font-semibold text-foreground">{reviews.average.toFixed(1)}</span> ({reviews.count} review{reviews.count !== 1 ? "s" : ""})
-                      </p>
-                    )}
-                    <ul className="space-y-3">
+                    <div className="mb-4 flex flex-wrap items-center gap-3">
+                      {reviews.average != null && (
+                        <div className="flex items-center gap-2">
+                          <Stars rating={reviews.average} />
+                          <span className="text-sm font-semibold text-foreground tabular-nums">{reviews.average.toFixed(1)}</span>
+                        </div>
+                      )}
+                      <span className="text-sm text-muted-foreground">
+                        {reviews.count} verified review{reviews.count !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <ul className="space-y-4">
                       {reviews.latest.map((r, i) => (
-                        <li key={i} className="rounded-xl border border-border bg-card p-4">
-                          <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <span className="font-medium text-foreground">{r.rating}/5</span>
-                            {r.reviewer_display && (
-                              <span className="text-muted-foreground">· {r.reviewer_display}</span>
+                        <li key={i} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                          <div className="flex gap-3">
+                            {r.reviewer_avatar_url ? (
+                              <img
+                                src={r.reviewer_avatar_url}
+                                alt=""
+                                className="h-10 w-10 shrink-0 rounded-full object-cover border border-border"
+                              />
+                            ) : (
+                              <div className="h-10 w-10 shrink-0 rounded-full border border-border bg-muted" aria-hidden />
                             )}
-                            {(r as { verified_deal?: boolean }).verified_deal !== false && (
-                              <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                                Verified deal
-                              </span>
-                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium text-foreground">{r.reviewer_display ?? "Anonymous"}</span>
+                                <Stars rating={r.rating} className="shrink-0" />
+                                {r.verified_deal !== false && (
+                                  <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 shrink-0">
+                                    Verified deal
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                {new Date(r.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+                              </p>
+                              {r.title && <p className="mt-1 text-sm font-medium text-foreground">{r.title}</p>}
+                              {r.text && <p className="mt-1 text-sm text-foreground leading-relaxed">{r.text}</p>}
+                            </div>
                           </div>
-                          {r.text && <p className="mt-1 text-sm text-foreground">{r.text}</p>}
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {new Date(r.created_at).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })}
-                          </p>
                         </li>
                       ))}
                     </ul>

@@ -2,7 +2,7 @@
 
 **Canonical host:** `linkary.xyz` (apex, no www). Auth and redirect URLs use this host so session cookies work on a single host.
 
-**Important:** Do not redirect www → apex in Next.js middleware if your host (e.g. Vercel) redirects apex → www, or you will get an **ERR_TOO_MANY_REDIRECTS** loop. Configure the host instead (see below).
+**Middleware** redirects `www.linkary.xyz` → `linkary.xyz` (308) so the session cookie (set on apex) is sent and `/username` shows the owner flow instead of "Claim". **If you see ERR_TOO_MANY_REDIRECTS:** In Vercel Domains, set **linkary.xyz** as primary and do **not** redirect apex to www; add **www.linkary.xyz** with "Redirect to linkary.xyz".
 
 ## Verification steps (PR / deploy)
 

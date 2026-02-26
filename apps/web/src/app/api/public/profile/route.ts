@@ -54,6 +54,8 @@ function tagsFromMetrics(metrics: unknown): string[] {
 
 export async function GET(request: NextRequest) {
   const username = request.nextUrl.searchParams.get("username");
+  const debugParam = request.nextUrl.searchParams.get("debug");
+  const isDebug = debugParam === "1";
   const segment = (username ?? "").trim();
   if (!segment) {
     return NextResponse.json({ error: "Missing username" }, { status: 400 });
@@ -64,7 +66,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid username" }, { status: 400 });
   }
 
-  let entity = await getPublicEntityByUsername(norm);
   let serviceSupabase: ReturnType<typeof createServiceSupabase> | null = null;
   try {
     serviceSupabase = createServiceSupabase();
@@ -72,11 +73,27 @@ export async function GET(request: NextRequest) {
     /* optional */
   }
 
+  let entity = await getPublicEntityByUsername(norm, serviceSupabase ?? undefined);
+
   if (entity && serviceSupabase) {
     entity = await resolveEntityMediaToSignedUrls(entity, serviceSupabase);
   }
 
   if (!entity) {
+    let debug: { requestedUsername: string; normalizedUsername: string; foundInPublicView: boolean; matchedRowUsername: string | null } | undefined;
+    if (isDebug && serviceSupabase) {
+      const [byUser, byTwitter] = await Promise.all([
+        serviceSupabase.from("public_profile_view").select("username").ilike("username", norm).maybeSingle(),
+        serviceSupabase.from("public_profile_view").select("username").ilike("twitter_username", norm).maybeSingle(),
+      ]);
+      const row = (byUser.data ?? byTwitter.data) as { username?: string | null } | null;
+      debug = {
+        requestedUsername: segment,
+        normalizedUsername: norm,
+        foundInPublicView: !!row,
+        matchedRowUsername: row?.username ?? null,
+      };
+    }
     if (serviceSupabase) {
       const { data: row } = await serviceSupabase
         .from("profiles")
@@ -84,16 +101,16 @@ export async function GET(request: NextRequest) {
         .ilike("username", norm)
         .maybeSingle();
       if (row && (row as { published?: boolean }).published === false) {
-        return NextResponse.json({ error: "Not available" }, {
-          status: 404,
-          headers: { "Cache-Control": CACHE_404, Vary: "Accept-Encoding" },
-        });
+        return NextResponse.json(
+          { error: "Not available", ...(debug && { debug }) },
+          { status: 404, headers: { "Cache-Control": CACHE_404, Vary: "Accept-Encoding" } }
+        );
       }
     }
-    return NextResponse.json({ error: "Not found" }, {
-      status: 404,
-      headers: { "Cache-Control": CACHE_404, Vary: "Accept-Encoding" },
-    });
+    return NextResponse.json(
+      { error: "Not found", ...(debug && { debug }) },
+      { status: 404, headers: { "Cache-Control": CACHE_404, Vary: "Accept-Encoding" } }
+    );
   }
 
   const dto = entityToPublicDTO(entity);
@@ -228,7 +245,19 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    return NextResponse.json(payload, {
+    const body = isDebug
+      ? {
+          ...payload,
+          debug: {
+            requestedUsername: segment,
+            normalizedUsername: norm,
+            foundInPublicView: true,
+            matchedRowUsername: dto.username ?? null,
+          },
+        }
+      : payload;
+
+    return NextResponse.json(body, {
       headers: {
         "Cache-Control": CACHE_PUBLIC,
         Vary: "Accept-Encoding",
@@ -265,7 +294,19 @@ export async function GET(request: NextRequest) {
     },
   };
 
-  return NextResponse.json(payload, {
+  const body = isDebug
+    ? {
+        ...payload,
+        debug: {
+          requestedUsername: segment,
+          normalizedUsername: norm,
+          foundInPublicView: true,
+          matchedRowUsername: dto.slug ?? null,
+        },
+      }
+    : payload;
+
+  return NextResponse.json(body, {
     headers: {
       "Cache-Control": CACHE_PUBLIC,
       Vary: "Accept-Encoding",

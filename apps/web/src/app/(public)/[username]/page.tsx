@@ -116,7 +116,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
   if (kind === "slug") {
     const base = baseUrl();
     const profileRes = await fetch(
-      `${base}/api/public/profile?username=${encodeURIComponent(segment)}`,
+      `${base}/api/public/profile?username=${encodeURIComponent(segmentLower)}`,
       { next: { revalidate: 300 } }
     );
     if (profileRes.ok) {

@@ -113,14 +113,18 @@ async function getSubscriptionTier(ownerType: "profile" | "org", ownerId: string
 }
 
 /** Resolve username/slug to profile or org. Tries profile by username, then by twitter_username, then org by slug. */
-export async function getPublicEntityByUsername(username: string): Promise<PublicEntity | null> {
+export async function getPublicEntityByUsername(
+  username: string,
+  client?: SupabaseClient
+): Promise<PublicEntity | null> {
   const norm = username.trim().toLowerCase().replace(/^@/, "");
   if (!norm) return null;
 
+  const db = client ?? supabase;
   const [profileByUsername, profileByTwitter, orgRes] = await Promise.all([
-    supabase.from("public_profile_view").select("*").ilike("username", norm).maybeSingle(),
-    supabase.from("public_profile_view").select("*").ilike("twitter_username", norm).maybeSingle(),
-    supabase.from("public_org_view").select("*").ilike("slug", norm).maybeSingle(),
+    db.from("public_profile_view").select("*").ilike("username", norm).maybeSingle(),
+    db.from("public_profile_view").select("*").ilike("twitter_username", norm).maybeSingle(),
+    db.from("public_org_view").select("*").ilike("slug", norm).maybeSingle(),
   ]);
 
   const profile = (profileByUsername.data ?? profileByTwitter.data) as PublicProfile | null;

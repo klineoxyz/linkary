@@ -172,12 +172,13 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
       const profileId = profileRow.id;
 
-      const [profileExtRow, socialsRow, reviewRows, caseRows, linksRows] = await Promise.all([
+      const [profileExtRow, socialsRow, reviewRows, caseRows, linksRows, relationsRows] = await Promise.all([
         serviceSupabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title, show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle(),
         serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url").eq("profile_id", profileId).maybeSingle(),
         serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10),
         serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20),
         serviceSupabase.from("profile_links").select("title, url, icon").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
+        serviceSupabase.from("profile_relations").select("source_profile_id, target_profile_id, relation_type, sort_order").or(`source_profile_id.eq.${profileId},target_profile_id.eq.${profileId}`).eq("is_public", true).order("relation_type").order("sort_order", { ascending: true }),
       ]);
 
       const profileExt = profileExtRow.data as { profile_type?: string | null; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null; show_reviews?: boolean | null; token_dexscreener_url?: string | null } | null;
@@ -275,6 +276,53 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         }
       }
 
+      type RelationRow = { source_profile_id: string; target_profile_id: string; relation_type: string; sort_order: number };
+      const relationsList = (relationsRows.data ?? []) as RelationRow[];
+      const partnerIds = new Set<string>();
+      for (const r of relationsList) {
+        if (r.source_profile_id === profileId) partnerIds.add(r.target_profile_id);
+        else partnerIds.add(r.source_profile_id);
+      }
+      let partnerProfiles: Record<string, { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string }> = {};
+      if (partnerIds.size > 0) {
+        const { data: partners } = await serviceSupabase.from("public_profile_view").select("id, username, display_name, avatar_url, profile_type").in("id", [...partnerIds]);
+        for (const p of (partners ?? []) as Array<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null; profile_type: string | null }>) {
+          const username = (p.username ?? "").trim();
+          if (username) partnerProfiles[p.id] = { id: p.id, username, display_name: p.display_name ?? null, avatar_url: p.avatar_url ?? null, profile_type: (p.profile_type ?? "individual") as string };
+        }
+      }
+      type RelationCard = { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string };
+      const relationCard = (id: string): RelationCard | undefined => partnerProfiles[id];
+      const ambassadorOf: RelationCard[] = [];
+      const affiliateOf: RelationCard[] = [];
+      const ambassadors: RelationCard[] = [];
+      const affiliates: RelationCard[] = [];
+      const ecosystemProjects: RelationCard[] = [];
+      const subsidiaries: RelationCard[] = [];
+      for (const r of relationsList) {
+        const partner = r.source_profile_id === profileId ? relationCard(r.target_profile_id) : relationCard(r.source_profile_id);
+        if (!partner) continue;
+        if (profileType === "individual") {
+          if (r.source_profile_id === profileId && r.relation_type === "ambassador") ambassadorOf.push(partner);
+          if (r.source_profile_id === profileId && r.relation_type === "affiliate") affiliateOf.push(partner);
+        } else {
+          if (r.target_profile_id === profileId && r.relation_type === "ambassador") ambassadors.push(partner);
+          if (r.target_profile_id === profileId && r.relation_type === "affiliate") affiliates.push(partner);
+          if (r.source_profile_id === profileId && r.relation_type === "ecosystem") ecosystemProjects.push(partner);
+          if (r.source_profile_id === profileId && r.relation_type === "subsidiary") subsidiaries.push(partner);
+        }
+      }
+      const relationsPayload: NonNullable<PublicProfileApiPayload["relations"]> = {};
+      if (profileType === "individual") {
+        if (ambassadorOf.length) relationsPayload.ambassadorOf = ambassadorOf;
+        if (affiliateOf.length) relationsPayload.affiliateOf = affiliateOf;
+      } else {
+        if (ambassadors.length) relationsPayload.ambassadors = ambassadors;
+        if (affiliates.length) relationsPayload.affiliates = affiliates;
+        if (ecosystemProjects.length) relationsPayload.ecosystemProjects = ecosystemProjects;
+        if (subsidiaries.length) relationsPayload.subsidiaries = subsidiaries;
+      }
+
       const payload: PublicProfileApiPayload = {
         profile: {
           username: profileRow.username ?? profileRow.twitter_username ?? null,
@@ -326,6 +374,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         },
         show_reviews: showReviews,
         token: tokenPayload,
+        ...(Object.keys(relationsPayload).length > 0 ? { relations: relationsPayload } : {}),
       };
 
       const displayUsername = payload.profile.username ?? segmentLower;

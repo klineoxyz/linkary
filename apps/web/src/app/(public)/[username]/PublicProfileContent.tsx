@@ -3,6 +3,28 @@ import { BadgeCheck, ChevronRight, ExternalLink, Globe, Link2 } from "lucide-rea
 import Link from "next/link";
 import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
 
+type RelationCard = { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string };
+
+function RelationCardLink({ item, basePath }: { item: RelationCard; basePath: string }) {
+  const href = `${basePath}/${encodeURIComponent(item.username)}`;
+  const name = item.display_name || item.username;
+  const typeLabel = item.profile_type === "company" ? "Company" : item.profile_type === "project" ? "Project" : "Individual";
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-accent/50 hover:border-primary/30 transition-colors"
+    >
+      {item.avatar_url ? (
+        <img src={item.avatar_url} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover border border-border" />
+      ) : (
+        <div className="h-8 w-8 shrink-0 rounded-full bg-muted border border-border" />
+      )}
+      <span className="font-medium truncate min-w-0">{name}</span>
+      <span className="shrink-0 rounded px-1.5 py-0.5 text-xs border border-border bg-muted/50 text-muted-foreground">{typeLabel}</span>
+    </Link>
+  );
+}
+
 const socialIconSize = 20;
 
 function IconX() {
@@ -93,12 +115,13 @@ type Props = {
 };
 
 export function PublicProfileContent({ data, username, profileUrl: profileUrlProp }: Props) {
-  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token } = data;
+  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations } = data;
   const profileType = profile.profile_type ?? "individual";
   const displayName = profile.display_name ?? profile.username ?? username;
   const handle = profile.username ?? username;
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://linkary.xyz";
-  const profileUrl = profileUrlProp ?? `${base.replace(/\/$/, "")}/${encodeURIComponent(handle)}`;
+  const basePath = base.replace(/\/$/, "");
+  const profileUrl = profileUrlProp ?? `${basePath}/${encodeURIComponent(handle)}`;
 
   const socialLinks: { name: string; url: string }[] = [
     { name: "X", url: socials.x },
@@ -298,6 +321,80 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   </div>
                 </div>
               </section>
+            )}
+
+            {/* Relations: Ambassador of / Affiliate of (individual); Ambassadors / Affiliates / Ecosystem / Subsidiaries (project/company) */}
+            {relations && (
+              <>
+                {profileType === "individual" && (
+                  <>
+                    {relations.ambassadorOf && relations.ambassadorOf.length > 0 && (
+                      <section className={rightSectionSpacing}>
+                        <SectionTitle>Ambassador of</SectionTitle>
+                        <div className="flex flex-wrap gap-2">
+                          {relations.ambassadorOf.map((item) => (
+                            <RelationCardLink key={item.id} item={item} basePath={basePath} />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                    {relations.affiliateOf && relations.affiliateOf.length > 0 && (
+                      <section className={rightSectionSpacing}>
+                        <SectionTitle>Affiliate of</SectionTitle>
+                        <div className="flex flex-wrap gap-2">
+                          {relations.affiliateOf.map((item) => (
+                            <RelationCardLink key={item.id} item={item} basePath={basePath} />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                  </>
+                )}
+                {(profileType === "project" || profileType === "company") && (
+                  <>
+                    {relations.ambassadors && relations.ambassadors.length > 0 && (
+                      <section className={rightSectionSpacing}>
+                        <SectionTitle>Ambassadors</SectionTitle>
+                        <div className="flex flex-wrap gap-2">
+                          {relations.ambassadors.map((item) => (
+                            <RelationCardLink key={item.id} item={item} basePath={basePath} />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                    {relations.affiliates && relations.affiliates.length > 0 && (
+                      <section className={rightSectionSpacing}>
+                        <SectionTitle>Affiliates</SectionTitle>
+                        <div className="flex flex-wrap gap-2">
+                          {relations.affiliates.map((item) => (
+                            <RelationCardLink key={item.id} item={item} basePath={basePath} />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                    {relations.ecosystemProjects && relations.ecosystemProjects.length > 0 && (
+                      <section className={rightSectionSpacing}>
+                        <SectionTitle>Ecosystem projects</SectionTitle>
+                        <div className="flex flex-wrap gap-2">
+                          {relations.ecosystemProjects.map((item) => (
+                            <RelationCardLink key={item.id} item={item} basePath={basePath} />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                    {relations.subsidiaries && relations.subsidiaries.length > 0 && (
+                      <section className={rightSectionSpacing}>
+                        <SectionTitle>Subsidiaries</SectionTitle>
+                        <div className="flex flex-wrap gap-2">
+                          {relations.subsidiaries.map((item) => (
+                            <RelationCardLink key={item.id} item={item} basePath={basePath} />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                  </>
+                )}
+              </>
             )}
 
             {/* Links — full-width buttons, hover lift; empty = compact muted */}

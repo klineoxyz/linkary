@@ -76,6 +76,15 @@ export type PublicProfileApiPayload = {
     marketCap?: number;
     updatedAt?: string;
   } | null;
+  /** Unified relations (only is_public). For individual: ambassadorOf, affiliateOf. For project/company: ambassadors, affiliates, ecosystemProjects, subsidiaries. */
+  relations?: {
+    ambassadorOf?: Array<{ id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string }>;
+    affiliateOf?: Array<{ id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string }>;
+    ambassadors?: Array<{ id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string }>;
+    affiliates?: Array<{ id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string }>;
+    ecosystemProjects?: Array<{ id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string }>;
+    subsidiaries?: Array<{ id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string }>;
+  };
 };
 
 function tagsFromMetrics(metrics: unknown): string[] {

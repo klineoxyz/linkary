@@ -40,6 +40,20 @@ type ProfileLinkRow = {
   updated_at: string;
 };
 
+type RelationType = "ambassador" | "affiliate" | "ecosystem" | "subsidiary";
+
+type ProfileRelationRow = {
+  id: string;
+  source_profile_id: string;
+  target_profile_id: string;
+  relation_type: RelationType;
+  is_public: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  target_profile?: { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string } | null;
+};
+
 type PartnerRow = {
   id: string;
   owner_type: string;
@@ -275,6 +289,229 @@ function LinkModal({
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-border text-foreground bg-background">Cancel</button>
           <button type="button" disabled={!canSubmit || saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
+            {saving ? "Saving…" : edit ? "Update" : "Add"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RelationsEditor({
+  relations,
+  relationsLoading,
+  profileType,
+  onReload,
+  getAuthHeaders,
+  onOpenAddModal,
+  onOpenEditModal,
+  setError,
+}: {
+  relations: ProfileRelationRow[];
+  relationsLoading: boolean;
+  profileType: ProfileType;
+  onReload: () => void;
+  getAuthHeaders: () => Promise<Record<string, string>>;
+  onOpenAddModal: (relationType: RelationType) => void;
+  onOpenEditModal: (r: ProfileRelationRow) => void;
+  setError: (s: string | null) => void;
+}) {
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+
+  const byType = (type: RelationType) => relations.filter((r) => r.relation_type === type).sort((a, b) => a.sort_order - b.sort_order);
+
+  const move = async (rel: ProfileRelationRow, direction: "up" | "down") => {
+    const list = byType(rel.relation_type);
+    const idx = list.findIndex((r) => r.id === rel.id);
+    if (idx < 0) return;
+    const next = direction === "up" ? list[idx - 1] : list[idx + 1];
+    if (!next) return;
+    const headers = await getAuthHeaders();
+    const orderedIds = list.map((r) => r.id);
+    const fromIdx = orderedIds.indexOf(rel.id);
+    const toIdx = orderedIds.indexOf(next.id);
+    if (fromIdx < 0 || toIdx < 0) return;
+    [orderedIds[fromIdx], orderedIds[toIdx]] = [orderedIds[toIdx], orderedIds[fromIdx]];
+    const res = await fetch(`${base}/api/profile/relations/reorder`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify({ relationType: rel.relation_type, orderedIds }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) setError(json.message ?? "Reorder failed");
+    else onReload();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Remove this relation?")) return;
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${base}/api/profile/relations/${id}`, { method: "DELETE", headers });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) setError(json.message ?? "Delete failed");
+    else onReload();
+  };
+
+  const renderList = (type: RelationType, title: string) => {
+    const list = byType(type);
+    return (
+      <div key={type} className="mb-4">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <label className="text-sm font-medium text-zinc-700">{title}</label>
+          <button type="button" onClick={() => onOpenAddModal(type)} className="text-sm text-primary font-medium hover:underline">+ Add</button>
+        </div>
+        <ul className="space-y-2">
+          {list.map((r, idx) => (
+            <li key={r.id} className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white p-2">
+              {r.target_profile?.avatar_url ? (
+                <img src={r.target_profile.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-zinc-200 shrink-0" />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-zinc-900 truncate">{r.target_profile?.display_name || r.target_profile?.username || r.target_profile_id}</div>
+                {r.target_profile && <div className="text-xs text-zinc-500">@{r.target_profile.username}</div>}
+              </div>
+              {!r.is_public && <span className="shrink-0 text-xs text-zinc-500">Hidden</span>}
+              <div className="flex items-center gap-1 shrink-0">
+                <button type="button" onClick={() => move(r, "up")} disabled={idx === 0} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↑</button>
+                <button type="button" onClick={() => move(r, "down")} disabled={idx === list.length - 1} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↓</button>
+                <button type="button" onClick={() => onOpenEditModal(r)} className="text-xs text-primary hover:underline">Edit</button>
+                <button type="button" onClick={() => remove(r.id)} className="text-xs text-red-600 hover:underline">Delete</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {list.length === 0 && <p className="text-sm text-zinc-500">None yet</p>}
+      </div>
+    );
+  };
+
+  if (profileType === "individual") {
+    return (
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+        <label className="block text-sm font-medium text-zinc-700">Relations</label>
+        <p className="text-xs text-zinc-500 mb-3">Ambassador of / Affiliate of (projects or companies).</p>
+        {relationsLoading ? <p className="text-sm text-zinc-500">Loading…</p> : (
+          <>
+            {renderList("ambassador", "Ambassador of")}
+            {renderList("affiliate", "Affiliate of")}
+          </>
+        )}
+      </div>
+    );
+  }
+  if (profileType === "project") {
+    return (
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+        <label className="block text-sm font-medium text-zinc-700">Relations</label>
+        <p className="text-xs text-zinc-500 mb-3">Ambassadors, affiliates, ecosystem projects, subsidiaries.</p>
+        {relationsLoading ? <p className="text-sm text-zinc-500">Loading…</p> : (
+          <>
+            {renderList("ambassador", "Ambassadors")}
+            {renderList("affiliate", "Affiliates")}
+            {renderList("ecosystem", "Ecosystem projects")}
+            {renderList("subsidiary", "Subsidiaries")}
+          </>
+        )}
+      </div>
+    );
+  }
+  if (profileType === "company") {
+    return (
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+        <label className="block text-sm font-medium text-zinc-700">Relations</label>
+        <p className="text-xs text-zinc-500 mb-3">Ambassadors, affiliates, subsidiaries.</p>
+        {relationsLoading ? <p className="text-sm text-zinc-500">Loading…</p> : (
+          <>
+            {renderList("ambassador", "Ambassadors")}
+            {renderList("affiliate", "Affiliates")}
+            {renderList("subsidiary", "Subsidiaries")}
+          </>
+        )}
+      </div>
+    );
+  }
+  return null;
+}
+
+function RelationModal({
+  relationType,
+  edit,
+  selectedTarget,
+  form,
+  setForm,
+  searchQuery,
+  searchResults,
+  searchLoading,
+  onSearch,
+  onSelectTarget,
+  onClose,
+  onSubmit,
+  saving,
+}: {
+  relationType: RelationType;
+  edit?: ProfileRelationRow | null;
+  selectedTarget: { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string } | null;
+  form: { is_public: boolean };
+  setForm: React.Dispatch<React.SetStateAction<{ is_public: boolean }>>;
+  searchQuery: string;
+  searchResults: Array<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null; profile_type: string }>;
+  searchLoading: boolean;
+  onSearch: (q: string) => void;
+  onSelectTarget: (p: { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string } | null) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+  saving: boolean;
+}) {
+  const typeLabel = relationType === "ambassador" ? "Ambassador" : relationType === "affiliate" ? "Affiliate" : relationType === "ecosystem" ? "Ecosystem" : "Subsidiary";
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-4 space-y-3 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-semibold text-zinc-900">{edit ? "Edit" : "Add"} {typeLabel}</h3>
+        {!edit && (
+          <>
+            <input
+              type="text"
+              placeholder="Search profiles (username, name…)"
+              value={searchQuery}
+              onChange={(e) => onSearch(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900"
+            />
+            {searchLoading && <p className="text-xs text-zinc-500">Searching…</p>}
+            {searchResults.length > 0 && (
+              <ul className="max-h-40 overflow-y-auto space-y-1 border border-zinc-200 rounded-lg p-2">
+                {searchResults.filter((p) => p.username).map((p) => (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      onClick={() => onSelectTarget({ id: p.id, username: p.username!, display_name: p.display_name ?? null, avatar_url: p.avatar_url ?? null, profile_type: typeof p.profile_type === "string" ? p.profile_type : "individual" })}
+                      className="w-full flex items-center gap-2 rounded p-2 text-left hover:bg-zinc-100"
+                    >
+                      {p.avatar_url ? <img src={p.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : <div className="h-8 w-8 rounded-full bg-zinc-200" />}
+                      <span className="font-medium truncate">{p.display_name || p.username || p.id}</span>
+                      <span className="text-xs text-zinc-500">@{p.username || ""}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {selectedTarget && (
+              <p className="text-sm text-zinc-600">Selected: {selectedTarget.display_name || selectedTarget.username}</p>
+            )}
+          </>
+        )}
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={form.is_public} onChange={(e) => setForm((f) => ({ ...f, is_public: e.target.checked }))} />
+          <span className="text-sm text-zinc-700">Show on public profile</span>
+        </label>
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
+          <button
+            type="button"
+            disabled={saving || (!edit && !selectedTarget)}
+            onClick={onSubmit}
+            className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50"
+          >
             {saving ? "Saving…" : edit ? "Update" : "Add"}
           </button>
         </div>
@@ -616,6 +853,15 @@ export default function ProfileEditPage({
   const [linkModal, setLinkModal] = useState<{ open: true; edit?: ProfileLinkRow } | { open: false }>({ open: false });
   const [linkForm, setLinkForm] = useState({ title: "", url: "", icon: "", is_public: true });
   const [linkSaving, setLinkSaving] = useState(false);
+  const [relations, setRelations] = useState<ProfileRelationRow[]>([]);
+  const [relationsLoading, setRelationsLoading] = useState(false);
+  const [relationModal, setRelationModal] = useState<{ open: true; relationType: RelationType; edit?: ProfileRelationRow } | { open: false }>({ open: false });
+  const [relationForm, setRelationForm] = useState({ is_public: true });
+  const [relationSaving, setRelationSaving] = useState(false);
+  const [relationSearchQuery, setRelationSearchQuery] = useState("");
+  const [relationSearchResults, setRelationSearchResults] = useState<Array<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null; profile_type: string }>>([]);
+  const [relationSearchLoading, setRelationSearchLoading] = useState(false);
+  const [selectedRelationTarget, setSelectedRelationTarget] = useState<{ id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string } | null>(null);
   const [heroMode, setHeroMode] = useState<"none" | "image" | "video">("none");
 
   const getAuthHeaders = useCallback(async () => {
@@ -681,6 +927,23 @@ export default function ProfileEditPage({
     }
   }, [me?.id, getAuthHeaders]);
 
+  const loadRelations = useCallback(async () => {
+    if (!me?.id) return;
+    setRelationsLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/profile/relations`, { headers });
+      const json = await res.json().catch(() => ({}));
+      if (json.ok && Array.isArray(json.relations)) setRelations(json.relations as ProfileRelationRow[]);
+      else setRelations([]);
+    } catch {
+      setRelations([]);
+    } finally {
+      setRelationsLoading(false);
+    }
+  }, [me?.id, getAuthHeaders]);
+
   const load = useCallback(async () => {
     if (!me?.id) return;
     setLoading(true);
@@ -693,6 +956,7 @@ export default function ProfileEditPage({
     loadPartners();
     loadCaseStudies();
     loadLinks();
+    loadRelations();
     if (profileExt?.data) {
       const p = profileExt.data as { profile_type?: string; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null; token_dexscreener_url?: string | null };
       if (p.profile_type === "project" || p.profile_type === "company") setProfileType(p.profile_type as ProfileType);
@@ -739,7 +1003,7 @@ export default function ProfileEditPage({
     if ((profileExt?.data as { profile_type?: string } | null)?.profile_type === "company") {
       loadTeam();
     }
-  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam, loadLinks]);
+  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam, loadLinks, loadRelations]);
 
   useEffect(() => {
     load();
@@ -794,6 +1058,29 @@ export default function ProfileEditPage({
       setLinkForm({ title: "", url: "", icon: "", is_public: true });
     }
   }, [linkModal]);
+
+  useEffect(() => {
+    if (!relationModal.open || !relationSearchQuery.trim() || relationSearchQuery.length < 2) {
+      setRelationSearchResults([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setRelationSearchLoading(true);
+      try {
+        const headers = await getAuthHeaders();
+        const base = typeof window !== "undefined" ? window.location.origin : "";
+        const res = await fetch(`${base}/api/search/profiles?q=${encodeURIComponent(relationSearchQuery)}`, { headers });
+        const json = await res.json().catch(() => ({}));
+        if (json.ok && Array.isArray(json.profiles)) setRelationSearchResults(json.profiles);
+        else setRelationSearchResults([]);
+      } catch {
+        setRelationSearchResults([]);
+      } finally {
+        setRelationSearchLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [relationModal.open, relationSearchQuery, getAuthHeaders]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1397,6 +1684,27 @@ export default function ProfileEditPage({
           onOpenEditModal={(link) => setLinkModal({ open: true, edit: link })}
         />
 
+        <RelationsEditor
+          relations={relations}
+          relationsLoading={relationsLoading}
+          profileType={profileType}
+          onReload={loadRelations}
+          getAuthHeaders={getAuthHeaders}
+          onOpenAddModal={(relationType) => {
+            setRelationModal({ open: true, relationType });
+            setRelationForm({ is_public: true });
+            setRelationSearchQuery("");
+            setRelationSearchResults([]);
+            setSelectedRelationTarget(null);
+          }}
+          onOpenEditModal={(r) => {
+            setRelationModal({ open: true, relationType: r.relation_type, edit: r });
+            setRelationForm({ is_public: r.is_public });
+            setSelectedRelationTarget(r.target_profile ?? null);
+          }}
+          setError={setError}
+        />
+
         <PartnerProgramsEditor
           me={me}
           partners={partners}
@@ -1628,6 +1936,57 @@ export default function ProfileEditPage({
               setLinkSaving(false);
             }
           }}
+        />
+      )}
+
+      {relationModal.open && (
+        <RelationModal
+          relationType={relationModal.relationType}
+          edit={relationModal.open && "edit" in relationModal ? relationModal.edit : undefined}
+          selectedTarget={selectedRelationTarget}
+          form={relationForm}
+          setForm={setRelationForm}
+          searchQuery={relationSearchQuery}
+          searchResults={relationSearchResults}
+          searchLoading={relationSearchLoading}
+          onSearch={setRelationSearchQuery}
+          onSelectTarget={(p) => setSelectedRelationTarget(p)}
+          onClose={() => setRelationModal({ open: false })}
+          onSubmit={async () => {
+            const base = typeof window !== "undefined" ? window.location.origin : "";
+            const headers = await getAuthHeaders();
+            setRelationSaving(true);
+            try {
+              const edit = relationModal.open && "edit" in relationModal ? relationModal.edit : undefined;
+              if (edit) {
+                const res = await fetch(`${base}/api/profile/relations/${edit.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json", ...headers },
+                  body: JSON.stringify({ is_public: relationForm.is_public }),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) setError(json.message ?? "Update failed");
+                else { loadRelations(); setRelationModal({ open: false }); }
+              } else {
+                if (!selectedRelationTarget) return;
+                const res = await fetch(`${base}/api/profile/relations`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", ...headers },
+                  body: JSON.stringify({
+                    target_profile_id: selectedRelationTarget.id,
+                    relation_type: relationModal.relationType,
+                    is_public: relationForm.is_public,
+                  }),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) setError(json.message ?? json.code ?? "Create failed");
+                else { loadRelations(); setRelationModal({ open: false }); setSelectedRelationTarget(null); }
+              }
+            } finally {
+              setRelationSaving(false);
+            }
+          }}
+          saving={relationSaving}
         />
       )}
 

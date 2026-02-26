@@ -1,6 +1,6 @@
 /**
  * GET /api/public/resolve?slug=...
- * Owner-aware resolver for /{slug}. Reads session from cookies; returns public | owner_unpublished | claim.
+ * Owner-aware resolver for /{slug}. Reads session from cookies; returns public | owner | claim.
  * Cache-Control: no-store (per-user).
  *
  * Session reading: createServerSupabase() uses cookies() from next/headers, which in a Route Handler
@@ -17,9 +17,9 @@ function normalize(s: string): string {
 }
 
 export type ResolveResult =
-  | { kind: "public"; username: string }
-  | { kind: "owner_unpublished"; username: string }
-  | { kind: "claim" };
+  | { kind: "public"; slug: string }
+  | { kind: "owner"; slug: string; profile_id: string }
+  | { kind: "claim"; slug: string };
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
   const slugRaw = request.nextUrl.searchParams.get("slug");
   const slug = slugRaw ? normalize(slugRaw) : "";
   if (!slug) {
-    return NextResponse.json({ kind: "claim" as const }, {
+    return NextResponse.json({ kind: "claim" as const, slug: "" }, {
       status: 200,
       headers: { "Cache-Control": "no-store" },
     });
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
   if (publicProfile && (publicProfile as { username?: string }).username) {
     return NextResponse.json(
-      { kind: "public" as const, username: slug },
+      { kind: "public" as const, slug },
       { status: 200, headers: { "Cache-Control": "no-store" } }
     );
   }
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
   if (!user?.id) {
     return NextResponse.json(
-      { kind: "claim" as const, ...(debug && { debug }) },
+      { kind: "claim" as const, slug, ...(debug && { debug }) },
       { status: 200, headers: { "Cache-Control": "no-store" } }
     );
   }
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 
   if (profileError || !profile) {
     return NextResponse.json(
-      { kind: "claim" as const, ...(debug && { debug }) },
+      { kind: "claim" as const, slug, ...(debug && { debug }) },
       { status: 200, headers: { "Cache-Control": "no-store" } }
     );
   }
@@ -88,10 +88,12 @@ export async function GET(request: NextRequest) {
   if (isDev && debug) debug.matched = matched;
 
   if (matched) {
+    const profileId = (profile as { id: string }).id;
     return NextResponse.json(
       {
-        kind: "owner_unpublished" as const,
-        username: slug,
+        kind: "owner" as const,
+        slug,
+        profile_id: profileId,
         ...(debug && { debug }),
       },
       { status: 200, headers: { "Cache-Control": "no-store" } }
@@ -99,7 +101,7 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json(
-    { kind: "claim" as const, ...(debug && { debug }) },
+    { kind: "claim" as const, slug, ...(debug && { debug }) },
     { status: 200, headers: { "Cache-Control": "no-store" } }
   );
 }

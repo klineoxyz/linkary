@@ -139,10 +139,12 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       { headers: cookieHeader ? { Cookie: cookieHeader } : undefined, cache: "no-store" }
     );
     const resolveJson = (await resolveRes.json().catch(() => ({}))) as {
-      kind?: "public" | "owner_unpublished" | "claim";
-      username?: string;
+      kind?: "public" | "owner" | "claim";
+      slug?: string;
+      profile_id?: string;
     };
     const resolveKind = resolveJson.kind ?? "claim";
+    const resolvedSlug = resolveJson.slug ?? segmentLower;
 
     if (resolveKind === "public") {
       const profileRes = await fetch(
@@ -160,8 +162,21 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       }
     }
 
-    if (resolveKind === "owner_unpublished" && resolveJson.username) {
-      return <OwnerUnpublishedProfile username={resolveJson.username} />;
+    if (resolveKind === "owner" && resolvedSlug) {
+      const previewRes = await fetch(
+        `${base}/api/me/public-preview?slug=${encodeURIComponent(resolvedSlug)}`,
+        { headers: cookieHeader ? { Cookie: cookieHeader } : undefined, cache: "no-store" }
+      );
+      if (previewRes.ok) {
+        const data = await previewRes.json();
+        return (
+          <PublicProfileContent
+            data={data}
+            username={data.profile?.username ?? resolvedSlug}
+          />
+        );
+      }
+      return <OwnerUnpublishedProfile username={resolvedSlug} />;
     }
 
     return <NotFoundClaimView requestedUsername={segmentLower} />;

@@ -49,16 +49,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const url = `${baseUrl()}/${encodeURIComponent(segment)}`;
   if (kind === "slug" && serviceSupabase) {
     const [u, t] = await Promise.all([
-      serviceSupabase.from("public_profile_view").select("username, display_name, bio").ilike("username", segmentLower).maybeSingle(),
-      serviceSupabase.from("public_profile_view").select("username, display_name, bio").ilike("twitter_username", segmentLower).maybeSingle(),
+      serviceSupabase.from("profiles").select("username, display_name, bio, published").ilike("username", segmentLower).maybeSingle(),
+      serviceSupabase.from("profiles").select("username, display_name, bio, published").ilike("twitter_username", segmentLower).maybeSingle(),
     ]);
-    const row = u.data ?? t.data;
+    const row = (u.data ?? t.data) as { display_name?: string | null; username?: string | null; bio?: string | null; published?: boolean } | null;
     if (row) {
-      const r = row as { display_name?: string | null; username?: string | null; bio?: string | null };
-      title = `${r.display_name || r.username || segment} on Linkary`;
-      if (r.bio && typeof r.bio === "string") {
-        description = r.bio.length > 160 ? r.bio.slice(0, 157) + "…" : r.bio;
+      title = `${row.display_name || row.username || segment} on Linkary`;
+      if (row.bio && typeof row.bio === "string") {
+        description = row.bio.length > 160 ? row.bio.slice(0, 157) + "…" : row.bio;
       }
+      published = row.published === true;
     } else {
       published = false;
     }
@@ -146,10 +146,10 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
     }
 
     try {
-      const viewCols = "id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, xscore";
+      const viewCols = "id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, xscore, published";
       const [byUsername, byTwitter] = await Promise.all([
-        serviceSupabase.from("public_profile_view").select(viewCols).ilike("username", segmentLower).maybeSingle(),
-        serviceSupabase.from("public_profile_view").select(viewCols).ilike("twitter_username", segmentLower).maybeSingle(),
+        serviceSupabase.from("profiles").select(viewCols).ilike("username", segmentLower).maybeSingle(),
+        serviceSupabase.from("profiles").select(viewCols).ilike("twitter_username", segmentLower).maybeSingle(),
       ]);
       const profileRow = (byUsername.data ?? byTwitter.data) as {
         id: string;
@@ -163,6 +163,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         followers_total?: number;
         avg_engagement_rate?: number;
         xscore?: number | null;
+        published?: boolean;
       } | null;
       const matchedBy = byUsername.data ? "username" : byTwitter.data ? "twitter_username" : null;
 
@@ -171,6 +172,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       }
 
       const profileId = profileRow.id;
+      const isUnpublished = profileRow.published !== true;
 
       const [profileExtRow, socialsRow, reviewRows, caseRows, linksRows, relationsRows, skillsRows, achievementsRows] = await Promise.all([
         serviceSupabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title, show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle(),
@@ -411,6 +413,11 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       const profileUrl = `${baseUrl().replace(/\/$/, "")}/${encodeURIComponent(displayUsername)}`;
       return (
         <div className="min-h-screen bg-background text-foreground font-sans">
+          {isUnpublished && (
+            <div className="bg-muted/80 border-b border-border px-4 py-2.5 text-center text-sm text-muted-foreground">
+              This profile is not published yet.
+            </div>
+          )}
           <PublicProfileContent data={payload} username={displayUsername} profileUrl={profileUrl} />
           {isDebug && (
             <pre className="mx-auto max-w-xl px-4 py-6 text-xs text-muted-foreground overflow-auto rounded bg-muted p-4 mt-4">

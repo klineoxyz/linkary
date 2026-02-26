@@ -2039,7 +2039,7 @@ export default function ProfileEditPage({
         </div>
         <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <label className="text-sm font-medium text-zinc-700">Publish public page</label>
+            <label className="text-sm font-medium text-zinc-700">Public Page</label>
             <button
               type="button"
               role="switch"
@@ -2066,8 +2066,30 @@ export default function ProfileEditPage({
             </button>
           </div>
           <p className="text-xs text-zinc-500">
-            {published ? "Your public page is live." : "When on, your page is visible at the URL below."}
+            {published
+              ? (me?.username || me?.twitter_username
+                  ? "Your page is visible at https://linkary.xyz/" + (me.username || me.twitter_username || "").replace(/^@/, "").toLowerCase()
+                  : "Set a username or connect X to get your public URL.")
+              : "Only you can preview it in the app."}
           </p>
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={async () => {
+                if (!me?.id) return;
+                setError(null);
+                setSaving(true);
+                const { error: err } = await updateMyProfile(me.id, { published: !published });
+                setSaving(false);
+                if (err) setError(err);
+                else setPublished(!published);
+              }}
+              className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${published ? "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50" : "border-primary bg-primary text-white hover:bg-primary/90"}`}
+            >
+              {published ? "Unpublish" : "Publish my page"}
+            </button>
+          </div>
           <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-200 mt-2">
             <label className="text-sm font-medium text-zinc-700">Show reviews on public profile</label>
             <button

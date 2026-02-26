@@ -18,32 +18,10 @@ function baseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://linkary.xyz");
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { username } = await params;
-  const slug = username ? normalize(username) : "";
-  if (!slug) return { title: "Linkary" };
-
-  const supabase = await createServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user?.id) {
-    return { title: "Linkary" };
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("username, twitter_username")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const row = (profile ?? {}) as { username?: string | null; twitter_username?: string | null };
-  const usernameNorm = (row.username ?? "").trim().toLowerCase().replace(/^@/, "");
-  const twitterNorm = (row.twitter_username ?? "").trim().toLowerCase().replace(/^@/, "");
-  const isOwner = usernameNorm === slug || twitterNorm === slug;
-
-  const title = "Profile | Linkary";
+export async function generateMetadata(): Promise<Metadata> {
   return {
-    title,
-    robots: isOwner ? { index: false, follow: false } : undefined,
+    title: "Profile | Linkary",
+    robots: { index: false, follow: false },
   };
 }
 

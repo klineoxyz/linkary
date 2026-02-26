@@ -1,6 +1,7 @@
 import type { PublicProfileApiPayload } from "@/app/api/public/profile/route";
 import { BadgeCheck, ExternalLink, Globe, Link2 } from "lucide-react";
 import Link from "next/link";
+import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
 
 const socialIconSize = 20;
 
@@ -61,15 +62,43 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+function isYouTubeUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.hostname === "www.youtube.com" || u.hostname === "youtube.com" || u.hostname === "youtu.be";
+  } catch {
+    return false;
+  }
+}
+
+function youtubeEmbedUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "youtu.be") {
+      const id = u.pathname.slice(1).split("/")[0];
+      return `https://www.youtube.com/embed/${id}`;
+    }
+    const v = u.searchParams.get("v");
+    if (v) return `https://www.youtube.com/embed/${v}`;
+  } catch {
+    /* ignore */
+  }
+  return url;
+}
+
 type Props = {
   data: PublicProfileApiPayload;
   username: string;
+  profileUrl?: string;
 };
 
-export function PublicProfileContent({ data, username }: Props) {
-  const { profile, socials, links, caseStudies, reviews } = data;
+export function PublicProfileContent({ data, username, profileUrl: profileUrlProp }: Props) {
+  const { profile, hero, team = [], socials, links, caseStudies, reviews } = data;
+  const profileType = profile.profile_type ?? "individual";
   const displayName = profile.display_name ?? profile.username ?? username;
   const handle = profile.username ?? username;
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://linkary.xyz";
+  const profileUrl = profileUrlProp ?? `${base.replace(/\/$/, "")}/${encodeURIComponent(handle)}`;
 
   const socialLinks: { name: string; url: string }[] = [
     { name: "X", url: socials.x },
@@ -79,11 +108,67 @@ export function PublicProfileContent({ data, username }: Props) {
     { name: "Website", url: socials.website },
   ].filter((l): l is { name: string; url: string } => !!l.url && l.url.trim() !== "");
 
+  const hasHeroImage = !!(hero?.hero_image_url?.trim());
+  const hasHeroVideo = !!(hero?.hero_video_url?.trim()) && !hasHeroImage;
+  const heroTitle = hero?.hero_title?.trim() || null;
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
-      <main className="mx-auto max-w-xl px-4 py-8 sm:py-10">
-        {/* A. Header */}
-        <header className="mb-8 text-center">
+      <main className="mx-auto max-w-xl px-4 py-6 sm:py-8">
+        {/* A. Hero block */}
+        {(hasHeroImage || hasHeroVideo) && (
+          <section className="mb-6 sm:mb-8">
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+              {hasHeroImage && (
+                <div className="relative aspect-[21/9] w-full sm:aspect-[3/1]">
+                  <img
+                    src={hero!.hero_image_url!}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                  {heroTitle && (
+                    <p className="absolute bottom-0 left-0 right-0 bg-background/80 px-4 py-2 text-sm font-medium text-foreground backdrop-blur-sm">
+                      {heroTitle}
+                    </p>
+                  )}
+                </div>
+              )}
+              {hasHeroVideo && (
+                <div className="relative">
+                  {hero!.hero_video_url!.startsWith("https://") && isYouTubeUrl(hero!.hero_video_url!) ? (
+                    <div className="relative aspect-video w-full">
+                      <iframe
+                        src={youtubeEmbedUrl(hero!.hero_video_url!)}
+                        title="Hero video"
+                        className="absolute inset-0 h-full w-full rounded-xl"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl bg-muted/50 p-4">
+                      <a
+                        href={hero!.hero_video_url!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
+                      >
+                        Watch video
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </div>
+                  )}
+                  {heroTitle && (
+                    <p className="px-4 py-2 text-sm font-medium text-foreground">{heroTitle}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* B. Profile header */}
+        <header className="mb-6 text-center sm:mb-8">
           <div className="flex justify-center">
             {profile.avatar_url ? (
               <img
@@ -96,11 +181,17 @@ export function PublicProfileContent({ data, username }: Props) {
             )}
           </div>
           <div className="mt-4 flex flex-col items-center gap-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <h1 className="text-xl font-semibold text-foreground">{displayName}</h1>
               {profile.is_verified && (
                 <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified" />
               )}
+              <span
+                className="rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-foreground"
+                aria-label="Profile type"
+              >
+                {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
+              </span>
             </div>
             <p className="text-sm text-muted-foreground">@{handle}</p>
             {profile.location && (
@@ -110,18 +201,68 @@ export function PublicProfileContent({ data, username }: Props) {
               <p className="mt-2 max-w-md text-sm text-foreground">{profile.bio}</p>
             )}
           </div>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+            <CopyProfileLinkButton url={profileUrl} />
+          </div>
         </header>
 
-        {/* B. Social links row */}
+        {/* C. Social links row */}
         {socialLinks.length > 0 && (
-          <div className="mb-8 flex flex-wrap items-center justify-center gap-2">
+          <div className="mb-6 flex flex-wrap items-center justify-center gap-2 sm:mb-8">
             {socialLinks.map((l) => (
               <SocialLink key={l.name} name={l.name} url={l.url} />
             ))}
           </div>
         )}
 
-        {/* C. Links (Linktree-style) */}
+        {/* D. Team (company only) */}
+        {profileType === "company" && team.length > 0 && (
+          <section className="mb-8">
+            <SectionTitle>Team</SectionTitle>
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {team.map((member, i) => (
+                <li key={i} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-start gap-3">
+                    {member.avatar_url ? (
+                      <img
+                        src={member.avatar_url}
+                        alt=""
+                        className="h-12 w-12 shrink-0 rounded-full object-cover border border-border"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 shrink-0 rounded-full bg-muted border border-border" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-foreground">{member.name}</p>
+                      {member.role && (
+                        <p className="text-sm text-muted-foreground">{member.role}</p>
+                      )}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {member.linkedin_url && (
+                          <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-muted-foreground hover:text-primary">
+                            <IconLinkedIn />
+                          </a>
+                        )}
+                        {member.x_url && (
+                          <a href={member.x_url} target="_blank" rel="noopener noreferrer" aria-label="X" className="text-muted-foreground hover:text-primary">
+                            <IconX />
+                          </a>
+                        )}
+                        {member.website_url && (
+                          <a href={member.website_url} target="_blank" rel="noopener noreferrer" aria-label="Website" className="text-muted-foreground hover:text-primary">
+                            <Globe className="h-5 w-5" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* E. Links (Linktree-style) */}
         <section className="mb-8">
           <SectionTitle>Links</SectionTitle>
           {links.length === 0 ? (
@@ -153,7 +294,7 @@ export function PublicProfileContent({ data, username }: Props) {
           )}
         </section>
 
-        {/* D. Case studies */}
+        {/* F. Case studies */}
         <section className="mb-8">
           <SectionTitle>Case studies</SectionTitle>
           {caseStudies.length === 0 ? (
@@ -201,7 +342,7 @@ export function PublicProfileContent({ data, username }: Props) {
           )}
         </section>
 
-        {/* E. Reviews */}
+        {/* G. Reviews */}
         <section className="mb-8">
           <SectionTitle>Reviews</SectionTitle>
           {reviews.count === 0 ? (
@@ -239,7 +380,7 @@ export function PublicProfileContent({ data, username }: Props) {
           )}
         </section>
 
-        {/* F. Proof pills */}
+        {/* H. Proof stats */}
         <section className="rounded-xl border border-border bg-card p-4">
           <SectionTitle>Proof</SectionTitle>
           <div className="flex flex-wrap gap-4">

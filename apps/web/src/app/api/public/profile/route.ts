@@ -29,7 +29,22 @@ export type PublicProfileApiPayload = {
     ethos_score: number | null;
     xscore: number | null;
     reputation_index: number | null;
+    profile_type?: "individual" | "project" | "company";
   };
+  hero?: {
+    hero_image_url: string | null;
+    hero_video_url: string | null;
+    hero_title: string | null;
+  } | null;
+  team?: Array<{
+    name: string;
+    role: string | null;
+    avatar_url: string | null;
+    linkedin_url?: string | null;
+    x_url?: string | null;
+    website_url?: string | null;
+    is_public: boolean;
+  }>;
   socials: {
     x: string | null;
     telegram: string | null;

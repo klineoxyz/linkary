@@ -146,9 +146,10 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
     }
 
     try {
+      const viewCols = "id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, xscore";
       const [byUsername, byTwitter] = await Promise.all([
-        serviceSupabase.from("public_profile_view").select("id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, xscore").ilike("username", segmentLower).maybeSingle(),
-        serviceSupabase.from("public_profile_view").select("id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, xscore").ilike("twitter_username", segmentLower).maybeSingle(),
+        serviceSupabase.from("public_profile_view").select(viewCols).ilike("username", segmentLower).maybeSingle(),
+        serviceSupabase.from("public_profile_view").select(viewCols).ilike("twitter_username", segmentLower).maybeSingle(),
       ]);
       const profileRow = (byUsername.data ?? byTwitter.data) as {
         id: string;
@@ -171,11 +172,33 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
       const profileId = profileRow.id;
 
-      const [socialsRow, reviewRows, caseRows] = await Promise.all([
+      const [profileExtRow, socialsRow, reviewRows, caseRows] = await Promise.all([
+        serviceSupabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title").eq("id", profileId).maybeSingle(),
         serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url").eq("profile_id", profileId).maybeSingle(),
         serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10),
         serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).order("created_at", { ascending: false }).limit(20),
       ]);
+
+      const profileExt = profileExtRow.data as { profile_type?: string | null; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null } | null;
+      const profileType = (profileExt?.profile_type === "project" || profileExt?.profile_type === "company" ? profileExt.profile_type : "individual") as "individual" | "project" | "company";
+      const heroImageUrl = profileExt?.hero_image_url ?? null;
+      const heroVideoUrl = profileExt?.hero_video_url ?? null;
+      const heroTitle = profileExt?.hero_title ?? null;
+
+      let teamList: Array<{ name: string; role: string | null; avatar_url: string | null; linkedin_url?: string | null; x_url?: string | null; website_url?: string | null; is_public: boolean }> = [];
+      if (profileType === "company") {
+        try {
+          const teamRes = await serviceSupabase
+            .from("org_team_members")
+            .select("name, role, avatar_url, linkedin_url, x_url, website_url, is_public")
+            .eq("org_profile_id", profileId)
+            .eq("is_public", true)
+            .order("sort_order", { ascending: true });
+          teamList = (teamRes.data ?? []) as typeof teamList;
+        } catch {
+          teamList = [];
+        }
+      }
 
       const socials = socialsRow.data as { x_url?: string | null; linkedin_url?: string | null; website_url?: string | null; telegram_url?: string | null } | null;
       const reviewsList = (reviewRows.data ?? []) as Array<{
@@ -241,7 +264,25 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           ethos_score: null,
           xscore: profileRow.xscore ?? null,
           reputation_index: reputationIndex,
+          profile_type: profileType,
         },
+        hero:
+          heroImageUrl || heroVideoUrl || heroTitle
+            ? {
+                hero_image_url: heroImageUrl,
+                hero_video_url: heroVideoUrl,
+                hero_title: heroTitle,
+              }
+            : null,
+        team: teamList.map((t) => ({
+          name: t.name,
+          role: t.role ?? null,
+          avatar_url: t.avatar_url ?? null,
+          linkedin_url: t.linkedin_url ?? null,
+          x_url: t.x_url ?? null,
+          website_url: t.website_url ?? null,
+          is_public: t.is_public,
+        })),
         socials: {
           x: socials?.x_url ?? null,
           telegram: socials?.telegram_url ?? null,
@@ -260,9 +301,10 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
       const displayUsername = payload.profile.username ?? segmentLower;
 
+      const profileUrl = `${baseUrl().replace(/\/$/, "")}/${encodeURIComponent(displayUsername)}`;
       return (
         <div className="min-h-screen bg-background text-foreground font-sans">
-          <PublicProfileContent data={payload} username={displayUsername} />
+          <PublicProfileContent data={payload} username={displayUsername} profileUrl={profileUrl} />
           {isDebug && (
             <pre className="mx-auto max-w-xl px-4 py-6 text-xs text-muted-foreground overflow-auto rounded bg-muted p-4 mt-4">
               {JSON.stringify(

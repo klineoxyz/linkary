@@ -172,11 +172,12 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
       const profileId = profileRow.id;
 
-      const [profileExtRow, socialsRow, reviewRows, caseRows] = await Promise.all([
+      const [profileExtRow, socialsRow, reviewRows, caseRows, linksRows] = await Promise.all([
         serviceSupabase.from("profiles").select("profile_type, hero_image_url, hero_video_url, hero_title").eq("id", profileId).maybeSingle(),
         serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url").eq("profile_id", profileId).maybeSingle(),
         serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10),
         serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).order("created_at", { ascending: false }).limit(20),
+        serviceSupabase.from("profile_links").select("title, url, icon").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
       ]);
 
       const profileExt = profileExtRow.data as { profile_type?: string | null; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null } | null;
@@ -296,7 +297,11 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           linkedin: socials?.linkedin_url ?? null,
           website: socials?.website_url ?? profileRow.website ?? null,
         },
-        links: [],
+        links: ((linksRows.data ?? []) as Array<{ title: string; url: string; icon?: string | null }>).map((l) => ({
+          title: l.title,
+          url: l.url,
+          icon: l.icon ?? undefined,
+        })),
         caseStudies,
         reviews: {
           average: reviewsAverage,

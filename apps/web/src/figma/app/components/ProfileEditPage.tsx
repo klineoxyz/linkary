@@ -29,6 +29,17 @@ type TeamMemberRow = {
   sort_order: number;
 };
 
+type ProfileLinkRow = {
+  id: string;
+  title: string;
+  url: string;
+  icon: string | null;
+  is_public: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
 type PartnerRow = {
   id: string;
   owner_type: string;
@@ -144,6 +155,130 @@ function PartnerProgramsEditor({
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+function LinksEditor({
+  links,
+  linksLoading,
+  onReload,
+  getAuthHeaders,
+  onOpenModal,
+  onOpenEditModal,
+}: {
+  links: ProfileLinkRow[];
+  linksLoading: boolean;
+  onReload: () => void;
+  getAuthHeaders: () => Promise<Record<string, string>>;
+  onOpenModal: () => void;
+  onOpenEditModal: (link: ProfileLinkRow) => void;
+}) {
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+
+  const move = async (link: ProfileLinkRow, direction: "up" | "down") => {
+    const idx = links.findIndex((l) => l.id === link.id);
+    if (idx < 0) return;
+    const next = direction === "up" ? links[idx - 1] : links[idx + 1];
+    if (!next) return;
+    const headers = await getAuthHeaders();
+    const orderedIds = [...links].sort((a, b) => a.sort_order - b.sort_order).map((l) => l.id);
+    const fromIdx = orderedIds.indexOf(link.id);
+    const toIdx = orderedIds.indexOf(next.id);
+    if (fromIdx < 0 || toIdx < 0) return;
+    [orderedIds[fromIdx], orderedIds[toIdx]] = [orderedIds[toIdx], orderedIds[fromIdx]];
+    await fetch(`${base}/api/profile/links/reorder`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify({ orderedIds }),
+    });
+    onReload();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Remove this link?")) return;
+    const headers = await getAuthHeaders();
+    await fetch(`${base}/api/profile/links/${id}`, { method: "DELETE", headers });
+    onReload();
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <label className="text-sm font-medium text-foreground">Links (public profile)</label>
+        <button type="button" onClick={onOpenModal} className="text-sm text-primary font-medium hover:underline">+ Add link</button>
+      </div>
+      <p className="text-xs text-muted-foreground">Shown on linkary.xyz/you. Only links marked public are visible.</p>
+      {linksLoading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <>
+          <ul className="space-y-2">
+            {links.map((link, idx) => (
+              <li key={link.id} className="flex items-center gap-2 rounded-lg border border-border bg-background p-2">
+                {link.icon ? (
+                  <img src={link.icon} alt="" className="h-6 w-6 rounded object-cover shrink-0" />
+                ) : (
+                  <div className="h-6 w-6 rounded bg-muted shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-foreground truncate">{link.title}</div>
+                  <div className="text-xs text-muted-foreground truncate">{link.url}</div>
+                </div>
+                {!link.is_public && <span className="shrink-0 text-xs text-muted-foreground">Hidden</span>}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button type="button" onClick={() => move(link, "up")} disabled={idx === 0} className="text-muted-foreground hover:text-foreground text-xs px-1 disabled:opacity-50">↑</button>
+                  <button type="button" onClick={() => move(link, "down")} disabled={idx === links.length - 1} className="text-muted-foreground hover:text-foreground text-xs px-1 disabled:opacity-50">↓</button>
+                  <button type="button" onClick={() => onOpenEditModal(link)} className="text-xs text-primary hover:underline">Edit</button>
+                  <button type="button" onClick={() => remove(link.id)} className="text-xs text-destructive hover:underline">Delete</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {links.length === 0 && (
+            <p className="text-sm text-muted-foreground">No links yet. Add links to show them on your public page.</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function LinkModal({
+  edit,
+  form,
+  setForm,
+  saving,
+  onClose,
+  onSubmit,
+}: {
+  edit?: ProfileLinkRow | null;
+  form: { title: string; url: string; icon: string; is_public: boolean };
+  setForm: React.Dispatch<React.SetStateAction<{ title: string; url: string; icon: string; is_public: boolean }>>;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  const canSubmit = form.title.trim().length >= 1 && form.title.trim().length <= 60
+    && (form.url.trim().startsWith("https://") || form.url.trim().startsWith("http://"));
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl shadow-lg max-w-md w-full p-4 space-y-3 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-semibold text-foreground">{edit ? "Edit link" : "Add link"}</h3>
+        <input type="text" placeholder="Title (1–60 chars)" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" maxLength={60} />
+        <input type="url" placeholder="URL (https:// or http://)" value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" />
+        <input type="text" placeholder="Icon URL (optional, max 32 chars)" value={form.icon} onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value.slice(0, 32) }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" maxLength={32} />
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={form.is_public} onChange={(e) => setForm((f) => ({ ...f, is_public: e.target.checked }))} />
+          <span className="text-sm text-foreground">Show on public profile</span>
+        </label>
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-border text-foreground bg-background">Cancel</button>
+          <button type="button" disabled={!canSubmit || saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
+            {saving ? "Saving…" : edit ? "Update" : "Add"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -469,6 +604,11 @@ export default function ProfileEditPage({
   const [teamModal, setTeamModal] = useState<{ open: true; edit?: TeamMemberRow } | { open: false }>({ open: false });
   const [teamForm, setTeamForm] = useState({ name: "", role: "", avatar_url: "", linkedin_url: "", x_url: "", website_url: "", is_public: true });
   const [teamSaving, setTeamSaving] = useState(false);
+  const [links, setLinks] = useState<ProfileLinkRow[]>([]);
+  const [linksLoading, setLinksLoading] = useState(false);
+  const [linkModal, setLinkModal] = useState<{ open: true; edit?: ProfileLinkRow } | { open: false }>({ open: false });
+  const [linkForm, setLinkForm] = useState({ title: "", url: "", icon: "", is_public: true });
+  const [linkSaving, setLinkSaving] = useState(false);
   const [heroMode, setHeroMode] = useState<"none" | "image" | "video">("none");
 
   const getAuthHeaders = useCallback(async () => {
@@ -517,6 +657,23 @@ export default function ProfileEditPage({
     }
   }, [me?.id, getAuthHeaders]);
 
+  const loadLinks = useCallback(async () => {
+    if (!me?.id) return;
+    setLinksLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/profile/links`, { headers });
+      const json = await res.json().catch(() => ({}));
+      if (json.ok && Array.isArray(json.links)) setLinks(json.links as ProfileLinkRow[]);
+      else setLinks([]);
+    } catch {
+      setLinks([]);
+    } finally {
+      setLinksLoading(false);
+    }
+  }, [me?.id, getAuthHeaders]);
+
   const load = useCallback(async () => {
     if (!me?.id) return;
     setLoading(true);
@@ -528,6 +685,7 @@ export default function ProfileEditPage({
     ]);
     loadPartners();
     loadCaseStudies();
+    loadLinks();
     if (profileExt?.data) {
       const p = profileExt.data as { profile_type?: string; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null };
       if (p.profile_type === "project" || p.profile_type === "company") setProfileType(p.profile_type as ProfileType);
@@ -572,7 +730,7 @@ export default function ProfileEditPage({
     if ((profileExt?.data as { profile_type?: string } | null)?.profile_type === "company") {
       loadTeam();
     }
-  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam]);
+  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam, loadLinks]);
 
   useEffect(() => {
     load();
@@ -612,6 +770,21 @@ export default function ProfileEditPage({
       setTeamForm({ name: "", role: "", avatar_url: "", linkedin_url: "", x_url: "", website_url: "", is_public: true });
     }
   }, [teamModal]);
+
+  useEffect(() => {
+    if (!linkModal.open) return;
+    const edit = linkModal.open && "edit" in linkModal ? linkModal.edit : undefined;
+    if (edit) {
+      setLinkForm({
+        title: edit.title,
+        url: edit.url,
+        icon: edit.icon ?? "",
+        is_public: edit.is_public,
+      });
+    } else {
+      setLinkForm({ title: "", url: "", icon: "", is_public: true });
+    }
+  }, [linkModal]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1166,6 +1339,15 @@ export default function ProfileEditPage({
           )}
         </div>
 
+        <LinksEditor
+          links={links}
+          linksLoading={linksLoading}
+          onReload={loadLinks}
+          getAuthHeaders={getAuthHeaders}
+          onOpenModal={() => setLinkModal({ open: true })}
+          onOpenEditModal={(link) => setLinkModal({ open: true, edit: link })}
+        />
+
         <PartnerProgramsEditor
           me={me}
           partners={partners}
@@ -1334,6 +1516,64 @@ export default function ProfileEditPage({
                 loadCaseStudies();
                 setCaseStudyModal(false);
               }
+            }
+          }}
+        />
+      )}
+
+      {linkModal.open && (
+        <LinkModal
+          edit={linkModal.open && "edit" in linkModal ? linkModal.edit : undefined}
+          form={linkForm}
+          setForm={setLinkForm}
+          saving={linkSaving}
+          onClose={() => setLinkModal({ open: false })}
+          onSubmit={async () => {
+            if (!me?.id) return;
+            setLinkSaving(true);
+            const base = typeof window !== "undefined" ? window.location.origin : "";
+            const headers = await getAuthHeaders();
+            const edit = linkModal.open && "edit" in linkModal ? linkModal.edit : undefined;
+            try {
+              if (edit) {
+                const res = await fetch(`${base}/api/profile/links/${edit.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json", ...headers },
+                  body: JSON.stringify({
+                    title: linkForm.title.trim(),
+                    url: linkForm.url.trim(),
+                    icon: linkForm.icon.trim() || null,
+                    is_public: linkForm.is_public,
+                  }),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  setError(json.message ?? "Update failed");
+                } else {
+                  loadLinks();
+                  setLinkModal({ open: false });
+                }
+              } else {
+                const res = await fetch(`${base}/api/profile/links`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", ...headers },
+                  body: JSON.stringify({
+                    title: linkForm.title.trim(),
+                    url: linkForm.url.trim(),
+                    icon: linkForm.icon.trim() || null,
+                    is_public: linkForm.is_public,
+                  }),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  setError(json.message ?? json.code ?? "Create failed");
+                } else {
+                  loadLinks();
+                  setLinkModal({ open: false });
+                }
+              }
+            } finally {
+              setLinkSaving(false);
             }
           }}
         />

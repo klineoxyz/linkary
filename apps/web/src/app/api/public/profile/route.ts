@@ -330,6 +330,32 @@ export async function GET(request: NextRequest) {
     };
   });
 
+  // Fetch public skills + achievements for profile (same shape as slug page)
+  let skills: PublicProfileApiPayload["skills"] = [];
+  let achievements: PublicProfileApiPayload["achievements"] = [];
+  if (dto.type === "profile" && ownerId && serviceSupabase) {
+    const [skillsRes, achievementsRes] = await Promise.all([
+      serviceSupabase
+        .from("profile_skills")
+        .select("name, level")
+        .eq("profile_id", ownerId)
+        .eq("is_public", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true }),
+      serviceSupabase
+        .from("profile_achievements")
+        .select("title, description, proof_url")
+        .eq("profile_id", ownerId)
+        .eq("is_public", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true }),
+    ]);
+    const skillsList = (skillsRes.data ?? []) as Array<{ name: string; level: number | null }>;
+    skills = skillsList.map((s) => ({ name: s.name, level: s.level }));
+    const achievementsList = (achievementsRes.data ?? []) as Array<{ title: string; description: string | null; proof_url: string | null }>;
+    achievements = achievementsList.map((a) => ({ title: a.title, description: a.description ?? null, url: a.proof_url ?? null }));
+  }
+
   if (dto.type === "profile") {
     const payload: PublicProfileApiPayload = {
       profile: {
@@ -358,6 +384,8 @@ export async function GET(request: NextRequest) {
         count: reviewsCount,
         latest: reviewsLatest,
       },
+      ...(skills.length > 0 ? { skills } : {}),
+      ...(achievements.length > 0 ? { achievements } : {}),
     };
 
     const body = isDebug

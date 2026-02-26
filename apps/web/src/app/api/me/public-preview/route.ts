@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
   let reviewsCount = 0;
 
   if (ownerId) {
-    const { data: reviewRows } = await supabase
+    const { data: reviewRows } = await serviceSupabase
       .from("reviews")
       .select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type")
       .eq("reviewee_type", "profile")

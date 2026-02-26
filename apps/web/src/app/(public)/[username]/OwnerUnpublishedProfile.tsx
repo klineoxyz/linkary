@@ -4,7 +4,7 @@ type Props = { username: string };
 
 /**
  * Shown when the visitor is the owner of the slug but the profile is not published.
- * CTAs: Edit profile, Publish (go to settings where visibility can be toggled).
+ * CTAs: Edit profile, Go to dashboard, optional Publish.
  */
 export function OwnerUnpublishedProfile({ username }: Props) {
   return (
@@ -12,17 +12,23 @@ export function OwnerUnpublishedProfile({ username }: Props) {
       <div className="max-w-md w-full rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
         <h1 className="text-xl font-semibold text-foreground">This is your Linkary page</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Your profile isn’t published yet. Only you can see this page.
+          Not published yet. Only you can see this page.
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           linkary.xyz/@{username}
         </p>
         <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
           <Link
-            href="/settings"
+            href="/profile/edit"
             className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             Edit profile
+          </Link>
+          <Link
+            href="/profile"
+            className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Go to dashboard
           </Link>
           <Link
             href="/settings"

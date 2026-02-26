@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { getIdentifierKind, normalizeIdentifier, resolvePublicEntity } from "@/lib/entityResolver";
 import { isReservedPath } from "@/lib/reservedPaths";
 import { getPublicDTOByUsername } from "@/lib/getPublicDTO";
@@ -11,7 +12,6 @@ import AppWithProviders from "../../AppWithProviders";
 import { PublicProfileContent } from "./PublicProfileContent";
 import { OwnerUnpublishedProfile } from "./OwnerUnpublishedProfile";
 import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
-import { NotFoundOrUnpublished } from "./NotFoundOrUnpublished";
 import { NotFoundClaimView } from "./NotFoundClaimView";
 
 type Props = { params: Promise<{ username: string }>; searchParams?: { view?: string } };
@@ -132,38 +132,39 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
   if (kind === "slug") {
     const base = baseUrl();
-    const res = await fetch(
-      `${base}/api/public/profile?username=${encodeURIComponent(segment)}`,
-      { next: { revalidate: 300 } }
+    const cookieStore = await cookies();
+    const cookieHeader = cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; ");
+    const resolveRes = await fetch(
+      `${base}/api/public/resolve?slug=${encodeURIComponent(segmentLower)}`,
+      { headers: cookieHeader ? { Cookie: cookieHeader } : undefined, cache: "no-store" }
     );
-    if (res.ok) {
-      const data = await res.json();
-      return (
-        <PublicProfileContent
-          data={data}
-          username={data.profile?.username ?? segmentLower}
-        />
+    const resolveJson = (await resolveRes.json().catch(() => ({}))) as {
+      kind?: "public" | "owner_unpublished" | "claim";
+      username?: string;
+    };
+    const resolveKind = resolveJson.kind ?? "claim";
+
+    if (resolveKind === "public") {
+      const profileRes = await fetch(
+        `${base}/api/public/profile?username=${encodeURIComponent(segment)}`,
+        { next: { revalidate: 300 } }
       );
-    }
-    // 404: resolve owner so owners see unpublished view, not claim
-    const supabase = await createServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-    let resolution: { kind: "owner_unpublished"; username: string } | { kind: "claim" } = { kind: "claim" };
-    if (user?.id) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("username, twitter_username, published")
-        .eq("id", user.id)
-        .maybeSingle();
-      const result = resolveSlugForOwner(segmentLower, profile ?? null);
-      if (result.kind === "owner_unpublished") {
-        resolution = { kind: "owner_unpublished", username: result.username };
+      if (profileRes.ok) {
+        const data = await profileRes.json();
+        return (
+          <PublicProfileContent
+            data={data}
+            username={data.profile?.username ?? segmentLower}
+          />
+        );
       }
     }
-    if (resolution.kind === "owner_unpublished") {
-      return <OwnerUnpublishedProfile username={resolution.username} />;
+
+    if (resolveKind === "owner_unpublished" && resolveJson.username) {
+      return <OwnerUnpublishedProfile username={resolveJson.username} />;
     }
-    return <NotFoundOrUnpublished requestedUsername={segmentLower} />;
+
+    return <NotFoundClaimView requestedUsername={segmentLower} />;
   }
 
   let entity = await resolvePublicEntity(segment, { serviceSupabase: serviceSupabase ?? undefined });

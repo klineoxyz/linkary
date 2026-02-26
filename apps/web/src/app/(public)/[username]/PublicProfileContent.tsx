@@ -1,8 +1,22 @@
 import type { PublicProfileApiPayload } from "@/app/api/public/profile/route";
-import { BadgeCheck, ChevronRight, ExternalLink, Globe, Link2 } from "lucide-react";
+import { BadgeCheck, ChevronRight, ExternalLink, Globe, Link2, Share2 } from "lucide-react";
 import Link from "next/link";
 import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
 import { ApplyToGigButton } from "./ApplyToGigButton";
+
+/** Extract hostname from URL for display; safe for any string. */
+function getHostname(url: string): string {
+  try {
+    const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+    return u.hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+/** Shared card style for sections: glass/soft card, hover glow. */
+const sectionCardClass =
+  "rounded-2xl border border-border bg-card/95 shadow-sm transition-all duration-200 hover:border-primary/20 hover:shadow-md hover:shadow-primary/5";
 
 type RelationCard = { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string };
 
@@ -13,7 +27,7 @@ function RelationCardLink({ item, basePath }: { item: RelationCard; basePath: st
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-accent/50 hover:border-primary/30 transition-colors"
+      className={`inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground transition-all hover:border-primary/30 hover:bg-accent/50 hover:shadow-sm ${sectionCardClass}`}
     >
       {item.avatar_url ? (
         <img src={item.avatar_url} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover border border-border" />
@@ -21,7 +35,7 @@ function RelationCardLink({ item, basePath }: { item: RelationCard; basePath: st
         <div className="h-8 w-8 shrink-0 rounded-full bg-muted border border-border" />
       )}
       <span className="font-medium truncate min-w-0">{name}</span>
-      <span className="shrink-0 rounded px-1.5 py-0.5 text-xs border border-border bg-muted/50 text-muted-foreground">{typeLabel}</span>
+      <span className="shrink-0 rounded-lg border border-border bg-primary/5 px-2 py-0.5 text-xs font-medium text-foreground">{typeLabel}</span>
     </Link>
   );
 }
@@ -68,7 +82,7 @@ function SocialLink({ name, url }: { name: string; url: string }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-primary/30 hover:bg-accent hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:border-primary/40 hover:bg-accent hover:text-primary hover:shadow-md hover:shadow-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       aria-label={name}
     >
       {icon}
@@ -78,8 +92,8 @@ function SocialLink({ name, url }: { name: string; url: string }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-      <span className="h-px w-5 shrink-0 bg-primary/80" aria-hidden />
+    <h2 className="mb-3 flex items-center gap-2.5 text-sm font-semibold tracking-tight text-foreground">
+      <span className="h-px w-6 shrink-0 rounded-full bg-primary" aria-hidden />
       {children}
     </h2>
   );
@@ -157,50 +171,84 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const rightSectionSpacing = "mb-8";
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
+    <div className="min-h-screen bg-background text-foreground font-sans relative">
+      {/* Subtle background gradient / glow using tokens */}
+      <div className="fixed inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-transparent to-accent/[0.04] pointer-events-none" aria-hidden />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-        {/* Hero — full width */}
+        {/* Hero — full width with gradient overlay, title overlay, share row */}
         {(hasHeroImage || hasHeroVideo) && (
           <section className="mb-8">
-            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div className={`overflow-hidden rounded-2xl border shadow-lg transition-all hover:border-primary/20 hover:shadow-primary/10 ${hasHeroImage ? "border-primary/20" : "border-border"} bg-card`}>
               {hasHeroImage && (
-                <div className="relative h-[180px] w-full sm:h-[220px]">
+                <div className="relative h-[200px] w-full sm:h-[260px]">
                   <img
                     src={hero!.hero_image_url!}
                     alt=""
                     className="h-full w-full object-cover"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" aria-hidden />
+                  {heroTitle && (
+                    <p className="absolute bottom-4 left-4 right-4 text-lg font-semibold text-white drop-shadow-md sm:text-xl" aria-hidden>
+                      {heroTitle}
+                    </p>
+                  )}
+                  <div className="absolute top-3 right-3 flex items-center gap-2">
+                    <CopyProfileLinkButton url={profileUrl} />
+                    <a
+                      href={profileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-white/30 bg-black/30 px-3 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      aria-label="Open profile in new tab"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </a>
+                  </div>
                 </div>
               )}
-              {hasHeroVideo && (
+              {hasHeroVideo && !hasHeroImage && (
                 <div className="relative">
                   {hero!.hero_video_url!.startsWith("https://") && isYouTubeUrl(hero!.hero_video_url!) ? (
-                    <div className="relative aspect-video w-full max-h-[280px] sm:max-h-[320px]">
+                    <div className="relative aspect-video w-full max-h-[300px] sm:max-h-[340px]">
                       <iframe
                         src={youtubeEmbedUrl(hero!.hero_video_url!)}
                         title="Hero video"
-                        className="absolute inset-0 h-full w-full rounded-xl"
+                        className="absolute inset-0 h-full w-full rounded-2xl"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
                       />
+                      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+                        {heroTitle && <p className="text-sm font-medium text-white drop-shadow-md">{heroTitle}</p>}
+                        <div className="flex gap-2">
+                          <CopyProfileLinkButton url={profileUrl} />
+                          <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/30 bg-black/40 px-2.5 text-xs text-white backdrop-blur-sm hover:bg-white/20" aria-label="Open in new tab"><Share2 className="h-3.5 w-3.5" /></a>
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl bg-muted/50 p-4">
+                    <div className="flex aspect-video w-full flex-col items-center justify-center gap-4 rounded-2xl bg-gradient-to-br from-muted/80 to-muted/40 p-6 border border-border">
+                      <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-6">
+                        <span className="text-4xl font-bold text-primary">Play</span>
+                      </div>
                       <a
                         href={hero!.hero_video_url!}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
+                        className="inline-flex items-center gap-2 rounded-xl border-2 border-primary bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md transition hover:bg-primary/90 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                       >
-                        Watch video
+                        Watch
                         <ExternalLink className="h-4 w-4" />
                       </a>
+                      <div className="flex gap-2">
+                        <CopyProfileLinkButton url={profileUrl} />
+                        <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center rounded-lg border border-border bg-card px-3 text-sm text-foreground hover:bg-accent/50" aria-label="Open in new tab"><Share2 className="h-4 w-4" /></a>
+                      </div>
                     </div>
                   )}
                 </div>
               )}
             </div>
-            {heroTitle && (
+            {heroTitle && hasHeroImage === false && hasHeroVideo && !(hero!.hero_video_url!.startsWith("https://") && isYouTubeUrl(hero!.hero_video_url!)) && (
               <p className="mt-2 text-sm text-muted-foreground" aria-hidden>{heroTitle}</p>
             )}
           </section>
@@ -210,37 +258,37 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         <div className="lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-10 lg:items-start">
           {/* ——— LEFT COLUMN (~40%): Header, bio, socials, proof ——— */}
           <div className="space-y-6 lg:sticky lg:top-6">
-            {/* Header upgrade: larger avatar, name + badge inline, reputation chip, accent under */}
+            {/* Header: stronger typography, branded reputation pill, profile type badge */}
             <header className="pb-6 border-b border-border">
               <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                 {profile.avatar_url ? (
                   <img
                     src={profile.avatar_url}
                     alt=""
-                    className="h-24 w-24 shrink-0 rounded-full object-cover border-2 border-border"
+                    className="h-24 w-24 shrink-0 rounded-2xl object-cover border-2 border-border shadow-md ring-2 ring-transparent"
                   />
                 ) : (
-                  <div className="h-24 w-24 shrink-0 rounded-full bg-muted border-2 border-border" />
+                  <div className="h-24 w-24 shrink-0 rounded-2xl bg-muted border-2 border-border" />
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-2xl font-semibold text-foreground">{displayName}</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{displayName}</h1>
                     {profile.is_verified && (
                       <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified" />
                     )}
                     <span
-                      className="rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-foreground"
+                      className="rounded-lg border border-border bg-muted/80 px-2.5 py-1 text-xs font-semibold text-foreground"
                       aria-label="Profile type"
                     >
                       {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
                     </span>
                     {profile.reputation_index != null && (
-                      <span className="rounded-md border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-foreground tabular-nums">
+                      <span className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold tabular-nums text-primary shadow-sm shadow-primary/10">
                         {profile.reputation_index} rep
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">@{handle}</p>
+                  <p className="mt-1.5 text-sm text-muted-foreground">@{handle}</p>
                 </div>
               </div>
               {profile.location && (
@@ -263,11 +311,11 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               </div>
             )}
 
-            {/* Proof card — only when at least one stat; stronger typography, accent border */}
+            {/* Proof card — only when at least one stat */}
             {hasProofStats && (
               <section className={sectionSpacing}>
                 <SectionTitle>Proof</SectionTitle>
-                <div className="rounded-xl border border-border border-primary/20 bg-card p-5 shadow-sm">
+                <div className={`${sectionCardClass} border-primary/20 p-5`}>
                   <div className="flex flex-wrap gap-6">
                     {profile.reputation_index != null && (
                       <div>
@@ -299,7 +347,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             {profileType === "project" && token && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>Token</SectionTitle>
-                <div className="rounded-xl border border-border bg-card p-5">
+                <div className={`${sectionCardClass} p-5`}>
                   <div className="flex flex-col gap-3">
                     {token.priceUsd != null && (
                       <div className="text-2xl font-semibold text-foreground">
@@ -307,7 +355,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                       </div>
                     )}
                     {token.priceChangeH24 != null && (
-                      <span className={`text-sm font-medium ${token.priceChangeH24 >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      <span className={`text-sm font-semibold ${token.priceChangeH24 >= 0 ? "text-primary" : "text-destructive"}`}>
                         {token.priceChangeH24 >= 0 ? "+" : ""}{token.priceChangeH24.toFixed(2)}% (24h)
                       </span>
                     )}
@@ -328,7 +376,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                       href={token.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
+                      className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       View on Dexscreener
                       <ExternalLink className="h-4 w-4" />
@@ -346,20 +394,24 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     {relations.ambassadorOf && relations.ambassadorOf.length > 0 && (
                       <section className={rightSectionSpacing}>
                         <SectionTitle>Ambassador of</SectionTitle>
-                        <div className="flex flex-wrap gap-2">
-                          {relations.ambassadorOf.map((item) => (
-                            <RelationCardLink key={item.id} item={item} basePath={basePath} />
-                          ))}
+                        <div className={`${sectionCardClass} p-4`}>
+                          <div className="flex flex-wrap gap-2">
+                            {relations.ambassadorOf.map((item) => (
+                              <RelationCardLink key={item.id} item={item} basePath={basePath} />
+                            ))}
+                          </div>
                         </div>
                       </section>
                     )}
                     {relations.affiliateOf && relations.affiliateOf.length > 0 && (
                       <section className={rightSectionSpacing}>
                         <SectionTitle>Affiliate of</SectionTitle>
-                        <div className="flex flex-wrap gap-2">
-                          {relations.affiliateOf.map((item) => (
-                            <RelationCardLink key={item.id} item={item} basePath={basePath} />
-                          ))}
+                        <div className={`${sectionCardClass} p-4`}>
+                          <div className="flex flex-wrap gap-2">
+                            {relations.affiliateOf.map((item) => (
+                              <RelationCardLink key={item.id} item={item} basePath={basePath} />
+                            ))}
+                          </div>
                         </div>
                       </section>
                     )}
@@ -370,40 +422,48 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     {relations.ambassadors && relations.ambassadors.length > 0 && (
                       <section className={rightSectionSpacing}>
                         <SectionTitle>Ambassadors</SectionTitle>
-                        <div className="flex flex-wrap gap-2">
-                          {relations.ambassadors.map((item) => (
-                            <RelationCardLink key={item.id} item={item} basePath={basePath} />
-                          ))}
+                        <div className={`${sectionCardClass} p-4`}>
+                          <div className="flex flex-wrap gap-2">
+                            {relations.ambassadors.map((item) => (
+                              <RelationCardLink key={item.id} item={item} basePath={basePath} />
+                            ))}
+                          </div>
                         </div>
                       </section>
                     )}
                     {relations.affiliates && relations.affiliates.length > 0 && (
                       <section className={rightSectionSpacing}>
                         <SectionTitle>Affiliates</SectionTitle>
-                        <div className="flex flex-wrap gap-2">
-                          {relations.affiliates.map((item) => (
-                            <RelationCardLink key={item.id} item={item} basePath={basePath} />
-                          ))}
+                        <div className={`${sectionCardClass} p-4`}>
+                          <div className="flex flex-wrap gap-2">
+                            {relations.affiliates.map((item) => (
+                              <RelationCardLink key={item.id} item={item} basePath={basePath} />
+                            ))}
+                          </div>
                         </div>
                       </section>
                     )}
                     {relations.ecosystemProjects && relations.ecosystemProjects.length > 0 && (
                       <section className={rightSectionSpacing}>
                         <SectionTitle>Ecosystem projects</SectionTitle>
-                        <div className="flex flex-wrap gap-2">
-                          {relations.ecosystemProjects.map((item) => (
-                            <RelationCardLink key={item.id} item={item} basePath={basePath} />
-                          ))}
+                        <div className={`${sectionCardClass} p-4`}>
+                          <div className="flex flex-wrap gap-2">
+                            {relations.ecosystemProjects.map((item) => (
+                              <RelationCardLink key={item.id} item={item} basePath={basePath} />
+                            ))}
+                          </div>
                         </div>
                       </section>
                     )}
                     {relations.subsidiaries && relations.subsidiaries.length > 0 && (
                       <section className={rightSectionSpacing}>
                         <SectionTitle>Subsidiaries</SectionTitle>
-                        <div className="flex flex-wrap gap-2">
-                          {relations.subsidiaries.map((item) => (
-                            <RelationCardLink key={item.id} item={item} basePath={basePath} />
-                          ))}
+                        <div className={`${sectionCardClass} p-4`}>
+                          <div className="flex flex-wrap gap-2">
+                            {relations.subsidiaries.map((item) => (
+                              <RelationCardLink key={item.id} item={item} basePath={basePath} />
+                            ))}
+                          </div>
                         </div>
                       </section>
                     )}
@@ -412,26 +472,26 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               </>
             )}
 
-            {/* Open gigs (project/company only) */}
+            {/* Open gigs (project/company only) — opportunities style */}
             {data.gigs && data.gigs.length > 0 && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>Open gigs</SectionTitle>
                 <ul className="space-y-3">
                   {data.gigs.map((gig) => (
-                    <li key={gig.id} className="rounded-xl border border-border bg-card p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                    <li key={gig.id} className={`${sectionCardClass} p-4`}>
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <h3 className="font-semibold text-foreground">{gig.title}</h3>
-                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                            <span className="rounded border border-border bg-muted/50 px-1.5 py-0.5 capitalize">{gig.gig_type}</span>
-                            <span className="rounded border border-border bg-muted/50 px-1.5 py-0.5 capitalize">{gig.compensation_type}</span>
-                            {gig.remote && <span className="rounded border border-border bg-muted/50 px-1.5 py-0.5">Remote</span>}
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <span className="rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium capitalize text-foreground">{gig.gig_type}</span>
+                            <span className="rounded-lg border border-border bg-muted/60 px-2.5 py-1 text-xs font-medium capitalize text-foreground">{gig.compensation_type}</span>
+                            {gig.remote && <span className="rounded-lg border border-border bg-muted/50 px-2 py-0.5 text-xs">Remote</span>}
                           </div>
-                          {gig.description && (
-                            <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{gig.description}</p>
-                          )}
                           {gig.budget_text && (
-                            <p className="mt-1 text-xs text-muted-foreground">{gig.budget_text}</p>
+                            <p className="mt-2 text-sm font-medium text-primary">{gig.budget_text}</p>
+                          )}
+                          {gig.description && (
+                            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{gig.description}</p>
                           )}
                         </div>
                         <div className="shrink-0">
@@ -444,35 +504,37 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               </section>
             )}
 
-            {/* Skills (individual) or Services / Expertise (company) — pill chips, optional level */}
+            {/* Skills (individual) or Services / Expertise (company) */}
             {(profileType === "individual" || profileType === "company") && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>{profileType === "company" ? "Services / Expertise" : "Skills"}</SectionTitle>
-                {skills.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {profileType === "company" ? "No services or expertise listed yet" : "No skills listed yet"}
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {skills.map((s, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-foreground hover:border-primary/30 hover:bg-accent/50 transition-colors"
-                      >
-                        <span>{s.name}</span>
-                        {s.level != null && s.level >= 1 && s.level <= 5 && (
-                          <span className="text-xs text-muted-foreground tabular-nums" aria-label={`Level ${s.level} of 5`}>
-                            {s.level}/5
-                          </span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <div className={`${sectionCardClass} p-4`}>
+                  {skills.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {profileType === "company" ? "No services or expertise listed yet" : "No skills listed yet"}
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {skills.map((s, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-foreground transition-all hover:border-primary/30 hover:bg-accent/50 hover:shadow-sm"
+                        >
+                          <span>{s.name}</span>
+                          {s.level != null && s.level >= 1 && s.level <= 5 && (
+                            <span className="text-xs text-muted-foreground tabular-nums" aria-label={`Level ${s.level} of 5`}>
+                              {s.level}/5
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </section>
             )}
 
-            {/* Achievements (individual only) — compact cards with optional link */}
+            {/* Achievements (individual only) */}
             {profileType === "individual" && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>Achievements</SectionTitle>
@@ -481,7 +543,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 ) : (
                   <ul className="space-y-3">
                     {achievements.map((a, i) => (
-                      <li key={i} className="rounded-xl border border-border bg-card p-4">
+                      <li key={i} className={`${sectionCardClass} p-4`}>
                         <h3 className="font-semibold text-foreground">{a.title}</h3>
                         {a.description && (
                           <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{a.description}</p>
@@ -491,7 +553,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                             href={a.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                           >
                             View
                             <ExternalLink className="h-3.5 w-3.5" />
@@ -504,36 +566,46 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               </section>
             )}
 
-            {/* Links — full-width buttons, hover lift; empty = compact muted */}
+            {/* Links — Linkary-style: icon bubble, title, domain preview, hover */}
             <section className={rightSectionSpacing}>
               <SectionTitle>Links</SectionTitle>
               {links.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No links yet</p>
               ) : (
                 <ul className="space-y-2">
-                  {links.map((link, i) => (
-                    <li key={i}>
-                      <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left font-medium text-foreground transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                      >
-                        {link.icon ? (
-                          <img src={link.icon} alt="" className="h-6 w-6 shrink-0 rounded object-cover" />
-                        ) : (
-                          <Link2 className="h-5 w-5 shrink-0 text-muted-foreground" />
-                        )}
-                        <span className="min-w-0 flex-1 truncate">{link.title}</span>
-                        <ChevronRight className="h-5 w-5 shrink-0 text-primary" />
-                      </a>
-                    </li>
-                  ))}
+                  {links.map((link, i) => {
+                    const host = getHostname(link.url);
+                    return (
+                      <li key={i}>
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left font-medium text-foreground transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        >
+                          {link.icon ? (
+                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50 overflow-hidden">
+                              <img src={link.icon} alt="" className="h-6 w-6 object-cover" />
+                            </span>
+                          ) : (
+                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50">
+                              <Link2 className="h-5 w-5 text-muted-foreground" />
+                            </span>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <span className="block truncate">{link.title}</span>
+                            {host && <span className="block truncate text-xs text-muted-foreground">{host}</span>}
+                          </div>
+                          <ChevronRight className="h-5 w-5 shrink-0 text-primary" />
+                        </a>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </section>
 
-            {/* Case studies — compact empty state */}
+            {/* Case studies */}
             <section className={rightSectionSpacing}>
               <SectionTitle>Case studies</SectionTitle>
               {caseStudies.length === 0 ? (
@@ -541,8 +613,8 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               ) : (
                 <ul className="space-y-3">
                   {caseStudies.map((c) => (
-                    <li key={c.id}>
-                      <div className="rounded-xl border border-border bg-card p-4">
+                    <li key={c.id} className={sectionCardClass}>
+                      <div className="p-4">
                         {c.title && (
                           <h3 className="font-semibold text-foreground">{c.title}</h3>
                         )}
@@ -554,7 +626,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                             {c.tags.map((t) => (
                               <span
                                 key={t}
-                                className="rounded-full bg-muted px-2 py-0.5 text-xs text-foreground"
+                                className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground"
                               >
                                 {t}
                               </span>
@@ -566,7 +638,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                             href={c.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                           >
                             View proof
                             <ExternalLink className="h-3.5 w-3.5" />
@@ -579,7 +651,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               )}
             </section>
 
-            {/* Reviews — premium cards with stars and verified badge */}
+            {/* Reviews — avatar ring, trust-style verified badge */}
             {showReviews && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>Reviews</SectionTitle>
@@ -600,23 +672,23 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     </div>
                     <ul className="space-y-4">
                       {reviews.latest.map((r, i) => (
-                        <li key={i} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                        <li key={i} className={`${sectionCardClass} p-4`}>
                           <div className="flex gap-3">
                             {r.reviewer_avatar_url ? (
                               <img
                                 src={r.reviewer_avatar_url}
                                 alt=""
-                                className="h-10 w-10 shrink-0 rounded-full object-cover border border-border"
+                                className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-primary/20 ring-offset-2 ring-offset-background border border-border"
                               />
                             ) : (
-                              <div className="h-10 w-10 shrink-0 rounded-full border border-border bg-muted" aria-hidden />
+                              <div className="h-11 w-11 shrink-0 rounded-full border border-border bg-muted ring-2 ring-primary/10 ring-offset-2 ring-offset-background" aria-hidden />
                             )}
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-medium text-foreground">{r.reviewer_display ?? "Anonymous"}</span>
                                 <Stars rating={r.rating} className="shrink-0" />
                                 {r.verified_deal !== false && (
-                                  <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 shrink-0">
+                                  <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">
                                     Verified deal
                                   </span>
                                 )}
@@ -652,16 +724,16 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                           .toUpperCase()
                       : "?";
                     return (
-                      <li key={i} className="rounded-xl border border-border bg-card p-4">
+                      <li key={i} className={`${sectionCardClass} p-4`}>
                         <div className="flex items-start gap-3">
                           {member.avatar_url ? (
                             <img
                               src={member.avatar_url}
                               alt=""
-                              className="h-12 w-12 shrink-0 rounded-full object-cover border border-border"
+                              className="h-12 w-12 shrink-0 rounded-xl object-cover border border-border"
                             />
                           ) : (
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-sm font-medium text-muted-foreground" aria-hidden>
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-sm font-semibold text-muted-foreground" aria-hidden>
                               {initials}
                             </div>
                           )}
@@ -672,17 +744,17 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                             )}
                             <div className="mt-2 flex flex-wrap gap-2">
                               {member.linkedin_url && (
-                                <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-muted-foreground hover:text-primary">
+                                <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary">
                                   <IconLinkedIn />
                                 </a>
                               )}
                               {member.x_url && (
-                                <a href={member.x_url} target="_blank" rel="noopener noreferrer" aria-label="X" className="text-muted-foreground hover:text-primary">
+                                <a href={member.x_url} target="_blank" rel="noopener noreferrer" aria-label="X" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary">
                                   <IconX />
                                 </a>
                               )}
                               {member.website_url && (
-                                <a href={member.website_url} target="_blank" rel="noopener noreferrer" aria-label="Website" className="text-muted-foreground hover:text-primary">
+                                <a href={member.website_url} target="_blank" rel="noopener noreferrer" aria-label="Website" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary">
                                   <Globe className="h-5 w-5" />
                                 </a>
                               )}
@@ -701,7 +773,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         <footer className="mt-12 pt-8 text-center border-t border-border">
           <Link
             href="/"
-            className="text-sm font-medium text-primary hover:underline"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-primary transition hover:bg-accent/50 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             Linkary
           </Link>

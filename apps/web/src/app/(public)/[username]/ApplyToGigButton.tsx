@@ -78,7 +78,7 @@ export function ApplyToGigButton({
     return (
       <Link
         href="/profile/applications"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors"
       >
         Applied · My Applications
       </Link>

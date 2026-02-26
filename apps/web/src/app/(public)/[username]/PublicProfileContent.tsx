@@ -14,9 +14,9 @@ function getHostname(url: string): string {
   }
 }
 
-/** Shared card style for sections: glass/soft card, hover glow. */
+/** Shared card style for sections: Linkary card with subtle glow on hover. */
 const sectionCardClass =
-  "rounded-2xl border border-border bg-card/95 shadow-sm transition-all duration-200 hover:border-primary/20 hover:shadow-md hover:shadow-primary/5";
+  "rounded-2xl border border-border bg-card/95 shadow-sm transition-all duration-200 hover:border-primary/20 hover:shadow-md hover:shadow-primary/10";
 
 type RelationCard = { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string };
 
@@ -153,11 +153,12 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const profileUrl = profileUrlProp ?? `${basePath}/${encodeURIComponent(handle)}`;
 
   const socialLinks: { name: string; url: string }[] = [
-    { name: "X", url: socials.x },
-    { name: "Telegram", url: socials.telegram },
-    { name: "Discord", url: socials.discord },
-    { name: "LinkedIn", url: socials.linkedin },
-    { name: "Website", url: socials.website },
+    { name: "X", url: socials.x ?? null },
+    { name: "Telegram", url: socials.telegram ?? null },
+    { name: "Discord", url: socials.discord ?? null },
+    { name: "LinkedIn", url: socials.linkedin ?? null },
+    { name: "Website", url: socials.website ?? null },
+    { name: "YouTube", url: socials.youtube ?? null },
   ].filter((l): l is { name: string; url: string } => !!l.url && l.url.trim() !== "");
 
   const hasHeroImage = !!(hero?.hero_image_url?.trim());
@@ -186,9 +187,9 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     alt=""
                     className="h-full w-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" aria-hidden />
+                  <div className="absolute inset-0 bg-gradient-to-t from-primary/85 via-accent/15 to-transparent" aria-hidden />
                   {heroTitle && (
-                    <p className="absolute bottom-4 left-4 right-4 text-lg font-semibold text-white drop-shadow-md sm:text-xl" aria-hidden>
+                    <p className="absolute bottom-5 left-5 right-5 text-xl font-bold tracking-tight text-white drop-shadow-lg sm:text-2xl" aria-hidden>
                       {heroTitle}
                     </p>
                   )}
@@ -198,7 +199,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                       href={profileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex h-9 items-center justify-center rounded-lg border border-white/30 bg-black/30 px-3 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-white/40 bg-white/20 px-3.5 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                       aria-label="Open profile in new tab"
                     >
                       <Share2 className="h-4 w-4" />
@@ -277,13 +278,13 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                       <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified" />
                     )}
                     <span
-                      className="rounded-lg border border-border bg-muted/80 px-2.5 py-1 text-xs font-semibold text-foreground"
+                      className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary"
                       aria-label="Profile type"
                     >
                       {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
                     </span>
                     {profile.reputation_index != null && (
-                      <span className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold tabular-nums text-primary shadow-sm shadow-primary/10">
+                      <span className="rounded-full border border-primary/40 bg-primary/15 px-3 py-1 text-xs font-bold tabular-nums text-primary shadow-sm shadow-primary/15">
                         {profile.reputation_index} rep
                       </span>
                     )}
@@ -341,7 +342,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             )}
           </div>
 
-          {/* ——— RIGHT COLUMN (~60%): Token, Links, Case studies, Reviews, Team ——— */}
+          {/* ——— RIGHT COLUMN: order by type — Individual: Skills, Achievements, Case studies, Links, Reviews — Project: Token, Gigs, Relations, Links, … — Company: Team, Gigs, Relations, … ——— */}
           <div className="space-y-8 lg:pt-0">
             {/* Token (project only) */}
             {profileType === "project" && token && (
@@ -383,6 +384,66 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     </a>
                   </div>
                 </div>
+              </section>
+            )}
+
+            {/* Team (company only) — above Gigs/Relations per hierarchy */}
+            {profileType === "company" && team.length > 0 && (
+              <section className={rightSectionSpacing}>
+                <SectionTitle>Team</SectionTitle>
+                <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {team.map((member, i) => {
+                    const initials = member.name.trim()
+                      ? member.name
+                          .trim()
+                          .split(/\s+/)
+                          .map((w) => w[0])
+                          .slice(0, 2)
+                          .join("")
+                          .toUpperCase()
+                      : "?";
+                    return (
+                      <li key={i} className={`${sectionCardClass} p-4`}>
+                        <div className="flex items-start gap-3">
+                          {member.avatar_url ? (
+                            <img
+                              src={member.avatar_url}
+                              alt=""
+                              className="h-12 w-12 shrink-0 rounded-xl object-cover border border-border"
+                            />
+                          ) : (
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-sm font-semibold text-muted-foreground" aria-hidden>
+                              {initials}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-foreground">{member.name}</p>
+                            {member.role && (
+                              <p className="text-sm text-muted-foreground">{member.role}</p>
+                            )}
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {member.linkedin_url && (
+                                <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary">
+                                  <IconLinkedIn />
+                                </a>
+                              )}
+                              {member.x_url && (
+                                <a href={member.x_url} target="_blank" rel="noopener noreferrer" aria-label="X" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary">
+                                  <IconX />
+                                </a>
+                              )}
+                              {member.website_url && (
+                                <a href={member.website_url} target="_blank" rel="noopener noreferrer" aria-label="Website" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary">
+                                  <Globe className="h-5 w-5" />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               </section>
             )}
 
@@ -510,7 +571,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 <SectionTitle>{profileType === "company" ? "Services / Expertise" : "Skills"}</SectionTitle>
                 <div className={`${sectionCardClass} p-4`}>
                   {skills.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border bg-muted/20 px-4 py-5 text-center">
                       {profileType === "company" ? "No services or expertise listed yet" : "No skills listed yet"}
                     </p>
                   ) : (
@@ -539,7 +600,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               <section className={rightSectionSpacing}>
                 <SectionTitle>Achievements</SectionTitle>
                 {achievements.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No achievements yet</p>
+                  <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No achievements yet</p>
                 ) : (
                   <ul className="space-y-3">
                     {achievements.map((a, i) => (
@@ -566,50 +627,11 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               </section>
             )}
 
-            {/* Links — Linkary-style: icon bubble, title, domain preview, hover */}
-            <section className={rightSectionSpacing}>
-              <SectionTitle>Links</SectionTitle>
-              {links.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No links yet</p>
-              ) : (
-                <ul className="space-y-2">
-                  {links.map((link, i) => {
-                    const host = getHostname(link.url);
-                    return (
-                      <li key={i}>
-                        <a
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left font-medium text-foreground transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                        >
-                          {link.icon ? (
-                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50 overflow-hidden">
-                              <img src={link.icon} alt="" className="h-6 w-6 object-cover" />
-                            </span>
-                          ) : (
-                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50">
-                              <Link2 className="h-5 w-5 text-muted-foreground" />
-                            </span>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <span className="block truncate">{link.title}</span>
-                            {host && <span className="block truncate text-xs text-muted-foreground">{host}</span>}
-                          </div>
-                          <ChevronRight className="h-5 w-5 shrink-0 text-primary" />
-                        </a>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
-
-            {/* Case studies */}
+            {/* Case studies — above Links per hierarchy (Individual: Skills, Achievements, Case studies, Links) */}
             <section className={rightSectionSpacing}>
               <SectionTitle>Case studies</SectionTitle>
               {caseStudies.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No case studies yet</p>
+                <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No case studies yet</p>
               ) : (
                 <ul className="space-y-3">
                   {caseStudies.map((c) => (
@@ -651,12 +673,51 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               )}
             </section>
 
+            {/* Links — Linkary-style: domain label, arrow affordance */}
+            <section className={rightSectionSpacing}>
+              <SectionTitle>Links</SectionTitle>
+              {links.length === 0 ? (
+                <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No links yet</p>
+              ) : (
+                <ul className="space-y-2">
+                  {links.map((link, i) => {
+                    const host = getHostname(link.url);
+                    return (
+                      <li key={i}>
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left font-medium text-foreground transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent/50 hover:shadow-md hover:shadow-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        >
+                          {link.icon ? (
+                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50 overflow-hidden">
+                              <img src={link.icon} alt="" className="h-6 w-6 object-cover" />
+                            </span>
+                          ) : (
+                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50">
+                              <Link2 className="h-5 w-5 text-muted-foreground" />
+                            </span>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <span className="block truncate">{link.title}</span>
+                            {host && <span className="block truncate text-xs text-muted-foreground">{host}</span>}
+                          </div>
+                          <ChevronRight className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
             {/* Reviews — avatar ring, trust-style verified badge */}
             {showReviews && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>Reviews</SectionTitle>
                 {reviews.count === 0 ? (
-                  <p className="text-sm text-muted-foreground">No reviews yet</p>
+                  <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No reviews yet</p>
                 ) : (
                   <>
                     <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -705,66 +766,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     </ul>
                   </>
                 )}
-              </section>
-            )}
-
-            {/* Team (company only) */}
-            {profileType === "company" && team.length > 0 && (
-              <section className={rightSectionSpacing}>
-                <SectionTitle>Team</SectionTitle>
-                <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {team.map((member, i) => {
-                    const initials = member.name.trim()
-                      ? member.name
-                          .trim()
-                          .split(/\s+/)
-                          .map((w) => w[0])
-                          .slice(0, 2)
-                          .join("")
-                          .toUpperCase()
-                      : "?";
-                    return (
-                      <li key={i} className={`${sectionCardClass} p-4`}>
-                        <div className="flex items-start gap-3">
-                          {member.avatar_url ? (
-                            <img
-                              src={member.avatar_url}
-                              alt=""
-                              className="h-12 w-12 shrink-0 rounded-xl object-cover border border-border"
-                            />
-                          ) : (
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-sm font-semibold text-muted-foreground" aria-hidden>
-                              {initials}
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-foreground">{member.name}</p>
-                            {member.role && (
-                              <p className="text-sm text-muted-foreground">{member.role}</p>
-                            )}
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {member.linkedin_url && (
-                                <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary">
-                                  <IconLinkedIn />
-                                </a>
-                              )}
-                              {member.x_url && (
-                                <a href={member.x_url} target="_blank" rel="noopener noreferrer" aria-label="X" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary">
-                                  <IconX />
-                                </a>
-                              )}
-                              {member.website_url && (
-                                <a href={member.website_url} target="_blank" rel="noopener noreferrer" aria-label="Website" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary">
-                                  <Globe className="h-5 w-5" />
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
               </section>
             )}
           </div>

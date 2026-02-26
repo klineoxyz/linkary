@@ -12,6 +12,41 @@ import { PublicProfileContent } from "./PublicProfileContent";
 import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
 import { NotFoundClaimView } from "./NotFoundClaimView";
 
+/**
+ * PUBLIC PROFILE FIELD MAPPING
+ * Ensures every field edited in ProfileEditPage is visible on /{username}.
+ *
+ * | Section/Field           | Source (table.column)           | Edited (ProfileEditPage)     | Fetched (this page)                    | Rendered (PublicProfileContent)     |
+ * |--------------------------|----------------------------------|------------------------------|----------------------------------------|-------------------------------------|
+ * | display_name             | profiles (via view)              | Basics / display_name        | displayView select viewCols            | profile.display_name, header        |
+ * | bio                      | profiles (via view)              | Basics / bio                 | displayView                            | profile.bio                         |
+ * | avatar_url               | profiles (via view)              | Basics / avatar              | displayView                            | profile.avatar_url, header           |
+ * | location                 | profiles (via view)             | Basics / location            | displayView                            | profile.location                    |
+ * | website                  | profiles (via view)             | Basics / website             | displayView; also profile_socials      | socials.website (fallback)          |
+ * | twitter_username         | profiles (via view)             | Username/handle              | displayView; used for slug match       | handle fallback, @handle             |
+ * | profile_type             | profiles (via view)             | Profile type selector        | displayView                            | profile.profile_type, badge         |
+ * | hero_image_url           | profiles (via view)             | Hero / image                 | displayView                            | hero.hero_image_url                 |
+ * | hero_video_url           | profiles (via view)             | Hero / video                 | displayView                            | hero.hero_video_url                 |
+ * | hero_title               | profiles (via view)             | Hero / title                 | displayView                            | hero.hero_title                     |
+ * | socials (x, telegram, …) | profile_socials                 | Social links section         | profile_socials select                 | socialLinks (X, Telegram, Discord, LinkedIn, Website, YouTube) |
+ * | links                    | profile_links                   | Links section                | profile_links (is_public)             | links[]                             |
+ * | skills/services          | profile_skills                  | Skills section               | profile_skills (is_public)            | skills[]                            |
+ * | achievements             | profile_achievements            | Achievements section         | profile_achievements (is_public)       | achievements[]                      |
+ * | case_studies             | case_studies                    | Case studies section         | case_studies (is_public)               | caseStudies[]                       |
+ * | relations                | profile_relations               | Relations section            | profile_relations (is_public) + view   | relations (ambassador/affiliate/…)  |
+ * | gigs                     | gigs                            | Gigs section                 | gigs (is_public, status=open)          | data.gigs[]                         |
+ * | team                     | org_team_members                | Team section (company)      | org_team_members (is_public)           | team[]                              |
+ * | token_dexscreener_url    | profiles                        | Token URL (project)          | profiles select show_reviews, token_* | token card (Dexscreener)            |
+ * | show_reviews             | profiles                        | Reviews toggle               | profiles select                        | show_reviews → Reviews section      |
+ * | reviews                  | reviews                         | (received only)              | reviews when show_reviews              | reviews.latest, average, count       |
+ * | reputation_index         | computed                        | (computed from activity)     | computeReputationIndex()               | profile.reputation_index, Proof     |
+ * | xscore                   | profiles (via view, gated)      | (X insights)                 | displayView                            | profile.xscore, Proof               |
+ *
+ * Views: public_profile_view (published only), public_profile_preview_view (same columns, service_role only).
+ * Gaps fixed: profile_socials.youtube_url was not fetched → added; socials.youtube added to payload and render.
+ * Not in scope: public_layout (section order) — in views but not yet used for ordering on public page.
+ */
+
 type Props = { params: Promise<{ username: string }>; searchParams?: Promise<{ view?: string; debug?: string }> };
 
 function baseUrl(): string {
@@ -246,7 +281,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       };
 
       const promises: Promise<unknown>[] = [
-        safeSingle(serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url").eq("profile_id", profileId).maybeSingle()),
+        safeSingle(serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url, youtube_url").eq("profile_id", profileId).maybeSingle()),
         showReviews ? safe(serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type, verified_deal").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10)) : Promise.resolve([]),
         safe(serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20)),
         safe(serviceSupabase.from("profile_links").select("title, url, icon").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true })),
@@ -258,7 +293,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       ];
 
       const [socialsRow, reviewsList, caseStudiesList, linksList, relationsList, skillsList, achievementsList, teamList, gigsPayload] = await Promise.all(promises) as [
-        { x_url?: string | null; linkedin_url?: string | null; website_url?: string | null; telegram_url?: string | null } | null,
+        { x_url?: string | null; linkedin_url?: string | null; website_url?: string | null; telegram_url?: string | null; youtube_url?: string | null } | null,
         ReviewRow[],
         Array<{ id: string; title: string | null; description: string | null; proof_url: string | null; metrics: unknown; created_at: string }>,
         Array<{ title: string; url: string; icon?: string | null }>,
@@ -421,6 +456,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           discord: null,
           linkedin: socials?.linkedin_url ?? null,
           website: socials?.website_url ?? profileRow.website ?? null,
+          youtube: socials?.youtube_url ?? null,
         },
         links: linksList.map((l) => ({
           title: l.title,

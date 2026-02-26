@@ -51,6 +51,7 @@ export type PublicProfileApiPayload = {
     discord: string | null;
     linkedin: string | null;
     website: string | null;
+    youtube: string | null;
   };
   links: Array<{ title: string; url: string; icon?: string | null }>;
   caseStudies: Array<{ id: string; title: string | null; summary: string | null; tags: string[]; url: string | null }>;
@@ -376,6 +377,7 @@ export async function GET(request: NextRequest) {
         discord: null,
         linkedin: dto.socials?.linkedin_url ?? null,
         website: dto.socials?.website_url ?? dto.website ?? null,
+        youtube: dto.socials?.youtube_url ?? null,
       },
       links: [],
       caseStudies,
@@ -419,6 +421,7 @@ export async function GET(request: NextRequest) {
       discord: null,
       linkedin: null,
       website: dto.website ?? null,
+      youtube: null,
     },
     links: [],
     caseStudies,

@@ -15,6 +15,30 @@ import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
 import { ApplyToGigButton } from "./ApplyToGigButton";
 import { TrustStrip } from "@/components/TrustStrip";
 
+/** Derive 2–4 highlight bullets from case study (no DB). Use summary sentences or tag-based. */
+function proofHighlights(
+  summary: string | null,
+  tags: string[]
+): string[] {
+  const bullets: string[] = [];
+  if (summary?.trim()) {
+    const sentences = summary
+      .replace(/\s+/g, " ")
+      .split(/(?<=[.!?])\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+    bullets.push(...sentences);
+  }
+  if (bullets.length < 3 && tags.length > 0) {
+    const need = Math.min(3 - bullets.length, tags.length, 2);
+    for (let i = 0; i < need; i++) {
+      bullets.push(`Worked on: ${tags[i]}`);
+    }
+  }
+  return bullets.slice(0, 4);
+}
+
 /** Extract hostname from URL for display; safe for any string. */
 function getHostname(url: string): string {
   try {
@@ -594,17 +618,51 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             {caseStudies.length === 0 ? (
               <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No case studies yet</p>
             ) : (
-              <ul className="space-y-3">
-                {caseStudies.map((c) => (
-                  <li key={c.id} className={isShowcase ? featuredCardClass : sectionCardClass}>
-                    <div className={isShowcase ? "p-5" : "p-4"}>
-                      {c.title && <h3 className="font-semibold text-foreground">{c.title}</h3>}
-                      {c.summary && <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{c.summary}</p>}
-                      {c.tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{c.tags.map((t) => <span key={t} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">{t}</span>)}</div>}
-                      {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">View proof <ExternalLink className="h-3.5 w-3.5" /></a>}
-                    </div>
-                  </li>
-                ))}
+              <ul className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+                {caseStudies.map((c) => {
+                  const highlights = proofHighlights(c.summary ?? null, c.tags ?? []);
+                  return (
+                    <li key={c.id} className={isShowcase ? featuredCardClass : sectionCardClass}>
+                      <div className={`flex flex-col h-full ${isShowcase ? "p-5" : "p-4"}`}>
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          {c.title && <h3 className="font-semibold text-foreground">{c.title}</h3>}
+                          {Array.isArray(c.tags) && c.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {c.tags.map((t) => (
+                                <span key={t} className="rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-foreground">
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {c.summary && (
+                          <p className="mt-2 text-sm text-muted-foreground line-clamp-3">{c.summary}</p>
+                        )}
+                        {highlights.length > 0 && (
+                          <ul className="mt-3 space-y-1 text-sm text-foreground" aria-label="Highlights">
+                            {highlights.map((h, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" aria-hidden />
+                                <span>{h}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {c.url && (
+                          <a
+                            href={c.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          >
+                            View case study <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
@@ -635,6 +693,15 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         );
       case "reviews":
         if (!showReviews) return null;
+        const sortedReviews =
+          reviews.latest?.length > 0
+            ? [...reviews.latest].sort((a, b) => {
+                if (b.rating !== a.rating) return b.rating - a.rating;
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+              })
+            : [];
+        const topReview = sortedReviews[0] ?? null;
+        const restReviews = sortedReviews.slice(1);
         return (
           <section className={rightSectionSpacing}>
             <SectionTitle>Reviews</SectionTitle>
@@ -643,28 +710,65 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             ) : (
               <>
                 <div className="mb-4 flex flex-wrap items-center gap-3">
-                  {reviews.average != null && <div className="flex items-center gap-2"><Stars rating={reviews.average} /><span className="text-sm font-semibold text-foreground tabular-nums">{reviews.average.toFixed(1)}</span></div>}
+                  {reviews.average != null && (
+                    <div className="flex items-center gap-2">
+                      <Stars rating={reviews.average} />
+                      <span className="text-sm font-semibold text-foreground tabular-nums">{reviews.average.toFixed(1)}</span>
+                    </div>
+                  )}
                   <span className="text-sm text-muted-foreground">{reviews.count} verified review{reviews.count !== 1 ? "s" : ""}</span>
                 </div>
-                <ul className="space-y-4">
-                  {reviews.latest.map((r, i) => (
-                    <li key={i} className={`${sectionCardClass} p-4`}>
-                      <div className="flex gap-3">
-                        {r.reviewer_avatar_url ? <img src={r.reviewer_avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-primary/20 ring-offset-2 ring-offset-background border border-border" /> : <div className="h-11 w-11 shrink-0 rounded-full border border-border bg-muted ring-2 ring-primary/10 ring-offset-2 ring-offset-background" aria-hidden />}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-medium text-foreground">{r.reviewer_display ?? "Anonymous"}</span>
-                            <Stars rating={r.rating} className="shrink-0" />
-                            {r.verified_deal !== false && <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified deal</span>}
-                          </div>
-                          <p className="mt-0.5 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</p>
-                          {r.title && <p className="mt-1 text-sm font-medium text-foreground">{r.title}</p>}
-                          {r.text && <p className="mt-1 text-sm text-foreground leading-relaxed">{r.text}</p>}
+                {topReview && (
+                  <div className={`${sectionCardClass} border-primary/20 p-5`} aria-label="Top verified review">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Top verified review</p>
+                    <div className="flex gap-4">
+                      {topReview.reviewer_avatar_url ? (
+                        <img src={topReview.reviewer_avatar_url} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover border border-border ring-2 ring-primary/20 ring-offset-2 ring-offset-background" />
+                      ) : (
+                        <div className="h-12 w-12 shrink-0 rounded-full border border-border bg-muted ring-2 ring-primary/10 ring-offset-2 ring-offset-background" aria-hidden />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-foreground">{topReview.reviewer_display ?? "Anonymous"}</span>
+                          <Stars rating={topReview.rating} className="shrink-0" />
+                          {topReview.verified_deal !== false && (
+                            <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified deal</span>
+                          )}
                         </div>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{new Date(topReview.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</p>
+                        {topReview.title && <p className="mt-1.5 text-sm font-medium text-foreground">{topReview.title}</p>}
+                        {topReview.text && <p className="mt-1 text-sm text-foreground leading-relaxed line-clamp-4">{topReview.text}</p>}
                       </div>
-                    </li>
-                  ))}
-                </ul>
+                    </div>
+                  </div>
+                )}
+                {restReviews.length > 0 && (
+                  <ul className="mt-4 space-y-3">
+                    {restReviews.map((r, i) => (
+                      <li key={r.id ?? i} className={`${sectionCardClass} p-4`}>
+                        <div className="flex gap-3">
+                          {r.reviewer_avatar_url ? (
+                            <img src={r.reviewer_avatar_url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover border border-border" />
+                          ) : (
+                            <div className="h-10 w-10 shrink-0 rounded-full border border-border bg-muted" aria-hidden />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium text-foreground">{r.reviewer_display ?? "Anonymous"}</span>
+                              <Stars rating={r.rating} className="shrink-0" />
+                              {r.verified_deal !== false && (
+                                <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified deal</span>
+                              )}
+                            </div>
+                            <p className="mt-0.5 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</p>
+                            {r.title && <p className="mt-1 text-sm font-medium text-foreground">{r.title}</p>}
+                            {r.text && <p className="mt-0.5 text-sm text-foreground leading-relaxed line-clamp-3">{r.text}</p>}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </>
             )}
           </section>

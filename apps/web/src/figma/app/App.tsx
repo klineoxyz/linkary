@@ -75,6 +75,7 @@
 import React, { Suspense, useEffect, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import Image from "next/image";
 import useSWR from "swr";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { authFetcher, SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
@@ -90,6 +91,7 @@ import {
   Building2,
   CalendarDays,
   ChevronDown,
+  Compass,
   ExternalLink,
   Globe,
   Home,
@@ -103,6 +105,7 @@ import {
   Plus,
   Search,
   Send,
+  Share2,
   Shield,
   Square,
   Star,
@@ -796,12 +799,20 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     return `/org/${route.data.orgId}${tab ? `?tab=${encodeURIComponent(tab)}` : ""}`;
   }
   if (route.name === "dealDetail" && route.data?.dealId) return `/deal/${route.data.dealId}`;
+  if (route.name === "workRequests") {
+    const tab = route.data?.tab === "sent" ? "sent" : "inbox";
+    return tab === "inbox" ? "/work/requests" : "/work/requests?tab=sent";
+  }
   return map[route.name] ?? "/";
 }
 
 function routeFromPathname(pathname: string | null, searchParams?: URLSearchParams | null): { name: string; data?: any; handle?: string } {
   const fullPath = (pathname ?? "/").replace(/^\//, "");
   const parts = fullPath.split("/").map((p) => p.toLowerCase());
+  if (parts[0] === "work" && parts[1] === "requests") {
+    const tab = searchParams?.get("tab") === "sent" ? "sent" : "inbox";
+    return { name: "workRequests", data: { tab } };
+  }
   if (parts[0] === "settings" && parts[1] === "integrations") return { name: "integrations" };
   if (parts[0] === "settings" && parts[1] === "roles-skills") return { name: "rolesSkills" };
   if (parts[0] === "settings" && parts[1] === "wallet") return { name: "wallet" };
@@ -937,39 +948,30 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
           <NavLink name="profile" icon={Users} label="My Profile" />
           <NavLink name="profileEdit" icon={FileText} label="Profile Builder" />
-          <Link
-            href="/profile/inbox"
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
-              "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            )}
-          >
-            <Inbox className="h-4 w-4" />
-            <span className="truncate">Inbox</span>
-            {inboxNew > 0 && (
-              <span className="ml-auto rounded-full bg-sidebar-accent px-2 py-0.5 text-[10px] font-medium text-sidebar-foreground">
-                {inboxNew > 99 ? "99+" : inboxNew}
-              </span>
-            )}
-          </Link>
-          <Link
-            href="/profile/requests"
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
-              "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            )}
-          >
-            <Send className="h-4 w-4" />
-            <span className="truncate">Sent requests</span>
-          </Link>
         </div>
 
         <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Work</span>
         <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="market" icon={Briefcase} label="Jobs & Sprints" />
           <NavLink name="messages" icon={MessageSquare} label="Messages" />
+          <Link
+            href="/work/requests"
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+              route?.name === "workRequests"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <Inbox className="h-4 w-4" />
+            <span className="truncate">Requests</span>
+            {inboxNew > 0 && (
+              <span className="ml-auto rounded-full bg-sidebar-accent px-2 py-0.5 text-[10px] font-medium text-sidebar-foreground">
+                {inboxNew > 99 ? "99+" : inboxNew}
+              </span>
+            )}
+          </Link>
         </div>
 
         <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Network</span>
@@ -2392,6 +2394,408 @@ function MessagesPage({ setRoute, initialConversationId }) {
   );
 }
 
+// --- Work Requests (collab requests in messages-style two-panel layout) ---
+const REPLY_NOTE_MAX = 500;
+function messagePreview(msg, maxLen = 120) {
+  const t = (msg || "").trim();
+  if (t.length <= maxLen) return t;
+  return t.slice(0, maxLen) + "…";
+}
+function formatTime(iso) {
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString();
+  } catch {
+    return "";
+  }
+}
+function RequestsStatusPill({ status }) {
+  const label = status === "new" ? "New" : status === "accepted" ? "Accepted" : status === "archived" ? "Archived" : status;
+  const isNew = status === "new";
+  return (
+    <span
+      className={
+        isNew
+          ? "rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary"
+          : "rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+      }
+    >
+      {label}
+    </span>
+  );
+}
+
+function WorkRequestsPage({ setRoute, route, me }) {
+  const router = useRouter();
+  const tab = (route?.data?.tab === "sent" ? "sent" : "inbox") as "inbox" | "sent";
+  const [inboxRequests, setInboxRequests] = useState([]);
+  const [sentRequests, setSentRequests] = useState([]);
+  const [inboxLoading, setInboxLoading] = useState(true);
+  const [sentLoading, setSentLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [acceptModal, setAcceptModal] = useState<any>(null);
+  const [replyNote, setReplyNote] = useState("");
+  const [mySocials, setMySocials] = useState<{ x_url: string | null; telegram_url: string | null; website_url: string | null }>({ x_url: null, telegram_url: null, website_url: null });
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const setTab = (t: "inbox" | "sent") => {
+    setSelectedId(null);
+    setRoute({ name: "workRequests", data: { tab: t } });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = (session as { access_token?: string } | null)?.access_token;
+      if (!token) {
+        if (!cancelled) {
+          setInboxRequests([]);
+          setSentRequests([]);
+          setInboxLoading(false);
+          setSentLoading(false);
+          router.replace("/login?next=" + encodeURIComponent("/work/requests"));
+        }
+        return;
+      }
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      setInboxLoading(true);
+      setSentLoading(true);
+      setError(null);
+      try {
+        await fetch(`${base}/api/collab-requests/mark-seen`, { method: "POST", headers: { Authorization: "Bearer " + token } }).catch(() => {});
+        const [inboxRes, sentRes] = await Promise.all([
+          fetch(`${base}/api/collab-requests/inbox`, { headers: { Authorization: "Bearer " + token } }),
+          fetch(`${base}/api/collab-requests/sent`, { headers: { Authorization: "Bearer " + token } }),
+        ]);
+        const inboxJson = await inboxRes.json().catch(() => ({}));
+        const sentJson = await sentRes.json().catch(() => ({}));
+        if (!cancelled) {
+          if (inboxJson.ok && Array.isArray(inboxJson.requests)) setInboxRequests(inboxJson.requests);
+          else setInboxRequests([]);
+          if (inboxJson.ok && inboxJson.my_socials) setMySocials(inboxJson.my_socials);
+          if (sentJson.ok && Array.isArray(sentJson.requests)) setSentRequests(sentJson.requests);
+          else setSentRequests([]);
+          if (!inboxRes.ok) setError(inboxJson.message ?? "Failed to load");
+          else if (!sentRes.ok) setError(sentJson.message ?? "Failed to load");
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load");
+      } finally {
+        if (!cancelled) {
+          setInboxLoading(false);
+          setSentLoading(false);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [router]);
+
+  const updateStatus = async (id: string, status: "accepted" | "archived", replyNoteValue?: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = (session as { access_token?: string } | null)?.access_token;
+    if (!accessToken) return;
+    setActionLoading(id);
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const body: { id: string; status: "accepted" | "archived"; reply_note?: string } = { id, status };
+    if (status === "accepted" && replyNoteValue !== undefined) body.reply_note = (replyNoteValue || "").slice(0, REPLY_NOTE_MAX);
+    const res = await fetch(`${base}/api/collab-requests/update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(body),
+    });
+    setActionLoading(null);
+    if (res.ok) {
+      setAcceptModal(null);
+      setReplyNote("");
+      const r2 = await fetch(`${base}/api/collab-requests/inbox`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const j2 = await r2.json().catch(() => ({}));
+      if (j2.ok && Array.isArray(j2.requests)) setInboxRequests(j2.requests);
+    }
+  };
+
+  const list = tab === "inbox" ? inboxRequests : sentRequests;
+  const loading = tab === "inbox" ? inboxLoading : sentLoading;
+  const selectedInbox = tab === "inbox" ? inboxRequests.find((r) => r.id === selectedId) : null;
+  const selectedSent = tab === "sent" ? sentRequests.find((r) => r.id === selectedId) : null;
+  const selected = selectedInbox ?? selectedSent;
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle title="Requests" subtitle="Collaboration requests — accept, archive, or follow up" />
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card>
+          <div className="border-b border-border mb-4">
+            <nav className="flex gap-0" aria-label="Requests tabs">
+              <button
+                type="button"
+                onClick={() => setTab("inbox")}
+                className={cn(
+                  "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                  tab === "inbox" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                )}
+              >
+                <Inbox className="h-4 w-4 shrink-0" />
+                Inbox
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("sent")}
+                className={cn(
+                  "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                  tab === "sent" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                )}
+              >
+                <Send className="h-4 w-4 shrink-0" />
+                Sent
+              </button>
+            </nav>
+          </div>
+          <h3 className="font-semibold mb-3" style={{ color: "#000000" }}>{tab === "inbox" ? "Inbox" : "Sent"}</h3>
+          {loading ? (
+            <p className="text-sm text-muted-foreground py-4">Loading…</p>
+          ) : error ? (
+            <p className="text-sm text-destructive py-2">{error}</p>
+          ) : list.length === 0 ? (
+            <div className="py-6 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                {tab === "inbox" ? <Inbox className="h-6 w-6" /> : <Send className="h-6 w-6" />}
+              </div>
+              <p className="mt-3 text-sm font-medium text-foreground">
+                {tab === "inbox" ? "No requests yet" : "No sent requests"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground max-w-xs mx-auto">
+                {tab === "inbox"
+                  ? "When someone uses \"Request collab\" on your profile, they'll show up here."
+                  : "Requests you send will appear here."}
+              </p>
+              {tab === "inbox" && (
+                <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+                  <Link href="/explore" className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
+                    <Compass className="h-4 w-4" />
+                    Browse creators
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = typeof window !== "undefined" ? window.location.origin + (me?.username ? "/" + encodeURIComponent(me.username) : "/profile") : "";
+                      navigator.clipboard.writeText(url).then(() => {});
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted/50"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Share profile
+                  </button>
+                </div>
+              )}
+              {tab === "sent" && (
+                <Link href="/explore" className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
+                  <Compass className="h-4 w-4" />
+                  Browse creators
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {list.map((r) => {
+                const isInbox = tab === "inbox";
+                const person = isInbox ? r.requester : r.target;
+                const isSelected = r.id === selectedId;
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => setSelectedId(r.id)}
+                    className={cn(
+                      "rounded-lg border p-3 cursor-pointer transition-all",
+                      isSelected ? "ring-2 ring-ring border-primary/50" : "border-border hover:bg-muted/30"
+                    )}
+                  >
+                    <div className="flex gap-3">
+                      <div className="shrink-0">
+                        {person?.avatar_url ? (
+                          <Image src={person.avatar_url} alt="" width={40} height={40} className="rounded-full object-cover h-10 w-10" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm font-medium">
+                            {(person?.display_name || person?.username || "?")[0].toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center justify-between gap-1">
+                          <span className="font-medium text-foreground truncate">{person?.display_name || "Someone"}</span>
+                          <RequestsStatusPill status={r.status} />
+                        </div>
+                        {person?.username && <p className="text-xs text-primary truncate">@{person.username}</p>}
+                        <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{messagePreview(r.message)}</p>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0 text-xs text-muted-foreground mt-1">
+                          {isInbox && (r.category || r.budget_text) && <span>{[r.category, r.budget_text].filter(Boolean).join(" · ")}</span>}
+                          <span>{formatTime(r.created_at)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        <Card className="lg:col-span-2">
+          {!selected ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <p className="text-sm text-muted-foreground">Select a request</p>
+              <p className="text-xs text-muted-foreground mt-1">Choose one from the list to view details and take action.</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-start justify-between gap-4 pb-4 border-b border-border mb-4">
+                <div className="flex items-center gap-3">
+                  {tab === "inbox" ? (
+                    selectedInbox?.requester?.avatar_url ? (
+                      <Image src={selectedInbox.requester.avatar_url} alt="" width={44} height={44} className="rounded-full object-cover h-11 w-11" />
+                    ) : (
+                      <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm font-medium">
+                        {(selectedInbox?.requester?.display_name || selectedInbox?.requester?.username || "?")[0].toUpperCase()}
+                      </div>
+                    )
+                  ) : selectedSent?.target?.avatar_url ? (
+                    <Image src={selectedSent.target.avatar_url} alt="" width={44} height={44} className="rounded-full object-cover h-11 w-11" />
+                  ) : (
+                    <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm font-medium">
+                      {(selectedSent?.target?.display_name || selectedSent?.target?.username || "?")[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {tab === "inbox" ? (selectedInbox?.requester?.display_name || "Someone") : (selectedSent?.target?.display_name || "Someone")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {tab === "inbox" ? (selectedInbox?.requester?.username ? "@" + selectedInbox.requester.username : "") : (selectedSent?.target?.username ? "@" + selectedSent.target.username : "")}
+                    </p>
+                  </div>
+                </div>
+                <RequestsStatusPill status={selected.status} />
+              </div>
+              <div className="prose prose-sm max-w-none">
+                <p className="text-sm text-foreground whitespace-pre-wrap">{selected.message}</p>
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0 text-xs text-muted-foreground">
+                  {(selected.category || selected.budget_text) && <span>{[selected.category, selected.budget_text].filter(Boolean).join(" · ")}</span>}
+                  <span>{formatTime(selected.created_at)}</span>
+                </div>
+              </div>
+              {tab === "inbox" && selectedInbox && (
+                <>
+                  {selectedInbox.status === "new" && (
+                    <div className="mt-4 flex gap-2">
+                      <Button onClick={() => setAcceptModal(selectedInbox)}>Accept</Button>
+                      <Button variant="outline" onClick={() => updateStatus(selectedInbox.id, "archived")} disabled={actionLoading === selectedInbox.id}>
+                        Archive
+                      </Button>
+                    </div>
+                  )}
+                  {selectedInbox.status === "accepted" && (
+                    <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+                      {selectedInbox.reply_note && (
+                        <p className="text-sm text-foreground whitespace-pre-wrap">{selectedInbox.reply_note}</p>
+                      )}
+                      <p className="mt-1 text-xs text-muted-foreground">They can reach you via your profile socials.</p>
+                    </div>
+                  )}
+                </>
+              )}
+              {tab === "sent" && selectedSent && (
+                <>
+                  {selectedSent.status === "accepted" && selectedSent.reply_note && (
+                    <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+                      <p className="text-sm font-medium text-foreground">Their reply</p>
+                      <p className="text-sm text-foreground whitespace-pre-wrap mt-1">{selectedSent.reply_note}</p>
+                    </div>
+                  )}
+                  {selectedSent.status === "accepted" && selectedSent.target && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {selectedSent.target.x_url && (
+                        <a href={selectedSent.target.x_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted/50">
+                          <ExternalLink className="h-4 w-4" />
+                          X
+                        </a>
+                      )}
+                      {selectedSent.target.telegram_url && (
+                        <a href={selectedSent.target.telegram_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted/50">
+                          <ExternalLink className="h-4 w-4" />
+                          Telegram
+                        </a>
+                      )}
+                      {selectedSent.target.website_url && (
+                        <a href={selectedSent.target.website_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted/50">
+                          <ExternalLink className="h-4 w-4" />
+                          Website
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  <div className="mt-4">
+                    <Link
+                      href={selectedSent.target?.username ? `/${encodeURIComponent(selectedSent.target.username)}` : "/explore"}
+                      className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      View profile
+                      <ExternalLink className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </Card>
+      </div>
+
+      {acceptModal && (
+        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="accept-modal-title">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-lg">
+            <h2 id="accept-modal-title" className="text-lg font-semibold text-foreground">Accept request</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              From {acceptModal.requester?.display_name || "Someone"}
+              {acceptModal.requester?.username && <> @{acceptModal.requester.username}</>}
+            </p>
+            <label className="mt-3 block text-sm font-medium text-foreground">Reply note (optional)</label>
+            <textarea
+              value={replyNote}
+              onChange={(e) => setReplyNote(e.target.value)}
+              maxLength={REPLY_NOTE_MAX}
+              rows={3}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Add a short note for the requester…"
+            />
+            <p className="mt-0.5 text-xs text-muted-foreground">{replyNote.length}/{REPLY_NOTE_MAX}</p>
+            {(mySocials.x_url || mySocials.telegram_url || mySocials.website_url) && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                They can reach you via: {[mySocials.x_url && "X", mySocials.telegram_url && "Telegram", mySocials.website_url && "Website"].filter(Boolean).join(", ")}
+              </p>
+            )}
+            <div className="mt-4 flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => { setAcceptModal(null); setReplyNote(""); }}>Cancel</Button>
+              <Button disabled={actionLoading === acceptModal.id} onClick={() => updateStatus(acceptModal.id, "accepted", replyNote)}>
+                {actionLoading === acceptModal.id ? "…" : "Accept request"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   const router = useRouter();
   const tab = (route?.data?.tab ?? "overview") as string;
@@ -3038,7 +3442,7 @@ function LinkaryAppInner() {
 
   // Production route lockdown: only allowed routes are reachable; everything else redirects to Overview
   const ALLOWED_ROUTES = new Set([
-    "landing", "overview", "dashboard", "profile", "profileEdit", "profileInsights", "userProfile", "userInsights", "market", "messages",
+    "landing", "overview", "dashboard", "profile", "profileEdit", "profileInsights", "userProfile", "userInsights", "market", "messages", "workRequests",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding",
     "orgDetail", "brandProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
     "circles", "circleDetail", "connections", "kolLists", "calendar", "capitalPartners", "watchlist",
@@ -3589,6 +3993,7 @@ function LinkaryAppInner() {
                 {(route.name === "overview" || !ALLOWED_ROUTES.has(route.name)) && <OverviewPage setRoute={setRoute} headerMedia={headerMedia} getAuthHeaders={getAuthHeaders} />}
                 {route.name === "market" && <MarketplacePage setRoute={setRoute} />}
                 {route.name === "messages" && <MessagesPage setRoute={setRoute} initialConversationId={route.data?.conversationId} />}
+                {route.name === "workRequests" && <WorkRequestsPage setRoute={setRoute} route={route} me={me} />}
                 {route.name === "login" && (
                   <LoginPage
                     setRoute={setRoute}

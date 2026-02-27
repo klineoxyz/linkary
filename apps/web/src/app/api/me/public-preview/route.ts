@@ -199,6 +199,7 @@ export async function GET(request: NextRequest) {
       discord: null,
       linkedin: dto.socials?.linkedin_url ?? null,
       website: dto.socials?.website_url ?? dto.website ?? null,
+      youtube: dto.socials?.youtube_url ?? null,
     },
     links: [],
     caseStudies,

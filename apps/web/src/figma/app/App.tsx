@@ -3654,7 +3654,7 @@ function LinkaryAppInner() {
   const runAuthGate = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user?.id) {
-      setRoute({ name: "login" });
+      // Do not force login: leave route as derived from URL so visitors see landing, overview, etc.
       setAuthBootstrapped(true);
       setAuthUserId(null);
       setMe(null);
@@ -3716,7 +3716,7 @@ function LinkaryAppInner() {
     await supabase.auth.signOut();
     setAuthUserId(null);
     setMe(null);
-    setRoute({ name: "login" });
+    setRoute({ name: "landing" });
     setAuthBootstrapped(true);
   };
 

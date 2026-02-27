@@ -102,6 +102,7 @@ import {
   PieChart,
   Plus,
   Search,
+  Send,
   Shield,
   Square,
   Star,
@@ -119,10 +120,10 @@ import {
   Eye,
   MousePointer,
   FileText,
+  Inbox,
   Sparkles,
   Filter,
   UserPlus,
-  Send,
   Download,
   Calendar,
   Mic,
@@ -848,7 +849,7 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   return { name: "userProfile", data: { username: decodeURIComponent(path) }, handle: decodeURIComponent(path) };
 }
 
-function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSignOut, me }) {
+function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSignOut, me, inboxNew = 0 }) {
   const isActive = (name) => route?.name === name;
   const isLoggedIn = !!authUserId;
   if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
@@ -930,6 +931,33 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
           <NavLink name="profile" icon={Users} label="My Profile" />
           <NavLink name="profileEdit" icon={FileText} label="Profile Builder" />
+          <Link
+            href="/profile/inbox"
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+              "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <Inbox className="h-4 w-4" />
+            <span className="truncate">Inbox</span>
+            {inboxNew > 0 && (
+              <span className="ml-auto rounded-full bg-sidebar-accent px-2 py-0.5 text-[10px] font-medium text-sidebar-foreground">
+                {inboxNew > 99 ? "99+" : inboxNew}
+              </span>
+            )}
+          </Link>
+          <Link
+            href="/profile/requests"
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+              "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <Send className="h-4 w-4" />
+            <span className="truncate">Sent requests</span>
+          </Link>
         </div>
 
         <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Work</span>
@@ -2398,6 +2426,13 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
     if (meStatsSwr) setMeStats({ ethos: meStatsSwr.ethos ?? null, xscore: meStatsSwr.xscore ?? null, reputationIndex: meStatsSwr.reputationIndex ?? 0, socialPower: meStatsSwr.socialPower ?? 0, reviews: meStatsSwr.reviews ?? { avg: 0, count: 0 } });
   }, [meStatsSwr]);
 
+  const { data: collabCountSwr } = useSWR<{ ok?: boolean; inboxNew?: number; sentTotal?: number }>(
+    authUserId ? "/api/collab-requests/count" : null,
+    authFetcher as (url: string) => Promise<{ ok?: boolean; inboxNew?: number; sentTotal?: number }>,
+    { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS }
+  );
+  const inboxNew = collabCountSwr?.ok !== false && typeof collabCountSwr?.inboxNew === "number" ? collabCountSwr.inboxNew : 0;
+
   // Debounced profile search (people only)
   useEffect(() => {
     if (profileSearchQuery.trim().length < 2) {
@@ -3422,6 +3457,7 @@ function LinkaryAppInner() {
             authUserId={authUserId}
             onSignOut={handleSignOut}
             me={me}
+            inboxNew={inboxNew}
           />
         )}
 

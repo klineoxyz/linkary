@@ -15,6 +15,7 @@ type InboxRequest = {
   category: string | null;
   budget_text: string | null;
   status: string;
+  seen_at: string | null;
   requester: {
     username: string | null;
     display_name: string | null;
@@ -82,8 +83,9 @@ export default function InboxPage() {
       }
       const base = typeof window !== "undefined" ? window.location.origin : "";
       try {
+        await fetch(`${base}/api/collab-requests/mark-seen`, { method: "POST", headers: { Authorization: "Bearer " + token } }).catch(() => {});
         const res = await fetch(`${base}/api/collab-requests/inbox`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: "Bearer " + token },
         });
         const json = await res.json().catch(() => ({}));
         if (!cancelled) {
@@ -188,11 +190,16 @@ export default function InboxPage() {
                           {[r.category, r.budget_text].filter(Boolean).join(" · ")}
                         </p>
                       )}
-                      {r.status !== "new" && (
-                        <span className="mt-1 inline-block rounded border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground capitalize">
-                          {r.status}
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <span className="rounded border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground capitalize">
+                          {r.status === "new" ? "New" : r.status}
                         </span>
-                      )}
+                        {r.seen_at && (
+                          <span className="text-xs text-muted-foreground">
+                            Seen {formatTime(r.seen_at)}
+                          </span>
+                        )}
+                      </div>
                       {r.status === "new" && (
                         <div className="mt-2 flex gap-2">
                           <button

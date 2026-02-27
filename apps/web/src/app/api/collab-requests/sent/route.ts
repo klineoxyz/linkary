@@ -1,5 +1,5 @@
 /**
- * GET /api/collab-requests/inbox — list requests where target_profile_id = current user (newest first)
+ * GET /api/collab-requests/sent — list requests where requester_profile_id = current user (newest first)
  */
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -20,12 +20,12 @@ export async function GET(request: NextRequest) {
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
   if (userError || !user?.id) return fail("INVALID_SESSION", "Invalid session", 401);
 
-  const targetProfileId = getProfileIdForAuthUser(user.id);
+  const requesterProfileId = getProfileIdForAuthUser(user.id);
 
   const { data: rows, error } = await supabase
     .from("collab_requests")
-    .select("id, created_at, requester_profile_id, message, category, budget_text, status, seen_at")
-    .eq("target_profile_id", targetProfileId)
+    .select("id, created_at, target_profile_id, message, category, budget_text, status")
+    .eq("requester_profile_id", requesterProfileId)
     .order("created_at", { ascending: false });
 
   if (error) return fail("DB_ERROR", error.message, 500);
@@ -33,29 +33,28 @@ export async function GET(request: NextRequest) {
   const requests = (rows ?? []) as Array<{
     id: string;
     created_at: string;
-    requester_profile_id: string;
+    target_profile_id: string;
     message: string;
     category: string | null;
     budget_text: string | null;
     status: string;
-    seen_at: string | null;
   }>;
 
-  const requesterIds = [...new Set(requests.map((r) => r.requester_profile_id))];
-  let requesterById: Record<string, { username: string | null; display_name: string | null; avatar_url: string | null }> = {};
-  if (requesterIds.length > 0) {
+  const targetIds = [...new Set(requests.map((r) => r.target_profile_id))];
+  let targetById: Record<string, { username: string | null; display_name: string | null; avatar_url: string | null }> = {};
+  if (targetIds.length > 0) {
     const { data: profs } = await supabase
       .from("public_profile_view")
       .select("id, username, display_name, avatar_url")
-      .in("id", requesterIds);
+      .in("id", targetIds);
     for (const p of (profs ?? []) as Array<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null }>) {
-      requesterById[p.id] = { username: p.username, display_name: p.display_name, avatar_url: p.avatar_url };
+      targetById[p.id] = { username: p.username, display_name: p.display_name, avatar_url: p.avatar_url };
     }
   }
 
   const list = requests.map((r) => ({
     ...r,
-    requester: requesterById[r.requester_profile_id] ?? null,
+    target: targetById[r.target_profile_id] ?? null,
   }));
 
   return ok({ requests: list });

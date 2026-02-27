@@ -6,7 +6,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "backfill-rep": "tsx scripts/backfillRep.ts",
+    "backfill-rep": "npx tsx scripts/backfillRep.ts",
     "dev": "pnpm --filter web dev",
     "db:push": "npx supabase db push",
     "deploy:auth": "npx supabase functions deploy auth-cdp-login --no-verify-jwt",

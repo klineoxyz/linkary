@@ -2461,7 +2461,11 @@ function WorkRequestsPage({ setRoute, route, me }) {
   const [mySocials, setMySocials] = useState<{ x_url: string | null; telegram_url: string | null; website_url: string | null }>({ x_url: null, telegram_url: null, website_url: null });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [followupDraft, setFollowupDraft] = useState("");
+  const [followupSavingId, setFollowupSavingId] = useState<string | null>(null);
   const markSeenDoneRef = useRef(false);
+
+  const REQUESTER_FOLLOWUP_MAX = 500;
 
   const setTab = (t: "inbox" | "sent") => {
     setSelectedId(null);
@@ -2566,6 +2570,26 @@ function WorkRequestsPage({ setRoute, route, me }) {
         const nextId = stillThere ? selectedId : (newList[idx]?.id ?? newList[idx - 1]?.id ?? newList[0]?.id ?? null);
         selectRequest(nextId);
       }
+    }
+  };
+
+  const saveRequesterFollowup = async (requestId: string, note: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = (session as { access_token?: string } | null)?.access_token;
+    if (!accessToken) return;
+    setFollowupSavingId(requestId);
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/collab-requests/update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ id: requestId, requester_followup_note: (note || "").slice(0, REQUESTER_FOLLOWUP_MAX) }),
+    });
+    setFollowupSavingId(null);
+    if (res.ok) {
+      setFollowupDraft("");
+      const sentRes = await fetch(`${base}/api/collab-requests/sent`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const j = await sentRes.json().catch(() => ({}));
+      if (j.ok && Array.isArray(j.requests)) setSentRequests(j.requests);
     }
   };
 
@@ -2717,7 +2741,7 @@ function WorkRequestsPage({ setRoute, route, me }) {
 
         <Card className="lg:col-span-2">
           {!selected ? (
-            list.length === 0 ? (
+            list.length === 0 && (tab !== "inbox" || sentRequests.length === 0) ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <h3 className="font-semibold text-foreground mb-1">How requests work</h3>
                 <p className="text-sm text-muted-foreground max-w-sm mb-4">
@@ -2744,6 +2768,43 @@ function WorkRequestsPage({ setRoute, route, me }) {
                     <ExternalLink className="h-4 w-4" />
                     Open my public profile
                   </Link>
+                </div>
+              </div>
+            ) : list.length === 0 && tab === "inbox" && sentRequests.length > 0 ? (
+              <div className="py-4">
+                <h3 className="font-semibold text-foreground mb-3">Recent sent requests</h3>
+                <p className="text-sm text-muted-foreground mb-4">Your inbox is empty. Here are requests you sent — click to open.</p>
+                <div className="space-y-2">
+                  {sentRequests.slice(0, 3).map((r) => {
+                    const person = r.target;
+                    return (
+                      <div
+                        key={r.id}
+                        onClick={() => { setTab("sent"); selectRequest(r.id); }}
+                        className="rounded-lg border border-border p-3 cursor-pointer transition-all hover:bg-muted/30"
+                      >
+                        <div className="flex gap-3">
+                          <div className="shrink-0">
+                            {person?.avatar_url ? (
+                              <Image src={person.avatar_url} alt="" width={40} height={40} className="rounded-full object-cover h-10 w-10" />
+                            ) : (
+                              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm font-medium">
+                                {(person?.display_name || person?.username || "?")[0].toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center justify-between gap-1">
+                              <span className="font-medium text-foreground truncate">{person?.display_name || "Someone"}</span>
+                              <RequestsStatusPill status={r.status} />
+                            </div>
+                            {person?.username && <p className="text-xs text-primary truncate">@{person.username}</p>}
+                            <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{messagePreview(r.message)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : (
@@ -2801,11 +2862,22 @@ function WorkRequestsPage({ setRoute, route, me }) {
                     </div>
                   )}
                   {selectedInbox.status === "accepted" && (
-                    <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+                    <div className="mt-4 space-y-3">
                       {selectedInbox.reply_note && (
-                        <p className="text-sm text-foreground whitespace-pre-wrap">{selectedInbox.reply_note}</p>
+                        <div className="rounded-lg border border-border bg-muted/30 p-3">
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{selectedInbox.reply_note}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">They can reach you via your profile socials.</p>
+                        </div>
                       )}
-                      <p className="mt-1 text-xs text-muted-foreground">They can reach you via your profile socials.</p>
+                      {selectedInbox.requester_followup_note && (
+                        <div className="rounded-lg border border-border bg-muted/30 p-3">
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Requester follow-up</p>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{selectedInbox.requester_followup_note}</p>
+                        </div>
+                      )}
+                      {!selectedInbox.reply_note && !selectedInbox.requester_followup_note && (
+                        <p className="text-xs text-muted-foreground">They can reach you via your profile socials.</p>
+                      )}
                     </div>
                   )}
                 </>
@@ -2816,6 +2888,33 @@ function WorkRequestsPage({ setRoute, route, me }) {
                     <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
                       <p className="text-sm font-medium text-foreground">Their reply</p>
                       <p className="text-sm text-foreground whitespace-pre-wrap mt-1">{selectedSent.reply_note}</p>
+                    </div>
+                  )}
+                  {selectedSent.status === "accepted" && selectedSent.requester_followup_note && (
+                    <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Your follow-up</p>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{selectedSent.requester_followup_note}</p>
+                    </div>
+                  )}
+                  {selectedSent.status === "accepted" && !selectedSent.requester_followup_note && (
+                    <div className="mt-4 rounded-lg border border-border p-3">
+                      <label className="block text-sm font-medium text-foreground mb-1">Send a follow-up (optional)</label>
+                      <textarea
+                        value={selectedId === selectedSent.id ? followupDraft : ""}
+                        onChange={(e) => setFollowupDraft(e.target.value)}
+                        maxLength={REQUESTER_FOLLOWUP_MAX}
+                        rows={3}
+                        className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="Add a short note for the creator…"
+                      />
+                      <p className="mt-0.5 text-xs text-muted-foreground">{followupDraft.length}/{REQUESTER_FOLLOWUP_MAX}</p>
+                      <Button
+                        className="mt-2"
+                        disabled={followupSavingId === selectedSent.id}
+                        onClick={() => saveRequesterFollowup(selectedSent.id, followupDraft)}
+                      >
+                        {followupSavingId === selectedSent.id ? "Saving…" : "Save"}
+                      </Button>
                     </div>
                   )}
                   {selectedSent.status === "accepted" && selectedSent.target && (

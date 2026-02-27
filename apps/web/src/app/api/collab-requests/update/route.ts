@@ -1,6 +1,7 @@
 /**
- * POST /api/collab-requests/update — update status (only target can update)
- * Body: { id, status, reply_note? } — reply_note accepted only when status === "accepted"
+ * POST /api/collab-requests/update
+ * - Target: update status (accepted|archived), optional reply_note when accepting.
+ * - Requester: set requester_followup_note only when status is already "accepted".
  */
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -12,6 +13,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const ALLOWED_STATUSES = ["accepted", "archived"] as const;
 const REPLY_NOTE_MAX = 500;
+const REQUESTER_FOLLOWUP_MAX = 500;
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -24,9 +26,9 @@ export async function POST(request: NextRequest) {
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
   if (userError || !user?.id) return fail("INVALID_SESSION", "Invalid session", 401);
 
-  const targetProfileId = getProfileIdForAuthUser(user.id);
+  const myProfileId = getProfileIdForAuthUser(user.id);
 
-  let body: { id?: string; status?: string; reply_note?: string };
+  let body: { id?: string; status?: string; reply_note?: string; requester_followup_note?: string };
   try {
     body = await request.json().catch(() => ({}));
   } catch {
@@ -36,31 +38,80 @@ export async function POST(request: NextRequest) {
   const id = typeof body?.id === "string" ? body.id.trim() : "";
   if (!id) return fail("BAD_REQUEST", "id is required", 400);
 
-  const status = typeof body?.status === "string" ? body.status.trim().toLowerCase() : "";
-  if (!ALLOWED_STATUSES.includes(status as (typeof ALLOWED_STATUSES)[number])) {
-    return fail("BAD_REQUEST", "status must be accepted or archived", 400);
-  }
-
-  let replyNote: string | null = null;
-  if (status === "accepted" && body.reply_note !== undefined) {
-    const raw = typeof body.reply_note === "string" ? body.reply_note.trim() : "";
-    replyNote = raw.length > REPLY_NOTE_MAX ? raw.slice(0, REPLY_NOTE_MAX) : raw || null;
-  }
-
-  const updates: { status: string; reply_note?: string | null } = { status };
-  if (status === "accepted") updates.reply_note = replyNote;
-
-  const { data: row, error } = await supabase
+  const { data: existing, error: fetchError } = await supabase
     .from("collab_requests")
-    .update(updates)
+    .select("id, target_profile_id, requester_profile_id, status")
     .eq("id", id)
-    .eq("target_profile_id", targetProfileId)
-    .select("id, status, reply_note")
     .maybeSingle();
 
-  if (error) return fail("DB_ERROR", error.message, 500);
-  if (!row) return fail("NOT_FOUND", "Request not found or you are not the recipient", 404);
+  if (fetchError) return fail("DB_ERROR", fetchError.message, 500);
+  if (!existing) return fail("NOT_FOUND", "Request not found", 404);
 
-  const r = row as { id: string; status: string; reply_note: string | null };
-  return ok({ id: r.id, status: r.status, reply_note: r.reply_note ?? undefined });
+  const row = existing as { id: string; target_profile_id: string; requester_profile_id: string; status: string };
+
+  // Target: update status and optional reply_note
+  if (row.target_profile_id === myProfileId) {
+    const status = typeof body?.status === "string" ? body.status.trim().toLowerCase() : "";
+    if (!ALLOWED_STATUSES.includes(status as (typeof ALLOWED_STATUSES)[number])) {
+      return fail("BAD_REQUEST", "status must be accepted or archived", 400);
+    }
+    let replyNote: string | null = null;
+    if (status === "accepted" && body.reply_note !== undefined) {
+      const raw = typeof body.reply_note === "string" ? body.reply_note.trim() : "";
+      replyNote = raw.length > REPLY_NOTE_MAX ? raw.slice(0, REPLY_NOTE_MAX) : raw || null;
+    }
+    const updates: { status: string; reply_note?: string | null } = { status };
+    if (status === "accepted") updates.reply_note = replyNote;
+
+    const { data: updated, error } = await supabase
+      .from("collab_requests")
+      .update(updates)
+      .eq("id", id)
+      .eq("target_profile_id", myProfileId)
+      .select("id, status, reply_note, requester_followup_note")
+      .maybeSingle();
+
+    if (error) return fail("DB_ERROR", error.message, 500);
+    if (!updated) return fail("NOT_FOUND", "Request not found or you are not the recipient", 404);
+    const r = updated as { id: string; status: string; reply_note: string | null; requester_followup_note: string | null };
+    return ok({
+      id: r.id,
+      status: r.status,
+      reply_note: r.reply_note ?? undefined,
+      requester_followup_note: r.requester_followup_note ?? undefined,
+    });
+  }
+
+  // Requester: set requester_followup_note only when status is already accepted
+  if (row.requester_profile_id === myProfileId && row.status === "accepted") {
+    if (body.status !== undefined || body.reply_note !== undefined) {
+      return fail("BAD_REQUEST", "Requester cannot change status or reply_note", 400);
+    }
+    let followup: string | null = null;
+    if (body.requester_followup_note !== undefined) {
+      const raw = typeof body.requester_followup_note === "string" ? body.requester_followup_note.trim() : "";
+      followup = raw.length > REQUESTER_FOLLOWUP_MAX ? raw.slice(0, REQUESTER_FOLLOWUP_MAX) : raw || null;
+    }
+
+    const { data: updated, error } = await supabase
+      .from("collab_requests")
+      .update({ requester_followup_note: followup })
+      .eq("id", id)
+      .eq("requester_profile_id", myProfileId)
+      .eq("status", "accepted")
+      .select("id, status, reply_note, requester_followup_note")
+      .maybeSingle();
+
+    if (error) return fail("DB_ERROR", error.message, 500);
+    if (!updated) return fail("NOT_FOUND", "Request not found or not accepted", 404);
+    const r = updated as { id: string; status: string; reply_note: string | null; requester_followup_note: string | null };
+    return ok({
+      id: r.id,
+      status: r.status,
+      reply_note: r.reply_note ?? undefined,
+      requester_followup_note: r.requester_followup_note ?? undefined,
+    });
+  }
+
+  return fail("NOT_FOUND", "Request not found or you cannot update it", 404);
 }

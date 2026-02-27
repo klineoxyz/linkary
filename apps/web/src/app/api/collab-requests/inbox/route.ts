@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   const { data: rows, error } = await supabase
     .from("collab_requests")
-    .select("id, created_at, requester_profile_id, message, category, budget_text, status, seen_at, reply_note")
+    .select("id, created_at, requester_profile_id, message, category, budget_text, status, seen_at, reply_note, requester_followup_note")
     .eq("target_profile_id", targetProfileId)
     .order("created_at", { ascending: false });
 
@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
     status: string;
     seen_at: string | null;
     reply_note: string | null;
+    requester_followup_note: string | null;
   }>;
 
   const requesterIds = [...new Set(requests.map((r) => r.requester_profile_id))];

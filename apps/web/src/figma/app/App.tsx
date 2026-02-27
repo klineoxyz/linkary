@@ -2433,7 +2433,7 @@ function formatTime(iso) {
   }
 }
 function RequestsStatusPill({ status }) {
-  const label = status === "new" ? "New" : status === "accepted" ? "Accepted" : status === "archived" ? "Archived" : status;
+  const label = status === "new" ? "New" : status === "accepted" ? "Accepted" : status === "archived" ? "Archived" : status === "done" ? "Done" : status;
   const isNew = status === "new";
   return (
     <span
@@ -2463,6 +2463,7 @@ function WorkRequestsPage({ setRoute, route, me }) {
   const [error, setError] = useState<string | null>(null);
   const [followupDraft, setFollowupDraft] = useState("");
   const [followupSavingId, setFollowupSavingId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const markSeenDoneRef = useRef(false);
 
   const REQUESTER_FOLLOWUP_MAX = 500;
@@ -2593,11 +2594,44 @@ function WorkRequestsPage({ setRoute, route, me }) {
     }
   };
 
-  const list = tab === "inbox" ? inboxRequests : sentRequests;
+  const rawList = tab === "inbox" ? inboxRequests : sentRequests;
+  const list = showArchived ? rawList : rawList.filter((r) => r.status === "new" || r.status === "accepted");
   const loading = tab === "inbox" ? inboxLoading : sentLoading;
   const selectedInbox = tab === "inbox" ? inboxRequests.find((r) => r.id === selectedId) : null;
   const selectedSent = tab === "sent" ? sentRequests.find((r) => r.id === selectedId) : null;
   const selected = selectedInbox ?? selectedSent;
+  const hasArchivedOrDone = rawList.some((r) => r.status === "archived" || r.status === "done");
+
+  const markDone = async (id: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = (session as { access_token?: string } | null)?.access_token;
+    if (!accessToken) return;
+    setActionLoading(id);
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/collab-requests/update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ id, status: "done" }),
+    });
+    setActionLoading(null);
+    if (res.ok) {
+      const [inboxRes, sentRes] = await Promise.all([
+        fetch(`${base}/api/collab-requests/inbox`, { headers: { Authorization: `Bearer ${accessToken}` } }),
+        fetch(`${base}/api/collab-requests/sent`, { headers: { Authorization: `Bearer ${accessToken}` } }),
+      ]);
+      const inboxJson = await inboxRes.json().catch(() => ({}));
+      const sentJson = await sentRes.json().catch(() => ({}));
+      if (inboxJson.ok && Array.isArray(inboxJson.requests)) setInboxRequests(inboxJson.requests);
+      if (sentJson.ok && Array.isArray(sentJson.requests)) setSentRequests(sentJson.requests);
+      const newInbox = inboxJson.ok && Array.isArray(inboxJson.requests) ? inboxJson.requests : inboxRequests;
+      const newSent = sentJson.ok && Array.isArray(sentJson.requests) ? sentJson.requests : sentRequests;
+      const newRaw = tab === "inbox" ? newInbox : newSent;
+      const stillThere = newRaw.some((r) => r.id === selectedId);
+      const idx = newRaw.findIndex((r) => r.id === id);
+      const nextId = stillThere ? selectedId : (newRaw[idx]?.id ?? newRaw[idx - 1]?.id ?? newRaw[0]?.id ?? null);
+      selectRequest(nextId);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -2631,7 +2665,18 @@ function WorkRequestsPage({ setRoute, route, me }) {
               </button>
             </nav>
           </div>
-          <h3 className="font-semibold mb-3" style={{ color: "#000000" }}>{tab === "inbox" ? "Inbox" : "Sent"}</h3>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h3 className="font-semibold" style={{ color: "#000000" }}>{tab === "inbox" ? "Inbox" : "Sent"}</h3>
+            {hasArchivedOrDone && (
+              <button
+                type="button"
+                onClick={() => setShowArchived((v) => !v)}
+                className="text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                {showArchived ? "Hide archived" : "Show archived"}
+              </button>
+            )}
+          </div>
           {loading ? (
             <p className="text-sm text-muted-foreground py-4">Loading…</p>
           ) : error ? (
@@ -2878,6 +2923,9 @@ function WorkRequestsPage({ setRoute, route, me }) {
                       {!selectedInbox.reply_note && !selectedInbox.requester_followup_note && (
                         <p className="text-xs text-muted-foreground">They can reach you via your profile socials.</p>
                       )}
+                      <Button variant="outline" size="sm" onClick={() => markDone(selectedInbox.id)} disabled={actionLoading === selectedInbox.id}>
+                        {actionLoading === selectedInbox.id ? "…" : "Mark done"}
+                      </Button>
                     </div>
                   )}
                 </>
@@ -2916,6 +2964,11 @@ function WorkRequestsPage({ setRoute, route, me }) {
                         {followupSavingId === selectedSent.id ? "Saving…" : "Save"}
                       </Button>
                     </div>
+                  )}
+                  {selectedSent.status === "accepted" && (
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => markDone(selectedSent.id)} disabled={actionLoading === selectedSent.id}>
+                      {actionLoading === selectedSent.id ? "…" : "Mark done"}
+                    </Button>
                   )}
                   {selectedSent.status === "accepted" && selectedSent.target && (
                     <div className="mt-3 flex flex-wrap gap-2">

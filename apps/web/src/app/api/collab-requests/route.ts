@@ -63,6 +63,33 @@ export async function POST(request: NextRequest) {
   const targetProfileId = (targetRow as { id: string }).id;
   if (targetProfileId === requesterProfileId) return fail("BAD_REQUEST", "Cannot request collab with yourself", 400);
 
+  // Anti-spam: one open request per pair
+  const { data: openRow } = await supabase
+    .from("collab_requests")
+    .select("id")
+    .eq("requester_profile_id", requesterProfileId)
+    .eq("target_profile_id", targetProfileId)
+    .eq("status", "new")
+    .maybeSingle();
+  if (openRow) return fail("duplicate_open", "You already have an open request to this user.", 409);
+
+  // Cooldown: no new request within 24h of last one between this pair
+  const cooldownHours = 24;
+  const { data: latestRow } = await supabase
+    .from("collab_requests")
+    .select("created_at")
+    .eq("requester_profile_id", requesterProfileId)
+    .eq("target_profile_id", targetProfileId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (latestRow) {
+    const created = new Date((latestRow as { created_at: string }).created_at).getTime();
+    if (Date.now() - created < cooldownHours * 60 * 60 * 1000) {
+      return fail("cooldown", "Please wait before sending another request.", 429);
+    }
+  }
+
   const { data: row, error } = await supabase
     .from("collab_requests")
     .insert({

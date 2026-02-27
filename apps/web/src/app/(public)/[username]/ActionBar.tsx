@@ -3,6 +3,7 @@
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { RequestCollabModal } from "./RequestCollabModal";
 
 const ROUTES = {
   profileEdit: "/profile/edit",
@@ -37,6 +38,7 @@ export function ActionBar({
   className = "",
 }: ActionBarProps) {
   const [authed, setAuthed] = useState(false);
+  const [collabModalOpen, setCollabModalOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -47,15 +49,33 @@ export function ActionBar({
   const insightsHref = `/u/${encodeURIComponent(username)}/insights`;
 
   if (profileType === "individual") {
-    const requestHref = authed ? profileUrl : buildRedirect(profileUrl);
     return (
       <nav className={`flex flex-wrap items-center gap-2 ${className}`} aria-label="Profile actions">
-        <Link
-          href={requestHref}
-          className="inline-flex items-center rounded-lg border border-primary bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          {authed ? "Request collab" : "Sign in to contact"}
-        </Link>
+        {authed ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setCollabModalOpen(true)}
+              className="inline-flex items-center rounded-lg border border-primary bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              Request collab
+            </button>
+            {collabModalOpen && (
+              <RequestCollabModal
+                targetUsername={username}
+                onClose={() => setCollabModalOpen(false)}
+                onSuccess={() => setCollabModalOpen(false)}
+              />
+            )}
+          </>
+        ) : (
+          <Link
+            href={buildRedirect(profileUrl)}
+            className="inline-flex items-center rounded-lg border border-primary bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Sign in to contact
+          </Link>
+        )}
         <Link
           href={insightsHref}
           className="inline-flex items-center rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-accent/50 hover:border-primary/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"

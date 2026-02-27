@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { Inbox, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import AppWithProviders from "../../AppWithProviders";
+import { RequestsLayout } from "@/components/RequestsLayout";
 
 type InboxRequest = {
   id: string;
@@ -51,6 +53,22 @@ function formatTime(iso: string): string {
 }
 
 const REPLY_NOTE_MAX = 500;
+
+function StatusPill({ status }: { status: string }) {
+  const label = status === "new" ? "New" : status === "accepted" ? "Accepted" : status === "archived" ? "Archived" : status;
+  const isNew = status === "new";
+  return (
+    <span
+      className={
+        isNew
+          ? "rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary"
+          : "rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+      }
+    >
+      {label}
+    </span>
+  );
+}
 
 export default function InboxPage() {
   const router = useRouter();
@@ -141,54 +159,56 @@ export default function InboxPage() {
     setAcceptModal(r);
   };
 
+  const inboxNewCount = requests.filter((r) => r.status === "new").length;
+
   return (
     <AppWithProviders>
-      <div className="min-h-screen bg-background text-foreground">
-        <main className="mx-auto max-w-2xl px-4 py-8">
-          <div className="mb-6 flex items-center gap-4">
+      <RequestsLayout inboxBadgeCount={inboxNewCount}>
+        {loading ? (
+          <p className="text-sm text-muted-foreground py-8">Loading…</p>
+        ) : error ? (
+          <div className="rounded-xl border border-border bg-card p-6">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-8 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <Inbox className="h-6 w-6" />
+            </div>
+            <h2 className="mt-4 text-lg font-semibold text-foreground">No requests yet</h2>
+            <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">
+              When someone uses &quot;Request collab&quot; on your profile, they’ll show up here.
+            </p>
             <Link
-              href="/profile"
-              className="text-sm font-medium text-muted-foreground hover:text-primary"
+              href="/explore"
+              className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
             >
-              ← Profile
+              <Search className="h-4 w-4" />
+              Browse creators
             </Link>
           </div>
-          <h1 className="text-xl font-semibold text-foreground">Collab requests</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Requests from others who want to collaborate. Accept or archive.
-          </p>
-          {loading ? (
-            <p className="mt-6 text-sm text-muted-foreground">Loading…</p>
-          ) : error ? (
-            <p className="mt-6 text-sm text-destructive">{error}</p>
-          ) : requests.length === 0 ? (
-            <div className="mt-6 rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
-              <p>No collab requests yet. When someone uses &quot;Request collab&quot; on your profile, they’ll show up here.</p>
-            </div>
-          ) : (
-            <ul className="mt-6 space-y-3">
-              {requests.map((r) => (
-                <li
-                  key={r.id}
-                  className="rounded-xl border border-border bg-card p-4"
-                >
-                  <div className="flex gap-3">
-                    <div className="shrink-0">
-                      {r.requester?.avatar_url ? (
-                        <Image
-                          src={r.requester.avatar_url}
-                          alt=""
-                          width={40}
-                          height={40}
-                          className="rounded-full object-cover h-10 w-10"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm font-medium">
-                          {(r.requester?.display_name || r.requester?.username || "?")[0].toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
+        ) : (
+          <ul className="space-y-3">
+            {requests.map((r) => (
+              <li key={r.id} className="rounded-xl border border-border bg-card p-4 sm:p-5">
+                <div className="flex gap-3 sm:gap-4">
+                  <div className="shrink-0">
+                    {r.requester?.avatar_url ? (
+                      <Image
+                        src={r.requester.avatar_url}
+                        alt=""
+                        width={44}
+                        height={44}
+                        className="rounded-full object-cover h-11 w-11"
+                      />
+                    ) : (
+                      <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm font-medium">
+                        {(r.requester?.display_name || r.requester?.username || "?")[0].toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span className="font-medium text-foreground">
                           {r.requester?.display_name || "Someone"}
@@ -201,100 +221,92 @@ export default function InboxPage() {
                             @{r.requester.username}
                           </Link>
                         )}
-                        <span className="text-xs text-muted-foreground">{formatTime(r.created_at)}</span>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                        {messagePreview(r.message)}
-                      </p>
-                      {(r.category || r.budget_text) && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {[r.category, r.budget_text].filter(Boolean).join(" · ")}
-                        </p>
-                      )}
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <span className="rounded border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground capitalize">
-                          {r.status === "new" ? "New" : r.status}
-                        </span>
-                        {r.seen_at && (
-                          <span className="text-xs text-muted-foreground">
-                            Seen {formatTime(r.seen_at)}
-                          </span>
-                        )}
-                      </div>
-                      {r.status === "new" && (
-                        <div className="mt-2 flex gap-2">
-                          <button
-                            type="button"
-                            disabled={actionLoading === r.id}
-                            onClick={() => openAcceptModal(r)}
-                            className="rounded-lg border border-primary bg-primary/10 px-2.5 py-1 text-sm font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
-                          >
-                            Accept
-                          </button>
-                          <button
-                            type="button"
-                            disabled={actionLoading === r.id}
-                            onClick={() => updateStatus(r.id, "archived")}
-                            className="rounded-lg border border-border px-2.5 py-1 text-sm font-medium text-muted-foreground hover:bg-muted/50 disabled:opacity-50"
-                          >
-                            Archive
-                          </button>
-                        </div>
-                      )}
+                      <StatusPill status={r.status} />
                     </div>
+                    <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                      {messagePreview(r.message)}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                      {(r.category || r.budget_text) && (
+                        <span>{[r.category, r.budget_text].filter(Boolean).join(" · ")}</span>
+                      )}
+                      <span>{formatTime(r.created_at)}</span>
+                      {r.seen_at && <span>Seen {formatTime(r.seen_at)}</span>}
+                    </div>
+                    {r.status === "new" && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={actionLoading === r.id}
+                          onClick={() => openAcceptModal(r)}
+                          className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          disabled={actionLoading === r.id}
+                          onClick={() => updateStatus(r.id, "archived")}
+                          className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted/50 disabled:opacity-50 transition-colors"
+                        >
+                          Archive
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </main>
-        {acceptModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="accept-modal-title">
-            <div className="w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-lg">
-              <h2 id="accept-modal-title" className="text-lg font-semibold text-foreground">Accept request</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                From {acceptModal.requester?.display_name || "Someone"}
-                {acceptModal.requester?.username && <> @{acceptModal.requester.username}</>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </RequestsLayout>
+      {acceptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="accept-modal-title">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-lg">
+            <h2 id="accept-modal-title" className="text-lg font-semibold text-foreground">Accept request</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              From {acceptModal.requester?.display_name || "Someone"}
+              {acceptModal.requester?.username && <> @{acceptModal.requester.username}</>}
+            </p>
+            <label className="mt-3 block text-sm font-medium text-foreground">
+              Reply note (optional)
+            </label>
+            <textarea
+              value={replyNote}
+              onChange={(e) => setReplyNote(e.target.value)}
+              maxLength={REPLY_NOTE_MAX}
+              rows={3}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Add a short note for the requester…"
+            />
+            <p className="mt-0.5 text-xs text-muted-foreground">{replyNote.length}/{REPLY_NOTE_MAX}</p>
+            {(mySocials.x_url || mySocials.telegram_url || mySocials.website_url) && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                They can reach you via:{" "}
+                {[mySocials.x_url && "X", mySocials.telegram_url && "Telegram", mySocials.website_url && "Website"].filter(Boolean).join(", ")}
               </p>
-              <label className="mt-3 block text-sm font-medium text-foreground">
-                Reply note (optional)
-              </label>
-              <textarea
-                value={replyNote}
-                onChange={(e) => setReplyNote(e.target.value)}
-                maxLength={REPLY_NOTE_MAX}
-                rows={3}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Add a short note for the requester…"
-              />
-              <p className="mt-0.5 text-xs text-muted-foreground">{replyNote.length}/{REPLY_NOTE_MAX}</p>
-              {(mySocials.x_url || mySocials.telegram_url || mySocials.website_url) && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  They can reach you via:{" "}
-                  {[mySocials.x_url && "X", mySocials.telegram_url && "Telegram", mySocials.website_url && "Website"].filter(Boolean).join(", ")}
-                </p>
-              )}
-              <div className="mt-4 flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => { setAcceptModal(null); setReplyNote(""); }}
-                  className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted/50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={actionLoading === acceptModal.id}
-                  onClick={() => updateStatus(acceptModal.id, "accepted", replyNote)}
-                  className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                >
-                  {actionLoading === acceptModal.id ? "…" : "Accept request"}
-                </button>
-              </div>
+            )}
+            <div className="mt-4 flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => { setAcceptModal(null); setReplyNote(""); }}
+                className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted/50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading === acceptModal.id}
+                onClick={() => updateStatus(acceptModal.id, "accepted", replyNote)}
+                className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {actionLoading === acceptModal.id ? "…" : "Accept request"}
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </AppWithProviders>
   );
 }

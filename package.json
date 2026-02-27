@@ -6,7 +6,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "backfill-rep": "npx tsx scripts/backfillRep.ts",
+    "backfill-rep": "pnpm exec tsx scripts/backfillRep.ts",
     "dev": "pnpm --filter web dev",
     "db:push": "npx supabase db push",
     "deploy:auth": "npx supabase functions deploy auth-cdp-login --no-verify-jwt",
@@ -19,6 +19,7 @@
     "start": "node apps/api/dist/index.js"
   },
   "devDependencies": {
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.2"
   }
 }

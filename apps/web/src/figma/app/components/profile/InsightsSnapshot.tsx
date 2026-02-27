@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import useSWR from "swr";
 import {
   ProfileHeaderCard,
   ScoreCard,
@@ -15,8 +16,11 @@ import type { SocialGraphDataPoint } from "../profile-dashboard";
 import type { ScoreBreakdownRow } from "../profile-dashboard";
 import { BarChart3 } from "lucide-react";
 import { computeLinkaryPower } from "@/lib/linkaryScore";
+import { authFetcher, SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
 
-export interface InsightsTabProps {
+const DEDUP_MS = 60_000;
+
+export interface InsightsSnapshotProps {
   setRoute: (r: { name: string; data?: Record<string, unknown>; handle?: string }) => void;
   me: { id: string; username?: string | null; display_name?: string | null; bio?: string | null; avatar_url?: string | null; followers_total?: number | null; avg_engagement_rate?: number | null; created_at?: string | null; twitter_username?: string | null } | null;
   username?: string;
@@ -30,10 +34,6 @@ interface MeStatsResponse {
   xscore?: number | null;
   reviews?: { avg: number; count: number };
   verifiedGigsCount?: number;
-}
-
-interface AnalyticsXResponse {
-  snapshots?: Array<{ snapshot_date: string; followers_total: number | null; tweets_count?: number | null; engagement_rate?: number | null }>;
 }
 
 interface CacheBucketMeta {
@@ -122,19 +122,43 @@ function normalizeInsightsResponse(data: SocialInsightsResponse | null): SocialI
   } as SocialInsightsResponse;
 }
 
-export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: InsightsTabProps) {
+async function publicFetcher(path: string): Promise<unknown> {
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+  const res = await fetch(`${base}${path}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export default function InsightsSnapshot({ setRoute, me, username, getAuthHeaders }: InsightsSnapshotProps) {
   const isOwn = !username || (me && (me.username?.toLowerCase() === username.toLowerCase() || me.twitter_username?.toLowerCase().replace(/^@/, "") === username.toLowerCase().replace(/^@/, "")));
   const targetUsername = isOwn ? (me?.username ?? me?.twitter_username ?? "").replace(/^@/, "").toLowerCase() : username?.replace(/^@/, "").toLowerCase();
 
-  const [meStats, setMeStats] = useState<MeStatsResponse | null>(null);
-  const [analyticsX, setAnalyticsX] = useState<AnalyticsXResponse | null>(null);
-  const [insights, setInsights] = useState<SocialInsightsResponse | null>(null);
-  const [publicDto, setPublicDto] = useState<{ display_name?: string | null; username?: string | null; bio?: string | null; avatar_url?: string | null; linkaryPower?: number | null } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const swrOpts = { revalidateOnFocus: false, dedupingInterval: DEDUP_MS };
+
+  const { data: meStatsData } = useSWR<MeStatsResponse | null>(
+    isOwn && me?.id ? "/api/profile/me-stats" : null,
+    authFetcher as (url: string) => Promise<MeStatsResponse | null>,
+    { ...swrOpts, dedupingInterval: SWR_DEDUP_MS }
+  );
+
+  const insightsKey = targetUsername ? `/api/social/insights?provider=x&username=${encodeURIComponent(targetUsername)}` : null;
+  const { data: insightsRaw, mutate: mutateInsights } = useSWR<SocialInsightsResponse | null>(
+    insightsKey,
+    publicFetcher as (url: string) => Promise<SocialInsightsResponse | null>,
+    swrOpts
+  );
+  const insights = normalizeInsightsResponse(insightsRaw ?? null);
+
+  const publicProfileKey = !isOwn && targetUsername ? `/api/public/profile/${encodeURIComponent(targetUsername)}` : null;
+  const { data: publicDto } = useSWR<{ display_name?: string | null; username?: string | null; bio?: string | null; avatar_url?: string | null; linkaryPower?: number | null } | null>(
+    publicProfileKey,
+    publicFetcher as (url: string) => Promise<{ display_name?: string | null; username?: string | null; bio?: string | null; avatar_url?: string | null; linkaryPower?: number | null } | null>,
+    swrOpts
+  );
+
   const [graphSeries, setGraphSeries] = useState({ followers: true, score: true, influencers: false, projects: false, vc: false });
   const [topFollowersTab, setTopFollowersTab] = useState("influencers");
   const [seeAllModalOpen, setSeeAllModalOpen] = useState(false);
-  const [recommended, setRecommended] = useState<Array<{ id: string; name: string; username: string; avatar_url: string | null; url?: string }>>([]);
   const [watchlistList, setWatchlistList] = useState<{ people: Array<{ entity_id: string }>; orgs: Array<{ entity_id: string }> } | null>(null);
   const [profileEntityIdForOther, setProfileEntityIdForOther] = useState<string | null>(null);
   const [watchlistToggling, setWatchlistToggling] = useState(false);
@@ -203,80 +227,8 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
     }
   }, [profileEntityId, getAuthHeaders, watchlistToggling, fetchWatchlistList]);
 
-  const fetchData = useCallback(async () => {
-    if (!targetUsername && !isOwn) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const headers = getAuthHeaders ? await getAuthHeaders() : {};
-    try {
-      if (isOwn && me?.id) {
-        const [statsRes, analyticsRes, insightsRes] = await Promise.all([
-          fetch(`${origin}/api/profile/me-stats`, { headers }),
-          fetch(`${origin}/api/analytics/x`, { headers }),
-          fetch(`${origin}/api/social/insights?provider=x&username=${encodeURIComponent(targetUsername || "")}`, { headers }),
-        ]);
-        const statsData = statsRes.ok ? await statsRes.json() : null;
-        const analyticsData = analyticsRes.ok ? await analyticsRes.json() : null;
-        const insightsData = insightsRes.ok ? await insightsRes.json() : null;
-        setMeStats(statsData);
-        setAnalyticsX(analyticsData);
-        setInsights(normalizeInsightsResponse(insightsData));
-        setPublicDto(null);
-        if (insightsData?.recommendedAccounts?.length) {
-          setRecommended(
-            (insightsData.recommendedAccounts as Array<{ id: string; name: string; username: string; avatar_url?: string | null }>).map((r) => ({
-              id: r.id,
-              name: r.name ?? r.username ?? "",
-              username: r.username ?? "",
-              avatar_url: r.avatar_url ?? null,
-            }))
-          );
-        } else setRecommended([]);
-      } else if (targetUsername) {
-        const [dtoRes, insightsRes, searchRes] = await Promise.all([
-          fetch(`${origin}/api/public/profile/${encodeURIComponent(targetUsername)}`),
-          fetch(`${origin}/api/social/insights?provider=x&username=${encodeURIComponent(targetUsername)}`),
-          fetch(`${origin}/api/search?q=${encodeURIComponent(targetUsername)}&filter=people`).catch(() => null),
-        ]);
-        const dto = dtoRes.ok ? await dtoRes.json() : null;
-        const insightsData = insightsRes.ok ? await insightsRes.json() : null;
-        setPublicDto(dto);
-        setInsights(normalizeInsightsResponse(insightsData));
-        setMeStats(null);
-        setAnalyticsX(null);
-        if (insightsData?.recommendedAccounts?.length) {
-          setRecommended(
-            (insightsData.recommendedAccounts as Array<{ id: string; name: string; username: string; avatar_url?: string | null }>).map((r) => ({
-              id: r.id,
-              name: r.name ?? r.username ?? "",
-              username: r.username ?? "",
-              avatar_url: r.avatar_url ?? null,
-            }))
-          );
-        } else if (searchRes?.ok) {
-          const searchData = await searchRes.json();
-          const results = (searchData.results ?? []).slice(0, 3).map((r: { id: string; name: string; handleLabel?: string; url?: string; avatar?: string }) => ({
-            id: r.id,
-            name: r.name || (r.handleLabel ?? "").replace(/^@/, "") || "",
-            username: (r.handleLabel ?? "").replace(/^@/, "") || (r.url ?? "").replace(/^\//, "") || r.id,
-            avatar_url: r.avatar ?? null,
-            url: r.url,
-          }));
-          setRecommended(results);
-        } else setRecommended([]);
-      }
-    } catch (e) {
-      console.error("[InsightsTab] fetch error", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [isOwn, me?.id, targetUsername, getAuthHeaders]);
-
   const handleRefreshInsights = useCallback(async () => {
-    if (!getAuthHeaders || refreshDisabled || !targetUsername) return;
+    if (!getAuthHeaders || refreshDisabled || !targetUsername || !isOwn) return;
     setRefreshLoading(true);
     setRefreshResetAt(null);
     const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -290,20 +242,26 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
       if (res.ok && body.ok) {
         setLastRefreshAt(Date.now());
         if (body.skipped && (body.reason === "GLOBAL_RATE_LIMIT" || body.reason === "RATE_LIMITED") && body.resetAt) setRefreshResetAt(body.resetAt);
-        await fetchData();
+        await mutateInsights();
       }
     } finally {
       setRefreshLoading(false);
     }
-  }, [getAuthHeaders, refreshDisabled, targetUsername, fetchData]);
+  }, [getAuthHeaders, refreshDisabled, targetUsername, isOwn, mutateInsights]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const recommended = (insights?.recommendedAccounts ?? []).length
+    ? (insights!.recommendedAccounts as Array<{ id: string; name: string; username: string; avatar_url?: string | null }>).map((r) => ({
+        id: r.id,
+        name: r.name ?? r.username ?? "",
+        username: r.username ?? "",
+        avatar_url: r.avatar_url ?? null,
+      }))
+    : [];
 
   const displayName = isOwn ? (me?.display_name ?? null) : (publicDto?.display_name ?? null);
   const bio = isOwn ? (me?.bio ?? null) : (publicDto?.bio ?? null);
   const avatarUrl = isOwn ? (me?.avatar_url ?? null) : (publicDto?.avatar_url ?? null);
+  const meStats = meStatsData ?? null;
   const reputationIndex = isOwn ? (meStats?.reputationIndex ?? 0) : (publicDto?.linkaryPower ?? 0);
   const verifiedGigsCount = meStats?.verifiedGigsCount ?? 0;
   const insightsProfile = insights?.profile;
@@ -321,14 +279,6 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
     const followersByDate = new Map<string, number>((insightsSeries.followers ?? []).map((p: { date: string; value: number }) => [p.date, p.value]));
     const scoreByDate = new Map<string, number>((insightsSeries.score ?? []).map((p: { date: string; value: number }) => [p.date, p.value]));
     dates.forEach((date) => chartData.push({ date, followers: followersByDate.get(date), score: scoreByDate.get(date) }));
-  }
-  if (chartData.length === 0 && analyticsX?.snapshots?.length) {
-    analyticsX.snapshots.forEach((s: { snapshot_date?: string; followers_total?: number | null }) => {
-      chartData.push({ date: s.snapshot_date?.slice(0, 10) ?? "", followers: s.followers_total ?? undefined, score: meStats?.reputationIndex ?? undefined });
-    });
-  }
-  if (chartData.length === 0 && meStats?.reputationIndex != null) {
-    chartData.push({ date: new Date().toISOString().slice(0, 10), score: meStats.reputationIndex });
   }
 
   const topFollowersItems = insights?.topFollowersByTier
@@ -358,6 +308,7 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
     }
   }
 
+  const loading = (insightsKey && insightsRaw === undefined) || (isOwn && me?.id && meStatsData === undefined) || (publicProfileKey && publicDto === undefined);
   if (loading && !meStats && !publicDto && !insights) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -416,7 +367,6 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
         </div>
       )}
 
-      {/* Row 1: Linkary Score | Top Followers */}
       <div className="grid gap-6 lg:grid-cols-2">
         <div className={island}>
           <ScoreCard
@@ -444,15 +394,26 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
         </div>
       </div>
 
-      {/* Row 2: Social Graph | Insights Summary */}
       <div className="grid gap-6 lg:grid-cols-2">
         <div className={island}>
-          <SocialGraphCard
-            variant="light"
-            data={chartData}
-            seriesEnabled={graphSeries}
-            onToggleSeries={(key) => setGraphSeries((prev) => ({ ...prev, [key]: !prev[key] }))}
-          />
+          {chartData.length > 0 ? (
+            <SocialGraphCard
+              variant="light"
+              data={chartData}
+              seriesEnabled={graphSeries}
+              onToggleSeries={(key) => setGraphSeries((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))}
+            />
+          ) : (
+            <div className="p-6">
+              <h3 className="text-sm font-semibold text-foreground">Social graph</h3>
+              <EmptyStateCard
+                title="No series data yet"
+                message="Insights snapshot uses cached social data only. Connect X and refresh insights, or wait for the next cache update."
+                icon={<BarChart3 className="h-10 w-10" />}
+                className="mt-3 border-0 bg-transparent p-0"
+              />
+            </div>
+          )}
         </div>
         <div className={`${island} p-6`}>
           <h3 className="text-sm font-semibold text-foreground">Insights summary</h3>
@@ -496,7 +457,6 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
         </div>
       </div>
 
-      {/* Row 3: Affiliated Accounts | Recommended Accounts */}
       <div className="grid gap-6 lg:grid-cols-2">
         <div className={island}>
           <AffiliatedAccountsCard variant="light" accounts={insights?.affiliatedAccounts ?? []} emptyMessage="Nothing here yet" />

@@ -138,6 +138,7 @@ import {
 
 // Import UserProfilePage, BrandProfilePage, CreatorProfilePage, AgencyProfilePage, ComponentShowcase
 import UserProfilePage from "./components/UserProfilePage";
+import InsightsSnapshot from "./components/profile/InsightsSnapshot";
 import BrandProfilePage from "./components/BrandProfilePage";
 import CreatorProfilePage from "./components/CreatorProfilePage";
 import AgencyProfilePage from "./components/AgencyProfilePage";
@@ -727,6 +728,10 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     const slug = route.handle ?? route.data?.username ?? "";
     return slug ? `/${encodeURIComponent(slug)}` : "/explore";
   }
+  if (route.name === "profileInsights") return "/profile/insights";
+  if (route.name === "userInsights" && (route.handle ?? route.data?.username)) {
+    return `/u/${encodeURIComponent(route.handle ?? route.data?.username ?? "")}/insights`;
+  }
   const map: Record<string, string> = {
     landing: "/",
     overview: "/overview",
@@ -802,8 +807,12 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   if (parts[0] === "profile" && parts[1] === "edit") return { name: "profileEdit" };
   if (parts[0] === "profile" && parts[1] === "deals") return { name: "profileDeals" };
   if (parts[0] === "profile" && parts[1] === "applications") return { name: "profileApplications" };
+  if (parts[0] === "profile" && parts[1] === "insights") return { name: "profileInsights" };
   if (parts[0] === "profile" && parts[1] === "dashboard") {
     return { name: "analytics" };
+  }
+  if (parts[0] === "u" && parts[1] && parts[2] === "insights") {
+    return { name: "userInsights", data: { username: decodeURIComponent(parts[1]) }, handle: decodeURIComponent(parts[1]) };
   }
   if (parts[0] === "profile" && !parts[1]) {
     const tab = searchParams?.get("tab") ?? undefined;
@@ -2459,6 +2468,12 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           Overview
         </button>
         <a
+          href="/profile/insights"
+          className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary"
+        >
+          View Insights
+        </a>
+        <a
           href="/analytics"
           className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary"
         >
@@ -2989,7 +3004,7 @@ function LinkaryAppInner() {
 
   // Production route lockdown: only allowed routes are reachable; everything else redirects to Overview
   const ALLOWED_ROUTES = new Set([
-    "landing", "overview", "dashboard", "profile", "profileEdit", "userProfile", "market", "messages",
+    "landing", "overview", "dashboard", "profile", "profileEdit", "profileInsights", "userProfile", "userInsights", "market", "messages",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding",
     "orgDetail", "brandProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
     "circles", "circleDetail", "connections", "kolLists", "calendar", "capitalPartners", "watchlist",
@@ -3566,6 +3581,17 @@ function LinkaryAppInner() {
                   <UserProfilePage
                     setRoute={setRoute}
                     username={route.handle ?? route.data?.username ?? undefined}
+                  />
+                )}
+                {route.name === "profileInsights" && (
+                  <InsightsSnapshot setRoute={setRoute} me={me} getAuthHeaders={getAuthHeaders} />
+                )}
+                {route.name === "userInsights" && (
+                  <InsightsSnapshot
+                    setRoute={setRoute}
+                    me={me}
+                    username={route.handle ?? route.data?.username ?? undefined}
+                    getAuthHeaders={getAuthHeaders}
                   />
                 )}
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}

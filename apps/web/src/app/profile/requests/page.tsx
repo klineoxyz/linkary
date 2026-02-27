@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import AppWithProviders from "../../AppWithProviders";
 
@@ -15,10 +16,14 @@ type SentRequest = {
   category: string | null;
   budget_text: string | null;
   status: string;
+  reply_note: string | null;
   target: {
     username: string | null;
     display_name: string | null;
     avatar_url: string | null;
+    x_url?: string | null;
+    telegram_url?: string | null;
+    website_url?: string | null;
   } | null;
 };
 
@@ -149,9 +154,59 @@ export default function SentRequestsPage() {
                           {[r.category, r.budget_text].filter(Boolean).join(" · ")}
                         </p>
                       )}
-                      <span className="mt-1 inline-block rounded border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground capitalize">
-                        {r.status}
-                      </span>
+                      {r.status === "accepted" && r.reply_note && (
+                        <div className="mt-2 rounded-lg border border-border bg-muted/30 p-2 text-sm text-foreground">
+                          <p className="font-medium text-muted-foreground text-xs">Their reply</p>
+                          <p className="mt-0.5 whitespace-pre-wrap">{r.reply_note}</p>
+                        </div>
+                      )}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="inline-block rounded border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground capitalize">
+                          {r.status}
+                        </span>
+                        {r.target?.username && (
+                          <Link
+                            href={"/" + encodeURIComponent(r.target.username)}
+                            className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-xs font-medium text-foreground hover:bg-muted/50"
+                          >
+                            View profile <ExternalLink className="h-3 w-3" />
+                          </Link>
+                        )}
+                        {r.status === "accepted" && r.target && (
+                          <>
+                            {r.target.x_url && (
+                              <a
+                                href={r.target.x_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-xs font-medium text-foreground hover:bg-muted/50"
+                              >
+                                X <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                            {r.target.telegram_url && (
+                              <a
+                                href={r.target.telegram_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-xs font-medium text-foreground hover:bg-muted/50"
+                              >
+                                Telegram <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                            {r.target.website_url && (
+                              <a
+                                href={r.target.website_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-xs font-medium text-foreground hover:bg-muted/50"
+                              >
+                                Website <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </li>

@@ -16,12 +16,15 @@ type InboxRequest = {
   budget_text: string | null;
   status: string;
   seen_at: string | null;
+  reply_note: string | null;
   requester: {
     username: string | null;
     display_name: string | null;
     avatar_url: string | null;
   } | null;
 };
+
+type MySocials = { x_url: string | null; telegram_url: string | null; website_url: string | null };
 
 function messagePreview(msg: string, maxLen: number = 120): string {
   const t = (msg || "").trim();
@@ -47,12 +50,17 @@ function formatTime(iso: string): string {
   }
 }
 
+const REPLY_NOTE_MAX = 500;
+
 export default function InboxPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<InboxRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [acceptModal, setAcceptModal] = useState<InboxRequest | null>(null);
+  const [replyNote, setReplyNote] = useState("");
+  const [mySocials, setMySocials] = useState<MySocials>({ x_url: null, telegram_url: null, website_url: null });
 
   const loadInbox = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -65,6 +73,7 @@ export default function InboxPage() {
     const json = await res.json().catch(() => ({}));
     if (json.ok && Array.isArray(json.requests)) setRequests(json.requests as InboxRequest[]);
     else setRequests([]);
+    if (json.ok && json.my_socials) setMySocials(json.my_socials as MySocials);
     if (!res.ok) setError(json.message ?? "Failed to load");
   };
 
@@ -91,6 +100,7 @@ export default function InboxPage() {
         if (!cancelled) {
           if (json.ok && Array.isArray(json.requests)) setRequests(json.requests as InboxRequest[]);
           else setRequests([]);
+          if (json.ok && json.my_socials) setMySocials(json.my_socials as MySocials);
           if (!res.ok) setError(json.message ?? "Failed to load");
         }
       } catch (e) {
@@ -102,22 +112,33 @@ export default function InboxPage() {
     return () => { cancelled = true; };
   }, [router]);
 
-  const updateStatus = async (id: string, status: "accepted" | "archived") => {
+  const updateStatus = async (id: string, status: "accepted" | "archived", replyNoteValue?: string) => {
     const token = (await supabase.auth.getSession()).data.session as { access_token?: string } | null;
     const accessToken = token?.access_token;
     if (!accessToken) return;
     setActionLoading(id);
     const base = typeof window !== "undefined" ? window.location.origin : "";
+    const body: { id: string; status: "accepted" | "archived"; reply_note?: string } = { id, status };
+    if (status === "accepted" && replyNoteValue !== undefined) body.reply_note = replyNoteValue.slice(0, REPLY_NOTE_MAX);
     const res = await fetch(`${base}/api/collab-requests/update`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify(body),
     });
     setActionLoading(null);
-    if (res.ok) await loadInbox();
+    if (res.ok) {
+      setAcceptModal(null);
+      setReplyNote("");
+      await loadInbox();
+    }
+  };
+
+  const openAcceptModal = (r: InboxRequest) => {
+    setReplyNote("");
+    setAcceptModal(r);
   };
 
   return (
@@ -205,10 +226,10 @@ export default function InboxPage() {
                           <button
                             type="button"
                             disabled={actionLoading === r.id}
-                            onClick={() => updateStatus(r.id, "accepted")}
+                            onClick={() => openAcceptModal(r)}
                             className="rounded-lg border border-primary bg-primary/10 px-2.5 py-1 text-sm font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
                           >
-                            {actionLoading === r.id ? "…" : "Accept"}
+                            Accept
                           </button>
                           <button
                             type="button"
@@ -227,6 +248,52 @@ export default function InboxPage() {
             </ul>
           )}
         </main>
+        {acceptModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="accept-modal-title">
+            <div className="w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-lg">
+              <h2 id="accept-modal-title" className="text-lg font-semibold text-foreground">Accept request</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                From {acceptModal.requester?.display_name || "Someone"}
+                {acceptModal.requester?.username && <> @{acceptModal.requester.username}</>}
+              </p>
+              <label className="mt-3 block text-sm font-medium text-foreground">
+                Reply note (optional)
+              </label>
+              <textarea
+                value={replyNote}
+                onChange={(e) => setReplyNote(e.target.value)}
+                maxLength={REPLY_NOTE_MAX}
+                rows={3}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Add a short note for the requester…"
+              />
+              <p className="mt-0.5 text-xs text-muted-foreground">{replyNote.length}/{REPLY_NOTE_MAX}</p>
+              {(mySocials.x_url || mySocials.telegram_url || mySocials.website_url) && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  They can reach you via:{" "}
+                  {[mySocials.x_url && "X", mySocials.telegram_url && "Telegram", mySocials.website_url && "Website"].filter(Boolean).join(", ")}
+                </p>
+              )}
+              <div className="mt-4 flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => { setAcceptModal(null); setReplyNote(""); }}
+                  className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted/50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading === acceptModal.id}
+                  onClick={() => updateStatus(acceptModal.id, "accepted", replyNote)}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {actionLoading === acceptModal.id ? "…" : "Accept request"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AppWithProviders>
   );

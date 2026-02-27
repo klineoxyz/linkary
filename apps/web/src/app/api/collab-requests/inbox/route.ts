@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   const { data: rows, error } = await supabase
     .from("collab_requests")
-    .select("id, created_at, requester_profile_id, message, category, budget_text, status, seen_at")
+    .select("id, created_at, requester_profile_id, message, category, budget_text, status, seen_at, reply_note")
     .eq("target_profile_id", targetProfileId)
     .order("created_at", { ascending: false });
 
@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     budget_text: string | null;
     status: string;
     seen_at: string | null;
+    reply_note: string | null;
   }>;
 
   const requesterIds = [...new Set(requests.map((r) => r.requester_profile_id))];
@@ -58,5 +59,16 @@ export async function GET(request: NextRequest) {
     requester: requesterById[r.requester_profile_id] ?? null,
   }));
 
-  return ok({ requests: list });
+  let mySocials: { x_url: string | null; telegram_url: string | null; website_url: string | null } = { x_url: null, telegram_url: null, website_url: null };
+  const { data: socialRow } = await supabase
+    .from("profile_socials")
+    .select("x_url, telegram_url, website_url")
+    .eq("profile_id", targetProfileId)
+    .maybeSingle();
+  if (socialRow) {
+    const s = socialRow as { x_url?: string | null; telegram_url?: string | null; website_url?: string | null };
+    mySocials = { x_url: s.x_url ?? null, telegram_url: s.telegram_url ?? null, website_url: s.website_url ?? null };
+  }
+
+  return ok({ requests: list, my_socials: mySocials });
 }

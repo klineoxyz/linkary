@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   const { data: rows, error } = await supabase
     .from("collab_requests")
-    .select("id, created_at, target_profile_id, message, category, budget_text, status")
+    .select("id, created_at, target_profile_id, message, category, budget_text, status, reply_note")
     .eq("requester_profile_id", requesterProfileId)
     .order("created_at", { ascending: false });
 
@@ -38,17 +38,28 @@ export async function GET(request: NextRequest) {
     category: string | null;
     budget_text: string | null;
     status: string;
+    reply_note: string | null;
   }>;
 
   const targetIds = [...new Set(requests.map((r) => r.target_profile_id))];
-  let targetById: Record<string, { username: string | null; display_name: string | null; avatar_url: string | null }> = {};
+  let targetById: Record<string, { username: string | null; display_name: string | null; avatar_url: string | null; x_url?: string | null; telegram_url?: string | null; website_url?: string | null }> = {};
   if (targetIds.length > 0) {
-    const { data: profs } = await supabase
-      .from("public_profile_view")
-      .select("id, username, display_name, avatar_url")
-      .in("id", targetIds);
-    for (const p of (profs ?? []) as Array<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null }>) {
+    const [profsRes, socialsRes] = await Promise.all([
+      supabase.from("public_profile_view").select("id, username, display_name, avatar_url").in("id", targetIds),
+      supabase.from("profile_socials").select("profile_id, x_url, telegram_url, website_url").in("profile_id", targetIds),
+    ]);
+    for (const p of (profsRes.data ?? []) as Array<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null }>) {
       targetById[p.id] = { username: p.username, display_name: p.display_name, avatar_url: p.avatar_url };
+    }
+    for (const s of (socialsRes.data ?? []) as Array<{ profile_id: string; x_url?: string | null; telegram_url?: string | null; website_url?: string | null }>) {
+      if (targetById[s.profile_id]) {
+        targetById[s.profile_id] = {
+          ...targetById[s.profile_id],
+          x_url: s.x_url ?? null,
+          telegram_url: s.telegram_url ?? null,
+          website_url: s.website_url ?? null,
+        };
+      }
     }
   }
 

@@ -849,9 +849,15 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   return { name: "userProfile", data: { username: decodeURIComponent(path) }, handle: decodeURIComponent(path) };
 }
 
-function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSignOut, me, inboxNew = 0 }) {
+function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSignOut, me }) {
   const isActive = (name) => route?.name === name;
   const isLoggedIn = !!authUserId;
+  const { data: collabCount, error: _collabCountError } = useSWR<{ ok?: boolean; inboxNew?: number; sentTotal?: number }>(
+    authUserId ? "/api/collab-requests/count" : null,
+    authFetcher as (url: string) => Promise<{ ok?: boolean; inboxNew?: number; sentTotal?: number }>,
+    { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS }
+  );
+  const inboxNew = (collabCount?.ok !== false && typeof collabCount?.inboxNew === "number") ? collabCount.inboxNew : 0;
   if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
     const _slug = me ? ((me.username || me.twitter_username || "").replace(/^@/, "").trim().toLowerCase()) : "";
     // eslint-disable-next-line no-console
@@ -2426,13 +2432,6 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
     if (meStatsSwr) setMeStats({ ethos: meStatsSwr.ethos ?? null, xscore: meStatsSwr.xscore ?? null, reputationIndex: meStatsSwr.reputationIndex ?? 0, socialPower: meStatsSwr.socialPower ?? 0, reviews: meStatsSwr.reviews ?? { avg: 0, count: 0 } });
   }, [meStatsSwr]);
 
-  const { data: collabCountSwr } = useSWR<{ ok?: boolean; inboxNew?: number; sentTotal?: number }>(
-    authUserId ? "/api/collab-requests/count" : null,
-    authFetcher as (url: string) => Promise<{ ok?: boolean; inboxNew?: number; sentTotal?: number }>,
-    { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS }
-  );
-  const inboxNew = collabCountSwr?.ok !== false && typeof collabCountSwr?.inboxNew === "number" ? collabCountSwr.inboxNew : 0;
-
   // Debounced profile search (people only)
   useEffect(() => {
     if (profileSearchQuery.trim().length < 2) {
@@ -3457,7 +3456,6 @@ function LinkaryAppInner() {
             authUserId={authUserId}
             onSignOut={handleSignOut}
             me={me}
-            inboxNew={inboxNew}
           />
         )}
 

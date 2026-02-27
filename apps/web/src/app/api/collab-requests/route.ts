@@ -1,14 +1,20 @@
 /**
  * POST /api/collab-requests — create a collab request (requester → target by username)
  * Body: { target_username, message, category?, budget_text? }
+ * On success: optionally email target (rate-limited, Resend); request creation never fails on email errors.
  */
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
 import { getProfileIdForAuthUser } from "@/lib/profiles";
+import { createServiceSupabase } from "@/lib/x-analytics-server";
+import { canSend, logSent, sendCollabRequestEmail } from "@/lib/notify";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+const COLLAB_REQUEST_NOTIFY_TYPE = "collab_request_new";
+const RATE_LIMIT_WINDOW_MINUTES = 10;
 
 function normalizeUsername(s: string): string {
   return s.trim().toLowerCase().replace(/^@/, "");
@@ -71,5 +77,54 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) return fail("DB_ERROR", error.message, 500);
-  return ok({ id: (row as { id: string }).id });
+
+  const requestId = (row as { id: string }).id;
+
+  try {
+    const service = createServiceSupabase();
+    const allowed = await canSend(service, targetProfileId, COLLAB_REQUEST_NOTIFY_TYPE, RATE_LIMIT_WINDOW_MINUTES);
+    if (!allowed) {
+      return ok({ id: requestId });
+    }
+
+    const { data: authUser } = await service.auth.admin.getUserById(targetProfileId);
+    const toEmail = authUser?.user?.email?.trim();
+    if (!toEmail) {
+      return ok({ id: requestId });
+    }
+
+    const { data: requesterProfile } = await service
+      .from("profiles")
+      .select("display_name, username")
+      .eq("id", requesterProfileId)
+      .maybeSingle();
+    const r = requesterProfile as { display_name?: string | null; username?: string | null } | null;
+    const requesterName = r?.display_name?.trim() ?? "";
+    const requesterUsername = r?.username?.trim() ?? "";
+
+    const inboxUrl = process.env.NEXT_PUBLIC_APP_URL
+      ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/profile/inbox`
+      : "https://linkary.xyz/profile/inbox";
+
+    const sendResult = await sendCollabRequestEmail({
+      toEmail,
+      targetUsername: slug,
+      requesterName,
+      requesterUsername,
+      messagePreview: message.slice(0, 160),
+      category,
+      budgetText,
+      inboxUrl,
+    });
+
+    if (sendResult.ok) {
+      await logSent(service, targetProfileId, COLLAB_REQUEST_NOTIFY_TYPE, requestId);
+    } else {
+      console.error("[collab-requests] email send failed:", sendResult.error);
+    }
+  } catch (e) {
+    console.error("[collab-requests] notification error:", e);
+  }
+
+  return ok({ id: requestId });
 }

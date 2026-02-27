@@ -72,7 +72,7 @@
   };
 })();
 
-import React, { Suspense, useEffect, useState, useCallback } from "react";
+import React, { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
@@ -801,7 +801,12 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
   if (route.name === "dealDetail" && route.data?.dealId) return `/deal/${route.data.dealId}`;
   if (route.name === "workRequests") {
     const tab = route.data?.tab === "sent" ? "sent" : "inbox";
-    return tab === "inbox" ? "/work/requests" : "/work/requests?tab=sent";
+    const id = route.data?.id;
+    const q = new URLSearchParams();
+    if (tab === "sent") q.set("tab", "sent");
+    if (id) q.set("id", id);
+    const query = q.toString();
+    return query ? `/work/requests?${query}` : "/work/requests";
   }
   return map[route.name] ?? "/";
 }
@@ -811,7 +816,8 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   const parts = fullPath.split("/").map((p) => p.toLowerCase());
   if (parts[0] === "work" && parts[1] === "requests") {
     const tab = searchParams?.get("tab") === "sent" ? "sent" : "inbox";
-    return { name: "workRequests", data: { tab } };
+    const id = searchParams?.get("id") || undefined;
+    return { name: "workRequests", data: id ? { tab, id } : { tab } };
   }
   if (parts[0] === "settings" && parts[1] === "integrations") return { name: "integrations" };
   if (parts[0] === "settings" && parts[1] === "roles-skills") return { name: "rolesSkills" };
@@ -953,7 +959,15 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
         <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Work</span>
         <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="market" icon={Briefcase} label="Jobs & Sprints" />
-          <NavLink name="messages" icon={MessageSquare} label="Messages" />
+          <button
+            type="button"
+            disabled
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted-foreground opacity-60 cursor-not-allowed"
+            aria-disabled="true"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span className="truncate">Messages (soon)</span>
+          </button>
           <Link
             href="/work/requests"
             onClick={() => setMobileOpen(false)}
@@ -2447,11 +2461,17 @@ function WorkRequestsPage({ setRoute, route, me }) {
   const [mySocials, setMySocials] = useState<{ x_url: string | null; telegram_url: string | null; website_url: string | null }>({ x_url: null, telegram_url: null, website_url: null });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const markSeenDoneRef = useRef(false);
 
   const setTab = (t: "inbox" | "sent") => {
     setSelectedId(null);
     setRoute({ name: "workRequests", data: { tab: t } });
   };
+
+  const selectRequest = useCallback((id: string | null) => {
+    setSelectedId(id);
+    setRoute({ name: "workRequests", data: { tab, id: id ?? undefined } });
+  }, [tab, setRoute]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2473,7 +2493,10 @@ function WorkRequestsPage({ setRoute, route, me }) {
       setSentLoading(true);
       setError(null);
       try {
-        await fetch(`${base}/api/collab-requests/mark-seen`, { method: "POST", headers: { Authorization: "Bearer " + token } }).catch(() => {});
+        if (!markSeenDoneRef.current) {
+          await fetch(`${base}/api/collab-requests/mark-seen`, { method: "POST", headers: { Authorization: "Bearer " + token } }).catch(() => {});
+          markSeenDoneRef.current = true;
+        }
         const [inboxRes, sentRes] = await Promise.all([
           fetch(`${base}/api/collab-requests/inbox`, { headers: { Authorization: "Bearer " + token } }),
           fetch(`${base}/api/collab-requests/sent`, { headers: { Authorization: "Bearer " + token } }),
@@ -2481,13 +2504,19 @@ function WorkRequestsPage({ setRoute, route, me }) {
         const inboxJson = await inboxRes.json().catch(() => ({}));
         const sentJson = await sentRes.json().catch(() => ({}));
         if (!cancelled) {
-          if (inboxJson.ok && Array.isArray(inboxJson.requests)) setInboxRequests(inboxJson.requests);
-          else setInboxRequests([]);
+          const inboxList = inboxJson.ok && Array.isArray(inboxJson.requests) ? inboxJson.requests : [];
+          const sentList = sentJson.ok && Array.isArray(sentJson.requests) ? sentJson.requests : [];
+          setInboxRequests(inboxList);
+          setSentRequests(sentList);
           if (inboxJson.ok && inboxJson.my_socials) setMySocials(inboxJson.my_socials);
-          if (sentJson.ok && Array.isArray(sentJson.requests)) setSentRequests(sentJson.requests);
-          else setSentRequests([]);
           if (!inboxRes.ok) setError(inboxJson.message ?? "Failed to load");
           else if (!sentRes.ok) setError(sentJson.message ?? "Failed to load");
+          const currentTab = route?.data?.tab === "sent" ? "sent" : "inbox";
+          const idFromUrl = route?.data?.id;
+          if (idFromUrl) {
+            const list = currentTab === "inbox" ? inboxList : sentList;
+            if (list.some((r) => r.id === idFromUrl)) setSelectedId(idFromUrl);
+          }
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load");
@@ -2500,6 +2529,15 @@ function WorkRequestsPage({ setRoute, route, me }) {
     })();
     return () => { cancelled = true; };
   }, [router]);
+
+  useEffect(() => {
+    const idFromUrl = route?.data?.id;
+    const list = tab === "inbox" ? inboxRequests : sentRequests;
+    if (idFromUrl) {
+      if (list.some((r) => r.id === idFromUrl)) setSelectedId(idFromUrl);
+      else setSelectedId(null);
+    } else setSelectedId(null);
+  }, [route?.data?.id, tab, inboxRequests, sentRequests]);
 
   const updateStatus = async (id: string, status: "accepted" | "archived", replyNoteValue?: string) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -2520,7 +2558,14 @@ function WorkRequestsPage({ setRoute, route, me }) {
       setReplyNote("");
       const r2 = await fetch(`${base}/api/collab-requests/inbox`, { headers: { Authorization: `Bearer ${accessToken}` } });
       const j2 = await r2.json().catch(() => ({}));
-      if (j2.ok && Array.isArray(j2.requests)) setInboxRequests(j2.requests);
+      if (j2.ok && Array.isArray(j2.requests)) {
+        const newList = j2.requests;
+        setInboxRequests(newList);
+        const stillThere = newList.some((r) => r.id === selectedId);
+        const idx = newList.findIndex((r) => r.id === id);
+        const nextId = stillThere ? selectedId : (newList[idx]?.id ?? newList[idx - 1]?.id ?? newList[0]?.id ?? null);
+        selectRequest(nextId);
+      }
     }
   };
 
@@ -2581,22 +2626,41 @@ function WorkRequestsPage({ setRoute, route, me }) {
                   : "Requests you send will appear here."}
               </p>
               {tab === "inbox" && (
-                <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
-                  <Link href="/explore" className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
-                    <Compass className="h-4 w-4" />
-                    Browse creators
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const url = typeof window !== "undefined" ? window.location.origin + (me?.username ? "/" + encodeURIComponent(me.username) : "/profile") : "";
-                      navigator.clipboard.writeText(url).then(() => {});
-                    }}
+                <div className="mt-4 flex flex-col gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                    <Link href="/explore" className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
+                      <Compass className="h-4 w-4" />
+                      Browse creators
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = typeof window !== "undefined" ? window.location.origin + (me?.username ? "/" + encodeURIComponent(me.username) : "/profile") : "";
+                        navigator.clipboard.writeText(url).then(() => {});
+                      }}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted/50"
+                    >
+                      <Share2 className="h-4 w-4" />
+                      Share profile
+                    </button>
+                  </div>
+                  <Link
+                    href={me?.username ? `/${encodeURIComponent(me.username)}` : "/profile"}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted/50"
                   >
-                    <Share2 className="h-4 w-4" />
-                    Share profile
-                  </button>
+                    <ExternalLink className="h-4 w-4" />
+                    Open my public profile
+                  </Link>
+                  {!(mySocials.x_url || mySocials.telegram_url || mySocials.website_url) && (
+                    <Link
+                      href="/profile/edit#basics"
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50"
+                    >
+                      Add contact links
+                    </Link>
+                  )}
                 </div>
               )}
               {tab === "sent" && (
@@ -2615,10 +2679,10 @@ function WorkRequestsPage({ setRoute, route, me }) {
                 return (
                   <div
                     key={r.id}
-                    onClick={() => setSelectedId(r.id)}
+                    onClick={() => selectRequest(r.id)}
                     className={cn(
-                      "rounded-lg border p-3 cursor-pointer transition-all",
-                      isSelected ? "ring-2 ring-ring border-primary/50" : "border-border hover:bg-muted/30"
+                      "rounded-lg border border-border p-3 cursor-pointer transition-all hover:bg-muted/30",
+                      isSelected && "ring-2 ring-ring bg-muted/20"
                     )}
                   >
                     <div className="flex gap-3">
@@ -2653,10 +2717,42 @@ function WorkRequestsPage({ setRoute, route, me }) {
 
         <Card className="lg:col-span-2">
           {!selected ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-sm text-muted-foreground">Select a request</p>
-              <p className="text-xs text-muted-foreground mt-1">Choose one from the list to view details and take action.</p>
-            </div>
+            list.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <h3 className="font-semibold text-foreground mb-1">How requests work</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mb-4">
+                  Others can send you a collab request from your public profile. Share your profile link or open it to see the &quot;Request collab&quot; button.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = typeof window !== "undefined" ? window.location.origin + (me?.username ? "/" + encodeURIComponent(me.username) : "/profile") : "";
+                      navigator.clipboard.writeText(url).then(() => {});
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted/50"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Copy public profile link
+                  </button>
+                  <Link
+                    href={me?.username ? `/${encodeURIComponent(me.username)}` : "/profile"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Open my public profile
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <MessageSquare className="h-12 w-12 text-muted-foreground mb-3" />
+                <p className="font-medium text-foreground">Select a request</p>
+                <p className="text-sm text-muted-foreground mt-1">Accept or archive to keep your inbox clean.</p>
+              </div>
+            )
           ) : (
             <>
               <div className="flex items-start justify-between gap-4 pb-4 border-b border-border mb-4">

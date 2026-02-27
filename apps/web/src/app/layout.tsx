@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { CdpAppIdProvider } from "./CdpAppIdProvider";
+import { ClientErrorBoundary } from "./ClientErrorBoundary";
+import GlobalErrorCapture from "./GlobalErrorCapture";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,7 +35,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <CdpAppIdProvider appId={cdpAppId}>{children}</CdpAppIdProvider>
+        <CdpAppIdProvider appId={cdpAppId}>
+          <GlobalErrorCapture />
+          <ClientErrorBoundary>{children}</ClientErrorBoundary>
+        </CdpAppIdProvider>
       </body>
     </html>
   );

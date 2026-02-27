@@ -20,10 +20,32 @@ export function clearCdpPersistedState(): void {
   }
 }
 
-function isLikelyCdpAuthError(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error);
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    if ("message" in error) return String((error as { message: unknown }).message);
+    if ("status" in error || "code" in error) return String((error as { status?: number; code?: unknown }).status ?? (error as { code?: unknown }).code ?? "");
+  }
+  return String(error ?? "");
+}
+
+/** Match 401, Unauthorized, auth/refresh, CDP, embedded-wallet; handle Error, string, and objects with status/code. */
+export function isLikelyCdpAuthError(error: unknown): boolean {
+  const msg = getErrorMessage(error);
   const s = msg.toLowerCase();
-  return s.includes("401") || s.includes("unauthorized") || s.includes("auth/refresh") || s.includes("refresh") && s.includes("token");
+  const hasAuth = s.includes("401") || s.includes("unauthorized") || s.includes("auth/refresh") || (s.includes("refresh") && s.includes("token"));
+  const hasCdp = s.includes("cdp") || s.includes("coinbase") || s.includes("embedded-wallet");
+  if (hasAuth && hasCdp) return true;
+  if (error && typeof error === "object" && "status" in error) {
+    const status = (error as { status: number }).status;
+    if (status === 401 && hasCdp) return true;
+  }
+  if (error && typeof error === "object" && "code" in error) {
+    const code = String((error as { code: unknown }).code ?? "").toLowerCase();
+    if ((code === "401" || code === "unauthorized") && hasCdp) return true;
+  }
+  return false;
 }
 
 type Props = { children: ReactNode };
@@ -40,10 +62,10 @@ export class CdpErrorBoundary extends Component<Props, State> {
     return { error, isCdpAuth };
   }
 
-  componentDidCatch(error: Error, info: React.ErrorInfo): void {
+  componentDidCatch(error: Error, _info: React.ErrorInfo): void {
     if (isLikelyCdpAuthError(error)) {
       clearCdpPersistedState();
-      if (typeof console !== "undefined" && process.env.NODE_ENV === "development") {
+      if (typeof console !== "undefined") {
         console.warn("[CDP] Wallet session expired or invalid (401); cleared persisted state.", error?.message);
       }
     }

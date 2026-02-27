@@ -12,8 +12,8 @@ type AppWithProvidersProps = {
 };
 
 /**
- * Renders app content. CDP (Coinbase embedded wallet) is mounted only when user has a session,
- * so public pages never run wallet auth/refresh and cannot 401-crash. 401 in wallet area is caught by CdpErrorBoundary.
+ * Renders app content. CDP (Coinbase embedded wallet) is mounted only on wallet routes
+ * (/settings/wallet, /wallet/*) via CdpProviderGate pathname check—never on /, /{username}, etc.
  */
 export default function AppWithProviders({ children }: AppWithProvidersProps) {
   const cdpAppId = useCdpAppId();

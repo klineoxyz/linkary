@@ -579,18 +579,26 @@ function Stars({ value = 5 }) {
 function ScorePills({ ethos, xscore, reputationIndex, socialPower }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-        <Shield className="h-3.5 w-3.5 stroke-[1.75]" /> ETHOS {ethos != null ? ethos : "—"}
-      </span>
-      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-        <Zap className="h-3.5 w-3.5 stroke-[1.75]" /> XScore {xscore != null ? xscore : "—"}
-      </span>
-      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-        <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" /> Index {reputationIndex ?? "—"}
-      </span>
-      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-        <Sparkles className="h-3.5 w-3.5 stroke-[1.75]" /> Power {socialPower != null ? socialPower : "—"}
-      </span>
+      {ethos != null && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+          <Shield className="h-3.5 w-3.5 stroke-[1.75]" /> ETHOS {ethos}
+        </span>
+      )}
+      {xscore != null && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+          <Zap className="h-3.5 w-3.5 stroke-[1.75]" /> XScore {xscore}
+        </span>
+      )}
+      {reputationIndex != null && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+          <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" /> Index {reputationIndex}
+        </span>
+      )}
+      {socialPower != null && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+          <Sparkles className="h-3.5 w-3.5 stroke-[1.75]" /> Power {socialPower}
+        </span>
+      )}
     </div>
   );
 }

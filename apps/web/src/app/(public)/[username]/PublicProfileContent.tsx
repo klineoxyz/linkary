@@ -727,15 +727,21 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             )}
           </section>
         );
-      case "case_studies":
+      case "case_studies": {
+        const sortedCaseStudies =
+          featuredCaseStudyId
+            ? [...caseStudies].sort((a, b) =>
+                a.id === featuredCaseStudyId ? -1 : b.id === featuredCaseStudyId ? 1 : 0
+              )
+            : caseStudies;
         return (
           <section className={rightSectionSpacing}>
             <SectionTitle>Case studies</SectionTitle>
-            {caseStudies.length === 0 ? (
+            {sortedCaseStudies.length === 0 ? (
               <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">Add a proof card to show outcomes.</p>
             ) : (
               <ul className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
-                {caseStudies.map((c) => {
+                {sortedCaseStudies.map((c) => {
                   const highlights = proofHighlights(c.summary ?? null, c.tags ?? []);
                   return (
                     <li key={c.id} className={isShowcase ? featuredCardClass : sectionCardClass}>
@@ -783,6 +789,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             )}
           </section>
         );
+      }
       case "links":
         return (
           <section className={rightSectionSpacing}>

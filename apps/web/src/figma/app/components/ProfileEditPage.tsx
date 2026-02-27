@@ -1939,6 +1939,9 @@ export default function ProfileEditPage({
               );
             })}
           </ul>
+          {(layoutHidden["header"] && layoutHidden["proof"] && layoutHidden["action_bar"]) && (
+            <p className="mt-2 text-xs text-amber-600">Hiding header, proof, and action bar may make your profile look empty above the fold. Consider showing at least one.</p>
+          )}
         </div>
         {profileType === "project" && (
           <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">

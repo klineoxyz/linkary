@@ -16,6 +16,7 @@ import { ApplyToGigButton } from "./ApplyToGigButton";
 import { TrustStrip } from "@/components/TrustStrip";
 import { EcosystemModule } from "./EcosystemModule";
 import { ActionBar } from "./ActionBar";
+import { StarterBlock } from "./StarterBlock";
 
 /** Derive 2–4 highlight bullets from case study (no DB). Use summary sentences or tag-based. */
 function proofHighlights(
@@ -338,6 +339,21 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const hasProofStats =
     profile.ethos_score != null || profile.xscore != null || profile.reputation_index != null;
 
+  const hasHero = hasHeroImage || hasHeroVideo || !!heroTitle;
+  const hasAnyRelation =
+    relations &&
+    ((relations.ambassadors?.length ?? 0) > 0 ||
+      (relations.affiliates?.length ?? 0) > 0 ||
+      (relations.ecosystemProjects?.length ?? 0) > 0 ||
+      (relations.subsidiaries?.length ?? 0) > 0 ||
+      (relations.ambassadorOf?.length ?? 0) > 0 ||
+      (relations.affiliateOf?.length ?? 0) > 0);
+  const isLowContent =
+    !hasHero &&
+    caseStudies.length === 0 &&
+    (reviews?.count ?? 0) === 0 &&
+    (profileType === "individual" || ((data.gigs?.length ?? 0) === 0 && !hasAnyRelation));
+
   const leftOrder = visibleOrder.filter((k) => LEFT_COLUMN_KEYS.includes(k));
   const rightOrder = visibleOrder.filter((k) => RIGHT_COLUMN_KEYS.includes(k));
 
@@ -402,6 +418,18 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               profileUrl={profileUrl}
               isAuthenticated={isAuthenticated}
               canApplyToGigs={isAuthenticated}
+            />
+          </div>
+        );
+      case "starter_block":
+        if (!isLowContent) return null;
+        return (
+          <div className={rightSectionSpacing}>
+            <StarterBlock
+              username={handle}
+              profileType={profileType}
+              profileUrl={profileUrl}
+              isLowContent={isLowContent}
             />
           </div>
         );
@@ -537,6 +565,16 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
       case "relations":
         if (!relations) return null;
         if (profileType === "project" || profileType === "company") {
+          if (!hasAnyRelation) {
+            return (
+              <section className={rightSectionSpacing}>
+                <SectionTitle>Ecosystem</SectionTitle>
+                <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">
+                  No partners added yet.
+                </p>
+              </section>
+            );
+          }
           return (
             <EcosystemModule
               relations={relations}
@@ -564,8 +602,18 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </>
         );
       case "gigs": {
-        if (!data.gigs || data.gigs.length === 0) return null;
-        const gigs = data.gigs;
+        if (profileType !== "project" && profileType !== "company") return null;
+        const gigs = data.gigs ?? [];
+        if (gigs.length === 0) {
+          return (
+            <section id="gigs" className={rightSectionSpacing}>
+              <SectionTitle>Open gigs</SectionTitle>
+              <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">
+                No open gigs yet.
+              </p>
+            </section>
+          );
+        }
         const openCount = gigs.length;
         const topGigs = gigs.slice(0, 2);
         const gigsAnchor = `${profileUrl}#gigs`;
@@ -658,7 +706,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           <section className={rightSectionSpacing}>
             <SectionTitle>Case studies</SectionTitle>
             {caseStudies.length === 0 ? (
-              <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No case studies yet</p>
+              <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">Add a proof card to show outcomes.</p>
             ) : (
               <ul className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
                 {caseStudies.map((c) => {
@@ -748,7 +796,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           <section className={rightSectionSpacing}>
             <SectionTitle>Reviews</SectionTitle>
             {reviews.count === 0 ? (
-              <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No reviews yet</p>
+              <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">Verified reviews appear after completed deals.</p>
             ) : (
               <>
                 <div className="mb-4 flex flex-wrap items-center gap-3">

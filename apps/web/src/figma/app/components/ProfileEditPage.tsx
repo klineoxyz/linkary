@@ -1203,6 +1203,12 @@ export default function ProfileEditPage({
   const [heroVideoUrl, setHeroVideoUrl] = useState("");
   const [heroTitle, setHeroTitle] = useState("");
   const [publicLayoutPreset, setPublicLayoutPreset] = useState<"classic" | "spotlight" | "showcase" | "compact">("classic");
+  const [layoutOrder, setLayoutOrder] = useState<string[]>(["proof", "token", "team", "gigs", "relations", "skills", "achievements", "case_studies", "links", "reviews"]);
+  const [layoutHidden, setLayoutHidden] = useState<Record<string, boolean>>({});
+  const [featuredCaseStudyId, setFeaturedCaseStudyId] = useState<string | null>(null);
+  const [featuredReviewId, setFeaturedReviewId] = useState<string | null>(null);
+  const [featuredGigId, setFeaturedGigId] = useState<string | null>(null);
+  const [myReviews, setMyReviews] = useState<Array<{ id: string; rating: number; title: string | null; body: string | null; created_at: string }>>([]);
   const [team, setTeam] = useState<TeamMemberRow[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamModal, setTeamModal] = useState<{ open: true; edit?: TeamMemberRow } | { open: false }>({ open: false });
@@ -1298,6 +1304,19 @@ export default function ProfileEditPage({
       setGigsLoading(false);
     }
   }, [me?.id, getAuthHeaders]);
+
+  const loadMyReviews = useCallback(async () => {
+    if (!me?.id) return;
+    const { data } = await supabase
+      .from("reviews")
+      .select("id, rating, title, body, created_at")
+      .eq("reviewee_type", "profile")
+      .eq("reviewee_profile_id", me.id)
+      .eq("verified_deal", true)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setMyReviews((data as Array<{ id: string; rating: number; title: string | null; body: string | null; created_at: string }>) ?? []);
+  }, [me?.id]);
 
   const loadApplications = useCallback(async (gigId: string) => {
     const headers = await getAuthHeaders();
@@ -1415,7 +1434,14 @@ export default function ProfileEditPage({
     loadLinks();
     loadRelations();
     if (profileExt?.data) {
-      const p = profileExt.data as { profile_type?: string; hero_image_url?: string | null; hero_video_url?: string | null; hero_title?: string | null; token_dexscreener_url?: string | null; public_layout?: { preset?: string } | null };
+      const p = profileExt.data as {
+        profile_type?: string;
+        hero_image_url?: string | null;
+        hero_video_url?: string | null;
+        hero_title?: string | null;
+        token_dexscreener_url?: string | null;
+        public_layout?: { preset?: string; order?: string[]; hidden?: string[]; featured_case_study_id?: string | null; featured_review_id?: string | null; featured_gig_id?: string | null } | null;
+      };
       if (p.profile_type === "project" || p.profile_type === "company") {
         setProfileType(p.profile_type as ProfileType);
         loadGigs();
@@ -1428,6 +1454,12 @@ export default function ProfileEditPage({
       const preset = p.public_layout?.preset;
       if (preset === "spotlight" || preset === "showcase" || preset === "compact") setPublicLayoutPreset(preset);
       else setPublicLayoutPreset("classic");
+      if (Array.isArray(p.public_layout?.order) && p.public_layout.order.length > 0) setLayoutOrder(p.public_layout.order);
+      if (Array.isArray(p.public_layout?.hidden)) setLayoutHidden(Object.fromEntries((p.public_layout.hidden as string[]).map((k) => [k, true])));
+      setFeaturedCaseStudyId(p.public_layout?.featured_case_study_id ?? null);
+      setFeaturedReviewId(p.public_layout?.featured_review_id ?? null);
+      setFeaturedGigId(p.public_layout?.featured_gig_id ?? null);
+      loadMyReviews();
     }
     setLoading(false);
     if (me.display_name != null) setDisplayName(me.display_name);
@@ -1467,7 +1499,7 @@ export default function ProfileEditPage({
     }
     loadSkills();
     loadAchievements();
-  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam, loadGigs, loadLinks, loadSkills, loadAchievements, loadRelations]);
+  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam, loadGigs, loadLinks, loadSkills, loadAchievements, loadRelations, loadMyReviews]);
 
   useEffect(() => {
     load();
@@ -1575,6 +1607,11 @@ export default function ProfileEditPage({
         ? (tokenDexscreenerUrl.trim().startsWith("https://") && tokenDexscreenerUrl.trim().includes("dexscreener.com/") ? tokenDexscreenerUrl.trim() : null)
         : null,
       public_layout_preset: publicLayoutPreset,
+      public_layout_order: layoutOrder,
+      public_layout_hidden: Object.keys(layoutHidden).filter((k) => layoutHidden[k]),
+      featured_case_study_id: featuredCaseStudyId,
+      featured_review_id: featuredReviewId,
+      featured_gig_id: featuredGigId,
     });
     if (profileErr) {
       setSaving(false);
@@ -1795,6 +1832,90 @@ export default function ProfileEditPage({
             <option value="showcase">Showcase (featured cards)</option>
             <option value="compact">Compact (denser)</option>
           </select>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+          <label className="block text-sm font-medium text-zinc-700">Featured on public page</label>
+          <p className="text-xs text-zinc-500 mb-2">Highlight one case study, one review, or (for projects/companies) one gig at the top of your public profile. Compact layout does not show featured.</p>
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Featured case study</label>
+              <div className="flex gap-2">
+                <select
+                  value={featuredCaseStudyId ?? ""}
+                  onChange={(e) => setFeaturedCaseStudyId(e.target.value || null)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 text-sm"
+                >
+                  <option value="">None</option>
+                  {caseStudies.filter((c) => c.is_public !== false).map((c) => (
+                    <option key={c.id} value={c.id}>{c.title || c.id.slice(0, 8)}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => setFeaturedCaseStudyId(null)} className="px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-600 text-sm hover:bg-zinc-50">Clear</button>
+              </div>
+            </div>
+            {(profileType === "project" || profileType === "company") && (
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 mb-1">Featured gig</label>
+                <div className="flex gap-2">
+                  <select
+                    value={featuredGigId ?? ""}
+                    onChange={(e) => setFeaturedGigId(e.target.value || null)}
+                    className="flex-1 px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 text-sm"
+                  >
+                    <option value="">None</option>
+                    {myGigs.filter((g) => g.status === "open" && g.is_public).map((g) => (
+                      <option key={g.id} value={g.id}>{g.title}</option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={() => setFeaturedGigId(null)} className="px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-600 text-sm hover:bg-zinc-50">Clear</button>
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Featured review</label>
+              <div className="flex gap-2">
+                <select
+                  value={featuredReviewId ?? ""}
+                  onChange={(e) => setFeaturedReviewId(e.target.value || null)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 text-sm"
+                >
+                  <option value="">None</option>
+                  {myReviews.map((r) => (
+                    <option key={r.id} value={r.id}>{r.title || `${r.rating}★ · ${r.created_at.slice(0, 10)}`}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => setFeaturedReviewId(null)} className="px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-600 text-sm hover:bg-zinc-50">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+          <label className="block text-sm font-medium text-zinc-700">Section order &amp; visibility</label>
+          <p className="text-xs text-zinc-500 mb-2">Reorder sections and hide sections you don&apos;t want on your public page.</p>
+          <ul className="space-y-1">
+            {layoutOrder.map((key, i) => {
+              const label = key.replace(/_/g, " ");
+              const hidden = layoutHidden[key];
+              const moveUp = () => {
+                const o = [...layoutOrder];
+                if (i > 0) { const prev = i - 1; [o[prev], o[i]] = [o[i], o[prev]]; setLayoutOrder(o); }
+              };
+              const moveDown = () => {
+                const o = [...layoutOrder];
+                if (i < o.length - 1) { const next = i + 1; [o[i], o[next]] = [o[next], o[i]]; setLayoutOrder(o); }
+              };
+              return (
+                <li key={key} className="flex items-center gap-2 py-1.5">
+                  <button type="button" onClick={moveUp} className="px-2 py-1 rounded border border-zinc-300 bg-white text-zinc-600 text-xs disabled:opacity-50" disabled={i === 0} title="Move up">↑</button>
+                  <button type="button" onClick={moveDown} className="px-2 py-1 rounded border border-zinc-300 bg-white text-zinc-600 text-xs disabled:opacity-50" disabled={i === layoutOrder.length - 1} title="Move down">↓</button>
+                  <label className="flex items-center gap-2 flex-1 cursor-pointer">
+                    <input type="checkbox" checked={!hidden} onChange={() => setLayoutHidden((h) => ({ ...h, [key]: !h[key] }))} className="rounded border-zinc-300" />
+                    <span className={`text-sm capitalize ${hidden ? "text-zinc-400" : "text-zinc-700"}`}>{label}</span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
         </div>
         {profileType === "project" && (
           <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">

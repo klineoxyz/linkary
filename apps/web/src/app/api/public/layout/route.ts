@@ -61,7 +61,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Not the profile owner" }, { status: 403 });
     }
     const { data: existing } = await supabase.from("profiles").select("public_layout").eq("id", resolvedEntityId).maybeSingle();
-    const existingLayout = (existing as { public_layout?: { preset?: string } | null } | null)?.public_layout ?? {};
+    const existingLayout = (existing as { public_layout?: Record<string, unknown> | null } | null)?.public_layout ?? {};
     const merged = { ...existingLayout, order: layout.order, hidden: layout.hidden ?? [] };
     const { error } = await supabase
       .from("profiles")

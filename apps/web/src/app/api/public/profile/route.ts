@@ -32,6 +32,14 @@ export type PublicProfileApiPayload = {
     profile_type?: "individual" | "project" | "company";
     /** Layout preset: classic (default), spotlight, showcase, compact */
     public_layout?: "classic" | "spotlight" | "showcase" | "compact" | null;
+    /** Section keys in display order (from profiles.public_layout.order) */
+    layout_order?: string[] | null;
+    /** Section keys to hide (from profiles.public_layout.hidden) */
+    layout_hidden?: string[] | null;
+    /** Featured item IDs (from profiles.public_layout) */
+    featured_case_study_id?: string | null;
+    featured_review_id?: string | null;
+    featured_gig_id?: string | null;
   };
   hero?: {
     hero_image_url: string | null;
@@ -61,6 +69,7 @@ export type PublicProfileApiPayload = {
     average: number | null;
     count: number;
     latest: Array<{
+      id?: string;
       rating: number;
       title: string | null;
       text: string | null;
@@ -360,7 +369,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (dto.type === "profile") {
-    const layoutObj = dto.publicLayout && typeof dto.publicLayout === "object" && "preset" in dto.publicLayout ? (dto.publicLayout as { preset?: string }) : null;
+    const layoutObj = dto.publicLayout && typeof dto.publicLayout === "object" ? (dto.publicLayout as { preset?: string; order?: string[]; hidden?: string[]; featured_case_study_id?: string | null; featured_review_id?: string | null; featured_gig_id?: string | null }) : null;
     const layoutPreset: "classic" | "spotlight" | "showcase" | "compact" =
       layoutObj?.preset && ["spotlight", "showcase", "compact"].includes(layoutObj.preset) ? (layoutObj.preset as "spotlight" | "showcase" | "compact") : "classic";
     const payload: PublicProfileApiPayload = {
@@ -376,6 +385,11 @@ export async function GET(request: NextRequest) {
         xscore: dto.xscore,
         reputation_index: dto.linkaryPower ?? null,
         public_layout: layoutPreset,
+        layout_order: Array.isArray(layoutObj?.order) ? layoutObj.order : null,
+        layout_hidden: Array.isArray(layoutObj?.hidden) ? layoutObj.hidden : null,
+        featured_case_study_id: layoutObj?.featured_case_study_id ?? null,
+        featured_review_id: layoutObj?.featured_review_id ?? null,
+        featured_gig_id: layoutObj?.featured_gig_id ?? null,
       },
       socials: {
         x: dto.socials?.x_url ?? null,

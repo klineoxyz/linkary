@@ -221,6 +221,9 @@ type Props = {
   profileUrl?: string;
 };
 
+const SECTION_KEYS = ["hero", "header", "socials", "proof", "featured", "token", "team", "gigs", "relations", "skills", "achievements", "case_studies", "links", "reviews"] as const;
+const DEFAULT_ORDER: string[] = [...SECTION_KEYS];
+
 export function PublicProfileContent({ data, username, profileUrl: profileUrlProp }: Props) {
   const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations, skills = [], achievements = [] } = data;
   const profileType = profile.profile_type ?? "individual";
@@ -229,6 +232,16 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://linkary.xyz";
   const basePath = base.replace(/\/$/, "");
   const profileUrl = profileUrlProp ?? `${basePath}/${encodeURIComponent(handle)}`;
+
+  const layoutOrder = (profile.layout_order && profile.layout_order.length > 0) ? profile.layout_order.filter((k) => SECTION_KEYS.includes(k as (typeof SECTION_KEYS)[number])) : null;
+  const layoutHidden = new Set(profile.layout_hidden ?? []);
+
+  const featuredCaseStudyId = profile.featured_case_study_id ?? null;
+  const featuredReviewId = profile.featured_review_id ?? null;
+  const featuredGigId = profile.featured_gig_id ?? null;
+  const featuredCaseStudy = featuredCaseStudyId ? caseStudies.find((c) => c.id === featuredCaseStudyId) : null;
+  const featuredReview = featuredReviewId && reviews.latest ? reviews.latest.find((r) => (r as { id?: string }).id === featuredReviewId) : null;
+  const featuredGig = featuredGigId && data.gigs ? data.gigs.find((g) => g.id === featuredGigId) : null;
 
   const socialLinks: { name: string; url: string }[] = [
     { name: "X", url: socials.x ?? null },
@@ -255,6 +268,8 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const sectionSpacing = isCompact ? "mb-5" : "mb-8";
   const rightSectionSpacing = isCompact ? "mb-5" : "mb-8";
   const featuredCardClass = isShowcase ? "rounded-2xl border-2 border-primary/25 bg-card shadow-lg hover:shadow-primary/15 hover:border-primary/35" : sectionCardClass;
+  const showFeatured = !isCompact && (!!featuredCaseStudy || !!featuredReview || !!featuredGig);
+  const order = layoutOrder ?? DEFAULT_ORDER;
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans relative">
@@ -453,7 +468,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             </header>
 
             {/* Socials */}
-            {socialLinks.length > 0 && (
+            {!layoutHidden.has("socials") && socialLinks.length > 0 && (
               <div className={`flex flex-wrap gap-2 ${sectionSpacing}`}>
                 {socialLinks.map((l) => (
                   <SocialLink key={l.name} name={l.name} url={l.url} />
@@ -462,7 +477,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             )}
 
             {/* Proof card — only when at least one stat */}
-            {hasProofStats && (
+            {!layoutHidden.has("proof") && hasProofStats && (
               <section className={sectionSpacing}>
                 <SectionTitle>Proof</SectionTitle>
                 <div className={`${sectionCardClass} border-primary/20 p-5`}>
@@ -493,8 +508,73 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
 
           {/* ——— RIGHT COLUMN: order by type — Individual: Skills, Achievements, Case studies, Links, Reviews — Project: Token, Gigs, Relations, Links, … — Company: Team, Gigs, Relations, … ——— */}
           <div className="space-y-8 lg:pt-0">
+            {/* Featured block (not in compact); fail gracefully if item missing */}
+            {showFeatured && (
+              <section className={rightSectionSpacing}>
+                <SectionTitle>Featured</SectionTitle>
+                <div className="space-y-4">
+                  {profileType !== "individual" && featuredGig && (
+                    <div className={`${featuredCardClass} p-5`}>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">Featured gig</span>
+                      <h3 className="mt-1 text-lg font-semibold text-foreground">{featuredGig.title}</h3>
+                      {featuredGig.description && <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{featuredGig.description}</p>}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium capitalize text-foreground">{featuredGig.gig_type}</span>
+                        {featuredGig.budget_text && <span className="text-sm font-medium text-primary">{featuredGig.budget_text}</span>}
+                      </div>
+                      <div className="mt-4">
+                        <ApplyToGigButton gig={featuredGig} ownerUsername={handle} basePath={basePath} />
+                      </div>
+                    </div>
+                  )}
+                  {featuredCaseStudy && (
+                    <div className={`${featuredCardClass} p-5`}>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">Featured case study</span>
+                      {featuredCaseStudy.title && <h3 className="mt-1 text-lg font-semibold text-foreground">{featuredCaseStudy.title}</h3>}
+                      {featuredCaseStudy.summary && <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{featuredCaseStudy.summary}</p>}
+                      {featuredCaseStudy.tags.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {featuredCaseStudy.tags.map((t) => (
+                            <span key={t} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">{t}</span>
+                          ))}
+                        </div>
+                      )}
+                      {featuredCaseStudy.url && (
+                        <a href={featuredCaseStudy.url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                          View proof <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  {featuredReview && (
+                    <div className={`${featuredCardClass} p-5`}>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">Featured review</span>
+                      <div className="mt-3 flex gap-3">
+                        {featuredReview.reviewer_avatar_url ? (
+                          <img src={featuredReview.reviewer_avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover border border-border ring-2 ring-primary/20" />
+                        ) : (
+                          <div className="h-11 w-11 shrink-0 rounded-full border border-border bg-muted" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-foreground">{featuredReview.reviewer_display ?? "Anonymous"}</span>
+                            <Stars rating={featuredReview.rating} className="shrink-0" />
+                            {featuredReview.verified_deal !== false && (
+                              <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified deal</span>
+                            )}
+                          </div>
+                          {featuredReview.title && <p className="mt-1 text-sm font-medium text-foreground">{featuredReview.title}</p>}
+                          {featuredReview.text && <p className="mt-0.5 text-sm text-muted-foreground leading-relaxed">{featuredReview.text}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             {/* Token (project only) */}
-            {profileType === "project" && token && (
+            {!layoutHidden.has("token") && profileType === "project" && token && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>Token</SectionTitle>
                 <div className={`${sectionCardClass} p-5`}>
@@ -537,7 +617,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             )}
 
             {/* Team (company only) — above Gigs/Relations per hierarchy */}
-            {profileType === "company" && team.length > 0 && (
+            {!layoutHidden.has("team") && profileType === "company" && team.length > 0 && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>Team</SectionTitle>
                 <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -597,7 +677,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             )}
 
             {/* Relations: Ambassador of / Affiliate of (individual); Ambassadors / Affiliates / Ecosystem / Subsidiaries (project/company) */}
-            {relations && (
+            {!layoutHidden.has("relations") && relations && (
               <>
                 {profileType === "individual" && (
                   <>
@@ -683,7 +763,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             )}
 
             {/* Open gigs (project/company only) — opportunities style; featured in showcase */}
-            {data.gigs && data.gigs.length > 0 && (
+            {!layoutHidden.has("gigs") && data.gigs && data.gigs.length > 0 && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>Open gigs</SectionTitle>
                 <ul className="space-y-3">
@@ -715,7 +795,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             )}
 
             {/* Skills (individual) or Services / Expertise (company) */}
-            {(profileType === "individual" || profileType === "company") && (
+            {!layoutHidden.has("skills") && (profileType === "individual" || profileType === "company") && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>{profileType === "company" ? "Services / Expertise" : "Skills"}</SectionTitle>
                 <div className={`${sectionCardClass} p-4`}>
@@ -745,7 +825,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             )}
 
             {/* Achievements (individual only) */}
-            {profileType === "individual" && (
+            {!layoutHidden.has("achievements") && profileType === "individual" && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>Achievements</SectionTitle>
                 {achievements.length === 0 ? (
@@ -777,6 +857,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             )}
 
             {/* Case studies — above Links; featured in showcase */}
+            {!layoutHidden.has("case_studies") && (
             <section className={rightSectionSpacing}>
               <SectionTitle>Case studies</SectionTitle>
               {caseStudies.length === 0 ? (
@@ -821,8 +902,10 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 </ul>
               )}
             </section>
+            )}
 
             {/* Links — Linkary-style: domain label, arrow affordance */}
+            {!layoutHidden.has("links") && (
             <section className={rightSectionSpacing}>
               <SectionTitle>Links</SectionTitle>
               {links.length === 0 ? (
@@ -860,9 +943,10 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 </ul>
               )}
             </section>
+            )}
 
             {/* Reviews — avatar ring, trust-style verified badge */}
-            {showReviews && (
+            {!layoutHidden.has("reviews") && showReviews && (
               <section className={rightSectionSpacing}>
                 <SectionTitle>Reviews</SectionTitle>
                 {reviews.count === 0 ? (

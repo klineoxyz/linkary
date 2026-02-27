@@ -160,16 +160,49 @@ export async function updateMyProfile(
     token_dexscreener_url?: string | null;
     /** Public page layout preset: classic, spotlight, showcase, compact. Merged into existing public_layout jsonb. */
     public_layout_preset?: "classic" | "spotlight" | "showcase" | "compact" | null;
+    /** Section order (merged into public_layout.order). */
+    public_layout_order?: string[] | null;
+    /** Section keys to hide (merged into public_layout.hidden). */
+    public_layout_hidden?: string[] | null;
+    /** Featured item IDs (merged into public_layout). */
+    featured_case_study_id?: string | null;
+    featured_review_id?: string | null;
+    featured_gig_id?: string | null;
   }
 ): Promise<{ error: string | null }> {
   const updates: Record<string, unknown> = { ...payload };
   delete updates.xscore;
-  if (updates.public_layout_preset !== undefined) {
-    const preset = updates.public_layout_preset as string | null;
-    delete updates.public_layout_preset;
+  const layoutKeys = ["public_layout_preset", "public_layout_order", "public_layout_hidden", "featured_case_study_id", "featured_review_id", "featured_gig_id"];
+  const hasLayoutUpdate = layoutKeys.some((k) => updates[k] !== undefined);
+  if (hasLayoutUpdate) {
     const { data: row } = await supabase.from(PROFILES).select("public_layout").eq("id", userId).maybeSingle();
-    const current = (row as { public_layout?: { order?: string[]; hidden?: string[] } | null } | null)?.public_layout ?? {};
-    updates.public_layout = { ...current, preset: preset ?? "classic" };
+    const current = (row as { public_layout?: Record<string, unknown> | null } | null)?.public_layout ?? {};
+    const merged: Record<string, unknown> = { ...current };
+    if (updates.public_layout_preset !== undefined) {
+      merged.preset = (updates.public_layout_preset as string | null) ?? "classic";
+      delete updates.public_layout_preset;
+    }
+    if (updates.public_layout_order !== undefined) {
+      merged.order = Array.isArray(updates.public_layout_order) ? updates.public_layout_order : (current.order as string[]);
+      delete updates.public_layout_order;
+    }
+    if (updates.public_layout_hidden !== undefined) {
+      merged.hidden = Array.isArray(updates.public_layout_hidden) ? updates.public_layout_hidden : (current.hidden as string[]);
+      delete updates.public_layout_hidden;
+    }
+    if (updates.featured_case_study_id !== undefined) {
+      merged.featured_case_study_id = updates.featured_case_study_id ?? null;
+      delete updates.featured_case_study_id;
+    }
+    if (updates.featured_review_id !== undefined) {
+      merged.featured_review_id = updates.featured_review_id ?? null;
+      delete updates.featured_review_id;
+    }
+    if (updates.featured_gig_id !== undefined) {
+      merged.featured_gig_id = updates.featured_gig_id ?? null;
+      delete updates.featured_gig_id;
+    }
+    updates.public_layout = merged;
   }
   if (updates.twitter_username !== undefined) {
     const { data: row } = await supabase.from(PROFILES).select("twitter_username").eq("id", userId).maybeSingle();

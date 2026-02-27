@@ -244,7 +244,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         hero_image_url?: string | null;
         hero_video_url?: string | null;
         hero_title?: string | null;
-        public_layout?: { preset?: string } | null;
+        public_layout?: { preset?: string; order?: string[]; hidden?: string[]; featured_case_study_id?: string | null; featured_review_id?: string | null; featured_gig_id?: string | null } | null;
       } | null;
 
       if (!profileRow) {
@@ -325,6 +325,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         reviewsLatest = latest3.map((r) => {
           const reviewer = r.reviewer_type === "profile" && r.reviewer_profile_id ? reviewerByProfileId[r.reviewer_profile_id] : null;
           return {
+            id: r.id,
             rating: r.rating,
             title: r.title ?? null,
             text: r.body ?? null,
@@ -420,11 +421,15 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         if (subsidiaries.length) relationsPayload.subsidiaries = subsidiaries;
       }
 
-      const rawPreset = (profileRow.public_layout && typeof profileRow.public_layout === "object" && "preset" in profileRow.public_layout && typeof (profileRow.public_layout as { preset?: string }).preset === "string")
-        ? (profileRow.public_layout as { preset: string }).preset
-        : "classic";
+      const layoutObj = profileRow.public_layout && typeof profileRow.public_layout === "object" ? profileRow.public_layout : {};
+      const rawPreset = typeof (layoutObj as { preset?: string }).preset === "string" ? (layoutObj as { preset: string }).preset : "classic";
       const layoutPreset: "classic" | "spotlight" | "showcase" | "compact" =
         rawPreset === "spotlight" || rawPreset === "showcase" || rawPreset === "compact" ? rawPreset : "classic";
+      const layoutOrder = Array.isArray((layoutObj as { order?: string[] }).order) ? (layoutObj as { order: string[] }).order : null;
+      const layoutHidden = Array.isArray((layoutObj as { hidden?: string[] }).hidden) ? (layoutObj as { hidden: string[] }).hidden : null;
+      const featuredCaseStudyId = (layoutObj as { featured_case_study_id?: string | null }).featured_case_study_id ?? null;
+      const featuredReviewId = (layoutObj as { featured_review_id?: string | null }).featured_review_id ?? null;
+      const featuredGigId = (layoutObj as { featured_gig_id?: string | null }).featured_gig_id ?? null;
       const payload: PublicProfileApiPayload = {
         profile: {
           username: profileRow.username ?? profileRow.twitter_username ?? null,
@@ -439,6 +444,11 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           reputation_index: reputationIndex,
           profile_type: profileType,
           public_layout: layoutPreset,
+          layout_order: layoutOrder,
+          layout_hidden: layoutHidden,
+          featured_case_study_id: featuredCaseStudyId,
+          featured_review_id: featuredReviewId,
+          featured_gig_id: featuredGigId,
         },
         hero:
           resolvedHeroImageUrl || heroVideoUrl || heroTitle

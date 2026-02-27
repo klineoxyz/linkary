@@ -576,7 +576,7 @@ function Stars({ value = 5 }) {
   );
 }
 
-function ScorePills({ ethos, xscore, reputationIndex, socialPower }) {
+function ScorePills({ ethos, xscore, reputationIndex, repScore, socialPower }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {ethos != null && (
@@ -589,9 +589,9 @@ function ScorePills({ ethos, xscore, reputationIndex, socialPower }) {
           <Zap className="h-3.5 w-3.5 stroke-[1.75]" /> XScore {xscore}
         </span>
       )}
-      {reputationIndex != null && (
-        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-          <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" /> Index {reputationIndex}
+      {repScore != null && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground" title="REP is based on social signals, verified work, and network trust.">
+          <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" /> REP {repScore}
         </span>
       )}
       {socialPower != null && (
@@ -2472,9 +2472,16 @@ function WorkRequestsPage({ setRoute, route, me }) {
   const [followupDraft, setFollowupDraft] = useState("");
   const [followupSavingId, setFollowupSavingId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [hasReviewedForSelected, setHasReviewedForSelected] = useState<boolean | null>(null);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const markSeenDoneRef = useRef(false);
 
   const REQUESTER_FOLLOWUP_MAX = 500;
+  const REVIEW_TEXT_MAX = 1000;
 
   const setTab = (t: "inbox" | "sent") => {
     setSelectedId(null);
@@ -2610,6 +2617,31 @@ function WorkRequestsPage({ setRoute, route, me }) {
   const selected = selectedInbox ?? selectedSent;
   const hasArchivedOrDone = rawList.some((r) => r.status === "archived" || r.status === "done");
 
+  useEffect(() => {
+    if (selectedId !== selected?.id) {
+      setHasReviewedForSelected(null);
+      setReviewSubmitted(false);
+    }
+  }, [selectedId, selected?.id]);
+
+  useEffect(() => {
+    if (!selectedId || selected?.status !== "done") {
+      setHasReviewedForSelected(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = (session as { access_token?: string } | null)?.access_token;
+      if (!token) return;
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/reviews/check?collab_request_id=${encodeURIComponent(selectedId)}`, { headers: { Authorization: `Bearer ${token}` } });
+      const j = await res.json().catch(() => ({}));
+      if (!cancelled && j.ok === true && typeof j.has_reviewed === "boolean") setHasReviewedForSelected(j.has_reviewed);
+    })();
+    return () => { cancelled = true; };
+  }, [selectedId, selected?.status]);
+
   const markDone = async (id: string) => {
     const { data: { session } } = await supabase.auth.getSession();
     const accessToken = (session as { access_token?: string } | null)?.access_token;
@@ -2638,6 +2670,27 @@ function WorkRequestsPage({ setRoute, route, me }) {
       const idx = newRaw.findIndex((r) => r.id === id);
       const nextId = stillThere ? selectedId : (newRaw[idx]?.id ?? newRaw[idx - 1]?.id ?? newRaw[0]?.id ?? null);
       selectRequest(nextId);
+    }
+  };
+
+  const submitReview = async () => {
+    if (!selectedId || !reviewText.trim()) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = (session as { access_token?: string } | null)?.access_token;
+    if (!accessToken) return;
+    setReviewSubmitting(true);
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/reviews/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ collab_request_id: selectedId, rating: reviewRating, text: reviewText.trim().slice(0, REVIEW_TEXT_MAX) }),
+    });
+    setReviewSubmitting(false);
+    const j = await res.json().catch(() => ({}));
+    if (j.ok) {
+      setHasReviewedForSelected(true);
+      setReviewSubmitted(true);
+      setReviewModalOpen(false);
     }
   };
 
@@ -3011,6 +3064,20 @@ function WorkRequestsPage({ setRoute, route, me }) {
                   </div>
                 </>
               )}
+              {selected?.status === "done" && (
+                <div className="mt-4 pt-3 border-t border-border">
+                  {reviewSubmitted || hasReviewedForSelected === true ? (
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Star className="h-4 w-4 fill-primary text-primary" />
+                      Review submitted
+                    </p>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={() => { setReviewRating(5); setReviewText(""); setReviewModalOpen(true); }}>
+                      Leave review
+                    </Button>
+                  )}
+                </div>
+              )}
             </>
           )}
         </Card>
@@ -3048,6 +3115,46 @@ function WorkRequestsPage({ setRoute, route, me }) {
           </div>
         </div>
       )}
+
+      {reviewModalOpen && (
+        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="review-modal-title">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-lg">
+            <h2 id="review-modal-title" className="text-lg font-semibold text-foreground">Leave review</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Your review will appear as verified on their profile.</p>
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-foreground mb-1">Rating</label>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setReviewRating(n)}
+                    className="rounded-lg border border-border p-2 hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <Star className={cn("h-5 w-5", reviewRating >= n ? "fill-primary text-primary" : "text-muted-foreground")} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="mt-3 block text-sm font-medium text-foreground">Review</label>
+            <textarea
+              value={reviewText}
+              onChange={(e) => setReviewText(e.target.value)}
+              maxLength={REVIEW_TEXT_MAX}
+              rows={4}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Share your experience with this collaboration…"
+            />
+            <p className="mt-0.5 text-xs text-muted-foreground">{reviewText.length}/{REVIEW_TEXT_MAX}</p>
+            <div className="mt-4 flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setReviewModalOpen(false)}>Cancel</Button>
+              <Button disabled={reviewSubmitting || !reviewText.trim()} onClick={submitReview}>
+                {reviewSubmitting ? "…" : "Submit"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3063,7 +3170,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   const [csDescription, setCsDescription] = useState("");
   const [csProofUrl, setCsProofUrl] = useState("");
   const [csSubmitting, setCsSubmitting] = useState(false);
-  const [meStats, setMeStats] = useState<{ ethos: number | null; xscore: number | null; reputationIndex: number; socialPower: number; reviews: { avg: number; count: number } } | null>(null);
+  const [meStats, setMeStats] = useState<{ ethos: number | null; xscore: number | null; reputationIndex: number; repScore: number | null; socialPower: number; reviews: { avg: number; count: number } } | null>(null);
   const [xHandle, setXHandle] = useState<string | null>(null);
   const [profileSearchQuery, setProfileSearchQuery] = useState("");
   const [profileSearchResults, setProfileSearchResults] = useState<Array<{ id: string; type: string; name: string; handleLabel?: string; handle?: string; url?: string; avatar?: string; verified?: boolean }>>([]);
@@ -3083,13 +3190,13 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
     if (!me?.id) return;
     getXConnection(me.id).then((conn) => setXHandle(conn?.username ?? null));
   }, [me?.id]);
-  const { data: meStatsSwr } = useSWR<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; socialPower?: number; reviews?: { avg: number; count: number } }>(
+  const { data: meStatsSwr } = useSWR<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; repScore?: number | null; socialPower?: number; reviews?: { avg: number; count: number } }>(
     me?.id ? "/api/profile/me-stats" : null,
-    authFetcher as (url: string) => Promise<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; socialPower?: number; reviews?: { avg: number; count: number } }>,
+    authFetcher as (url: string) => Promise<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; repScore?: number | null; socialPower?: number; reviews?: { avg: number; count: number } }>,
     { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS }
   );
   useEffect(() => {
-    if (meStatsSwr) setMeStats({ ethos: meStatsSwr.ethos ?? null, xscore: meStatsSwr.xscore ?? null, reputationIndex: meStatsSwr.reputationIndex ?? 0, socialPower: meStatsSwr.socialPower ?? 0, reviews: meStatsSwr.reviews ?? { avg: 0, count: 0 } });
+    if (meStatsSwr) setMeStats({ ethos: meStatsSwr.ethos ?? null, xscore: meStatsSwr.xscore ?? null, reputationIndex: meStatsSwr.reputationIndex ?? 0, repScore: meStatsSwr.repScore ?? null, socialPower: meStatsSwr.socialPower ?? 0, reviews: meStatsSwr.reviews ?? { avg: 0, count: 0 } });
   }, [meStatsSwr]);
 
   // Debounced profile search (people only)
@@ -3131,10 +3238,11 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
         ethos: meStats?.ethos ?? null,
         xscore: meStats?.xscore ?? me.xscore ?? null,
         reputationIndex: meStats?.reputationIndex ?? 0,
+        repScore: meStats?.repScore ?? null,
         socialPower: meStats?.socialPower ?? 0,
         reviews: meStats?.reviews ? { avg: meStats.reviews.avg, count: meStats.reviews.count } : emptyReviews,
       }
-    : { ...demo.me, handle: "", name: "", bio: "", location: "", roleTags: [], ethos: null, xscore: null, reputationIndex: 0, socialPower: 0, reviews: emptyReviews };
+    : { ...demo.me, handle: "", name: "", bio: "", location: "", roleTags: [], ethos: null, xscore: null, reputationIndex: 0, repScore: null, socialPower: 0, reviews: emptyReviews };
 
   const handleCreateCaseStudy = async () => {
     if (!me?.id) return;
@@ -3248,6 +3356,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             ethos={u.ethos} 
             xscore={u.xscore} 
             reputationIndex={u.reputationIndex}
+            repScore={u.repScore}
             socialPower={u.socialPower}
           />
 

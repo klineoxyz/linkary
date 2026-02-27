@@ -230,7 +230,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
       const isUnpublished = !isPublished;
 
-      const viewCols = "id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, ethos_score, xscore, profile_type, hero_image_url, hero_video_url, hero_title, public_layout";
+      const viewCols = "id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, ethos_score, xscore, rep_score, profile_type, hero_image_url, hero_video_url, hero_title, public_layout";
       const displayView = isPublished ? "public_profile_view" : "public_profile_preview_view";
       const { data: profileDisplayData } = await serviceSupabase.from(displayView).select(viewCols).eq("id", profileId).maybeSingle();
       const profileRow = profileDisplayData as {
@@ -246,6 +246,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         avg_engagement_rate?: number;
         ethos_score?: number | null;
         xscore?: number | null;
+        rep_score?: number | null;
         profile_type?: string | null;
         hero_image_url?: string | null;
         hero_video_url?: string | null;
@@ -288,9 +289,11 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         }
       };
 
+      type CollabReviewRow = { id: string; rating: number; text: string; created_at: string; reviewer_profile_id: string };
       const promiseList: Promise<unknown>[] = [
         safeSingle(serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url, youtube_url").eq("profile_id", profileId).maybeSingle()),
         showReviews ? safe(serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type, verified_deal").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10)) : globalThis.Promise.resolve([]),
+        showReviews ? safe(serviceSupabase.from("collab_reviews").select("id, rating, text, created_at, reviewer_profile_id").eq("target_profile_id", profileId).order("created_at", { ascending: false }).limit(10)) : globalThis.Promise.resolve([]),
         safe(serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20)),
         safe(serviceSupabase.from("profile_links").select("title, url, icon").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true })),
         safe(serviceSupabase.from("profile_relations").select("source_profile_id, target_profile_id, relation_type, sort_order").or(`source_profile_id.eq.${profileId},target_profile_id.eq.${profileId}`).eq("is_public", true).order("relation_type").order("sort_order", { ascending: true })),
@@ -303,9 +306,10 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         safe(serviceSupabase.from("profile_professions").select("profession_id, professions(name)").eq("profile_id", profileId)),
       ];
 
-      const [socialsRow, reviewsList, caseStudiesList, linksList, relationsList, skillsList, achievementsList, teamList, gigsPayload, headerMediaRow, partnerProgramsList, profileProfessionsList] = await globalThis.Promise.all(promiseList) as [
+      const [socialsRow, reviewsList, collabReviewsList, caseStudiesList, linksList, relationsList, skillsList, achievementsList, teamList, gigsPayload, headerMediaRow, partnerProgramsList, profileProfessionsList] = await globalThis.Promise.all(promiseList) as [
         { x_url?: string | null; linkedin_url?: string | null; website_url?: string | null; telegram_url?: string | null; youtube_url?: string | null } | null,
         ReviewRow[],
+        CollabReviewRow[],
         Array<{ id: string; title: string | null; description: string | null; proof_url: string | null; metrics: unknown; created_at: string }>,
         Array<{ title: string; url: string; icon?: string | null }>,
         Array<{ source_profile_id: string; target_profile_id: string; relation_type: string; sort_order: number }>,
@@ -322,20 +326,31 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
       let reviewsAverage: number | null = null;
       let reviewsLatest: PublicProfileApiPayload["reviews"]["latest"] = [];
-      if (showReviews && reviewsList.length > 0) {
-        reviewsAverage = reviewsList.reduce((s, r) => s + r.rating, 0) / reviewsList.length;
-        const latest3 = reviewsList.slice(0, 3);
-        const reviewerIds = [...new Set(latest3.filter((r) => r.reviewer_type === "profile" && r.reviewer_profile_id).map((r) => r.reviewer_profile_id as string))];
+      let totalReviewsCount = 0;
+      if (showReviews && (reviewsList.length > 0 || (collabReviewsList ?? []).length > 0)) {
+        const legacyMapped = reviewsList.slice(0, 10).map((r) => ({ ...r, _source: "legacy" as const }));
+        const collabMapped = (collabReviewsList ?? []).map((r) => ({
+          id: r.id,
+          rating: r.rating,
+          text: r.text,
+          created_at: r.created_at,
+          reviewer_profile_id: r.reviewer_profile_id,
+          _source: "collab" as const,
+        }));
+        const allReviewerIds = [
+          ...new Set(legacyMapped.filter((r) => r.reviewer_type === "profile" && r.reviewer_profile_id).map((r) => r.reviewer_profile_id as string)),
+          ...new Set(collabMapped.map((r) => r.reviewer_profile_id)),
+        ];
         let reviewerByProfileId: Record<string, { display_name: string | null; avatar_url: string | null }> = {};
-        if (reviewerIds.length > 0) {
-          const { data: profiles } = await serviceSupabase.from("public_profile_view").select("id, display_name, avatar_url").in("id", reviewerIds);
+        if (allReviewerIds.length > 0) {
+          const { data: profiles } = await serviceSupabase.from("public_profile_view").select("id, display_name, avatar_url").in("id", allReviewerIds);
           if (profiles) {
             for (const p of profiles as Array<{ id: string; display_name: string | null; avatar_url: string | null }>) {
               reviewerByProfileId[p.id] = { display_name: p.display_name ?? null, avatar_url: p.avatar_url ?? null };
             }
           }
         }
-        reviewsLatest = latest3.map((r) => {
+        const legacyItems: PublicProfileApiPayload["reviews"]["latest"] = legacyMapped.map((r) => {
           const reviewer = r.reviewer_type === "profile" && r.reviewer_profile_id ? reviewerByProfileId[r.reviewer_profile_id] : null;
           return {
             id: r.id,
@@ -348,6 +363,23 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
             verified_deal: r.verified_deal ?? true,
           };
         });
+        const collabItems: PublicProfileApiPayload["reviews"]["latest"] = collabMapped.map((r) => {
+          const reviewer = reviewerByProfileId[r.reviewer_profile_id];
+          return {
+            id: r.id,
+            rating: r.rating,
+            title: null,
+            text: r.text,
+            created_at: r.created_at,
+            reviewer_display: reviewer?.display_name ?? "Anonymous",
+            reviewer_avatar_url: reviewer?.avatar_url ?? null,
+            verified_deal: true,
+          };
+        });
+        const combined = [...legacyItems, ...collabItems].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10);
+        reviewsLatest = combined;
+        reviewsAverage = combined.length > 0 ? combined.reduce((s, r) => s + r.rating, 0) / combined.length : null;
+        totalReviewsCount = legacyItems.length + collabItems.length;
       }
 
       let reputationIndex: number;
@@ -387,10 +419,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         }
       }
 
-      const rolesList: string[] = (profileProfessionsList ?? []).map((r) => {
-        const p = Array.isArray((r as { professions?: unknown }).professions) ? (r as { professions: { name: string }[] }).professions[0] : (r as { professions?: { name: string } | null }).professions;
-        return p?.name ?? "";
-      }).filter(Boolean);
+      const rolesList: string[] = (profileProfessionsList ?? []).map((r) => (r.professions?.name ?? "")).filter(Boolean);
 
       const partnerProgramsPayload: NonNullable<PublicProfileApiPayload["partner_programs"]> = (partnerProgramsList ?? []).map((pp) => ({
         name: pp.name,
@@ -483,6 +512,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           ethos_score: profileRow.ethos_score ?? null,
           xscore: profileRow.xscore ?? null,
           reputation_index: reputationIndex,
+          rep_score: profileRow.rep_score != null && Number.isInteger(Number(profileRow.rep_score)) ? Number(profileRow.rep_score) : null,
           profile_type: profileType,
           public_layout: layoutPreset,
           layout_order: layoutOrder,
@@ -527,7 +557,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         caseStudies,
         reviews: {
           average: reviewsAverage,
-          count: reviewsList.length,
+          count: totalReviewsCount,
           latest: reviewsLatest,
         },
         show_reviews: showReviews,
@@ -557,7 +587,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
                   normalizedUsername: segmentLower,
                   matchedBy,
                   profile_id: profileId,
-                  counts: { reviewsCount: reviewsList.length, caseStudiesCount: caseStudiesList.length },
+                  counts: { reviewsCount: totalReviewsCount, caseStudiesCount: caseStudiesList.length },
                   reputation_index: reputationIndex,
                   token: tokenPayload ? "present" : "null",
                 },

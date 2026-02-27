@@ -74,6 +74,15 @@ export async function POST(request: NextRequest) {
     if (error) return fail("DB_ERROR", error.message, 500);
     if (!updated) return fail("NOT_FOUND", "Request not found or you are not the recipient", 404);
     const r = updated as { id: string; status: string; reply_note: string | null; requester_followup_note: string | null };
+    if (status === "done") {
+      try {
+        const { createServiceSupabase } = await import("@/lib/x-analytics-server");
+        const { recomputeRepForProfiles } = await import("@/lib/repScore");
+        await recomputeRepForProfiles([row.requester_profile_id, row.target_profile_id], createServiceSupabase());
+      } catch {
+        /* non-fatal */
+      }
+    }
     return ok({
       id: r.id,
       status: r.status,
@@ -96,6 +105,13 @@ export async function POST(request: NextRequest) {
       if (error) return fail("DB_ERROR", error.message, 500);
       if (!updated) return fail("NOT_FOUND", "Request not found or not accepted", 404);
       const r = updated as { id: string; status: string; reply_note: string | null; requester_followup_note: string | null };
+      try {
+        const { createServiceSupabase } = await import("@/lib/x-analytics-server");
+        const { recomputeRepForProfiles } = await import("@/lib/repScore");
+        await recomputeRepForProfiles([row.requester_profile_id, row.target_profile_id], createServiceSupabase());
+      } catch {
+        /* non-fatal */
+      }
       return ok({
         id: r.id,
         status: r.status,

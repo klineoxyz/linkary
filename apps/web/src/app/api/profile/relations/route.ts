@@ -158,5 +158,12 @@ export async function POST(request: NextRequest) {
     if (error.code === "23505") return fail("BAD_REQUEST", "This relation already exists", 400);
     return fail("DB_ERROR", error.message, 500);
   }
+  try {
+    const { createServiceSupabase } = await import("@/lib/x-analytics-server");
+    const { recomputeRepForProfiles } = await import("@/lib/repScore");
+    await recomputeRepForProfiles([sourceProfileId, targetProfileId], createServiceSupabase());
+  } catch {
+    /* non-fatal */
+  }
   return ok({ relation: row });
 }

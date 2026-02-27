@@ -340,7 +340,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const heroTitle = hero?.hero_title?.trim() || null;
 
   const hasProofStats =
-    profile.ethos_score != null || profile.xscore != null || profile.reputation_index != null;
+    profile.ethos_score != null || profile.xscore != null || profile.rep_score != null;
 
   const hasHero = hasHeroImage || hasHeroVideo || !!heroTitle;
   const hasAnyRelation =
@@ -417,11 +417,11 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary" aria-label="Profile type">
                     {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
                   </span>
-                  {profile.reputation_index != null && (
-                    <span className="rounded-full border border-primary/40 bg-primary/15 px-3 py-1 text-xs font-bold tabular-nums text-primary shadow-sm shadow-primary/15">{profile.reputation_index} rep</span>
+                  {profile.rep_score != null && (
+                    <span className="rounded-full border border-primary/40 bg-primary/15 px-3 py-1 text-xs font-bold tabular-nums text-primary shadow-sm shadow-primary/15" title="REP is based on social signals, verified work, and network trust.">REP {profile.rep_score}</span>
                   )}
                 </div>
-                {(profile.xscore != null || profile.ethos_score != null || profile.reputation_index != null) && (
+                {(profile.xscore != null || profile.ethos_score != null || profile.rep_score != null) && (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {profile.xscore != null && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
@@ -433,9 +433,9 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                         <Shield className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> ETHOS {profile.ethos_score}
                       </span>
                     )}
-                    {profile.reputation_index != null && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-                        <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> Index {profile.reputation_index}
+                    {profile.rep_score != null && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground" title="REP is based on social signals, verified work, and network trust.">
+                        <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> REP {profile.rep_score}
                       </span>
                     )}
                   </div>
@@ -456,7 +456,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </div>
         );
       case "trust_strip": {
-        const score = profile.reputation_index ?? null;
+        const score = profile.rep_score ?? null;
         return (
           <div className={sectionSpacing}>
             <TrustStrip
@@ -503,10 +503,10 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             <div className={islandClass}>
               <SectionTitle>Proof</SectionTitle>
               <div className="flex flex-wrap gap-6">
-                {profile.reputation_index != null && (
+                {profile.rep_score != null && (
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linkary reputation</p>
-                    <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile.reputation_index}</p>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">REP</p>
+                    <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground" title="REP is based on social signals, verified work, and network trust.">{profile.rep_score}</p>
                   </div>
                 )}
                 {profile.xscore != null && (

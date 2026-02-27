@@ -192,6 +192,7 @@ export async function GET(request: NextRequest) {
       ethos_score: dto.ethosScore,
       xscore: dto.xscore,
       reputation_index: dto.linkaryPower ?? null,
+      rep_score: null,
     },
     socials: {
       x: dto.socials?.x_url ?? null,

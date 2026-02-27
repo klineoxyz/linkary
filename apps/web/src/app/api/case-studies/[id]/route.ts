@@ -89,5 +89,17 @@ export async function PATCH(
     .single();
 
   if (error) return fail("DB_ERROR", error.message, 500);
+  if (updates.is_public !== undefined) {
+    try {
+      const row = updated as { owner_type?: string; owner_profile_id?: string | null };
+      if (row?.owner_type === "profile" && row?.owner_profile_id) {
+        const { createServiceSupabase } = await import("@/lib/x-analytics-server");
+        const { recomputeRepForProfiles } = await import("@/lib/repScore");
+        await recomputeRepForProfiles([row.owner_profile_id], createServiceSupabase());
+      }
+    } catch {
+      /* non-fatal */
+    }
+  }
   return ok({ caseStudy: updated });
 }

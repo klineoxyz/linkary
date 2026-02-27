@@ -25,11 +25,11 @@ export async function GET(request: Request) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, followers_total, avg_engagement_rate, xscore, xscore_updated_at, twitter_username, ethos_score, ethos_score_updated_at")
+    .select("id, followers_total, avg_engagement_rate, xscore, xscore_updated_at, twitter_username, ethos_score, ethos_score_updated_at, rep_score")
     .eq("id", user.id)
     .maybeSingle();
   if (!profile) {
-    return NextResponse.json({ ethos: null, xscore: null, reputationIndex: 0, socialPower: 0, reviews: { avg: 0, count: 0 }, scoresStatus: null });
+    return NextResponse.json({ ethos: null, xscore: null, reputationIndex: 0, repScore: null, socialPower: 0, reviews: { avg: 0, count: 0 }, scoresStatus: null });
   }
 
   const handle = (profile.twitter_username as string)?.replace?.(/^@/, "")?.toLowerCase() ?? "";
@@ -121,10 +121,13 @@ export async function GET(request: Request) {
     caseStudyDeltas: caseStudyDeltas ?? undefined,
   });
 
+  const repScore = profile.rep_score != null && Number.isInteger(Number(profile.rep_score)) ? Number(profile.rep_score) : null;
+
   return NextResponse.json({
     ethos: ethosScore ?? null,
     xscore,
     reputationIndex: Math.round(score100),
+    repScore,
     socialPower: score1000,
     reviews: { avg: Math.round(avg * 10) / 10, count },
     verifiedGigsCount: verifiedGigs,

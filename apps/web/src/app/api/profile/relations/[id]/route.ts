@@ -77,6 +77,16 @@ export async function PATCH(
     .single();
 
   if (error) return fail("DB_ERROR", error.message, 500);
+  try {
+    const r = row as { source_profile_id?: string; target_profile_id?: string };
+    if (r?.source_profile_id && r?.target_profile_id) {
+      const { createServiceSupabase } = await import("@/lib/x-analytics-server");
+      const { recomputeRepForProfiles } = await import("@/lib/repScore");
+      await recomputeRepForProfiles([r.source_profile_id, r.target_profile_id], createServiceSupabase());
+    }
+  } catch {
+    /* non-fatal */
+  }
   return ok({ relation: row });
 }
 
@@ -105,7 +115,18 @@ export async function DELETE(
   const err = await assertOwnership(supabase, id, sourceProfileId);
   if (err) return err;
 
+  const { data: rel } = await supabase.from("profile_relations").select("source_profile_id, target_profile_id").eq("id", id).maybeSingle();
   const { error } = await supabase.from("profile_relations").delete().eq("id", id);
   if (error) return fail("DB_ERROR", error.message, 500);
+  if (rel) {
+    const r = rel as { source_profile_id: string; target_profile_id: string };
+    try {
+      const { createServiceSupabase } = await import("@/lib/x-analytics-server");
+      const { recomputeRepForProfiles } = await import("@/lib/repScore");
+      await recomputeRepForProfiles([r.source_profile_id, r.target_profile_id], createServiceSupabase());
+    } catch {
+      /* non-fatal */
+    }
+  }
   return ok({ deleted: true });
 }

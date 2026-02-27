@@ -29,6 +29,7 @@ export type PublicProfileApiPayload = {
     ethos_score: number | null;
     xscore: number | null;
     reputation_index: number | null;
+    rep_score: number | null;
     profile_type?: "individual" | "project" | "company";
     /** Layout preset: classic (default), spotlight, showcase, compact */
     public_layout?: "classic" | "spotlight" | "showcase" | "compact" | null;
@@ -397,6 +398,7 @@ export async function GET(request: NextRequest) {
         ethos_score: dto.ethosScore,
         xscore: dto.xscore,
         reputation_index: dto.linkaryPower ?? null,
+        rep_score: (dto as { rep_score?: number | null }).rep_score ?? null,
         public_layout: layoutPreset,
         layout_order: Array.isArray(layoutObj?.order) ? layoutObj.order : null,
         layout_hidden: Array.isArray(layoutObj?.hidden) ? layoutObj.hidden : null,
@@ -447,6 +449,7 @@ export async function GET(request: NextRequest) {
       ethos_score: dto.xscore,
       xscore: dto.xscore,
       reputation_index: dto.linkaryInfluence ?? null,
+      rep_score: null,
     },
     socials: {
       x: null,

@@ -14,6 +14,7 @@ import React, { Fragment } from "react";
 import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
 import { ApplyToGigButton } from "./ApplyToGigButton";
 import { TrustStrip } from "@/components/TrustStrip";
+import { EcosystemModule } from "./EcosystemModule";
 
 /** Derive 2–4 highlight bullets from case study (no DB). Use summary sentences or tag-based. */
 function proofHighlights(
@@ -496,61 +497,62 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         );
       case "relations":
         if (!relations) return null;
+        if (profileType === "project" || profileType === "company") {
+          return (
+            <EcosystemModule
+              relations={relations}
+              basePath={basePath}
+              sectionCardClass={sectionCardClass}
+              rightSectionSpacing={rightSectionSpacing}
+              SectionTitle={SectionTitle}
+            />
+          );
+        }
         return (
           <>
-            {profileType === "individual" && (
-              <>
-                {relations.ambassadorOf && relations.ambassadorOf.length > 0 && (
-                  <section className={rightSectionSpacing}>
-                    <SectionTitle>Ambassador of</SectionTitle>
-                    <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.ambassadorOf.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
-                  </section>
-                )}
-                {relations.affiliateOf && relations.affiliateOf.length > 0 && (
-                  <section className={rightSectionSpacing}>
-                    <SectionTitle>Affiliate of</SectionTitle>
-                    <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.affiliateOf.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
-                  </section>
-                )}
-              </>
+            {relations.ambassadorOf && relations.ambassadorOf.length > 0 && (
+              <section className={rightSectionSpacing}>
+                <SectionTitle>Ambassador of</SectionTitle>
+                <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.ambassadorOf.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
+              </section>
             )}
-            {(profileType === "project" || profileType === "company") && (
-              <>
-                {relations.ambassadors && relations.ambassadors.length > 0 && (
-                  <section className={rightSectionSpacing}>
-                    <SectionTitle>Ambassadors</SectionTitle>
-                    <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.ambassadors.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
-                  </section>
-                )}
-                {relations.affiliates && relations.affiliates.length > 0 && (
-                  <section className={rightSectionSpacing}>
-                    <SectionTitle>Affiliates</SectionTitle>
-                    <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.affiliates.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
-                  </section>
-                )}
-                {relations.ecosystemProjects && relations.ecosystemProjects.length > 0 && (
-                  <section className={rightSectionSpacing}>
-                    <SectionTitle>Ecosystem projects</SectionTitle>
-                    <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.ecosystemProjects.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
-                  </section>
-                )}
-                {relations.subsidiaries && relations.subsidiaries.length > 0 && (
-                  <section className={rightSectionSpacing}>
-                    <SectionTitle>Subsidiaries</SectionTitle>
-                    <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.subsidiaries.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
-                  </section>
-                )}
-              </>
+            {relations.affiliateOf && relations.affiliateOf.length > 0 && (
+              <section className={rightSectionSpacing}>
+                <SectionTitle>Affiliate of</SectionTitle>
+                <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.affiliateOf.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
+              </section>
             )}
           </>
         );
-      case "gigs":
+      case "gigs": {
         if (!data.gigs || data.gigs.length === 0) return null;
+        const gigs = data.gigs;
+        const openCount = gigs.length;
+        const topGigs = gigs.slice(0, 2);
+        const gigsAnchor = `${profileUrl}#gigs`;
         return (
-          <section className={rightSectionSpacing}>
+          <section id="gigs" className={rightSectionSpacing}>
             <SectionTitle>Open gigs</SectionTitle>
+            <p className="mb-4 text-sm font-medium text-foreground">Open gigs: {openCount}</p>
+            {topGigs.length > 0 && (
+              <ul className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label="Featured open gigs">
+                {topGigs.map((gig) => (
+                  <li key={gig.id} className={`${sectionCardClass} p-4`}>
+                    <h3 className="font-semibold text-foreground">{gig.title}</h3>
+                    {gig.description && <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{gig.description}</p>}
+                    {gig.budget_text && <p className="mt-1.5 text-sm font-medium text-primary">{gig.budget_text}</p>}
+                    <a
+                      href={gigsAnchor}
+                      className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      View gig <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
             <ul className="space-y-3">
-              {data.gigs.map((gig) => (
+              {gigs.map((gig) => (
                 <li key={gig.id} className={`${isShowcase ? featuredCardClass : sectionCardClass} p-4 ${isShowcase ? "p-5" : ""}`}>
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="min-w-0 flex-1">
@@ -570,6 +572,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             </ul>
           </section>
         );
+      }
       case "skills":
         if (profileType !== "individual" && profileType !== "company") return null;
         return (

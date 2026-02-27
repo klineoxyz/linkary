@@ -264,7 +264,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       type ReviewRow = { id: string; rating: number; body: string | null; title: string | null; created_at: string; reviewer_profile_id: string | null; reviewer_type: string; verified_deal?: boolean };
       type TeamRow = { name: string; role: string | null; avatar_url: string | null; linkedin_url?: string | null; x_url?: string | null; website_url?: string | null; is_public: boolean };
 
-      const safe = async <T,>(p: Promise<{ data: T }>): Promise<T> => {
+      const safe = async <T,>(p: PromiseLike<{ data: T }>): Promise<T> => {
         try {
           const r = await p;
           return (r?.data ?? []) as T;
@@ -272,7 +272,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           return [] as unknown as T;
         }
       };
-      const safeSingle = async <T,>(p: Promise<{ data: T | null }>): Promise<T | null> => {
+      const safeSingle = async <T,>(p: PromiseLike<{ data: T | null }>): Promise<T | null> => {
         try {
           const r = await p;
           return r?.data ?? null;

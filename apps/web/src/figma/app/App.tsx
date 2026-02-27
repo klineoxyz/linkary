@@ -3149,9 +3149,18 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
         <button
           type="button"
           onClick={() => setProfileTab("overview")}
-          className="rounded-lg bg-secondary px-3 py-2 text-sm font-semibold text-foreground"
+          className={`rounded-lg px-3 py-2 text-sm font-medium ${tab === "overview" ? "bg-secondary font-semibold text-foreground" : "text-foreground hover:bg-secondary"}`}
         >
           Overview
+        </button>
+        <button
+          type="button"
+          onClick={() => setProfileTab("publicPreview")}
+          disabled={!hasPublicSlug}
+          className={`rounded-lg px-3 py-2 text-sm font-medium ${tab === "publicPreview" ? "bg-secondary font-semibold text-foreground" : "text-foreground hover:bg-secondary"} disabled:opacity-50 disabled:cursor-not-allowed`}
+          title={!hasPublicSlug ? "Set username or connect X to enable" : "Preview how your public profile appears"}
+        >
+          Public preview
         </button>
         <a
           href="/profile/insights"
@@ -3166,6 +3175,24 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           Analytics
         </a>
       </div>
+      {tab === "publicPreview" ? (
+        hasPublicSlug ? (
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground mb-3">This is how your public profile appears. Changes in Builder (section order, visibility, featured) are reflected after you save and refresh.</p>
+            <iframe
+              title="Public profile preview"
+              src={`/${encodeURIComponent(publicSlug)}`}
+              className="w-full min-h-[80vh] rounded-lg border border-border bg-background"
+              sandbox="allow-same-origin allow-scripts"
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Set a username or connect X to enable the public preview.</p>
+        )
+      ) : null}
+
+      {tab !== "publicPreview" && (
+        <>
       <div className="mb-8 relative z-[10] flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
         <div className="flex flex-wrap gap-3">
           {isMyProfile && (
@@ -3506,6 +3533,8 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           </Card>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

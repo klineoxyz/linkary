@@ -121,6 +121,19 @@ export type PublicProfileApiPayload = {
   skills?: Array<{ name: string; level?: number | null }>;
   /** Achievements (individual). Public only. */
   achievements?: Array<{ title: string; description: string | null; url: string | null }>;
+  /** Header media (banner image/video) for public one-pager. */
+  header_media?: { type: "IMAGE" | "VIDEO"; url: string } | null;
+  /** CV download: stable URL that redirects to signed storage URL (only when profile has CV and is published). */
+  cv?: { download_url: string } | null;
+  /** Partner programs (profile-level). Public only. */
+  partner_programs?: Array<{
+    name: string;
+    program_type?: string | null;
+    website_url?: string | null;
+    logo_url?: string | null;
+    description?: string | null;
+    is_featured?: boolean;
+  }>;
 };
 
 function tagsFromMetrics(metrics: unknown): string[] {

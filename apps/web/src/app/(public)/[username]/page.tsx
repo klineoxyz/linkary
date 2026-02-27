@@ -53,6 +53,11 @@ function baseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://linkary.xyz");
 }
 
+/** Canonical site base for "Copy profile link" so the copied URL is always the production domain (set NEXT_PUBLIC_APP_URL=https://linkary.xyz). */
+function canonicalBaseUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL || "https://linkary.xyz").replace(/\/$/, "");
+}
+
 function tagsFromMetrics(metrics: unknown): string[] {
   if (metrics == null || typeof metrics !== "object") return [];
   const m = metrics as Record<string, unknown>;
@@ -257,10 +262,11 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       const heroVideoUrl = profileRow.hero_video_url ?? null;
       const heroTitle = profileRow.hero_title ?? null;
 
-      const { data: profileExtData } = await serviceSupabase.from("profiles").select("show_reviews, token_dexscreener_url").eq("id", profileId).maybeSingle();
-      const ext = profileExtData as { show_reviews?: boolean | null; token_dexscreener_url?: string | null } | null;
+      const { data: profileExtData } = await serviceSupabase.from("profiles").select("show_reviews, token_dexscreener_url, cv_document_id").eq("id", profileId).maybeSingle();
+      const ext = profileExtData as { show_reviews?: boolean | null; token_dexscreener_url?: string | null; cv_document_id?: string | null } | null;
       const showReviews = ext?.show_reviews !== false;
       const tokenDexscreenerUrl = (ext?.token_dexscreener_url ?? "").trim();
+      const hasCv = !!ext?.cv_document_id;
 
       type ReviewRow = { id: string; rating: number; body: string | null; title: string | null; created_at: string; reviewer_profile_id: string | null; reviewer_type: string; verified_deal?: boolean };
       type TeamRow = { name: string; role: string | null; avatar_url: string | null; linkedin_url?: string | null; x_url?: string | null; website_url?: string | null; is_public: boolean };
@@ -292,9 +298,12 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         profileType === "individual" ? safe(serviceSupabase.from("profile_achievements").select("title, description, proof_url").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true })) : globalThis.Promise.resolve([]),
         profileType === "company" ? safe(serviceSupabase.from("org_team_members").select("name, role, avatar_url, linkedin_url, x_url, website_url, is_public").eq("org_profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true })) : globalThis.Promise.resolve([]),
         profileType === "project" || profileType === "company" ? safe(serviceSupabase.from("gigs").select("id, title, description, gig_type, compensation_type, budget_text, location, remote, created_at").eq("owner_profile_id", profileId).eq("is_public", true).eq("status", "open").order("created_at", { ascending: false }).limit(20)) : globalThis.Promise.resolve([]),
+        safeSingle(serviceSupabase.from("profile_media").select("header_media_type, header_media_url, header_media_file_path").eq("profile_id", profileId).maybeSingle()),
+        safe(serviceSupabase.from("partner_programs").select("program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured").eq("owner_type", "profile").eq("owner_id", profileId).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true })),
+        safe(serviceSupabase.from("profile_professions").select("profession_id, professions(name)").eq("profile_id", profileId)),
       ];
 
-      const [socialsRow, reviewsList, caseStudiesList, linksList, relationsList, skillsList, achievementsList, teamList, gigsPayload] = await globalThis.Promise.all(promiseList) as [
+      const [socialsRow, reviewsList, caseStudiesList, linksList, relationsList, skillsList, achievementsList, teamList, gigsPayload, headerMediaRow, partnerProgramsList, profileProfessionsList] = await globalThis.Promise.all(promiseList) as [
         { x_url?: string | null; linkedin_url?: string | null; website_url?: string | null; telegram_url?: string | null; youtube_url?: string | null } | null,
         ReviewRow[],
         Array<{ id: string; title: string | null; description: string | null; proof_url: string | null; metrics: unknown; created_at: string }>,
@@ -304,6 +313,9 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         Array<{ title: string; description: string | null; proof_url: string | null }>,
         TeamRow[],
         PublicProfileApiPayload["gigs"],
+        { header_media_type?: string; header_media_url?: string | null; header_media_file_path?: string | null } | null,
+        Array<{ program_type?: string | null; name: string; website_url?: string | null; logo_url?: string | null; logo_file_path?: string | null; description?: string | null; is_featured?: boolean }>,
+        Array<{ profession_id: string; professions: { name: string } | null }>,
       ];
 
       const socials = socialsRow;
@@ -361,6 +373,33 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         const { createSignedUrlForPath } = await import("@/lib/mediaSignedUrlServer");
         resolvedHeroImageUrl = await createSignedUrlForPath(serviceSupabase, heroImageUrl) ?? heroImageUrl;
       }
+
+      let headerMediaPayload: PublicProfileApiPayload["header_media"] = null;
+      if (headerMediaRow && (headerMediaRow.header_media_type === "IMAGE" || headerMediaRow.header_media_type === "VIDEO")) {
+        const path = headerMediaRow.header_media_file_path?.trim();
+        const legacyUrl = headerMediaRow.header_media_url?.trim();
+        if (path && !path.includes("..")) {
+          const { createSignedUrlForPath } = await import("@/lib/mediaSignedUrlServer");
+          const signed = await createSignedUrlForPath(serviceSupabase, path);
+          if (signed) headerMediaPayload = { type: headerMediaRow.header_media_type as "IMAGE" | "VIDEO", url: signed };
+        } else if (legacyUrl && (legacyUrl.startsWith("https://") || legacyUrl.startsWith("//"))) {
+          headerMediaPayload = { type: headerMediaRow.header_media_type as "IMAGE" | "VIDEO", url: legacyUrl.startsWith("//") ? `https:${legacyUrl}` : legacyUrl };
+        }
+      }
+
+      const rolesList: string[] = (profileProfessionsList ?? []).map((r) => {
+        const p = Array.isArray((r as { professions?: unknown }).professions) ? (r as { professions: { name: string }[] }).professions[0] : (r as { professions?: { name: string } | null }).professions;
+        return p?.name ?? "";
+      }).filter(Boolean);
+
+      const partnerProgramsPayload: NonNullable<PublicProfileApiPayload["partner_programs"]> = (partnerProgramsList ?? []).map((pp) => ({
+        name: pp.name,
+        program_type: pp.program_type ?? null,
+        website_url: pp.website_url ?? null,
+        logo_url: pp.logo_url ?? null,
+        description: pp.description ?? null,
+        is_featured: pp.is_featured ?? false,
+      }));
 
       let tokenPayload: PublicProfileApiPayload["token"] = null;
       if (profileType === "project" && tokenDexscreenerUrl.startsWith("https://") && tokenDexscreenerUrl.includes("dexscreener.com/")) {
@@ -431,6 +470,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       const featuredCaseStudyId = (layoutObj as { featured_case_study_id?: string | null }).featured_case_study_id ?? null;
       const featuredReviewId = (layoutObj as { featured_review_id?: string | null }).featured_review_id ?? null;
       const featuredGigId = (layoutObj as { featured_gig_id?: string | null }).featured_gig_id ?? null;
+      const displayUsernameForPayload = profileRow.username ?? profileRow.twitter_username ?? segmentLower;
       const payload: PublicProfileApiPayload = {
         profile: {
           username: profileRow.username ?? profileRow.twitter_username ?? null,
@@ -438,7 +478,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           bio: profileRow.bio ?? null,
           avatar_url: profileRow.avatar_url ?? null,
           location: profileRow.location ?? null,
-          roles: [],
+          roles: rolesList,
           is_verified: false,
           ethos_score: profileRow.ethos_score ?? null,
           xscore: profileRow.xscore ?? null,
@@ -459,6 +499,9 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
                 hero_title: heroTitle,
               }
             : null,
+        ...(headerMediaPayload ? { header_media: headerMediaPayload } : {}),
+        ...(hasCv ? { cv: { download_url: `/api/public/cv/${encodeURIComponent(displayUsernameForPayload)}` } } : {}),
+        ...(partnerProgramsPayload.length > 0 ? { partner_programs: partnerProgramsPayload } : {}),
         team: teamList.map((t) => ({
           name: t.name,
           role: t.role ?? null,
@@ -497,7 +540,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
       const displayUsername = payload.profile.username ?? segmentLower;
 
-      const profileUrl = `${baseUrl().replace(/\/$/, "")}/${encodeURIComponent(displayUsername)}`;
+      const profileUrl = `${canonicalBaseUrl()}/${encodeURIComponent(displayUsername)}`;
       return (
         <div className="min-h-screen bg-background text-foreground font-sans">
           {isUnpublished && (

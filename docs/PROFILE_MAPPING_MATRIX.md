@@ -21,7 +21,7 @@ Structural audit: every Profile Builder field mapped to DB, internal /profile, a
 | location | profiles.location | Yes (Overview) | Yes (header) | N/A | N/A | |
 | profile_type | profiles.profile_type | Implied | Yes (header pill, sections) | N/A | N/A | |
 | hero (image/video/title) | profiles.hero_image_url, hero_video_url, hero_title | No | Yes (hero section) | Yes | Yes | MISSING_PROFILE: dashboard has no hero block |
-| header media | profile_media (header_media_*) | No | No (public one-pager has no header_media section) | N/A | N/A | MISSING_PUBLIC: header media not on public one-pager (only hero) |
+| header media | profile_media (header_media_*) | No | Yes (header_media section; image/video block) | Yes | Yes | Implemented P10.2: section "header_media", signed/legacy URL. |
 | token_dexscreener_url | profiles.token_dexscreener_url | No | Yes (token section, project) | Yes | Yes | |
 | Section visibility (hidden) | profiles.public_layout.hidden | N/A | Yes | Yes | N/A | resolvedHidden filters visibleOrder |
 | Section order | profiles.public_layout.order | N/A | Yes | N/A | Yes | visibleOrder = order \ hidden; leftOrder/rightOrder drive render |
@@ -30,31 +30,34 @@ Structural audit: every Profile Builder field mapped to DB, internal /profile, a
 | featured_review_id | profiles.public_layout.featured_review_id | No | Yes (featured block) | N/A | N/A | |
 | featured_gig_id | profiles.public_layout.featured_gig_id | No | Yes (featured block, project/company) | N/A | N/A | |
 | show_reviews | profiles.show_reviews | No (reviews count only) | Yes (reviews section hidden when false) | Yes | N/A | renderSection("reviews") returns null when !showReviews |
-| CV / cv_document_id | profiles.cv_document_id, profile_documents | No | No | N/A | N/A | MISSING_PUBLIC: CV not on public one-pager |
-| Roles (professions) | profile_professions (junction) | Yes (Overview role tags) | No (public one-pager has no "roles" section) | N/A | N/A | MISSING_PUBLIC: professions not a section on public |
+| CV / cv_document_id | profiles.cv_document_id, profile_documents | No | Yes (cv section; Download CV link → /api/public/cv/[username]) | Yes | Yes | Implemented P10.2: section "cv", safe redirect to signed URL. |
+| Roles (professions) | profile_professions (junction) | Yes (Overview role tags) | Yes (roles section; tags from professions) | Yes | Yes | Implemented P10.2: section "roles". |
 | Socials (x, telegram, linkedin, youtube, website) | profile_socials | No (dashboard no socials block) | Yes (socials section) | Yes | Yes | MISSING_PROFILE |
 | Skills | profile_skills (is_public, sort_order) | No | Yes (skills section) | Yes (is_public) | Yes (API sort_order) | MISSING_PROFILE |
 | Achievements | profile_achievements (is_public, sort_order) | No | Yes (achievements section, individual) | Yes (is_public) | Yes | MISSING_PROFILE |
 | Links | profile_links (is_public, sort_order) | No | Yes (links section) | Yes (is_public) | Yes | MISSING_PROFILE |
 | Relations | profile_relations (is_public, sort_order) | Yes (Ambassador of) | Yes (relations/ecosystem) | Yes (is_public) | Yes | |
-| Partner programs | partner_programs (is_featured, sort_order) | No | No (public one-pager has no partner section) | N/A | N/A | MISSING_PUBLIC: partner programs not rendered on public |
+| Partner programs | partner_programs (is_featured, sort_order) | No | Yes (partner_programs section; cards with logo, link) | Yes | Yes | Implemented P10.2: section "partner_programs". |
 | Case studies | case_studies (is_public) | Yes (Overview list) | Yes (case_studies + featured) | Yes (is_public) | Yes | Featured pinned in featured block; case_studies list order fixed to show featured first |
 | Reviews | reviews (when show_reviews) | Yes (stats) | Yes (reviews section when show_reviews) | Yes | Yes | |
 | Team | org_team_members (is_public, company) | No | Yes (team section) | Yes (is_public) | Yes | MISSING_PROFILE |
 | Gigs | gigs (is_public, project/company) | No | Yes (gigs section) | Yes (is_public) | Yes | MISSING_PROFILE |
 
-## Mismatches summary
+## Mismatches summary (post P10.2)
 
-- **MISSING_PROFILE:** hero, header media, layout preset, featured IDs, show_reviews toggle display, socials, skills, achievements, links, team, gigs. Internal /profile is a dashboard and does not replicate the one-pager; only some fields (name, bio, location, roles, case studies, review stats) appear.
-- **MISSING_PUBLIC:** header media (no section on public), CV, partner programs, roles/professions as a section. (Roles are not a SECTION_KEYS section on public.)
+- **MISSING_PROFILE:** hero, header media, layout preset, featured IDs, show_reviews toggle display, socials, skills, achievements, links, team, gigs. Internal /profile is a dashboard; "Public preview" tab shows 1:1 iframe of /[username].
+- **MISSING_PUBLIC:** None. Header media, CV, partner programs, roles implemented on public one-pager (sections header_media, cv, partner_programs, roles).
 - **VISIBILITY_BUG:** None. Public page uses resolvedHidden and show_reviews.
 - **ORDER_BUG:** None. Public page uses visibleOrder from stored order + hidden.
 
-## Fixes applied (P10)
+## Fixes applied (P10 + P10.2)
 
-1. **Featured case study pinned in list:** In PublicProfileContent, the "case_studies" section now sorts the list so the featured case study (when set) appears first; others keep relative order.
-2. **Layout / visibility:** No code change; public page already uses stored order and hidden. Layout mode (preset) already drives layout (spotlight vs 2-col, compact spacing).
-3. **Internal /profile:** No structural change; dashboard remains separate from one-pager. Optional: show "Public layout: Classic" + link on /profile (not implemented to avoid scope creep).
+1. **Featured case study pinned in list:** In PublicProfileContent, the "case_studies" section sorts so the featured case study (when set) appears first.
+2. **Layout / visibility:** Public page uses stored order and hidden; layout mode drives layout.
+3. **Internal /profile:** "Public preview" tab added; renders iframe of /[username] so users can verify Builder changes without leaving the app.
+4. **P10.2 — Builder fields on public:** Header media (section header_media), CV (section cv, link to /api/public/cv/[username]), Partner programs (section partner_programs), Roles (section roles, from profile_professions). All in SECTION_KEYS and preset order.
+5. **Copy profile link:** URL uses canonical base (NEXT_PUBLIC_APP_URL or https://linkary.xyz) so copied link is production, not deployment URL.
+6. **P10.1 UI polish:** Section titles use text-primary; major sections wrapped in island cards (islandClass); no new colors.
 
 ## QA checklist
 
@@ -65,3 +68,7 @@ Structural audit: every Profile Builder field mapped to DB, internal /profile, a
 - [ ] Featured review appears in Featured block when set.
 - [ ] Layout mode (classic / spotlight / showcase / compact) changes public page layout (columns, spacing).
 - [ ] No builder setting is orphaned: all builder fields either appear on /profile (dashboard), or on /[username], or are intentionally private (e.g. email).
+- [ ] **P10.2:** /profile → Public preview tab shows iframe of /[username]; layout/order/hidden/featured match.
+- [ ] **P10.2:** Header media, CV, Partner programs, Roles appear on public page when configured.
+- [ ] Copy profile link copies canonical URL (e.g. https://linkary.xyz/username when NEXT_PUBLIC_APP_URL is set).
+- [ ] Public page sections use island cards and section titles have Linkary accent (text-primary).

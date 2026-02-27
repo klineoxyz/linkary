@@ -55,6 +55,9 @@ function getHostname(url: string): string {
 /** Shared card style for sections: Linkary card with subtle glow on hover. */
 const sectionCardClass =
   "rounded-2xl border border-border bg-card/95 shadow-sm transition-all duration-200 hover:border-primary/20 hover:shadow-md hover:shadow-primary/10";
+/** Island wrapper for major sections: card with subtle primary accent. */
+const islandClass =
+  "rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:border-primary/10 p-5";
 
 type RelationCard = { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string };
 
@@ -150,7 +153,7 @@ function SocialLink({ name, url }: { name: string; url: string }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-3 flex items-center gap-2.5 text-sm font-semibold tracking-tight text-foreground">
+    <h2 className="mb-3 flex items-center gap-2.5 text-sm font-semibold tracking-tight text-primary">
       <span className="h-px w-6 shrink-0 rounded-full bg-primary" aria-hidden />
       {children}
     </h2>
@@ -261,7 +264,7 @@ type Props = {
 };
 
 export function PublicProfileContent({ data, username, profileUrl: profileUrlProp, isAuthenticated = false }: Props) {
-  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations, skills = [], achievements = [] } = data;
+  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations, skills = [], achievements = [], header_media: headerMedia = null, cv: cvPayload = null, partner_programs: partnerPrograms = [] } = data;
   const profileType = profile.profile_type ?? "individual";
   const displayName = profile.display_name ?? profile.username ?? username;
   const handle = profile.username ?? username;
@@ -383,6 +386,21 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
 
   const renderSection = (key: SectionKey): React.ReactNode => {
     switch (key) {
+      case "header_media":
+        if (!headerMedia?.url) return null;
+        return (
+          <section className={sectionSpacing}>
+            {headerMedia.type === "VIDEO" ? (
+              <div className="overflow-hidden rounded-2xl border border-border bg-muted aspect-video max-h-[280px] sm:max-h-[320px]">
+                <video src={headerMedia.url} controls className="h-full w-full object-cover" />
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-2xl border border-border bg-muted aspect-video max-h-[280px] sm:max-h-[320px]">
+                <img src={headerMedia.url} alt="" className="h-full w-full object-cover" />
+              </div>
+            )}
+          </section>
+        );
       case "header":
         return (
           <header className="pb-6 border-b border-border">
@@ -482,8 +500,8 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         if (!hasProofStats) return null;
         return (
           <section className={sectionSpacing}>
-            <SectionTitle>Proof</SectionTitle>
-            <div className={`${sectionCardClass} border-primary/20 p-5`}>
+            <div className={islandClass}>
+              <SectionTitle>Proof</SectionTitle>
               <div className="flex flex-wrap gap-6">
                 {profile.reputation_index != null && (
                   <div>
@@ -511,8 +529,9 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         if (!showFeatured) return null;
         return (
           <section className={rightSectionSpacing}>
-            <SectionTitle>Featured</SectionTitle>
-            <div className="space-y-4">
+            <div className={islandClass}>
+              <SectionTitle>Featured</SectionTitle>
+              <div className="space-y-4">
               {profileType !== "individual" && featuredGig && (
                 <div className={`${featuredCardClass} p-5`}>
                   <span className="text-xs font-semibold uppercase tracking-wide text-primary">Featured gig</span>
@@ -525,7 +544,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   <div className="mt-4"><ApplyToGigButton gig={featuredGig} ownerUsername={handle} basePath={basePath} /></div>
                 </div>
               )}
-              {featuredCaseStudy && (
+                {featuredCaseStudy && (
                 <div className={`${featuredCardClass} p-5`}>
                   <span className="text-xs font-semibold uppercase tracking-wide text-primary">Featured case study</span>
                   {featuredCaseStudy.title && <h3 className="mt-1 text-lg font-semibold text-foreground">{featuredCaseStudy.title}</h3>}
@@ -557,6 +576,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   </div>
                 </div>
               )}
+              </div>
             </div>
           </section>
         );
@@ -709,8 +729,8 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         if (profileType !== "individual" && profileType !== "company") return null;
         return (
           <section className={rightSectionSpacing}>
-            <SectionTitle>{profileType === "company" ? "Services / Expertise" : "Skills"}</SectionTitle>
-            <div className={`${sectionCardClass} p-4`}>
+            <div className={islandClass}>
+              <SectionTitle>{profileType === "company" ? "Services / Expertise" : "Skills"}</SectionTitle>
               {skills.length === 0 ? (
                 <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border bg-muted/20 px-4 py-5 text-center">{profileType === "company" ? "No services or expertise listed yet" : "No skills listed yet"}</p>
               ) : (
@@ -730,8 +750,9 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         if (profileType !== "individual") return null;
         return (
           <section className={rightSectionSpacing}>
-            <SectionTitle>Achievements</SectionTitle>
-            {achievements.length === 0 ? (
+            <div className={islandClass}>
+              <SectionTitle>Achievements</SectionTitle>
+              {achievements.length === 0 ? (
               <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No achievements yet</p>
             ) : (
               <ul className="space-y-3">
@@ -744,6 +765,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 ))}
               </ul>
             )}
+            </div>
           </section>
         );
       case "case_studies": {
@@ -755,8 +777,9 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             : caseStudies;
         return (
           <section className={rightSectionSpacing}>
-            <SectionTitle>Case studies</SectionTitle>
-            {sortedCaseStudies.length === 0 ? (
+            <div className={islandClass}>
+              <SectionTitle>Case studies</SectionTitle>
+              {sortedCaseStudies.length === 0 ? (
               <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">Add a proof card to show outcomes.</p>
             ) : (
               <ul className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
@@ -806,14 +829,16 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 })}
               </ul>
             )}
+            </div>
           </section>
         );
       }
       case "links":
         return (
           <section className={rightSectionSpacing}>
-            <SectionTitle>Links</SectionTitle>
-            {links.length === 0 ? (
+            <div className={islandClass}>
+              <SectionTitle>Links</SectionTitle>
+              {links.length === 0 ? (
               <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No links yet</p>
             ) : (
               <ul className="space-y-2">
@@ -831,6 +856,73 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 })}
               </ul>
             )}
+            </div>
+          </section>
+        );
+      case "roles":
+        if (!profile.roles?.length) return null;
+        return (
+          <section className={rightSectionSpacing}>
+            <div className={islandClass}>
+              <SectionTitle>Roles</SectionTitle>
+              <div className="flex flex-wrap gap-2">
+              {profile.roles.map((name, i) => (
+                <span key={`${name}-${i}`} className="inline-flex items-center rounded-full border border-border bg-muted/50 px-3 py-1.5 text-sm font-medium text-foreground">
+                  {name}
+                </span>
+              ))}
+              </div>
+            </div>
+          </section>
+        );
+      case "cv":
+        if (!cvPayload?.download_url) return null;
+        return (
+          <section className={rightSectionSpacing}>
+            <div className={islandClass}>
+              <SectionTitle>CV / Resume</SectionTitle>
+              <a
+              href={cvPayload.download_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3.5 font-medium text-foreground transition-all hover:border-primary/30 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              <ExternalLink className="h-5 w-5 text-primary" aria-hidden />
+              Download CV
+            </a>
+            </div>
+          </section>
+        );
+      case "partner_programs":
+        if (!partnerPrograms.length) return null;
+        return (
+          <section className={rightSectionSpacing}>
+            <div className={islandClass}>
+              <SectionTitle>Partner programs</SectionTitle>
+              <ul className="space-y-3">
+              {partnerPrograms.map((pp, i) => (
+                <li key={`${pp.name}-${i}`} className={`rounded-2xl border border-border bg-card p-4 ${sectionCardClass}`}>
+                  <div className="flex flex-wrap items-start gap-3">
+                    {pp.logo_url && (
+                      <img src={pp.logo_url} alt="" className="h-12 w-12 shrink-0 rounded-xl object-contain border border-border bg-muted/30" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-foreground">{pp.name}</span>
+                        {pp.is_featured && <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Featured</span>}
+                      </div>
+                      {pp.description && <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{pp.description}</p>}
+                      {pp.website_url && (
+                        <a href={pp.website_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+                          Visit <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            </div>
           </section>
         );
       case "reviews":
@@ -846,8 +938,9 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         const restReviews = sortedReviews.slice(1);
         return (
           <section className={rightSectionSpacing}>
-            <SectionTitle>Reviews</SectionTitle>
-            {reviews.count === 0 ? (
+            <div className={islandClass}>
+              <SectionTitle>Reviews</SectionTitle>
+              {reviews.count === 0 ? (
               <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">Verified reviews appear after completed deals.</p>
             ) : (
               <>
@@ -913,6 +1006,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 )}
               </>
             )}
+            </div>
           </section>
         );
       case "hero":

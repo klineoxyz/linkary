@@ -4,6 +4,7 @@
  */
 export const SECTION_KEYS = [
   "hero",
+  "header_media",
   "header",
   "socials",
   "proof",
@@ -15,17 +16,20 @@ export const SECTION_KEYS = [
   "team",
   "gigs",
   "relations",
+  "roles",
   "skills",
   "achievements",
   "case_studies",
   "links",
+  "cv",
+  "partner_programs",
   "reviews",
 ] as const;
 
 export type SectionKey = (typeof SECTION_KEYS)[number];
 
 /** Keys that render in the left column (2-column presets: classic, showcase, compact). */
-export const LEFT_COLUMN_KEYS: SectionKey[] = ["header", "socials", "proof", "trust_strip"];
+export const LEFT_COLUMN_KEYS: SectionKey[] = ["header_media", "header", "socials", "proof", "trust_strip"];
 
 /** Keys that render in the right column (or in single column for spotlight). */
 export const RIGHT_COLUMN_KEYS: SectionKey[] = [
@@ -36,10 +40,13 @@ export const RIGHT_COLUMN_KEYS: SectionKey[] = [
   "team",
   "gigs",
   "relations",
+  "roles",
   "skills",
   "achievements",
   "case_studies",
   "links",
+  "cv",
+  "partner_programs",
   "reviews",
 ];
 
@@ -55,6 +62,7 @@ export type PresetName = "classic" | "spotlight" | "showcase" | "compact";
 export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
   classic: [
     "hero",
+    "header_media",
     "header",
     "socials",
     "proof",
@@ -66,14 +74,18 @@ export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
     "team",
     "gigs",
     "relations",
+    "roles",
     "skills",
     "achievements",
     "case_studies",
     "links",
+    "cv",
+    "partner_programs",
     "reviews",
   ],
   spotlight: [
     "hero",
+    "header_media",
     "header",
     "socials",
     "proof",
@@ -85,14 +97,18 @@ export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
     "team",
     "gigs",
     "relations",
+    "roles",
     "skills",
     "achievements",
     "case_studies",
     "links",
+    "cv",
+    "partner_programs",
     "reviews",
   ],
   showcase: [
     "hero",
+    "header_media",
     "header",
     "featured",
     "proof",
@@ -104,14 +120,18 @@ export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
     "reviews",
     "gigs",
     "relations",
+    "roles",
     "token",
     "team",
     "skills",
     "achievements",
     "links",
+    "cv",
+    "partner_programs",
   ],
   compact: [
     "hero",
+    "header_media",
     "header",
     "socials",
     "proof",
@@ -122,10 +142,13 @@ export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
     "team",
     "gigs",
     "relations",
+    "roles",
     "skills",
     "achievements",
     "case_studies",
     "links",
+    "cv",
+    "partner_programs",
     "reviews",
   ],
 };

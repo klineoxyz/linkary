@@ -13,6 +13,7 @@ import Link from "next/link";
 import React, { Fragment } from "react";
 import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
 import { ApplyToGigButton } from "./ApplyToGigButton";
+import { TrustStrip } from "@/components/TrustStrip";
 
 /** Extract hostname from URL for display; safe for any string. */
 function getHostname(url: string): string {
@@ -325,6 +326,21 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             {socialLinks.map((l) => <SocialLink key={l.name} name={l.name} url={l.url} />)}
           </div>
         );
+      case "trust_strip": {
+        const score = profile.reputation_index ?? null;
+        return (
+          <div className={sectionSpacing}>
+            <TrustStrip
+              score={score}
+              tierLabel={null}
+              reviewsAvg={reviews.average ?? null}
+              reviewsCount={reviews.count ?? 0}
+              xHandle={socials.x?.trim() ? "X" : null}
+              variant="public"
+            />
+          </div>
+        );
+      }
       case "proof":
         if (!hasProofStats) return null;
         return (

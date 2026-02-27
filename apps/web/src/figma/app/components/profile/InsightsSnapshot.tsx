@@ -12,6 +12,7 @@ import {
   RecommendedAccountsCard,
   EmptyStateCard,
 } from "../profile-dashboard";
+import { TrustStrip } from "@/components/TrustStrip";
 import type { SocialGraphDataPoint } from "../profile-dashboard";
 import type { ScoreBreakdownRow } from "../profile-dashboard";
 import { BarChart3 } from "lucide-react";
@@ -319,6 +320,10 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
 
   const island = "rounded-2xl border border-border bg-card shadow-sm overflow-hidden";
 
+  const xHandleForStrip = isOwn && me?.twitter_username?.trim()
+    ? `@${me.twitter_username.replace(/^@/, "")}`
+    : (publicDto && targetUsername ? `@${targetUsername}` : null);
+
   return (
     <div className="space-y-6 pb-10">
       <ProfileHeaderCard
@@ -333,6 +338,16 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
         joinedAt={insightsProfile?.joinedAt ?? me?.created_at ?? null}
         onWatchlist={me && profileEntityId ? onWatchlist : undefined}
         onToggleWatchlist={me && profileEntityId ? handleToggleWatchlist : undefined}
+      />
+
+      <TrustStrip
+        score={reputationIndex ?? null}
+        tierLabel={tierLabel || null}
+        verifiedGigsCount={isOwn ? verifiedGigsCount : undefined}
+        reviewsAvg={isOwn && meStats?.reviews?.count ? (meStats.reviews.avg ?? null) : undefined}
+        reviewsCount={isOwn && meStats?.reviews ? meStats.reviews.count : undefined}
+        xHandle={xHandleForStrip}
+        variant="insights"
       />
 
       {isOwn && !me?.twitter_username?.trim() && (

@@ -7,6 +7,7 @@ export const SECTION_KEYS = [
   "header",
   "socials",
   "proof",
+  "trust_strip",
   "featured",
   "token",
   "team",
@@ -22,7 +23,7 @@ export const SECTION_KEYS = [
 export type SectionKey = (typeof SECTION_KEYS)[number];
 
 /** Keys that render in the left column (2-column presets: classic, showcase, compact). */
-export const LEFT_COLUMN_KEYS: SectionKey[] = ["header", "socials", "proof"];
+export const LEFT_COLUMN_KEYS: SectionKey[] = ["header", "socials", "proof", "trust_strip"];
 
 /** Keys that render in the right column (or in single column for spotlight). */
 export const RIGHT_COLUMN_KEYS: SectionKey[] = [
@@ -53,6 +54,7 @@ export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
     "header",
     "socials",
     "proof",
+    "trust_strip",
     "featured",
     "token",
     "team",
@@ -69,6 +71,7 @@ export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
     "header",
     "socials",
     "proof",
+    "trust_strip",
     "featured",
     "token",
     "team",
@@ -85,6 +88,7 @@ export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
     "header",
     "featured",
     "proof",
+    "trust_strip",
     "socials",
     "case_studies",
     "reviews",
@@ -101,6 +105,7 @@ export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
     "header",
     "socials",
     "proof",
+    "trust_strip",
     "token",
     "team",
     "gigs",

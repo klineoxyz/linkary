@@ -12,7 +12,7 @@ import { MediaUploadField } from "@/components/MediaUploadField";
 import { SignedMediaImage } from "@/components/SignedMediaImage";
 import type { Profession } from "@/lib/professions";
 import type { Profile } from "@/lib/profiles";
-import { PRESET_DEFAULT_ORDER, PRESET_DEFAULT_HIDDEN, type PresetName } from "@/lib/publicLayoutPresets";
+import { PRESET_DEFAULT_ORDER, PRESET_DEFAULT_HIDDEN, SECTION_KEYS, type PresetName } from "@/lib/publicLayoutPresets";
 
 type HeaderMediaType = "NONE" | "IMAGE" | "VIDEO";
 
@@ -1455,7 +1455,10 @@ export default function ProfileEditPage({
       const preset = p.public_layout?.preset;
       if (preset === "spotlight" || preset === "showcase" || preset === "compact") setPublicLayoutPreset(preset);
       else setPublicLayoutPreset("classic");
-      if (Array.isArray(p.public_layout?.order) && p.public_layout.order.length > 0) setLayoutOrder(p.public_layout.order);
+      const presetName: PresetName = preset === "spotlight" || preset === "showcase" || preset === "compact" ? preset : "classic";
+      const order = Array.isArray(p.public_layout?.order) && p.public_layout.order.length > 0 ? [...p.public_layout.order] : [...PRESET_DEFAULT_ORDER[presetName]];
+      for (const k of SECTION_KEYS) { if (!order.includes(k)) order.push(k); }
+      setLayoutOrder(order);
       if (Array.isArray(p.public_layout?.hidden)) setLayoutHidden(Object.fromEntries((p.public_layout.hidden as string[]).map((k) => [k, true])));
       setFeaturedCaseStudyId(p.public_layout?.featured_case_study_id ?? null);
       setFeaturedReviewId(p.public_layout?.featured_review_id ?? null);

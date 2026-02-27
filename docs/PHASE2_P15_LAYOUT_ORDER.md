@@ -16,10 +16,10 @@ When the user has **not** saved a custom order (`layout_order` missing or empty)
 
 | Preset    | Default order |
 |-----------|----------------|
-| **classic**  | hero, header, socials, proof, featured, token, team, gigs, relations, skills, achievements, case_studies, links, reviews |
+| **classic**  | hero, header, socials, proof, **trust_strip**, featured, token, team, gigs, relations, skills, achievements, case_studies, links, reviews |
 | **spotlight**| Same as classic; layout is **1-column** stacked. |
-| **showcase** | hero, header, **featured**, proof, socials, **case_studies**, **reviews**, gigs, relations, token, team, skills, achievements, links |
-| **compact**  | hero, header, socials, proof, token, team, gigs, relations, skills, achievements, case_studies, links, reviews (no `featured` in order). |
+| **showcase** | hero, header, **featured**, proof, **trust_strip**, socials, case_studies, reviews, gigs, relations, token, team, skills, achievements, links |
+| **compact**  | hero, header, socials, proof, **trust_strip**, token, team, gigs, relations, skills, achievements, case_studies, links, reviews (no `featured` in order). |
 
 ---
 
@@ -52,7 +52,7 @@ Compact never shows the featured block (handled in code; `featured` is not in co
    `visibleOrder = resolvedOrder.filter(k => !resolvedHidden.has(k))`
 
 4. **Column assignment (2-column presets: classic, showcase, compact)**  
-   - **Left column:** keys in `visibleOrder` that are in `LEFT_COLUMN_KEYS`: `header`, `socials`, `proof`.  
+   - **Left column:** keys in `visibleOrder` that are in `LEFT_COLUMN_KEYS`: `header`, `socials`, `proof`, `trust_strip`.  
    - **Right column:** keys in `visibleOrder` that are in `RIGHT_COLUMN_KEYS`: `featured`, `token`, `team`, `gigs`, `relations`, `skills`, `achievements`, `case_studies`, `links`, `reviews`.  
    - Sections are rendered in the same order they appear in `visibleOrder` within each column.
 
@@ -74,7 +74,16 @@ These checks are applied inside each section’s render function; if order inclu
 
 ## Section keys (canonical)
 
-`hero`, `header`, `socials`, `proof`, `featured`, `token`, `team`, `gigs`, `relations`, `skills`, `achievements`, `case_studies`, `links`, `reviews`
+`hero`, `header`, `socials`, `proof`, `trust_strip`, `featured`, `token`, `team`, `gigs`, `relations`, `skills`, `achievements`, `case_studies`, `links`, `reviews`
+
+---
+
+## P2-lite: Trust Strip
+
+- **Section key:** `trust_strip`.
+- **Component:** `@/components/TrustStrip.tsx` — compact row of pills (score, tier, Verified, reviews, X handle). All props optional; renders safely with partial data.
+- **Public page:** Rendered in left column when `trust_strip` is in visible order. Uses `profile.reputation_index`, `reviews.average`/`reviews.count`, and `socials.x` (for “X” pill). No new payload fields.
+- **Insights Snapshot:** Same component below `ProfileHeaderCard`; own profile uses me-stats (reputationIndex, verifiedGigsCount, reviews); other users use public dto (score/linkaryPower, X handle when available). Can be hidden and reordered via ProfileEditPage like other sections.
 
 ---
 
@@ -82,10 +91,12 @@ These checks are applied inside each section’s render function; if order inclu
 
 | Path | Change |
 |------|--------|
-| `apps/web/src/lib/publicLayoutPresets.ts` | **New.** Shared SECTION_KEYS, LEFT_COLUMN_KEYS, RIGHT_COLUMN_KEYS, PRESET_DEFAULT_ORDER, PRESET_DEFAULT_HIDDEN, PresetName. |
-| `apps/web/src/app/(public)/[username]/PublicProfileContent.tsx` | Order-driven rendering: resolvedOrder/resolvedHidden from layout or preset defaults; visibleOrder; renderSection(key) map; hero only when in visible order; left/right column from visibleOrder; spotlight single column. |
-| `apps/web/src/figma/app/components/ProfileEditPage.tsx` | Import preset defaults; “Reset to preset defaults” button sets layout_order and layout_hidden to preset defaults and saves. |
-| `docs/PHASE2_P15_LAYOUT_ORDER.md` | This doc. |
+| `apps/web/src/lib/publicLayoutPresets.ts` | SECTION_KEYS (incl. `trust_strip`), LEFT_COLUMN_KEYS (incl. `trust_strip`), PRESET_DEFAULT_ORDER updated. |
+| `apps/web/src/app/(public)/[username]/PublicProfileContent.tsx` | Order-driven rendering; `trust_strip` case renders TrustStrip (score, tier, reviews, X). |
+| `apps/web/src/components/TrustStrip.tsx` | **New.** Reusable Trust Strip component (score, tierLabel, verifiedGigsCount, reviewsAvg/Count, xHandle; variant public/insights). |
+| `apps/web/src/figma/app/components/ProfileEditPage.tsx` | Preset defaults; “Reset to preset defaults”; load order merges missing SECTION_KEYS so trust_strip is reorderable/hideable. |
+| `apps/web/src/figma/app/components/profile/InsightsSnapshot.tsx` | TrustStrip below ProfileHeaderCard (own: me-stats + X; other: score + handle). |
+| `docs/PHASE2_P15_LAYOUT_ORDER.md` | This doc; trust_strip key and P2-lite section. |
 
 ---
 

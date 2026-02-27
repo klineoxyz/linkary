@@ -6,14 +6,16 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 /**
  * GET /api/me/profile-status?username=xxx
- * Auth required. Returns { status: 'not_found' | 'unpublished' | 'published' }.
- * Only reveals 'unpublished' when the current user owns that username (prevents enumeration).
+ * Returns { isOwner: boolean, status?: "published" | "unpublished" }.
+ * - Unauthenticated or invalid token: { isOwner: false } (no status).
+ * - Authenticated but not owner of that username: { isOwner: false } (no status; does not leak unpublished).
+ * - Owner: { isOwner: true, status: "published" | "unpublished" }.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ status: "not_found" }, { status: 200 });
+    return NextResponse.json({ isOwner: false }, { status: 200 });
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -21,13 +23,13 @@ export async function GET(request: NextRequest) {
   });
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
   if (userError || !user?.id) {
-    return NextResponse.json({ status: "not_found" }, { status: 200 });
+    return NextResponse.json({ isOwner: false }, { status: 200 });
   }
 
   const username = request.nextUrl.searchParams.get("username");
   const segment = (username ?? "").trim().toLowerCase().replace(/^@/, "");
   if (!segment) {
-    return NextResponse.json({ status: "not_found" }, { status: 200 });
+    return NextResponse.json({ isOwner: false }, { status: 200 });
   }
 
   // 1) Look up by profiles.username (canonical slug)
@@ -40,13 +42,12 @@ export async function GET(request: NextRequest) {
   if (!profileError && profileByUsername && (profileByUsername as { id: string }).id === user.id) {
     const published = (profileByUsername as { published?: boolean }).published === true;
     return NextResponse.json(
-      { status: published ? "published" : "unpublished" },
+      { isOwner: true, status: published ? "published" : "unpublished" },
       { status: 200 }
     );
   }
 
   // 2) Fallback: current user may have twitter_username = segment but username not set yet (e.g. claim failed or not run).
-  // So every X signup can see "Your profile / Unpublished" at /@theirhandle instead of "Claim this username".
   const { data: myProfile, error: myError } = await supabase
     .from("profiles")
     .select("id, username, twitter_username, published")
@@ -58,11 +59,11 @@ export async function GET(request: NextRequest) {
     const twitterNorm = (row.twitter_username ?? "").trim().toLowerCase().replace(/^@/, "");
     if (twitterNorm === segment) {
       return NextResponse.json(
-        { status: row.published === true ? "published" : "unpublished" },
+        { isOwner: true, status: row.published === true ? "published" : "unpublished" },
         { status: 200 }
       );
     }
   }
 
-  return NextResponse.json({ status: "not_found" }, { status: 200 });
+  return NextResponse.json({ isOwner: false }, { status: 200 });
 }

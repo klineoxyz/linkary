@@ -27,7 +27,7 @@ export function NotFoundOrUnpublished({ requestedUsername }: { requestedUsername
         return;
       }
       const j = await res.json();
-      if (j.status === "unpublished") {
+      if ((j as { isOwner?: boolean; status?: string }).isOwner === true && (j as { status?: string }).status === "unpublished") {
         setStatus("unpublished");
       } else {
         setStatus("not_found");

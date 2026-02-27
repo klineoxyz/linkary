@@ -354,6 +354,30 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
     (reviews?.count ?? 0) === 0 &&
     (profileType === "individual" || ((data.gigs?.length ?? 0) === 0 && !hasAnyRelation));
 
+  const hasCaseStudy = caseStudies.length >= 1;
+  const hasGig = (profileType === "project" || profileType === "company") && (data.gigs?.length ?? 0) >= 1;
+  const hasReview = (reviews?.count ?? 0) >= 1;
+  const hasRelationForOrg = (profileType === "project" || profileType === "company") && !!hasAnyRelation;
+  const completenessScore = Math.min(
+    100,
+    (hasHero ? 20 : 0) +
+      (hasCaseStudy ? 25 : 0) +
+      (hasGig ? 25 : 0) +
+      (hasRelationForOrg ? 15 : 0) +
+      (hasReview ? 15 : 0)
+  );
+  const nextCompletenessAction: { label: string; href: string } | null = !hasHero
+    ? { label: "Add a hero image or title", href: "/profile/edit#basics" }
+    : !hasCaseStudy
+      ? { label: "Add a proof card (case study)", href: "/profile/edit#case-studies" }
+      : (profileType === "project" || profileType === "company") && !hasGig
+        ? { label: "Post an open gig", href: "/profile/edit#gigs" }
+        : (profileType === "project" || profileType === "company") && !hasAnyRelation
+          ? { label: "Add ecosystem partners", href: "/profile/edit" }
+          : !hasReview
+            ? { label: "Get verified reviews", href: "/profile/edit" }
+            : null;
+
   const leftOrder = visibleOrder.filter((k) => LEFT_COLUMN_KEYS.includes(k));
   const rightOrder = visibleOrder.filter((k) => RIGHT_COLUMN_KEYS.includes(k));
 
@@ -430,6 +454,8 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               profileType={profileType}
               profileUrl={profileUrl}
               isLowContent={isLowContent}
+              completenessScore={completenessScore}
+              nextAction={nextCompletenessAction}
             />
           </div>
         );

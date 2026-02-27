@@ -12,19 +12,25 @@ export type StarterBlockProps = {
   profileType: "individual" | "project" | "company";
   profileUrl: string;
   isLowContent: boolean;
+  /** 0–100 completeness from public payload (hero 20, case study 25, gig 25, relation 15, review 15). */
+  completenessScore?: number;
+  /** Next recommended action when owner view is shown. */
+  nextAction?: { label: string; href: string } | null;
   className?: string;
 };
 
 /**
  * Shows when profile is "low content" (no hero, no case studies, no reviews, no gigs/relations for org).
  * Visitor: short explanation + View Insights + Request collab/sign in.
- * Owner (detected client-side via /api/me/profile-status): "Complete your profile" checklist with links to /profile/edit.
+ * Owner (detected client-side via /api/me/profile-status isOwner): "Complete your profile" + completeness meter + next action.
  */
 export function StarterBlock({
   username,
   profileType,
   profileUrl,
   isLowContent,
+  completenessScore = 0,
+  nextAction = null,
   className = "",
 }: StarterBlockProps) {
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
@@ -42,8 +48,7 @@ export function StarterBlock({
       })
         .then((r) => r.json())
         .then((j) => {
-          const status = (j as { status?: string }).status;
-          setIsOwner(status === "published" || status === "unpublished");
+          setIsOwner((j as { isOwner?: boolean }).isOwner === true);
         })
         .catch(() => setIsOwner(false));
     });
@@ -54,6 +59,7 @@ export function StarterBlock({
   const insightsHref = `/u/${encodeURIComponent(username)}/insights`;
   const loginRedirect = `/login?redirect=${encodeURIComponent(profileUrl)}`;
   const editHref = "/profile/edit";
+  const score = Math.min(100, Math.max(0, completenessScore));
 
   if (isOwner === true) {
     return (
@@ -62,6 +68,27 @@ export function StarterBlock({
           <div className="p-5">
             <h2 className="text-sm font-semibold text-foreground">Complete your profile</h2>
             <p className="mt-1 text-sm text-muted-foreground">Add more to your page so visitors see your best work.</p>
+            <div className="mt-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Profile completeness</span>
+                <span className="text-sm font-semibold tabular-nums text-foreground">{score}%</span>
+              </div>
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted/80 border border-border">
+                <div
+                  className="h-full rounded-full bg-primary/70 transition-all duration-300"
+                  style={{ width: `${score}%` }}
+                  aria-hidden
+                />
+              </div>
+            </div>
+            {nextAction && (
+              <Link
+                href={nextAction.href}
+                className="mt-4 inline-flex items-center rounded-lg border border-primary bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                {nextAction.label}
+              </Link>
+            )}
             <ul className="mt-4 space-y-2 text-sm text-foreground">
               <li className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" aria-hidden />

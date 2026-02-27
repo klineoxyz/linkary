@@ -15,6 +15,7 @@ import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
 import { ApplyToGigButton } from "./ApplyToGigButton";
 import { TrustStrip } from "@/components/TrustStrip";
 import { EcosystemModule } from "./EcosystemModule";
+import { ActionBar } from "./ActionBar";
 
 /** Derive 2–4 highlight bullets from case study (no DB). Use summary sentences or tag-based. */
 function proofHighlights(
@@ -255,9 +256,10 @@ type Props = {
   data: PublicProfileApiPayload;
   username: string;
   profileUrl?: string;
+  isAuthenticated?: boolean;
 };
 
-export function PublicProfileContent({ data, username, profileUrl: profileUrlProp }: Props) {
+export function PublicProfileContent({ data, username, profileUrl: profileUrlProp, isAuthenticated = false }: Props) {
   const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations, skills = [], achievements = [] } = data;
   const profileType = profile.profile_type ?? "individual";
   const displayName = profile.display_name ?? profile.username ?? username;
@@ -290,9 +292,34 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const featuredCaseStudyId = profile.featured_case_study_id ?? null;
   const featuredReviewId = profile.featured_review_id ?? null;
   const featuredGigId = profile.featured_gig_id ?? null;
-  const featuredCaseStudy = featuredCaseStudyId ? caseStudies.find((c) => c.id === featuredCaseStudyId) : null;
-  const featuredReview = featuredReviewId && reviews.latest ? reviews.latest.find((r) => (r as { id?: string }).id === featuredReviewId) : null;
-  const featuredGig = featuredGigId && data.gigs ? data.gigs.find((g) => g.id === featuredGigId) : null;
+  const featuredCaseStudy =
+    featuredCaseStudyId
+      ? caseStudies.find((c) => c.id === featuredCaseStudyId) ?? null
+      : (() => {
+          if (!caseStudies.length) return null;
+          const withUrlAndSummary = caseStudies.filter((c) => (c.url?.trim() && c.summary?.trim()) || c.summary?.trim());
+          const pool = withUrlAndSummary.length > 0 ? withUrlAndSummary : caseStudies;
+          return pool[0] ?? null;
+        })();
+  const featuredReview =
+    featuredReviewId && reviews.latest?.length
+      ? reviews.latest.find((r) => (r as { id?: string }).id === featuredReviewId) ?? null
+      : (() => {
+          if (!reviews.latest?.length) return null;
+          const sorted = [...reviews.latest].sort((a, b) => {
+            if (b.rating !== a.rating) return b.rating - a.rating;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          });
+          return sorted[0] ?? null;
+        })();
+  const featuredGig =
+    featuredGigId && data.gigs?.length
+      ? data.gigs.find((g) => g.id === featuredGigId) ?? null
+      : (() => {
+          if (!data.gigs?.length || (profileType !== "project" && profileType !== "company")) return null;
+          const byNewest = [...data.gigs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          return byNewest[0] ?? null;
+        })();
   const showFeatured = !isCompact && (!!featuredCaseStudy || !!featuredReview || !!featuredGig);
 
   const socialLinks: { name: string; url: string }[] = [
@@ -366,6 +393,18 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </div>
         );
       }
+      case "action_bar":
+        return (
+          <div className={rightSectionSpacing}>
+            <ActionBar
+              profileType={profileType}
+              username={handle}
+              profileUrl={profileUrl}
+              isAuthenticated={isAuthenticated}
+              canApplyToGigs={isAuthenticated}
+            />
+          </div>
+        );
       case "proof":
         if (!hasProofStats) return null;
         return (

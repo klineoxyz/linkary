@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
+import useSWR from "swr";
 import { supabase } from "@/lib/supabase";
+import { authFetcher, SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
 import {
   ArrowLeft,
   BarChart3,
@@ -166,58 +168,53 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const initialSyncTriggered = useRef(false);
   const base = typeof window !== "undefined" ? window.location.origin : "";
 
-  const fetchInitStatus = React.useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    if (!token) return null;
-    const res = await fetch(`${base}/api/analytics/init-status`, { headers: { Authorization: `Bearer ${token}` } });
-    if (res.ok) {
-      const json = await res.json().catch(() => ({}));
-      setInitStatus(json);
-      return json as InitStatus;
-    }
-    return null;
-  }, [base]);
+  const swrOpts = { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS };
+  const { data: initSwr, mutate: mutateInit } = useSWR<InitStatus>(
+    "/api/analytics/init-status",
+    authFetcher as (url: string) => Promise<InitStatus>,
+    swrOpts
+  );
+  const { data: xSwr, mutate: mutateX } = useSWR<Record<string, unknown>>(
+    "/api/analytics/x",
+    authFetcher as (url: string) => Promise<Record<string, unknown>>,
+    swrOpts
+  );
+  const { data: summarySwr } = useSWR<{ windows?: Record<string, Record<string, unknown> | null>; is_backfilling?: boolean }>(
+    "/api/analytics/x/summary",
+    authFetcher as (url: string) => Promise<{ windows?: Record<string, Record<string, unknown> | null>; is_backfilling?: boolean }>,
+    swrOpts
+  );
 
-  const fetchXAnalytics = React.useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    if (!token) return;
-    const [res, summaryRes] = await Promise.all([
-      fetch(`${base}/api/analytics/x`, { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`${base}/api/analytics/x/summary`, { headers: { Authorization: `Bearer ${token}` } }),
-    ]);
-    if (res.ok) {
-      const json = await res.json().catch(() => ({}));
+  useEffect(() => {
+    if (initSwr) setInitStatus(initSwr);
+  }, [initSwr]);
+  useEffect(() => {
+    if (xSwr && typeof xSwr === "object") {
       setXAnalyticsData({
-        profile: json.profile ?? {},
-        rollup: json.rollup ?? null,
-        topDrivers: json.topDrivers ?? [],
-        baseline: json.baseline ?? null,
-        snapshots: Array.isArray(json.snapshots) ? json.snapshots : [],
-        source: json.source ?? "fallback",
-        freshness: json.freshness ?? undefined,
-        diagnostics: json.diagnostics ?? undefined,
+        profile: (xSwr.profile as XAnalyticsData["profile"]) ?? {},
+        rollup: (xSwr.rollup as XAnalyticsData["rollup"]) ?? null,
+        topDrivers: Array.isArray(xSwr.topDrivers) ? (xSwr.topDrivers as XAnalyticsData["topDrivers"]) : [],
+        baseline: (xSwr.baseline as XAnalyticsData["baseline"]) ?? null,
+        snapshots: Array.isArray(xSwr.snapshots) ? (xSwr.snapshots as SnapshotPoint[]) : [],
+        source: (xSwr.source as XAnalyticsData["source"]) ?? "fallback",
+        freshness: xSwr.freshness as XAnalyticsData["freshness"],
+        diagnostics: xSwr.diagnostics as XAnalyticsData["diagnostics"],
       });
     }
-    if (summaryRes.ok) {
-      const sum = await summaryRes.json().catch(() => ({}));
-      setWindowSummary({ windows: sum.windows ?? {}, is_backfilling: !!sum.is_backfilling });
+  }, [xSwr]);
+  useEffect(() => {
+    if (summarySwr && typeof summarySwr === "object") {
+      setWindowSummary({ windows: summarySwr.windows ?? {}, is_backfilling: !!summarySwr.is_backfilling });
     }
-  }, []);
+  }, [summarySwr]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      await fetchXAnalytics();
-      if (cancelled) return;
-    })();
-    return () => { cancelled = true; };
-  }, [fetchXAnalytics]);
+  const fetchInitStatus = React.useCallback(async () => {
+    await mutateInit();
+  }, [mutateInit]);
 
-  useEffect(() => {
-    fetchInitStatus();
-  }, [fetchInitStatus]);
+  const fetchXAnalytics = React.useCallback(async () => {
+    await mutateX();
+  }, [mutateX]);
 
   const handleRetryBackfill = React.useCallback(async () => {
     setRetryingBackfill(true);
@@ -671,7 +668,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4 }}
             onClick={() => setRoute({ name: "dashboard" })}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-gray-700 hover:text-gray-900 transition-all group"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border hover:bg-muted/50 hover:border-primary/20 text-foreground hover:text-foreground transition-all group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform stroke-[1.75]" />
             Back to Dashboard
@@ -712,13 +709,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 flex flex-wrap items-center justify-between gap-2"
+            className="rounded-xl border border-border bg-card px-4 py-3 flex flex-wrap items-center justify-between gap-2"
           >
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-600">Rebuild status:</span>
+              <span className="text-muted-foreground">Rebuild status:</span>
               <span className="font-medium capitalize">{rebuildJob.status}</span>
               {rebuildJob.updated_at && (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-muted-foreground">
                   Last updated {formatTimeAgo(rebuildJob.updated_at)}
                 </span>
               )}
@@ -812,7 +809,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="sticky top-0 z-40 rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl p-6"
+          className="sticky top-0 z-40 rounded-3xl border border-border bg-gradient-to-br from-card to-muted/30 backdrop-blur-xl p-6"
         >
           <div className="flex flex-col gap-4">
             {/* Row 1: Context + Platform Tabs */}
@@ -824,7 +821,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 </div>
                 <div>
                   <div className="flex items-center gap-3">
-                    <h1 className="text-2xl font-bold text-gray-900">{viewingEntity}</h1>
+                    <h1 className="text-2xl font-bold text-foreground">{viewingEntity}</h1>
                     <span className="px-3 py-1 rounded-full bg-accent text-foreground text-xs font-medium border border-border">
                       {entityType.charAt(0).toUpperCase() + entityType.slice(1)}
                     </span>
@@ -838,8 +835,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                           onClick={() => setVisibility(option.id)}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                             visibility === option.id
-                              ? "bg-white/10 text-gray-900 border border-white/20"
-                              : "text-gray-600 hover:text-gray-900 border border-transparent"
+                              ? "bg-muted/50 text-foreground border border-primary/20"
+                              : "text-muted-foreground hover:text-foreground border border-transparent"
                           }`}
                         >
                           <option.icon className="w-3 h-3 stroke-[1.75]" />
@@ -849,7 +846,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     </div>
                     
                     {/* Last Synced + Refresh */}
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="w-3 h-3 stroke-[1.75]" />
                       <span>
                         {profile.x_last_profile_sync_at || profile.x_last_tweets_sync_at
@@ -882,18 +879,18 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                       activePlatform === platform.id && platform.active
                         ? "bg-primary text-primary-foreground border border-border"
                         : platform.active
-                        ? "text-gray-600 hover:text-gray-900 border border-white/10 hover:border-white/20"
-                        : "text-gray-500 border border-white/5 cursor-not-allowed"
+                        ? "text-muted-foreground hover:text-foreground border border-border hover:border-primary/20"
+                        : "text-muted-foreground border border-border/50 cursor-not-allowed"
                     }`}
                   >
                     {platform.id === "x" ? (
-                      <span className="text-base font-bold text-gray-900" aria-label="X">𝕏</span>
+                      <span className="text-base font-bold text-foreground" aria-label="X">𝕏</span>
                     ) : (
                       platform.icon && <platform.icon className="w-4 h-4 stroke-[1.75]" />
                     )}
                     {platform.label}
                     {!platform.active && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-gray-500">Soon</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-card text-muted-foreground">Soon</span>
                     )}
                   </button>
                 ))}
@@ -901,18 +898,18 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             </div>
 
             {/* Row 1.5: Search (brands: public profiles or approved/applicants) */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-white/10">
-              <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 focus-within:border-white/20 transition-colors">
-                <Search className="w-4 h-4 text-gray-500 stroke-[1.75]" />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-border">
+              <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border focus-within:border-primary/20 transition-colors">
+                <Search className="w-4 h-4 text-muted-foreground stroke-[1.75]" />
                 <input
                   type="search"
                   placeholder={entityType === "creator" ? "Search your analytics…" : "Search public profiles or approved applicants…"}
-                  className="flex-1 min-w-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
+                  className="flex-1 min-w-0 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
                   aria-label="Search profiles"
                 />
               </div>
               {entityType !== "creator" && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   Brands can search all public profiles or limit to users who approved access or applied to your project.
                 </p>
               )}
@@ -920,7 +917,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
 
             {/* Row 2: Global Time Period Selector */}
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-gray-600">Time Period:</span>
+              <span className="text-sm font-medium text-muted-foreground">Time Period:</span>
               <div className="flex items-center gap-2">
                 {(["7D", "30D", "90D"] as const).map((period) => (
                   <motion.button
@@ -931,7 +928,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                       timePeriod === period
                         ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-                        : "bg-white/5 border border-white/10 text-gray-600 hover:text-gray-900 hover:border-white/20"
+                        : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/20"
                     }`}
                   >
                     {period === "7D" ? "Last 7 Days" : period === "30D" ? "Last 30 Days" : "Last 90 Days"}
@@ -957,7 +954,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             const delta = timePeriod === "7D" ? kpi.delta7D : timePeriod === "30D" ? kpi.delta30D : kpi.delta90D;
             const isPositive = delta > 0;
             const isNegative = delta < 0;
-            const deltaColor = isPositive ? "text-green-600" : isNegative ? "text-orange-800" : "text-gray-500";
+            const deltaColor = isPositive ? "text-green-600" : isNegative ? "text-orange-800" : "text-muted-foreground";
             const DeltaIcon = isPositive ? TrendingUp : isNegative ? TrendingDown : null;
 
             return (
@@ -966,7 +963,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.05 }}
-                className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-6 hover:border-white/20 transition-all group"
+                className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card to-muted/20 backdrop-blur-xl p-6 hover:border-primary/20 transition-all group"
               >
                 {/* Signal Badge */}
                 <div className={`absolute top-4 right-4 flex items-center gap-1.5 px-2 py-1 rounded-full border bg-gradient-to-r ${signalStyle.bg} ${signalStyle.border}`}>
@@ -977,11 +974,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 </div>
 
                 {/* Label */}
-                <p className="text-sm font-medium text-gray-600 mb-2">{kpi.label}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-2">{kpi.label}</p>
 
                 {/* Value */}
                 <div className="flex items-end gap-3 mb-3">
-                  <h3 className="text-4xl font-bold text-gray-900">{kpi.value}</h3>
+                  <h3 className="text-4xl font-bold text-foreground">{kpi.value}</h3>
                   <div className="flex items-center gap-1 mb-2">
                     {DeltaIcon && <DeltaIcon className={`w-4 h-4 ${deltaColor} stroke-[1.75]`} />}
                     <span className={`text-sm font-semibold ${deltaColor}`}>
@@ -996,8 +993,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     onClick={() => setTimePeriod("7D")}
                     className={`px-2 py-1 rounded-md text-xs font-medium transition-all ${
                       timePeriod === "7D"
-                        ? "bg-white/10 text-white"
-                        : "text-gray-700 hover:text-gray-900"
+                        ? "bg-muted/50 text-foreground"
+                        : "text-foreground hover:text-foreground"
                     }`}
                   >
                     7D
@@ -1006,8 +1003,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     onClick={() => setTimePeriod("30D")}
                     className={`px-2 py-1 rounded-md text-xs font-medium transition-all ${
                       timePeriod === "30D"
-                        ? "bg-white/10 text-white"
-                        : "text-gray-700 hover:text-gray-900"
+                        ? "bg-muted/50 text-foreground"
+                        : "text-foreground hover:text-foreground"
                     }`}
                   >
                     30D
@@ -1016,8 +1013,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     onClick={() => setTimePeriod("90D")}
                     className={`px-2 py-1 rounded-md text-xs font-medium transition-all ${
                       timePeriod === "90D"
-                        ? "bg-white/10 text-white"
-                        : "text-gray-700 hover:text-gray-900"
+                        ? "bg-muted/50 text-foreground"
+                        : "text-foreground hover:text-foreground"
                     }`}
                   >
                     90D
@@ -1042,7 +1039,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 )}
 
                 {/* Insight */}
-                <p className="text-xs text-gray-600 leading-relaxed">{kpi.insight}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{kpi.insight}</p>
                 {kpi.sinceJoining && (
                   <p className="text-xs text-primary mt-2 font-medium">{kpi.sinceJoining}</p>
                 )}
@@ -1053,7 +1050,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
 
         {/* Data freshness: tweets, snapshots, aggregates */}
         {activePlatform === "x" && (
-          <div className="text-xs text-gray-600 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
             <span>
               Tweets last synced:{" "}
               {xAnalyticsData?.freshness?.tweets_last_synced_at
@@ -1095,29 +1092,29 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="rounded-xl border border-white/10 bg-white/5 overflow-hidden"
+            className="rounded-xl border border-border bg-card overflow-hidden"
           >
             <button
               type="button"
               onClick={() => setDiagnosticsOpen((o) => !o)}
-              className="w-full px-4 py-3 flex items-center justify-between text-left text-sm font-medium text-gray-700 hover:bg-white/10"
+              className="w-full px-4 py-3 flex items-center justify-between text-left text-sm font-medium text-foreground hover:bg-muted/50"
             >
               <span>Diagnostics</span>
               {diagnosticsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
             {diagnosticsOpen && (
-              <div className="px-4 pb-4 border-t border-white/10">
+              <div className="px-4 pb-4 border-t border-border">
                 <table className="w-full text-xs text-left border-collapse">
                   <tbody>
-                    <tr><th className="py-1 pr-4 font-semibold text-gray-600">has_outlier_day</th><td>{String(xAnalyticsData.diagnostics.has_outlier_day)}</td></tr>
+                    <tr><th className="py-1 pr-4 font-semibold text-muted-foreground">has_outlier_day</th><td>{String(xAnalyticsData.diagnostics.has_outlier_day)}</td></tr>
                     {xAnalyticsData.diagnostics.top_day_last30_from_x_tweets && (
                       <>
-                        <tr><th className="py-1 pr-4 font-semibold text-gray-600">top_day</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.day}</td></tr>
-                        <tr><th className="py-1 pr-4 font-semibold text-gray-600">likes</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.likes}</td></tr>
-                        <tr><th className="py-1 pr-4 font-semibold text-gray-600">replies</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.replies}</td></tr>
-                        <tr><th className="py-1 pr-4 font-semibold text-gray-600">reposts</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.reposts}</td></tr>
-                        <tr><th className="py-1 pr-4 font-semibold text-gray-600">tweets_count</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.tweets_count}</td></tr>
-                        <tr><th className="py-1 pr-4 font-semibold text-gray-600">max_like_tweet_id</th><td className="font-mono">{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.max_like_tweet_id ?? "—"}</td></tr>
+                        <tr><th className="py-1 pr-4 font-semibold text-muted-foreground">top_day</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.day}</td></tr>
+                        <tr><th className="py-1 pr-4 font-semibold text-muted-foreground">likes</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.likes}</td></tr>
+                        <tr><th className="py-1 pr-4 font-semibold text-muted-foreground">replies</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.replies}</td></tr>
+                        <tr><th className="py-1 pr-4 font-semibold text-muted-foreground">reposts</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.reposts}</td></tr>
+                        <tr><th className="py-1 pr-4 font-semibold text-muted-foreground">tweets_count</th><td>{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.tweets_count}</td></tr>
+                        <tr><th className="py-1 pr-4 font-semibold text-muted-foreground">max_like_tweet_id</th><td className="font-mono">{xAnalyticsData.diagnostics.top_day_last30_from_x_tweets.max_like_tweet_id ?? "—"}</td></tr>
                       </>
                     )}
                   </tbody>
@@ -1132,13 +1129,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-8"
+          className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card to-muted/20 backdrop-blur-xl p-8"
         >
           <div className="flex items-center gap-3 mb-6">
             <Sparkles className="w-6 h-6 text-primary stroke-[1.75]" />
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Signals</h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <h2 className="text-2xl font-bold text-foreground">Signals</h2>
+              <p className="text-sm text-muted-foreground mt-1">
                 AI-detected insights from your analytics data
               </p>
             </div>
@@ -1158,19 +1155,19 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-r ${signalStyle.bg} ${signalStyle.border} p-5 hover:scale-[1.01] transition-all cursor-pointer`}
                 >
                   <div className="flex items-start gap-4">
-                    <div className="p-2 rounded-xl bg-white/10 border border-white/20 flex-shrink-0">
+                    <div className="p-2 rounded-xl bg-muted/50 border border-primary/20 flex-shrink-0">
                       <SignalIcon className={`w-5 h-5 ${signalStyle.text} stroke-[1.75]`} />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-gray-900 font-semibold mb-2 leading-relaxed">{signal.title}</h3>
+                      <h3 className="text-foreground font-semibold mb-2 leading-relaxed">{signal.title}</h3>
                       <div className="flex items-center justify-between">
                         <p className={`text-sm ${signalStyle.text} font-medium`}>{signal.metric}</p>
                         {signal.timestamp && (
-                          <p className="text-xs text-gray-500">{signal.timestamp}</p>
+                          <p className="text-xs text-muted-foreground">{signal.timestamp}</p>
                         )}
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-gray-900 group-hover:translate-x-1 transition-all flex-shrink-0 stroke-[1.75]" />
+                    <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1 transition-all flex-shrink-0 stroke-[1.75]" />
                   </div>
                 </motion.div>
               );
@@ -1183,14 +1180,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-8"
+          className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card to-muted/20 backdrop-blur-xl p-8"
         >
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <Target className="w-6 h-6 text-primary stroke-[1.75]" />
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Top Drivers (30D)</h2>
-                <p className="text-sm text-gray-600 mt-1">
+                <h2 className="text-2xl font-bold text-foreground">Top Drivers (30D)</h2>
+                <p className="text-sm text-muted-foreground mt-1">
                   Posts that contributed most to your growth. Data from your synced X tweets (Integrations). Engagement uses likes, replies, and reposts only.
                 </p>
               </div>
@@ -1202,26 +1199,26 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-white/10">
-                  <th className="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider pb-3">
+                <tr className="border-b border-border">
+                  <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider pb-3">
                     Date
                   </th>
-                  <th className="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider pb-3">
+                  <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider pb-3">
                     Type
                   </th>
-                  <th className="text-right text-xs font-semibold text-gray-600 uppercase tracking-wider pb-3">
+                  <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider pb-3">
                     Likes
                   </th>
-                  <th className="text-right text-xs font-semibold text-gray-600 uppercase tracking-wider pb-3">
+                  <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider pb-3">
                     Replies
                   </th>
-                  <th className="text-right text-xs font-semibold text-gray-600 uppercase tracking-wider pb-3">
+                  <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider pb-3">
                     Reposts
                   </th>
-                  <th className="text-right text-xs font-semibold text-gray-600 uppercase tracking-wider pb-3">
+                  <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider pb-3">
                     ER %
                   </th>
-                  <th className="text-right text-xs font-semibold text-gray-600 uppercase tracking-wider pb-3">
+                  <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider pb-3">
                     Growth
                   </th>
                 </tr>
@@ -1233,9 +1230,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.4, delay: index * 0.05 }}
-                    className="border-b border-white/5 hover:bg-white/5 transition-colors group"
+                    className="border-b border-border/50 hover:bg-card transition-colors group"
                   >
-                    <td className="py-4 text-sm text-gray-900 font-medium">
+                    <td className="py-4 text-sm text-foreground font-medium">
                       {driver.date}{driver.time ? ` · ${driver.time}` : ""}
                     </td>
                     <td className="py-4">
@@ -1243,19 +1240,19 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                         {driver.postType.charAt(0).toUpperCase() + driver.postType.slice(1)}
                       </span>
                     </td>
-                    <td className="py-4 text-right text-sm text-gray-700">
+                    <td className="py-4 text-right text-sm text-foreground">
                       <div className="flex items-center justify-end gap-1.5">
                         <Heart className="w-3.5 h-3.5 text-primary stroke-[1.75]" />
                         {driver.likes.toLocaleString()}
                       </div>
                     </td>
-                    <td className="py-4 text-right text-sm text-gray-700">
+                    <td className="py-4 text-right text-sm text-foreground">
                       <div className="flex items-center justify-end gap-1.5">
                         <MessageSquare className="w-3.5 h-3.5 text-primary stroke-[1.75]" />
                         {driver.replies}
                       </div>
                     </td>
-                    <td className="py-4 text-right text-sm text-gray-700">
+                    <td className="py-4 text-right text-sm text-foreground">
                       <div className="flex items-center justify-end gap-1.5">
                         <Repeat className="w-3.5 h-3.5 text-primary stroke-[1.75]" />
                         {driver.reposts}
@@ -1273,7 +1270,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             </table>
           </div>
           ) : (
-            <p className="text-sm text-gray-600 py-6">
+            <p className="text-sm text-muted-foreground py-6">
               No top drivers yet. Sync from Integrations to populate. Data is collected from the day you connect X.
             </p>
           )}
@@ -1286,10 +1283,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.5 }}
-            className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-6"
+            className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card to-muted/20 backdrop-blur-xl p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-primary stroke-[1.75]" />
                 Follower Growth
               </h3>
@@ -1302,7 +1299,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       range === timePeriod
                         ? "bg-accent text-primary border border-border"
-                        : "text-gray-600 hover:text-gray-900 border border-white/10"
+                        : "text-muted-foreground hover:text-foreground border border-border"
                     }`}
                   >
                     {range}
@@ -1314,7 +1311,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             {snapshotsForFollowerChart.length >= 2 ? (
             <div className="flex gap-3">
               <div className="flex-1">
-                <div className="relative h-48 flex items-end gap-0.5 border-l border-b border-white/10">
+                <div className="relative h-48 flex items-end gap-0.5 border-l border-b border-border">
                   {snapshotsForFollowerChart.map((s, i) => {
                     const val = Number(s.followers_total ?? 0);
                     const max = Math.max(...snapshotsForFollowerChart.map((x) => Number(x.followers_total ?? 0)), 1);
@@ -1335,14 +1332,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     );
                   })}
                 </div>
-                <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
+                <div className="flex justify-between text-xs text-muted-foreground mt-2 px-1">
                   <span>{snapshotsForFollowerChart[0]?.snapshot_date ?? ""}</span>
                   <span>{snapshotsForFollowerChart[snapshotsForFollowerChart.length - 1]?.snapshot_date ?? ""}</span>
                 </div>
               </div>
             </div>
             ) : (
-              <p className="text-sm text-gray-600 py-8">
+              <p className="text-sm text-muted-foreground py-8">
                 Sync from Integrations to see follower growth. Data is collected from the day you connect X.
               </p>
             )}
@@ -1353,10 +1350,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.55 }}
-            className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-6"
+            className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card to-muted/20 backdrop-blur-xl p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary stroke-[1.75]" />
                 Engagement Rate
               </h3>
@@ -1369,7 +1366,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       range === timePeriod
                         ? "bg-accent text-primary border border-border"
-                        : "text-gray-600 hover:text-gray-900 border border-white/10"
+                        : "text-muted-foreground hover:text-foreground border border-border"
                     }`}
                   >
                     {range}
@@ -1381,9 +1378,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             {hasEngagementChartData ? (
             <div className="flex gap-3">
               <div className="flex-1">
-                <div className="relative h-48 flex items-end gap-2 border-l border-b border-white/10">
+                <div className="relative h-48 flex items-end gap-2 border-l border-b border-border">
                   {[0, 1, 2, 3, 4].map((i) => (
-                    <div key={i} className="absolute left-0 right-0 border-t border-white/5" style={{ bottom: `${i * 25}%` }} />
+                    <div key={i} className="absolute left-0 right-0 border-t border-border/50" style={{ bottom: `${i * 25}%` }} />
                   ))}
                   {engagementValues.map((val, i) => {
                     const valid = engagementValues.filter((v): v is number => v != null && Number.isFinite(v));
@@ -1404,14 +1401,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     );
                   })}
                 </div>
-                <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
+                <div className="flex justify-between text-xs text-muted-foreground mt-2 px-1">
                   <span>{last30DaysOrdered[0]?.[0] ?? "Day 1"}</span>
                   <span>{last30DaysOrdered[last30DaysOrdered.length - 1]?.[0] ?? "Day " + last30DaysOrdered.length}</span>
                 </div>
               </div>
             </div>
             ) : (
-              <p className="text-sm text-gray-600 py-8">
+              <p className="text-sm text-muted-foreground py-8">
                 Sync from Integrations and run the backfill to see daily engagement. Data comes from your synced X tweets.
               </p>
             )}
@@ -1422,10 +1419,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.6 }}
-            className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl p-6 lg:col-span-2"
+            className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card to-muted/20 backdrop-blur-xl p-6 lg:col-span-2"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-primary stroke-[1.75]" />
                 Posting Cadence (30D)
               </h3>
@@ -1434,9 +1431,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             {hasCadenceData ? (
             <div className="flex gap-3">
               <div className="flex-1">
-                <div className="relative h-48 flex items-end gap-2 border-l border-b border-white/10">
+                <div className="relative h-48 flex items-end gap-2 border-l border-b border-border">
                   {[0, 1, 2, 3, 4].map((i) => (
-                    <div key={i} className="absolute left-0 right-0 border-t border-white/5" style={{ bottom: `${i * 25}%` }} />
+                    <div key={i} className="absolute left-0 right-0 border-t border-border/50" style={{ bottom: `${i * 25}%` }} />
                   ))}
                   {cadenceValues.map((posts, i) => {
                     const max = Math.max(...cadenceValues, 1);
@@ -1461,14 +1458,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     );
                   })}
                 </div>
-                <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
+                <div className="flex justify-between text-xs text-muted-foreground mt-2 px-1">
                   <span>{last30DaysOrdered[0]?.[0] ?? "Day 1"}</span>
                   <span>{last30DaysOrdered[last30DaysOrdered.length - 1]?.[0] ?? "Day " + last30DaysOrdered.length}</span>
                 </div>
               </div>
             </div>
             ) : (
-              <p className="text-sm text-gray-600 py-8">
+              <p className="text-sm text-muted-foreground py-8">
                 Sync from Integrations and run the backfill to see posting cadence. Data comes from your synced X tweets.
               </p>
             )}
@@ -1483,10 +1480,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-accent to-muted backdrop-blur-xl p-8 text-center"
           >
             <Zap className="w-12 h-12 text-primary mx-auto mb-4 stroke-[1.75]" />
-            <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center gap-2">
+            <h3 className="text-xl font-bold text-foreground mb-2 flex items-center justify-center gap-2">
               {activePlatform === "youtube" ? "YouTube" : "TikTok"} Analytics <FeatureStatusBadge status="coming-soon" />
             </h3>
-            <p className="text-gray-600 max-w-md mx-auto">
+            <p className="text-muted-foreground max-w-md mx-auto">
               We're building {activePlatform === "youtube" ? "YouTube" : "TikTok"} integration with the same
               signals-first approach. Stay tuned!
             </p>

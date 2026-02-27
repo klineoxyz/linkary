@@ -63,26 +63,31 @@ export function ProfileAvatar({
   );
 }
 
-// Glass Card Component
+// Glass Card Component — variant light for app shell (bg-[#F7F8FB]), dark for dark backgrounds
 export function GlassCard({
   children,
   className = "",
   hover = true,
   onClick,
   id,
+  variant = "light",
 }: {
   children: React.ReactNode;
   className?: string;
   hover?: boolean;
   onClick?: () => void;
   id?: string;
+  variant?: "light" | "dark";
 }) {
+  const isLight = variant === "light";
   return (
     <div
       id={id}
       onClick={onClick}
-      className={`rounded-3xl backdrop-blur-3xl border border-white/10 shadow-2xl overflow-hidden transition-all duration-500 bg-gradient-to-br from-white/5 to-white/[0.02] ${
-        hover ? "hover:border-white/20 hover:scale-[1.02]" : ""
+      className={`rounded-3xl backdrop-blur-3xl overflow-hidden transition-all duration-500 ${
+        isLight
+          ? "border border-border bg-card shadow-sm " + (hover ? "hover:border-primary/20 hover:shadow-md" : "")
+          : "border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] " + (hover ? "hover:border-white/20 hover:scale-[1.02]" : "")
       } ${onClick ? "cursor-pointer" : ""} ${className}`}
     >
       {children}
@@ -90,35 +95,41 @@ export function GlassCard({
   );
 }
 
-// Stat Card with icon, value, and change indicator
+// Stat Card with icon, value, and change indicator — variant light for app shell
 export function StatCard({
   label,
   value,
   change,
   icon: Icon,
   gradient = "from-primary/20 to-primary/10",
+  variant = "light",
 }: {
   label: string;
   value: string | number;
   change?: string;
   icon: any;
   gradient?: string;
+  variant?: "light" | "dark";
 }) {
+  const isLight = variant === "light";
   const isPositive = change?.startsWith("+");
   return (
-    <div className="relative p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-white/8 to-white/[0.03] border border-white/20 hover:border-white/30 transition-all duration-300 hover:scale-[1.02] backdrop-blur-xl shadow-lg hover:shadow-xl min-w-0 group">
-      {/* Gradient accent */}
+    <div className={`relative p-5 sm:p-6 rounded-2xl transition-all duration-300 min-w-0 group ${
+      isLight
+        ? "bg-card border border-border shadow-sm hover:shadow-md hover:border-primary/20"
+        : "bg-gradient-to-br from-white/8 to-white/[0.03] border border-white/20 hover:border-white/30 hover:scale-[1.02] backdrop-blur-xl shadow-lg hover:shadow-xl"
+    }`}>
       <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r ${gradient} opacity-60 group-hover:opacity-100 transition-opacity`} />
       
       <div className="flex items-center gap-3 mb-4">
-        <div className={`p-2 sm:p-2.5 rounded-xl bg-gradient-to-br ${gradient} border border-white/30 flex-shrink-0 shadow-lg`}>
-          <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white stroke-[1.75]" />
+        <div className={`p-2 sm:p-2.5 rounded-xl bg-gradient-to-br ${gradient} flex-shrink-0 shadow-lg ${isLight ? "border border-primary/20" : "border border-white/30"}`}>
+          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 stroke-[1.75] ${isLight ? "text-primary" : "text-white"}`} />
         </div>
-        <span className="text-xs sm:text-sm text-white/70 font-medium truncate flex-1 min-w-0 uppercase tracking-wide">{label}</span>
+        <span className={`text-xs sm:text-sm font-medium truncate flex-1 min-w-0 uppercase tracking-wide ${isLight ? "text-muted-foreground" : "text-white/70"}`}>{label}</span>
       </div>
       
       <div className="flex items-end justify-between gap-3 min-w-0">
-        <div className="text-2xl sm:text-3xl font-bold text-white truncate flex-1 min-w-0 tracking-tight">{value}</div>
+        <div className={`text-2xl sm:text-3xl font-bold truncate flex-1 min-w-0 tracking-tight ${isLight ? "text-foreground" : "text-white"}`}>{value}</div>
         {change && (
           <div
             className={`flex items-center gap-1 text-xs sm:text-sm font-semibold flex-shrink-0 px-2 py-1 rounded-lg backdrop-blur-sm border ${

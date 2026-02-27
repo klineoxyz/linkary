@@ -73,8 +73,11 @@
 })();
 
 import React, { Suspense, useEffect, useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+import useSWR from "swr";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { authFetcher, SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
 import { AnimatePresence, motion } from "motion/react";
 // Linkary brand assets - icons in public/icons/, full logos in public/logos/
 const linkaryIconWhite = "/icons/icon-white.svg";
@@ -141,8 +144,6 @@ import AgencyProfilePage from "./components/AgencyProfilePage";
 import ComponentShowcase from "./components/ComponentShowcase";
 import CalendarPage from "./components/CalendarPage";
 import XSpacesPage from "./components/XSpacesPage";
-import DashboardPage from "./components/DashboardPage";
-import InsightsTab from "./components/profile/InsightsTab";
 import OrgDetailPage from "./components/OrgDetailPage";
 import DealDetailPage from "./components/DealDetailPage";
 import AffiliationAmbassadorSection from "./components/AffiliationAmbassadorSection";
@@ -157,7 +158,6 @@ import { listConversationsForUser, listMessages, sendMessageAsProfile, sendMessa
 import { listMyOrgs } from "@/lib/orgs";
 import { listCaseStudiesForProfile, createCaseStudyForProfile } from "@/lib/caseStudies";
 import LandingPage from "./components/LandingPage";
-import AnalyticsPage from "./components/AnalyticsPage";
 import PrivacyDataPage from "./components/PrivacyDataPage";
 import TermsOfServicePage from "./components/TermsOfServicePage";
 import PrivacyPolicyPage from "./components/PrivacyPolicyPage";
@@ -173,6 +173,15 @@ import KOLListsPage from "./components/circles/KOLListsPage";
 import CapitalPartnersPage from "./components/circles/CapitalPartnersPage";
 import ConnectionsPage from "./components/ConnectionsPage";
 import WatchlistPage from "./components/WatchlistPage";
+
+const DashboardPage = dynamic(
+  () => import("./components/DashboardPage").then((m) => m.default),
+  { ssr: false }
+);
+const AnalyticsPage = dynamic(
+  () => import("./components/AnalyticsPage").then((m) => m.default),
+  { ssr: false }
+);
 
 // Import Monetization system components
 import PlansAndBillingPage from "./components/monetization/PlansAndBillingPage";
@@ -794,8 +803,7 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   if (parts[0] === "profile" && parts[1] === "deals") return { name: "profileDeals" };
   if (parts[0] === "profile" && parts[1] === "applications") return { name: "profileApplications" };
   if (parts[0] === "profile" && parts[1] === "dashboard") {
-    const username = searchParams?.get("username") ?? undefined;
-    return { name: "profile", data: { tab: "insights", username } };
+    return { name: "analytics" };
   }
   if (parts[0] === "profile" && !parts[1]) {
     const tab = searchParams?.get("tab") ?? undefined;
@@ -2372,20 +2380,14 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
     if (!me?.id) return;
     getXConnection(me.id).then((conn) => setXHandle(conn?.username ?? null));
   }, [me?.id]);
+  const { data: meStatsSwr } = useSWR<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; socialPower?: number; reviews?: { avg: number; count: number } }>(
+    me?.id ? "/api/profile/me-stats" : null,
+    authFetcher as (url: string) => Promise<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; socialPower?: number; reviews?: { avg: number; count: number } }>,
+    { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS }
+  );
   useEffect(() => {
-    if (!me?.id) return;
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) return;
-      const base = typeof window !== "undefined" ? window.location.origin : "";
-      const res = await fetch(`${base}/api/profile/me-stats`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) {
-        const j = await res.json();
-        setMeStats({ ethos: j.ethos ?? null, xscore: j.xscore ?? null, reputationIndex: j.reputationIndex ?? 0, socialPower: j.socialPower ?? 0, reviews: j.reviews ?? { avg: 0, count: 0 } });
-      }
-    })();
-  }, [me?.id]);
+    if (meStatsSwr) setMeStats({ ethos: meStatsSwr.ethos ?? null, xscore: meStatsSwr.xscore ?? null, reputationIndex: meStatsSwr.reputationIndex ?? 0, socialPower: meStatsSwr.socialPower ?? 0, reviews: meStatsSwr.reviews ?? { avg: 0, count: 0 } });
+  }, [meStatsSwr]);
 
   // Debounced profile search (people only)
   useEffect(() => {
@@ -2446,30 +2448,6 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   const displayCaseStudies = caseStudies.length > 0 ? caseStudies : (u.caseStudies ?? []);
   const isMyProfile = !!me?.id;
 
-  if (tab === "insights") {
-    return (
-      <div className="font-app text-foreground space-y-6">
-        <div className="mb-4 flex gap-2 border-b border-border pb-2">
-          <button
-            type="button"
-            onClick={() => setProfileTab("overview")}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary"
-          >
-            Overview
-          </button>
-          <button
-            type="button"
-            onClick={() => setProfileTab("insights")}
-            className="rounded-lg bg-secondary px-3 py-2 text-sm font-semibold text-foreground"
-          >
-            Insights
-          </button>
-        </div>
-        <InsightsTab setRoute={setRoute} me={me} username={viewUsername} getAuthHeaders={getAuthHeaders} />
-      </div>
-    );
-  }
-
   return (
     <div className="font-app text-foreground space-y-6">
       <div className="mb-4 flex gap-2 border-b border-border pb-2">
@@ -2480,13 +2458,12 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
         >
           Overview
         </button>
-        <button
-          type="button"
-          onClick={() => setProfileTab("insights")}
+        <a
+          href="/analytics"
           className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary"
         >
-          Insights
-        </button>
+          Analytics
+        </a>
       </div>
       <div className="mb-8 relative z-[10] flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
         <div className="flex flex-wrap gap-3">
@@ -2739,7 +2716,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
                     <li key={r.id}>
                       <button
                         type="button"
-                        onClick={() => setRoute({ name: "profile", data: { tab: "insights", username } })}
+                        onClick={() => setRoute({ name: "profile", data: { username } })}
                         className="flex w-full items-center gap-3 rounded-xl border border-border bg-muted px-3 py-2.5 text-left transition-colors hover:bg-secondary hover:border-border"
                       >
                         {r.avatar ? (

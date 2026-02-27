@@ -88,7 +88,7 @@ export default function WatchlistPage({
               <li key={p.entity_id}>
                 <button
                   type="button"
-                  onClick={() => setRoute({ name: "profile", data: { tab: "insights", username: p.username ?? undefined } })}
+                  onClick={() => setRoute({ name: "profile", data: { username: p.username ?? undefined } })}
                   className="flex w-full items-center gap-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 >
                   {p.avatar_url && !isPrivateStorageUrl(p.avatar_url) ? (

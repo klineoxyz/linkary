@@ -497,15 +497,6 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       const displayUsername = payload.profile.username ?? segmentLower;
 
       const profileUrl = `${baseUrl().replace(/\/$/, "")}/${encodeURIComponent(displayUsername)}`;
-      let isAuthenticated = false;
-      try {
-        const { createServerSupabase } = await import("@/lib/supabase/server");
-        const serverSupabase = await createServerSupabase();
-        const { data: { user } } = await serverSupabase.auth.getUser();
-        isAuthenticated = !!user;
-      } catch {
-        /* ignore */
-      }
       return (
         <div className="min-h-screen bg-background text-foreground font-sans">
           {isUnpublished && (
@@ -513,7 +504,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
               This profile is not published yet.
             </div>
           )}
-          <PublicProfileContent data={payload} username={displayUsername} profileUrl={profileUrl} isAuthenticated={isAuthenticated} />
+          <PublicProfileContent data={payload} username={displayUsername} profileUrl={profileUrl} />
           {isDebug && (
             <pre className="mx-auto max-w-xl px-4 py-6 text-xs text-muted-foreground overflow-auto rounded bg-muted p-4 mt-4">
               {JSON.stringify(

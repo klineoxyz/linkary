@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 const ROUTES = {
   profileEdit: "/profile/edit",
@@ -17,30 +18,43 @@ export type ActionBarProps = {
   profileType: "individual" | "project" | "company";
   username: string;
   profileUrl: string;
+  /** @deprecated Server must not pass auth; ActionBar checks session client-side for ISR-safe HTML. */
   isAuthenticated?: boolean;
   canApplyToGigs?: boolean;
   className?: string;
 };
 
+/**
+ * Action bar CTAs. Always renders unauth labels/links in initial HTML (ISR-safe).
+ * After hydration, checks session client-side and upgrades to authenticated CTAs if logged in.
+ */
 export function ActionBar({
   profileType,
   username,
   profileUrl,
-  isAuthenticated = false,
+  isAuthenticated: _serverAuthIgnored = false,
   canApplyToGigs = false,
   className = "",
 }: ActionBarProps) {
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAuthed(!!session);
+    });
+  }, []);
+
   const insightsHref = `/u/${encodeURIComponent(username)}/insights`;
 
   if (profileType === "individual") {
-    const requestHref = isAuthenticated ? profileUrl : buildRedirect(profileUrl);
+    const requestHref = authed ? profileUrl : buildRedirect(profileUrl);
     return (
       <nav className={`flex flex-wrap items-center gap-2 ${className}`} aria-label="Profile actions">
         <Link
           href={requestHref}
           className="inline-flex items-center rounded-lg border border-primary bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          {isAuthenticated ? "Request collab" : "Sign in to contact"}
+          {authed ? "Request collab" : "Sign in to contact"}
         </Link>
         <Link
           href={insightsHref}
@@ -52,14 +66,14 @@ export function ActionBar({
     );
   }
 
-  const postGigHref = isAuthenticated ? ROUTES.profileEdit : buildRedirect(ROUTES.profileEdit);
+  const postGigHref = authed ? ROUTES.profileEdit : buildRedirect(ROUTES.profileEdit);
   return (
     <nav className={`flex flex-wrap items-center gap-2 ${className}`} aria-label="Profile actions">
       <Link
         href={postGigHref}
         className="inline-flex items-center rounded-lg border border-primary bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
-        {isAuthenticated ? "Post a gig" : "Sign in to post a gig"}
+        {authed ? "Post a gig" : "Sign in to post a gig"}
       </Link>
       <Link
         href={ROUTES.explore}

@@ -59,6 +59,12 @@ hero, header, socials, proof, featured, token, team, gigs, relations, skills, ac
 
 ---
 
+## P1.5 extension (order + preset defaults)
+
+See **docs/PHASE2_P15_LAYOUT_ORDER.md** for: order-driven section rendering on the public page, preset default orders/hidden, left/right column assignment, and “Reset to preset defaults” in ProfileEditPage.
+
+---
+
 ## File paths touched
 
 | Path | Change |

@@ -12,6 +12,7 @@ import { MediaUploadField } from "@/components/MediaUploadField";
 import { SignedMediaImage } from "@/components/SignedMediaImage";
 import type { Profession } from "@/lib/professions";
 import type { Profile } from "@/lib/profiles";
+import { PRESET_DEFAULT_ORDER, PRESET_DEFAULT_HIDDEN, type PresetName } from "@/lib/publicLayoutPresets";
 
 type HeaderMediaType = "NONE" | "IMAGE" | "VIDEO";
 
@@ -1892,6 +1893,25 @@ export default function ProfileEditPage({
         <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
           <label className="block text-sm font-medium text-zinc-700">Section order &amp; visibility</label>
           <p className="text-xs text-zinc-500 mb-2">Reorder sections and hide sections you don&apos;t want on your public page.</p>
+          <button
+            type="button"
+            onClick={async () => {
+              const preset = publicLayoutPreset as PresetName;
+              const order = PRESET_DEFAULT_ORDER[preset];
+              const hidden = PRESET_DEFAULT_HIDDEN[preset];
+              setLayoutOrder([...order]);
+              setLayoutHidden(Object.fromEntries(hidden.map((k) => [k, true])));
+              if (me?.id) {
+                await updateMyProfile(me.id, {
+                  public_layout_order: order,
+                  public_layout_hidden: hidden,
+                });
+              }
+            }}
+            className="mb-2 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+          >
+            Reset to preset defaults
+          </button>
           <ul className="space-y-1">
             {layoutOrder.map((key, i) => {
               const label = key.replace(/_/g, " ");

@@ -1,6 +1,16 @@
 import type { PublicProfileApiPayload } from "@/app/api/public/profile/route";
+import {
+  LEFT_COLUMN_KEYS,
+  PRESET_DEFAULT_ORDER,
+  PRESET_DEFAULT_HIDDEN,
+  RIGHT_COLUMN_KEYS,
+  SECTION_KEYS,
+  type PresetName,
+  type SectionKey,
+} from "@/lib/publicLayoutPresets";
 import { BadgeCheck, ChevronRight, ExternalLink, Globe, Link2, Share2 } from "lucide-react";
 import Link from "next/link";
+import React, { Fragment } from "react";
 import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
 import { ApplyToGigButton } from "./ApplyToGigButton";
 
@@ -221,9 +231,6 @@ type Props = {
   profileUrl?: string;
 };
 
-const SECTION_KEYS = ["hero", "header", "socials", "proof", "featured", "token", "team", "gigs", "relations", "skills", "achievements", "case_studies", "links", "reviews"] as const;
-const DEFAULT_ORDER: string[] = [...SECTION_KEYS];
-
 export function PublicProfileContent({ data, username, profileUrl: profileUrlProp }: Props) {
   const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations, skills = [], achievements = [] } = data;
   const profileType = profile.profile_type ?? "individual";
@@ -233,8 +240,26 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const basePath = base.replace(/\/$/, "");
   const profileUrl = profileUrlProp ?? `${basePath}/${encodeURIComponent(handle)}`;
 
-  const layoutOrder = (profile.layout_order && profile.layout_order.length > 0) ? profile.layout_order.filter((k) => SECTION_KEYS.includes(k as (typeof SECTION_KEYS)[number])) : null;
-  const layoutHidden = new Set(profile.layout_hidden ?? []);
+  const layoutPreset: PresetName = (profile.public_layout === "spotlight" || profile.public_layout === "showcase" || profile.public_layout === "compact")
+    ? profile.public_layout
+    : "classic";
+  const isSpotlight = layoutPreset === "spotlight";
+  const isShowcase = layoutPreset === "showcase";
+  const isCompact = layoutPreset === "compact";
+  const sectionSpacing = isCompact ? "mb-5" : "mb-8";
+  const rightSectionSpacing = isCompact ? "mb-5" : "mb-8";
+  const featuredCardClass = isShowcase ? "rounded-2xl border-2 border-primary/25 bg-card shadow-lg hover:shadow-primary/15 hover:border-primary/35" : sectionCardClass;
+
+  const hasCustomOrder = Array.isArray(profile.layout_order) && profile.layout_order.length > 0;
+  const resolvedOrder: SectionKey[] = hasCustomOrder
+    ? profile.layout_order!.filter((k): k is SectionKey => SECTION_KEYS.includes(k as SectionKey))
+    : PRESET_DEFAULT_ORDER[layoutPreset];
+  const hasCustomHidden = Array.isArray(profile.layout_hidden);
+  const resolvedHidden: SectionKey[] = hasCustomHidden
+    ? profile.layout_hidden!.filter((k): k is SectionKey => SECTION_KEYS.includes(k as SectionKey))
+    : PRESET_DEFAULT_HIDDEN[layoutPreset];
+  const hiddenSet = new Set(resolvedHidden);
+  const visibleOrder = resolvedOrder.filter((k) => !hiddenSet.has(k));
 
   const featuredCaseStudyId = profile.featured_case_study_id ?? null;
   const featuredReviewId = profile.featured_review_id ?? null;
@@ -242,6 +267,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const featuredCaseStudy = featuredCaseStudyId ? caseStudies.find((c) => c.id === featuredCaseStudyId) : null;
   const featuredReview = featuredReviewId && reviews.latest ? reviews.latest.find((r) => (r as { id?: string }).id === featuredReviewId) : null;
   const featuredGig = featuredGigId && data.gigs ? data.gigs.find((g) => g.id === featuredGigId) : null;
+  const showFeatured = !isCompact && (!!featuredCaseStudy || !!featuredReview || !!featuredGig);
 
   const socialLinks: { name: string; url: string }[] = [
     { name: "X", url: socials.x ?? null },
@@ -259,25 +285,388 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const hasProofStats =
     profile.ethos_score != null || profile.xscore != null || profile.reputation_index != null;
 
-  const layoutPreset = (profile.public_layout === "spotlight" || profile.public_layout === "showcase" || profile.public_layout === "compact")
-    ? profile.public_layout
-    : "classic";
-  const isSpotlight = layoutPreset === "spotlight";
-  const isShowcase = layoutPreset === "showcase";
-  const isCompact = layoutPreset === "compact";
-  const sectionSpacing = isCompact ? "mb-5" : "mb-8";
-  const rightSectionSpacing = isCompact ? "mb-5" : "mb-8";
-  const featuredCardClass = isShowcase ? "rounded-2xl border-2 border-primary/25 bg-card shadow-lg hover:shadow-primary/15 hover:border-primary/35" : sectionCardClass;
-  const showFeatured = !isCompact && (!!featuredCaseStudy || !!featuredReview || !!featuredGig);
-  const order = layoutOrder ?? DEFAULT_ORDER;
+  const leftOrder = visibleOrder.filter((k) => LEFT_COLUMN_KEYS.includes(k));
+  const rightOrder = visibleOrder.filter((k) => RIGHT_COLUMN_KEYS.includes(k));
+
+  const renderSection = (key: SectionKey): React.ReactNode => {
+    switch (key) {
+      case "header":
+        return (
+          <header className="pb-6 border-b border-border">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+              {profile.avatar_url ? (
+                <img src={profile.avatar_url} alt="" className="h-24 w-24 shrink-0 rounded-2xl object-cover border-2 border-border shadow-md ring-2 ring-transparent" />
+              ) : (
+                <div className="h-24 w-24 shrink-0 rounded-2xl bg-muted border-2 border-border" />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{displayName}</h1>
+                  {profile.is_verified && <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified" />}
+                  <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary" aria-label="Profile type">
+                    {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
+                  </span>
+                  {profile.reputation_index != null && (
+                    <span className="rounded-full border border-primary/40 bg-primary/15 px-3 py-1 text-xs font-bold tabular-nums text-primary shadow-sm shadow-primary/15">{profile.reputation_index} rep</span>
+                  )}
+                </div>
+                <p className="mt-1.5 text-sm text-muted-foreground">@{handle}</p>
+              </div>
+            </div>
+            {profile.location && <p className="mt-3 text-sm text-muted-foreground">{profile.location}</p>}
+            {profile.bio && <p className="mt-3 text-sm text-foreground leading-relaxed">{profile.bio}</p>}
+            <div className="mt-4"><CopyProfileLinkButton url={profileUrl} /></div>
+          </header>
+        );
+      case "socials":
+        if (socialLinks.length === 0) return null;
+        return (
+          <div className={`flex flex-wrap gap-2 ${sectionSpacing}`}>
+            {socialLinks.map((l) => <SocialLink key={l.name} name={l.name} url={l.url} />)}
+          </div>
+        );
+      case "proof":
+        if (!hasProofStats) return null;
+        return (
+          <section className={sectionSpacing}>
+            <SectionTitle>Proof</SectionTitle>
+            <div className={`${sectionCardClass} border-primary/20 p-5`}>
+              <div className="flex flex-wrap gap-6">
+                {profile.reputation_index != null && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linkary reputation</p>
+                    <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile.reputation_index}</p>
+                  </div>
+                )}
+                {profile.xscore != null && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">XScore</p>
+                    <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile.xscore}</p>
+                  </div>
+                )}
+                {profile.ethos_score != null && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ethos score</p>
+                    <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile.ethos_score}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        );
+      case "featured":
+        if (!showFeatured) return null;
+        return (
+          <section className={rightSectionSpacing}>
+            <SectionTitle>Featured</SectionTitle>
+            <div className="space-y-4">
+              {profileType !== "individual" && featuredGig && (
+                <div className={`${featuredCardClass} p-5`}>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-primary">Featured gig</span>
+                  <h3 className="mt-1 text-lg font-semibold text-foreground">{featuredGig.title}</h3>
+                  {featuredGig.description && <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{featuredGig.description}</p>}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium capitalize text-foreground">{featuredGig.gig_type}</span>
+                    {featuredGig.budget_text && <span className="text-sm font-medium text-primary">{featuredGig.budget_text}</span>}
+                  </div>
+                  <div className="mt-4"><ApplyToGigButton gig={featuredGig} ownerUsername={handle} basePath={basePath} /></div>
+                </div>
+              )}
+              {featuredCaseStudy && (
+                <div className={`${featuredCardClass} p-5`}>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-primary">Featured case study</span>
+                  {featuredCaseStudy.title && <h3 className="mt-1 text-lg font-semibold text-foreground">{featuredCaseStudy.title}</h3>}
+                  {featuredCaseStudy.summary && <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{featuredCaseStudy.summary}</p>}
+                  {featuredCaseStudy.tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {featuredCaseStudy.tags.map((t) => <span key={t} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">{t}</span>)}
+                    </div>
+                  )}
+                  {featuredCaseStudy.url && (
+                    <a href={featuredCaseStudy.url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">View proof <ExternalLink className="h-3.5 w-3.5" /></a>
+                  )}
+                </div>
+              )}
+              {featuredReview && (
+                <div className={`${featuredCardClass} p-5`}>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-primary">Featured review</span>
+                  <div className="mt-3 flex gap-3">
+                    {featuredReview.reviewer_avatar_url ? <img src={featuredReview.reviewer_avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover border border-border ring-2 ring-primary/20" /> : <div className="h-11 w-11 shrink-0 rounded-full border border-border bg-muted" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-foreground">{featuredReview.reviewer_display ?? "Anonymous"}</span>
+                        <Stars rating={featuredReview.rating} className="shrink-0" />
+                        {featuredReview.verified_deal !== false && <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified deal</span>}
+                      </div>
+                      {featuredReview.title && <p className="mt-1 text-sm font-medium text-foreground">{featuredReview.title}</p>}
+                      {featuredReview.text && <p className="mt-0.5 text-sm text-muted-foreground leading-relaxed">{featuredReview.text}</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        );
+      case "token":
+        if (profileType !== "project" || !token) return null;
+        return (
+          <section className={rightSectionSpacing}>
+            <SectionTitle>Token</SectionTitle>
+            <div className={`${sectionCardClass} p-5`}>
+              <div className="flex flex-col gap-3">
+                {token.priceUsd != null && <div className="text-2xl font-semibold text-foreground">${token.priceUsd < 0.0001 ? token.priceUsd.toExponential(2) : token.priceUsd < 1 ? token.priceUsd.toFixed(6) : token.priceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>}
+                {token.priceChangeH24 != null && <span className={`text-sm font-semibold ${token.priceChangeH24 >= 0 ? "text-primary" : "text-destructive"}`}>{token.priceChangeH24 >= 0 ? "+" : ""}{token.priceChangeH24.toFixed(2)}% (24h)</span>}
+                {(token.baseSymbol || token.quoteSymbol) && <p className="text-sm text-muted-foreground">{[token.baseSymbol, token.quoteSymbol].filter(Boolean).join(" / ")}</p>}
+                <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                  {token.liquidityUsd != null && <span>Liquidity: ${token.liquidityUsd >= 1e6 ? (token.liquidityUsd / 1e6).toFixed(2) + "M" : token.liquidityUsd >= 1e3 ? (token.liquidityUsd / 1e3).toFixed(2) + "K" : token.liquidityUsd.toFixed(0)}</span>}
+                  {token.volumeH24 != null && <span>Vol 24h: ${token.volumeH24 >= 1e6 ? (token.volumeH24 / 1e6).toFixed(2) + "M" : token.volumeH24 >= 1e3 ? (token.volumeH24 / 1e3).toFixed(2) + "K" : token.volumeH24.toFixed(0)}</span>}
+                </div>
+                <a href={token.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">View on Dexscreener <ExternalLink className="h-4 w-4" /></a>
+              </div>
+            </div>
+          </section>
+        );
+      case "team":
+        if (profileType !== "company" || team.length === 0) return null;
+        return (
+          <section className={rightSectionSpacing}>
+            <SectionTitle>Team</SectionTitle>
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {team.map((member, i) => {
+                const initials = member.name.trim() ? member.name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() : "?";
+                return (
+                  <li key={i} className={`${sectionCardClass} p-4`}>
+                    <div className="flex items-start gap-3">
+                      {member.avatar_url ? <img src={member.avatar_url} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover border border-border" /> : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-sm font-semibold text-muted-foreground" aria-hidden>{initials}</div>}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-foreground">{member.name}</p>
+                        {member.role && <p className="text-sm text-muted-foreground">{member.role}</p>}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {member.linkedin_url && <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary"><IconLinkedIn /></a>}
+                          {member.x_url && <a href={member.x_url} target="_blank" rel="noopener noreferrer" aria-label="X" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary"><IconX /></a>}
+                          {member.website_url && <a href={member.website_url} target="_blank" rel="noopener noreferrer" aria-label="Website" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary"><Globe className="h-5 w-5" /></a>}
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      case "relations":
+        if (!relations) return null;
+        return (
+          <>
+            {profileType === "individual" && (
+              <>
+                {relations.ambassadorOf && relations.ambassadorOf.length > 0 && (
+                  <section className={rightSectionSpacing}>
+                    <SectionTitle>Ambassador of</SectionTitle>
+                    <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.ambassadorOf.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
+                  </section>
+                )}
+                {relations.affiliateOf && relations.affiliateOf.length > 0 && (
+                  <section className={rightSectionSpacing}>
+                    <SectionTitle>Affiliate of</SectionTitle>
+                    <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.affiliateOf.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
+                  </section>
+                )}
+              </>
+            )}
+            {(profileType === "project" || profileType === "company") && (
+              <>
+                {relations.ambassadors && relations.ambassadors.length > 0 && (
+                  <section className={rightSectionSpacing}>
+                    <SectionTitle>Ambassadors</SectionTitle>
+                    <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.ambassadors.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
+                  </section>
+                )}
+                {relations.affiliates && relations.affiliates.length > 0 && (
+                  <section className={rightSectionSpacing}>
+                    <SectionTitle>Affiliates</SectionTitle>
+                    <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.affiliates.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
+                  </section>
+                )}
+                {relations.ecosystemProjects && relations.ecosystemProjects.length > 0 && (
+                  <section className={rightSectionSpacing}>
+                    <SectionTitle>Ecosystem projects</SectionTitle>
+                    <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.ecosystemProjects.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
+                  </section>
+                )}
+                {relations.subsidiaries && relations.subsidiaries.length > 0 && (
+                  <section className={rightSectionSpacing}>
+                    <SectionTitle>Subsidiaries</SectionTitle>
+                    <div className={`${sectionCardClass} p-4`}><div className="flex flex-wrap gap-2">{relations.subsidiaries.map((item) => <RelationCardLink key={item.id} item={item} basePath={basePath} />)}</div></div>
+                  </section>
+                )}
+              </>
+            )}
+          </>
+        );
+      case "gigs":
+        if (!data.gigs || data.gigs.length === 0) return null;
+        return (
+          <section className={rightSectionSpacing}>
+            <SectionTitle>Open gigs</SectionTitle>
+            <ul className="space-y-3">
+              {data.gigs.map((gig) => (
+                <li key={gig.id} className={`${isShowcase ? featuredCardClass : sectionCardClass} p-4 ${isShowcase ? "p-5" : ""}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold text-foreground">{gig.title}</h3>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className="rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium capitalize text-foreground">{gig.gig_type}</span>
+                        <span className="rounded-lg border border-border bg-muted/60 px-2.5 py-1 text-xs font-medium capitalize text-foreground">{gig.compensation_type}</span>
+                        {gig.remote && <span className="rounded-lg border border-border bg-muted/50 px-2 py-0.5 text-xs">Remote</span>}
+                      </div>
+                      {gig.budget_text && <p className="mt-2 text-sm font-medium text-primary">{gig.budget_text}</p>}
+                      {gig.description && <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{gig.description}</p>}
+                    </div>
+                    <div className="shrink-0"><ApplyToGigButton gig={gig} ownerUsername={handle} basePath={basePath} /></div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      case "skills":
+        if (profileType !== "individual" && profileType !== "company") return null;
+        return (
+          <section className={rightSectionSpacing}>
+            <SectionTitle>{profileType === "company" ? "Services / Expertise" : "Skills"}</SectionTitle>
+            <div className={`${sectionCardClass} p-4`}>
+              {skills.length === 0 ? (
+                <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border bg-muted/20 px-4 py-5 text-center">{profileType === "company" ? "No services or expertise listed yet" : "No skills listed yet"}</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {skills.map((s, i) => (
+                    <span key={i} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-foreground transition-all hover:border-primary/30 hover:bg-accent/50 hover:shadow-sm">
+                      <span>{s.name}</span>
+                      {s.level != null && s.level >= 1 && s.level <= 5 && <span className="text-xs text-muted-foreground tabular-nums" aria-label={`Level ${s.level} of 5`}>{s.level}/5</span>}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        );
+      case "achievements":
+        if (profileType !== "individual") return null;
+        return (
+          <section className={rightSectionSpacing}>
+            <SectionTitle>Achievements</SectionTitle>
+            {achievements.length === 0 ? (
+              <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No achievements yet</p>
+            ) : (
+              <ul className="space-y-3">
+                {achievements.map((a, i) => (
+                  <li key={i} className={`${sectionCardClass} p-4`}>
+                    <h3 className="font-semibold text-foreground">{a.title}</h3>
+                    {a.description && <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{a.description}</p>}
+                    {a.url && <a href={a.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">View <ExternalLink className="h-3.5 w-3.5" /></a>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      case "case_studies":
+        return (
+          <section className={rightSectionSpacing}>
+            <SectionTitle>Case studies</SectionTitle>
+            {caseStudies.length === 0 ? (
+              <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No case studies yet</p>
+            ) : (
+              <ul className="space-y-3">
+                {caseStudies.map((c) => (
+                  <li key={c.id} className={isShowcase ? featuredCardClass : sectionCardClass}>
+                    <div className={isShowcase ? "p-5" : "p-4"}>
+                      {c.title && <h3 className="font-semibold text-foreground">{c.title}</h3>}
+                      {c.summary && <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{c.summary}</p>}
+                      {c.tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{c.tags.map((t) => <span key={t} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">{t}</span>)}</div>}
+                      {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">View proof <ExternalLink className="h-3.5 w-3.5" /></a>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      case "links":
+        return (
+          <section className={rightSectionSpacing}>
+            <SectionTitle>Links</SectionTitle>
+            {links.length === 0 ? (
+              <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No links yet</p>
+            ) : (
+              <ul className="space-y-2">
+                {links.map((link, i) => {
+                  const host = getHostname(link.url);
+                  return (
+                    <li key={i}>
+                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left font-medium text-foreground transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent/50 hover:shadow-md hover:shadow-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+                        {link.icon ? <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50 overflow-hidden"><img src={link.icon} alt="" className="h-6 w-6 object-cover" /></span> : <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50"><Link2 className="h-5 w-5 text-muted-foreground" /></span>}
+                        <div className="min-w-0 flex-1"><span className="block truncate">{link.title}</span>{host && <span className="block truncate text-xs text-muted-foreground">{host}</span>}</div>
+                        <ChevronRight className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        );
+      case "reviews":
+        if (!showReviews) return null;
+        return (
+          <section className={rightSectionSpacing}>
+            <SectionTitle>Reviews</SectionTitle>
+            {reviews.count === 0 ? (
+              <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No reviews yet</p>
+            ) : (
+              <>
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  {reviews.average != null && <div className="flex items-center gap-2"><Stars rating={reviews.average} /><span className="text-sm font-semibold text-foreground tabular-nums">{reviews.average.toFixed(1)}</span></div>}
+                  <span className="text-sm text-muted-foreground">{reviews.count} verified review{reviews.count !== 1 ? "s" : ""}</span>
+                </div>
+                <ul className="space-y-4">
+                  {reviews.latest.map((r, i) => (
+                    <li key={i} className={`${sectionCardClass} p-4`}>
+                      <div className="flex gap-3">
+                        {r.reviewer_avatar_url ? <img src={r.reviewer_avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-primary/20 ring-offset-2 ring-offset-background border border-border" /> : <div className="h-11 w-11 shrink-0 rounded-full border border-border bg-muted ring-2 ring-primary/10 ring-offset-2 ring-offset-background" aria-hidden />}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-foreground">{r.reviewer_display ?? "Anonymous"}</span>
+                            <Stars rating={r.rating} className="shrink-0" />
+                            {r.verified_deal !== false && <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified deal</span>}
+                          </div>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</p>
+                          {r.title && <p className="mt-1 text-sm font-medium text-foreground">{r.title}</p>}
+                          {r.text && <p className="mt-1 text-sm text-foreground leading-relaxed">{r.text}</p>}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        );
+      case "hero":
+        return null;
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans relative">
       {/* Subtle background gradient / glow using tokens */}
       <div className="fixed inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-transparent to-accent/[0.04] pointer-events-none" aria-hidden />
       <main className={`mx-auto max-w-6xl px-4 sm:px-6 ${isCompact ? "py-5 sm:py-6" : "py-8 sm:py-10"}`}>
-        {/* Hero — full width; height varies by layout (compact = smaller) */}
-        {(hasHeroImage || hasHeroVideo) && (
+        {/* Hero — full width; only when in visible order */}
+        {visibleOrder.includes("hero") && (hasHeroImage || hasHeroVideo) && (
           <section className={isCompact ? "mb-5" : "mb-8"}>
             <div className={`overflow-hidden rounded-2xl border shadow-lg transition-all hover:border-primary/20 hover:shadow-primary/10 ${hasHeroImage ? "border-primary/20" : "border-border"} bg-card`}>
               {hasHeroImage && (
@@ -421,587 +810,29 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             ? "space-y-8"
             : `lg:grid lg:gap-10 lg:items-start ${isCompact ? "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-6" : "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"}`
         }>
-          {/* ——— LEFT COLUMN (~40%): Header, bio, socials, proof ——— */}
-          <div className={`space-y-6 ${!isSpotlight ? "lg:sticky lg:top-6" : ""}`}>
-            {/* Header: stronger typography, branded reputation pill, profile type badge */}
-            <header className="pb-6 border-b border-border">
-              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                {profile.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt=""
-                    className="h-24 w-24 shrink-0 rounded-2xl object-cover border-2 border-border shadow-md ring-2 ring-transparent"
-                  />
-                ) : (
-                  <div className="h-24 w-24 shrink-0 rounded-2xl bg-muted border-2 border-border" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{displayName}</h1>
-                    {profile.is_verified && (
-                      <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified" />
-                    )}
-                    <span
-                      className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary"
-                      aria-label="Profile type"
-                    >
-                      {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
-                    </span>
-                    {profile.reputation_index != null && (
-                      <span className="rounded-full border border-primary/40 bg-primary/15 px-3 py-1 text-xs font-bold tabular-nums text-primary shadow-sm shadow-primary/15">
-                        {profile.reputation_index} rep
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1.5 text-sm text-muted-foreground">@{handle}</p>
-                </div>
+          {isSpotlight ? (
+            <div className="space-y-8">
+              {visibleOrder.filter((k) => k !== "hero").map((key) => {
+                const node = renderSection(key);
+                return node != null ? <Fragment key={key}>{node}</Fragment> : null;
+              })}
+            </div>
+          ) : (
+            <>
+              <div className={`space-y-6 ${!isSpotlight ? "lg:sticky lg:top-6" : ""}`}>
+                {leftOrder.map((key) => {
+                  const node = renderSection(key);
+                  return node != null ? <Fragment key={key}>{node}</Fragment> : null;
+                })}
               </div>
-              {profile.location && (
-                <p className="mt-3 text-sm text-muted-foreground">{profile.location}</p>
-              )}
-              {profile.bio && (
-                <p className="mt-3 text-sm text-foreground leading-relaxed">{profile.bio}</p>
-              )}
-              <div className="mt-4">
-                <CopyProfileLinkButton url={profileUrl} />
+              <div className="space-y-8 lg:pt-0">
+                {rightOrder.map((key) => {
+                  const node = renderSection(key);
+                  return node != null ? <Fragment key={key}>{node}</Fragment> : null;
+                })}
               </div>
-            </header>
-
-            {/* Socials */}
-            {!layoutHidden.has("socials") && socialLinks.length > 0 && (
-              <div className={`flex flex-wrap gap-2 ${sectionSpacing}`}>
-                {socialLinks.map((l) => (
-                  <SocialLink key={l.name} name={l.name} url={l.url} />
-                ))}
-              </div>
-            )}
-
-            {/* Proof card — only when at least one stat */}
-            {!layoutHidden.has("proof") && hasProofStats && (
-              <section className={sectionSpacing}>
-                <SectionTitle>Proof</SectionTitle>
-                <div className={`${sectionCardClass} border-primary/20 p-5`}>
-                  <div className="flex flex-wrap gap-6">
-                    {profile.reputation_index != null && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linkary reputation</p>
-                        <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile.reputation_index}</p>
-                      </div>
-                    )}
-                    {profile.xscore != null && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">XScore</p>
-                        <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile.xscore}</p>
-                      </div>
-                    )}
-                    {profile.ethos_score != null && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ethos score</p>
-                        <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile.ethos_score}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </section>
-            )}
-          </div>
-
-          {/* ——— RIGHT COLUMN: order by type — Individual: Skills, Achievements, Case studies, Links, Reviews — Project: Token, Gigs, Relations, Links, … — Company: Team, Gigs, Relations, … ——— */}
-          <div className="space-y-8 lg:pt-0">
-            {/* Featured block (not in compact); fail gracefully if item missing */}
-            {showFeatured && (
-              <section className={rightSectionSpacing}>
-                <SectionTitle>Featured</SectionTitle>
-                <div className="space-y-4">
-                  {profileType !== "individual" && featuredGig && (
-                    <div className={`${featuredCardClass} p-5`}>
-                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">Featured gig</span>
-                      <h3 className="mt-1 text-lg font-semibold text-foreground">{featuredGig.title}</h3>
-                      {featuredGig.description && <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{featuredGig.description}</p>}
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <span className="rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium capitalize text-foreground">{featuredGig.gig_type}</span>
-                        {featuredGig.budget_text && <span className="text-sm font-medium text-primary">{featuredGig.budget_text}</span>}
-                      </div>
-                      <div className="mt-4">
-                        <ApplyToGigButton gig={featuredGig} ownerUsername={handle} basePath={basePath} />
-                      </div>
-                    </div>
-                  )}
-                  {featuredCaseStudy && (
-                    <div className={`${featuredCardClass} p-5`}>
-                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">Featured case study</span>
-                      {featuredCaseStudy.title && <h3 className="mt-1 text-lg font-semibold text-foreground">{featuredCaseStudy.title}</h3>}
-                      {featuredCaseStudy.summary && <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{featuredCaseStudy.summary}</p>}
-                      {featuredCaseStudy.tags.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {featuredCaseStudy.tags.map((t) => (
-                            <span key={t} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">{t}</span>
-                          ))}
-                        </div>
-                      )}
-                      {featuredCaseStudy.url && (
-                        <a href={featuredCaseStudy.url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                          View proof <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
-                      )}
-                    </div>
-                  )}
-                  {featuredReview && (
-                    <div className={`${featuredCardClass} p-5`}>
-                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">Featured review</span>
-                      <div className="mt-3 flex gap-3">
-                        {featuredReview.reviewer_avatar_url ? (
-                          <img src={featuredReview.reviewer_avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover border border-border ring-2 ring-primary/20" />
-                        ) : (
-                          <div className="h-11 w-11 shrink-0 rounded-full border border-border bg-muted" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-medium text-foreground">{featuredReview.reviewer_display ?? "Anonymous"}</span>
-                            <Stars rating={featuredReview.rating} className="shrink-0" />
-                            {featuredReview.verified_deal !== false && (
-                              <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified deal</span>
-                            )}
-                          </div>
-                          {featuredReview.title && <p className="mt-1 text-sm font-medium text-foreground">{featuredReview.title}</p>}
-                          {featuredReview.text && <p className="mt-0.5 text-sm text-muted-foreground leading-relaxed">{featuredReview.text}</p>}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {/* Token (project only) */}
-            {!layoutHidden.has("token") && profileType === "project" && token && (
-              <section className={rightSectionSpacing}>
-                <SectionTitle>Token</SectionTitle>
-                <div className={`${sectionCardClass} p-5`}>
-                  <div className="flex flex-col gap-3">
-                    {token.priceUsd != null && (
-                      <div className="text-2xl font-semibold text-foreground">
-                        ${token.priceUsd < 0.0001 ? token.priceUsd.toExponential(2) : token.priceUsd < 1 ? token.priceUsd.toFixed(6) : token.priceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
-                      </div>
-                    )}
-                    {token.priceChangeH24 != null && (
-                      <span className={`text-sm font-semibold ${token.priceChangeH24 >= 0 ? "text-primary" : "text-destructive"}`}>
-                        {token.priceChangeH24 >= 0 ? "+" : ""}{token.priceChangeH24.toFixed(2)}% (24h)
-                      </span>
-                    )}
-                    {(token.baseSymbol || token.quoteSymbol) && (
-                      <p className="text-sm text-muted-foreground">
-                        {[token.baseSymbol, token.quoteSymbol].filter(Boolean).join(" / ")}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                      {token.liquidityUsd != null && (
-                        <span>Liquidity: ${token.liquidityUsd >= 1e6 ? (token.liquidityUsd / 1e6).toFixed(2) + "M" : token.liquidityUsd >= 1e3 ? (token.liquidityUsd / 1e3).toFixed(2) + "K" : token.liquidityUsd.toFixed(0)}</span>
-                      )}
-                      {token.volumeH24 != null && (
-                        <span>Vol 24h: ${token.volumeH24 >= 1e6 ? (token.volumeH24 / 1e6).toFixed(2) + "M" : token.volumeH24 >= 1e3 ? (token.volumeH24 / 1e3).toFixed(2) + "K" : token.volumeH24.toFixed(0)}</span>
-                      )}
-                    </div>
-                    <a
-                      href={token.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      View on Dexscreener
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* Team (company only) — above Gigs/Relations per hierarchy */}
-            {!layoutHidden.has("team") && profileType === "company" && team.length > 0 && (
-              <section className={rightSectionSpacing}>
-                <SectionTitle>Team</SectionTitle>
-                <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {team.map((member, i) => {
-                    const initials = member.name.trim()
-                      ? member.name
-                          .trim()
-                          .split(/\s+/)
-                          .map((w) => w[0])
-                          .slice(0, 2)
-                          .join("")
-                          .toUpperCase()
-                      : "?";
-                    return (
-                      <li key={i} className={`${sectionCardClass} p-4`}>
-                        <div className="flex items-start gap-3">
-                          {member.avatar_url ? (
-                            <img
-                              src={member.avatar_url}
-                              alt=""
-                              className="h-12 w-12 shrink-0 rounded-xl object-cover border border-border"
-                            />
-                          ) : (
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-sm font-semibold text-muted-foreground" aria-hidden>
-                              {initials}
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-foreground">{member.name}</p>
-                            {member.role && (
-                              <p className="text-sm text-muted-foreground">{member.role}</p>
-                            )}
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {member.linkedin_url && (
-                                <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary">
-                                  <IconLinkedIn />
-                                </a>
-                              )}
-                              {member.x_url && (
-                                <a href={member.x_url} target="_blank" rel="noopener noreferrer" aria-label="X" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary">
-                                  <IconX />
-                                </a>
-                              )}
-                              {member.website_url && (
-                                <a href={member.website_url} target="_blank" rel="noopener noreferrer" aria-label="Website" className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary">
-                                  <Globe className="h-5 w-5" />
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            )}
-
-            {/* Relations: Ambassador of / Affiliate of (individual); Ambassadors / Affiliates / Ecosystem / Subsidiaries (project/company) */}
-            {!layoutHidden.has("relations") && relations && (
-              <>
-                {profileType === "individual" && (
-                  <>
-                    {relations.ambassadorOf && relations.ambassadorOf.length > 0 && (
-                      <section className={rightSectionSpacing}>
-                        <SectionTitle>Ambassador of</SectionTitle>
-                        <div className={`${sectionCardClass} p-4`}>
-                          <div className="flex flex-wrap gap-2">
-                            {relations.ambassadorOf.map((item) => (
-                              <RelationCardLink key={item.id} item={item} basePath={basePath} />
-                            ))}
-                          </div>
-                        </div>
-                      </section>
-                    )}
-                    {relations.affiliateOf && relations.affiliateOf.length > 0 && (
-                      <section className={rightSectionSpacing}>
-                        <SectionTitle>Affiliate of</SectionTitle>
-                        <div className={`${sectionCardClass} p-4`}>
-                          <div className="flex flex-wrap gap-2">
-                            {relations.affiliateOf.map((item) => (
-                              <RelationCardLink key={item.id} item={item} basePath={basePath} />
-                            ))}
-                          </div>
-                        </div>
-                      </section>
-                    )}
-                  </>
-                )}
-                {(profileType === "project" || profileType === "company") && (
-                  <>
-                    {relations.ambassadors && relations.ambassadors.length > 0 && (
-                      <section className={rightSectionSpacing}>
-                        <SectionTitle>Ambassadors</SectionTitle>
-                        <div className={`${sectionCardClass} p-4`}>
-                          <div className="flex flex-wrap gap-2">
-                            {relations.ambassadors.map((item) => (
-                              <RelationCardLink key={item.id} item={item} basePath={basePath} />
-                            ))}
-                          </div>
-                        </div>
-                      </section>
-                    )}
-                    {relations.affiliates && relations.affiliates.length > 0 && (
-                      <section className={rightSectionSpacing}>
-                        <SectionTitle>Affiliates</SectionTitle>
-                        <div className={`${sectionCardClass} p-4`}>
-                          <div className="flex flex-wrap gap-2">
-                            {relations.affiliates.map((item) => (
-                              <RelationCardLink key={item.id} item={item} basePath={basePath} />
-                            ))}
-                          </div>
-                        </div>
-                      </section>
-                    )}
-                    {relations.ecosystemProjects && relations.ecosystemProjects.length > 0 && (
-                      <section className={rightSectionSpacing}>
-                        <SectionTitle>Ecosystem projects</SectionTitle>
-                        <div className={`${sectionCardClass} p-4`}>
-                          <div className="flex flex-wrap gap-2">
-                            {relations.ecosystemProjects.map((item) => (
-                              <RelationCardLink key={item.id} item={item} basePath={basePath} />
-                            ))}
-                          </div>
-                        </div>
-                      </section>
-                    )}
-                    {relations.subsidiaries && relations.subsidiaries.length > 0 && (
-                      <section className={rightSectionSpacing}>
-                        <SectionTitle>Subsidiaries</SectionTitle>
-                        <div className={`${sectionCardClass} p-4`}>
-                          <div className="flex flex-wrap gap-2">
-                            {relations.subsidiaries.map((item) => (
-                              <RelationCardLink key={item.id} item={item} basePath={basePath} />
-                            ))}
-                          </div>
-                        </div>
-                      </section>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-
-            {/* Open gigs (project/company only) — opportunities style; featured in showcase */}
-            {!layoutHidden.has("gigs") && data.gigs && data.gigs.length > 0 && (
-              <section className={rightSectionSpacing}>
-                <SectionTitle>Open gigs</SectionTitle>
-                <ul className="space-y-3">
-                  {data.gigs.map((gig) => (
-                    <li key={gig.id} className={`${isShowcase ? featuredCardClass : sectionCardClass} p-4 ${isShowcase ? "p-5" : ""}`}>
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-foreground">{gig.title}</h3>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            <span className="rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium capitalize text-foreground">{gig.gig_type}</span>
-                            <span className="rounded-lg border border-border bg-muted/60 px-2.5 py-1 text-xs font-medium capitalize text-foreground">{gig.compensation_type}</span>
-                            {gig.remote && <span className="rounded-lg border border-border bg-muted/50 px-2 py-0.5 text-xs">Remote</span>}
-                          </div>
-                          {gig.budget_text && (
-                            <p className="mt-2 text-sm font-medium text-primary">{gig.budget_text}</p>
-                          )}
-                          {gig.description && (
-                            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{gig.description}</p>
-                          )}
-                        </div>
-                        <div className="shrink-0">
-                          <ApplyToGigButton gig={gig} ownerUsername={handle} basePath={basePath} />
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {/* Skills (individual) or Services / Expertise (company) */}
-            {!layoutHidden.has("skills") && (profileType === "individual" || profileType === "company") && (
-              <section className={rightSectionSpacing}>
-                <SectionTitle>{profileType === "company" ? "Services / Expertise" : "Skills"}</SectionTitle>
-                <div className={`${sectionCardClass} p-4`}>
-                  {skills.length === 0 ? (
-                    <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border bg-muted/20 px-4 py-5 text-center">
-                      {profileType === "company" ? "No services or expertise listed yet" : "No skills listed yet"}
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {skills.map((s, i) => (
-                        <span
-                          key={i}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-foreground transition-all hover:border-primary/30 hover:bg-accent/50 hover:shadow-sm"
-                        >
-                          <span>{s.name}</span>
-                          {s.level != null && s.level >= 1 && s.level <= 5 && (
-                            <span className="text-xs text-muted-foreground tabular-nums" aria-label={`Level ${s.level} of 5`}>
-                              {s.level}/5
-                            </span>
-                          )}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {/* Achievements (individual only) */}
-            {!layoutHidden.has("achievements") && profileType === "individual" && (
-              <section className={rightSectionSpacing}>
-                <SectionTitle>Achievements</SectionTitle>
-                {achievements.length === 0 ? (
-                  <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No achievements yet</p>
-                ) : (
-                  <ul className="space-y-3">
-                    {achievements.map((a, i) => (
-                      <li key={i} className={`${sectionCardClass} p-4`}>
-                        <h3 className="font-semibold text-foreground">{a.title}</h3>
-                        {a.description && (
-                          <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{a.description}</p>
-                        )}
-                        {a.url && (
-                          <a
-                            href={a.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                          >
-                            View
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            )}
-
-            {/* Case studies — above Links; featured in showcase */}
-            {!layoutHidden.has("case_studies") && (
-            <section className={rightSectionSpacing}>
-              <SectionTitle>Case studies</SectionTitle>
-              {caseStudies.length === 0 ? (
-                <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No case studies yet</p>
-              ) : (
-                <ul className="space-y-3">
-                  {caseStudies.map((c) => (
-                    <li key={c.id} className={isShowcase ? featuredCardClass : sectionCardClass}>
-                      <div className={isShowcase ? "p-5" : "p-4"}>
-                        {c.title && (
-                          <h3 className="font-semibold text-foreground">{c.title}</h3>
-                        )}
-                        {c.summary && (
-                          <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{c.summary}</p>
-                        )}
-                        {c.tags.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {c.tags.map((t) => (
-                              <span
-                                key={t}
-                                className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground"
-                              >
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {c.url && (
-                          <a
-                            href={c.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                          >
-                            View proof
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-            )}
-
-            {/* Links — Linkary-style: domain label, arrow affordance */}
-            {!layoutHidden.has("links") && (
-            <section className={rightSectionSpacing}>
-              <SectionTitle>Links</SectionTitle>
-              {links.length === 0 ? (
-                <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No links yet</p>
-              ) : (
-                <ul className="space-y-2">
-                  {links.map((link, i) => {
-                    const host = getHostname(link.url);
-                    return (
-                      <li key={i}>
-                        <a
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left font-medium text-foreground transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent/50 hover:shadow-md hover:shadow-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                        >
-                          {link.icon ? (
-                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50 overflow-hidden">
-                              <img src={link.icon} alt="" className="h-6 w-6 object-cover" />
-                            </span>
-                          ) : (
-                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50">
-                              <Link2 className="h-5 w-5 text-muted-foreground" />
-                            </span>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <span className="block truncate">{link.title}</span>
-                            {host && <span className="block truncate text-xs text-muted-foreground">{host}</span>}
-                          </div>
-                          <ChevronRight className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-                        </a>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
-            )}
-
-            {/* Reviews — avatar ring, trust-style verified badge */}
-            {!layoutHidden.has("reviews") && showReviews && (
-              <section className={rightSectionSpacing}>
-                <SectionTitle>Reviews</SectionTitle>
-                {reviews.count === 0 ? (
-                  <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No reviews yet</p>
-                ) : (
-                  <>
-                    <div className="mb-4 flex flex-wrap items-center gap-3">
-                      {reviews.average != null && (
-                        <div className="flex items-center gap-2">
-                          <Stars rating={reviews.average} />
-                          <span className="text-sm font-semibold text-foreground tabular-nums">{reviews.average.toFixed(1)}</span>
-                        </div>
-                      )}
-                      <span className="text-sm text-muted-foreground">
-                        {reviews.count} verified review{reviews.count !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    <ul className="space-y-4">
-                      {reviews.latest.map((r, i) => (
-                        <li key={i} className={`${sectionCardClass} p-4`}>
-                          <div className="flex gap-3">
-                            {r.reviewer_avatar_url ? (
-                              <img
-                                src={r.reviewer_avatar_url}
-                                alt=""
-                                className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-primary/20 ring-offset-2 ring-offset-background border border-border"
-                              />
-                            ) : (
-                              <div className="h-11 w-11 shrink-0 rounded-full border border-border bg-muted ring-2 ring-primary/10 ring-offset-2 ring-offset-background" aria-hidden />
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-medium text-foreground">{r.reviewer_display ?? "Anonymous"}</span>
-                                <Stars rating={r.rating} className="shrink-0" />
-                                {r.verified_deal !== false && (
-                                  <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">
-                                    Verified deal
-                                  </span>
-                                )}
-                              </div>
-                              <p className="mt-0.5 text-xs text-muted-foreground">
-                                {new Date(r.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
-                              </p>
-                              {r.title && <p className="mt-1 text-sm font-medium text-foreground">{r.title}</p>}
-                              {r.text && <p className="mt-1 text-sm text-foreground leading-relaxed">{r.text}</p>}
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </section>
-            )}
-          </div>
+            </>
+          )}
         </div>
 
         <footer className="mt-12 pt-8 text-center border-t border-border">

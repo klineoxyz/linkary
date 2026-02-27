@@ -123,7 +123,9 @@ export async function refreshScoresForProfile(profileId: string): Promise<Refres
   const ethosLastUpdated =
     ethosSource === "live" ? now : (cachedEthos?.updated_at ?? profile.ethos_score_updated_at ?? now);
 
-  // --- XScore: no external API in repo; keep existing profiles.xscore and set updated_at ---
+  // --- XScore: Wallchain tracks X Score (0–1000) per X account; their public docs do not expose an API to fetch it.
+  // Values are read from profiles.xscore / xscore_scores. To update from Wallchain, use their API when available
+  // (e.g. env WALLCHAIN_API_URL + cron) or a trusted sync job that writes to profiles.xscore. ---
   let xscoreValue: number | null =
     profile.xscore != null && Number.isFinite(Number(profile.xscore)) ? Number(profile.xscore) : null;
   const { data: xscoreRow } = await supabase

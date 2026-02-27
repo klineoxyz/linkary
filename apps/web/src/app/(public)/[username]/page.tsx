@@ -225,7 +225,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
       const isUnpublished = !isPublished;
 
-      const viewCols = "id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, xscore, profile_type, hero_image_url, hero_video_url, hero_title, public_layout";
+      const viewCols = "id, username, twitter_username, display_name, bio, avatar_url, location, website, followers_total, avg_engagement_rate, ethos_score, xscore, profile_type, hero_image_url, hero_video_url, hero_title, public_layout";
       const displayView = isPublished ? "public_profile_view" : "public_profile_preview_view";
       const { data: profileDisplayData } = await serviceSupabase.from(displayView).select(viewCols).eq("id", profileId).maybeSingle();
       const profileRow = profileDisplayData as {
@@ -239,6 +239,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         website?: string | null;
         followers_total?: number;
         avg_engagement_rate?: number;
+        ethos_score?: number | null;
         xscore?: number | null;
         profile_type?: string | null;
         hero_image_url?: string | null;
@@ -439,7 +440,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           location: profileRow.location ?? null,
           roles: [],
           is_verified: false,
-          ethos_score: null,
+          ethos_score: profileRow.ethos_score ?? null,
           xscore: profileRow.xscore ?? null,
           reputation_index: reputationIndex,
           profile_type: profileType,

@@ -361,7 +361,8 @@ export async function GET(request: NextRequest) {
 
   if (dto.type === "profile") {
     const layoutObj = dto.publicLayout && typeof dto.publicLayout === "object" && "preset" in dto.publicLayout ? (dto.publicLayout as { preset?: string }) : null;
-    const layoutPreset = layoutObj?.preset && ["spotlight", "showcase", "compact"].includes(layoutObj.preset) ? layoutObj.preset : "classic";
+    const layoutPreset: "classic" | "spotlight" | "showcase" | "compact" =
+      layoutObj?.preset && ["spotlight", "showcase", "compact"].includes(layoutObj.preset) ? (layoutObj.preset as "spotlight" | "showcase" | "compact") : "classic";
     const payload: PublicProfileApiPayload = {
       profile: {
         username: dto.username,

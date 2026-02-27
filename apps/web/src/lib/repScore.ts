@@ -1,6 +1,7 @@
 /**
  * P11.5: REP score 0–100 from SocialBase (40%), ProofOfWork (35%), NetworkTrust (25%).
- * Store in profiles.rep_score. Recompute on mutations only (not on page load).
+ * Store in profiles.rep_score. Always returns integer 0–100; always writes.
+ * When verified_followers is null, SocialBase weights are renormalized (no penalty).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -28,12 +29,19 @@ function linearScale100(value: number, max: number): number {
   return clamp((value / max) * 100, 0, 100);
 }
 
+/** Original SocialBase weights: engagement, verified_ratio, ethos, follower_tier */
+const SOCIAL_WEIGHTS = { engagement: 0.3, verified_ratio: 0.25, ethos: 0.25, follower_tier: 0.2 };
+
+/**
+ * Compute REP for a profile. Always returns integer 0–100 and always updates profiles.rep_score.
+ * If no reviews/collabs/network data, ProofOfWork and NetworkTrust = 0 but SocialBase is still computed.
+ */
 export async function computeRep(
   profileId: string,
   supabase: SupabaseClient,
   options: { write?: boolean } = {}
 ): Promise<RepBreakdown> {
-  const { write = true } = options;
+  const write = options.write !== false;
 
   let socialBase = 0;
   let proofOfWork = 0;
@@ -65,17 +73,33 @@ export async function computeRep(
     const followers = Math.max(0, Number(profile?.followers_total ?? 0));
     const avgEngagementRate = Number(profile?.avg_engagement_rate ?? 0);
     const ethos = profile?.ethos_score != null ? Number(profile.ethos_score) : null;
+    const verifiedFollowers: number | null = null;
 
-    // Layer 1: SocialBase (40%)
+    // Layer 1: SocialBase — dynamic reweight when verified_followers is null
     const engagementRateScore = linearScale100(avgEngagementRate, 0.1);
-    const verifiedRatio = 0;
-    const verifiedRatioScore = clamp(verifiedRatio * 100, 0, 100);
+    const verifiedRatioScore = verifiedFollowers != null && followers > 0
+      ? clamp((verifiedFollowers / followers) * 100, 0, 100)
+      : null;
     const ethosNorm = ethos != null ? clamp(ethos, 0, 100) : 0;
     const followerTierScore = logScale100(followers, 500000);
-    socialBase = 0.3 * engagementRateScore + 0.25 * verifiedRatioScore + 0.25 * ethosNorm + 0.2 * followerTierScore;
+
+    const components: { key: keyof typeof SOCIAL_WEIGHTS; weight: number; value: number }[] = [
+      { key: "engagement", weight: SOCIAL_WEIGHTS.engagement, value: engagementRateScore },
+      { key: "verified_ratio", weight: SOCIAL_WEIGHTS.verified_ratio, value: verifiedRatioScore ?? 0 },
+      { key: "ethos", weight: SOCIAL_WEIGHTS.ethos, value: ethosNorm },
+      { key: "follower_tier", weight: SOCIAL_WEIGHTS.follower_tier, value: followerTierScore },
+    ];
+
+    const included = verifiedRatioScore !== null
+      ? components
+      : components.filter((c) => c.key !== "verified_ratio");
+    const sumWeight = included.reduce((s, c) => s + c.weight, 0);
+    if (sumWeight > 0) {
+      socialBase = included.reduce((s, c) => s + (c.weight / sumWeight) * c.value, 0);
+    }
     socialBase = clamp(socialBase, 0, 100);
 
-    // Layer 2: ProofOfWork (35%)
+    // Layer 2: ProofOfWork (0 when no data)
     const collabRows = (collabRowsRes?.data ?? []) as Array<{ requester_profile_id: string; target_profile_id: string }>;
     const completedCollabs = collabRows.length;
     const reviewsData = (reviewsRes?.data ?? []) as Array<{ rating: number }>;
@@ -90,7 +114,7 @@ export async function computeRep(
       0.4 * reviewQuality + 0.3 * completedCollabsScore + 0.2 * reviewsVolumeScore + 0.1 * caseStudiesScore;
     proofOfWork = clamp(proofOfWork, 0, 100);
 
-    // Layer 3: NetworkTrust (25%)
+    // Layer 3: NetworkTrust (0 when no data)
     const verifiedConnections = (connectionsRes as { count?: number })?.count ?? 0;
     const relations = (relationsRes?.data ?? []) as Array<{ relation_type: string }>;
     const affiliatesCount = relations.filter((r) => r.relation_type === "affiliate").length;

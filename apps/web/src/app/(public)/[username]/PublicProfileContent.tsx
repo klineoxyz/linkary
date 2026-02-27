@@ -264,7 +264,7 @@ type Props = {
 };
 
 export function PublicProfileContent({ data, username, profileUrl: profileUrlProp, isAuthenticated = false }: Props) {
-  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations, skills = [], achievements = [], header_media: headerMedia = null, cv: cvPayload = null, partner_programs: partnerPrograms = [] } = data;
+  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations, skills = [], achievements = [], header_media: headerMedia = null, cv: cvPayload = null, partner_programs: partnerPrograms = [], completed_collabs: completedCollabs = null } = data;
   const profileType = profile.profile_type ?? "individual";
   const displayName = profile.display_name ?? profile.username ?? username;
   const handle = profile.username ?? username;
@@ -568,7 +568,8 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-foreground">{featuredReview.reviewer_display ?? "Anonymous"}</span>
                         <Stars rating={featuredReview.rating} className="shrink-0" />
-                        {featuredReview.verified_deal !== false && <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified deal</span>}
+                        {(featuredReview as { source?: "collab" | "legacy" }).source === "collab" && <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified</span>}
+{(featuredReview as { source?: "collab" | "legacy" }).source === "legacy" && <span className="rounded-lg border border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground shrink-0">Unverified</span>}
                       </div>
                       {featuredReview.title && <p className="mt-1 text-sm font-medium text-foreground">{featuredReview.title}</p>}
                       {featuredReview.text && <p className="mt-0.5 text-sm text-muted-foreground leading-relaxed">{featuredReview.text}</p>}
@@ -966,8 +967,11 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-foreground">{topReview.reviewer_display ?? "Anonymous"}</span>
                           <Stars rating={topReview.rating} className="shrink-0" />
-                          {topReview.verified_deal !== false && (
-                            <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified deal</span>
+                          {(topReview as { source?: "collab" | "legacy" }).source === "collab" && (
+                            <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified</span>
+                          )}
+                          {(topReview as { source?: "collab" | "legacy" }).source === "legacy" && (
+                            <span className="rounded-lg border border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground shrink-0">Unverified</span>
                           )}
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground">{new Date(topReview.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</p>
@@ -991,8 +995,11 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-medium text-foreground">{r.reviewer_display ?? "Anonymous"}</span>
                               <Stars rating={r.rating} className="shrink-0" />
-                              {r.verified_deal !== false && (
-                                <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified deal</span>
+                              {(r as { source?: "collab" | "legacy" }).source === "collab" && (
+                                <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shrink-0">Verified</span>
+                              )}
+                              {(r as { source?: "collab" | "legacy" }).source === "legacy" && (
+                                <span className="rounded-lg border border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground shrink-0">Unverified</span>
                               )}
                             </div>
                             <p className="mt-0.5 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</p>
@@ -1006,6 +1013,27 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 )}
               </>
             )}
+            </div>
+          </section>
+        );
+      case "completed_collabs":
+        if (!completedCollabs || completedCollabs.total === 0) return null;
+        return (
+          <section className={rightSectionSpacing}>
+            <div className={islandClass}>
+              <SectionTitle>Completed collaborations</SectionTitle>
+              <p className="text-sm text-muted-foreground mb-4">
+                {completedCollabs.total} completed collaboration{completedCollabs.total !== 1 ? "s" : ""}
+              </p>
+              {completedCollabs.counterparties.length > 0 && (
+                <ul className="flex flex-wrap gap-2">
+                  {completedCollabs.counterparties.map((cp) => (
+                    <li key={cp.id}>
+                      <RelationCardLink item={{ ...cp, profile_type: "individual" }} basePath={basePath} />
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </section>
         );

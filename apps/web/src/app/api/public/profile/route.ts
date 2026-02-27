@@ -78,10 +78,17 @@ export type PublicProfileApiPayload = {
       reviewer_display: string | null;
       reviewer_avatar_url: string | null;
       verified_deal?: boolean;
+      /** 'collab' = Verified badge; 'legacy' = Unverified or no badge */
+      source?: "collab" | "legacy";
     }>;
   };
   /** When false, Reviews section is hidden on public profile */
   show_reviews?: boolean;
+  /** Completed collaborations (done collab_requests, public counterparties only) */
+  completed_collabs?: {
+    total: number;
+    counterparties: Array<{ id: string; username: string; display_name: string | null; avatar_url: string | null }>;
+  };
   /** Project token data from Dexscreener (profile_type=project only) */
   token?: {
     url: string;

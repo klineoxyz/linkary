@@ -24,6 +24,7 @@ export const SECTION_KEYS = [
   "cv",
   "partner_programs",
   "reviews",
+  "completed_collabs",
 ] as const;
 
 export type SectionKey = (typeof SECTION_KEYS)[number];
@@ -48,6 +49,7 @@ export const RIGHT_COLUMN_KEYS: SectionKey[] = [
   "cv",
   "partner_programs",
   "reviews",
+  "completed_collabs",
 ];
 
 export type PresetName = "classic" | "spotlight" | "showcase" | "compact";
@@ -82,6 +84,7 @@ export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
     "cv",
     "partner_programs",
     "reviews",
+    "completed_collabs",
   ],
   spotlight: [
     "hero",
@@ -118,6 +121,7 @@ export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
     "socials",
     "case_studies",
     "reviews",
+    "completed_collabs",
     "gigs",
     "relations",
     "roles",
@@ -128,6 +132,7 @@ export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
     "links",
     "cv",
     "partner_programs",
+    "completed_collabs",
   ],
   compact: [
     "hero",
@@ -150,6 +155,7 @@ export const PRESET_DEFAULT_ORDER: Record<PresetName, SectionKey[]> = {
     "cv",
     "partner_programs",
     "reviews",
+    "completed_collabs",
   ],
 };
 

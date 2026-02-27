@@ -360,7 +360,8 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
             created_at: r.created_at,
             reviewer_display: reviewer?.display_name ?? "Anonymous",
             reviewer_avatar_url: reviewer?.avatar_url ?? null,
-            verified_deal: r.verified_deal ?? true,
+            verified_deal: false,
+            source: "legacy" as const,
           };
         });
         const collabItems: PublicProfileApiPayload["reviews"]["latest"] = collabMapped.map((r) => {
@@ -374,6 +375,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
             reviewer_display: reviewer?.display_name ?? "Anonymous",
             reviewer_avatar_url: reviewer?.avatar_url ?? null,
             verified_deal: true,
+            source: "collab" as const,
           };
         });
         const combined = [...legacyItems, ...collabItems].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10);
@@ -420,6 +422,46 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       }
 
       const rolesList: string[] = (profileProfessionsList ?? []).map((r) => (r.professions?.name ?? "")).filter(Boolean);
+
+      let completedCollabsPayload: PublicProfileApiPayload["completed_collabs"] = { total: 0, counterparties: [] };
+      try {
+        const { data: doneRows } = await serviceSupabase
+          .from("collab_requests")
+          .select("requester_profile_id, target_profile_id, created_at")
+          .eq("status", "done")
+          .or(`requester_profile_id.eq.${profileId},target_profile_id.eq.${profileId}`)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        const rows = (doneRows ?? []) as Array<{ requester_profile_id: string; target_profile_id: string; created_at: string }>;
+        const counterpartyIds = [...new Set(rows.map((r) => (r.requester_profile_id === profileId ? r.target_profile_id : r.requester_profile_id)))];
+        if (counterpartyIds.length > 0) {
+          const { data: publicProfs } = await serviceSupabase
+            .from("public_profile_view")
+            .select("id, username, display_name, avatar_url")
+            .in("id", counterpartyIds);
+          const list = (publicProfs ?? []) as Array<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null }>;
+          const byId: Record<string, { id: string; username: string; display_name: string | null; avatar_url: string | null }> = {};
+          for (const p of list) {
+            const username = (p.username ?? "").trim();
+            if (username) byId[p.id] = { id: p.id, username, display_name: p.display_name ?? null, avatar_url: p.avatar_url ?? null };
+          }
+          const ordered = rows.map((r) => (r.requester_profile_id === profileId ? r.target_profile_id : r.requester_profile_id));
+          const seen = new Set<string>();
+          const last5: Array<{ id: string; username: string; display_name: string | null; avatar_url: string | null }> = [];
+          for (const id of ordered) {
+            if (seen.has(id)) continue;
+            seen.add(id);
+            const cp = byId[id];
+            if (cp) {
+              last5.push(cp);
+              if (last5.length >= 5) break;
+            }
+          }
+          completedCollabsPayload = { total: rows.length, counterparties: last5 };
+        }
+      } catch {
+        /* non-fatal */
+      }
 
       const partnerProgramsPayload: NonNullable<PublicProfileApiPayload["partner_programs"]> = (partnerProgramsList ?? []).map((pp) => ({
         name: pp.name,
@@ -561,6 +603,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           latest: reviewsLatest,
         },
         show_reviews: showReviews,
+        ...(completedCollabsPayload.total > 0 ? { completed_collabs: completedCollabsPayload } : {}),
         token: tokenPayload,
         ...(Object.keys(relationsPayload).length > 0 ? { relations: relationsPayload } : {}),
         ...((gigsPayload ?? []).length > 0 ? { gigs: gigsPayload ?? [] } : {}),

@@ -1,10 +1,29 @@
 /**
  * Verify REP stays 0–100 and breakdown is consistent. Optional guardrail check.
- * Run: pnpm exec tsx apps/web/scripts/verifyRepMonotonic.ts
- * Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ * Run from repo root: pnpm exec tsx apps/web/scripts/verifyRepMonotonic.ts
+ * Loads apps/web/.env.local if present. Requires NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  */
 import { createClient } from "@supabase/supabase-js";
+import { readFileSync, existsSync } from "fs";
+import { resolve } from "path";
 import { computeRep } from "../src/lib/repScore";
+
+// Load .env.local (from repo root: apps/web/.env.local; from apps/web: .env.local)
+const envLocalPath =
+  existsSync(resolve(process.cwd(), "apps/web/.env.local"))
+    ? resolve(process.cwd(), "apps/web/.env.local")
+    : resolve(process.cwd(), ".env.local");
+if (existsSync(envLocalPath)) {
+  const content = readFileSync(envLocalPath, "utf8");
+  for (const line of content.split("\n")) {
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (m) {
+      const key = m[1].trim();
+      const val = m[2].trim().replace(/^["']|["']$/g, "");
+      if (!process.env[key]) process.env[key] = val;
+    }
+  }
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;

@@ -507,7 +507,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         );
         const heroVisible = visibleOrder.includes("hero") && (hasHeroImage || hasHeroVideo);
         return (
-          <div className={heroVisible ? "-mt-6 sm:-mt-10 relative z-10" : undefined}>
+          <div className={heroVisible ? "-mt-2 sm:-mt-4 relative z-10 pt-2 sm:pt-3" : undefined}>
             {headerContent}
           </div>
         );
@@ -1111,10 +1111,16 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
     <div className="min-h-screen bg-background text-foreground font-sans relative">
       {/* Subtle background gradient / glow using tokens */}
       <div className="fixed inset-0 -z-10 bg-gradient-to-b from-primary/[0.03] via-transparent to-accent/[0.04] pointer-events-none" aria-hidden />
+      {/* Soft Linkary palette blobs (primary, accent, chart-1 only) */}
+      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden>
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,hsl(var(--primary)/0.10),transparent_70%)] blur-3xl opacity-60" />
+        <div className="absolute top-1/2 -right-32 w-80 h-80 rounded-full bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,hsl(var(--accent)/0.08),transparent_70%)] blur-3xl opacity-60" />
+        <div className="absolute -bottom-24 -left-20 w-72 h-72 rounded-full bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,hsl(var(--chart-1)/0.08),transparent_70%)] blur-3xl opacity-60" />
+      </div>
       <main className={`mx-auto max-w-6xl px-4 sm:px-6 ${isCompact ? "py-5 sm:py-6" : "py-8 sm:py-10"}`}>
         {/* Hero — full width; only when in visible order */}
         {visibleOrder.includes("hero") && (hasHeroImage || hasHeroVideo) && (
-          <section className={`relative ${isCompact ? "mb-5" : "mb-8"}`}>
+          <section className={`relative ${isCompact ? "mb-6" : "mb-10"}`}>
             <div className={`overflow-hidden rounded-2xl border shadow-lg transition-all hover:border-primary/20 hover:shadow-primary/10 ${hasHeroImage ? "border-primary/20" : "border-border"} bg-card`}>
               {hasHeroImage && (
                 <div className={`relative w-full ${isCompact ? "h-[140px] sm:h-[180px]" : "h-[200px] sm:h-[260px]"}`}>

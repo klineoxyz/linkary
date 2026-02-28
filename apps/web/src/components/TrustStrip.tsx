@@ -2,7 +2,8 @@
 
 import React from "react";
 
-function scoreToTier(score100: number): string {
+/** REP score (0–100) to tier label; exported for use in public profile header. */
+export function scoreToTier(score100: number): string {
   if (score100 >= 75) return "Platinum";
   if (score100 >= 50) return "Gold";
   if (score100 >= 25) return "Silver";

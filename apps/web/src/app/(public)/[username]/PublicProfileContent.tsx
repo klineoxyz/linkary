@@ -60,6 +60,15 @@ const sectionCardClass =
 const islandClass =
   "rounded-2xl border border-border bg-card shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.07)] transition-all duration-200 hover:border-primary/10 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.08)] p-5";
 
+/** Local tier label from REP score (public profile header only). Do not import from elsewhere. */
+function repToTier(score: number): string {
+  if (score >= 80) return "Legendary";
+  if (score >= 60) return "Elite";
+  if (score >= 40) return "Verified";
+  if (score >= 20) return "Rising";
+  return "Starter";
+}
+
 type RelationCard = { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string };
 
 function RelationCardLink({ item, basePath }: { item: RelationCard; basePath: string }) {
@@ -421,8 +430,13 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   {profile.rep_score != null && (
                     <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="header" />
                   )}
+                  {profile.rep_score != null && (
+                    <span className="inline-flex items-center rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm" aria-label="REP tier">
+                      {repToTier(profile.rep_score)}
+                    </span>
+                  )}
                 </div>
-                {(profile.xscore != null || profile.ethos_score != null || profile.rep_score != null) && (
+                {(profile.xscore != null || profile.ethos_score != null) && (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {profile.xscore != null && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
@@ -433,9 +447,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                       <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
                         <Shield className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> ETHOS {profile.ethos_score}
                       </span>
-                    )}
-                    {profile.rep_score != null && (
-                      <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="pill" />
                     )}
                   </div>
                 )}
@@ -455,15 +466,14 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </div>
         );
       case "trust_strip": {
-        const score = profile.rep_score ?? null;
         return (
           <div className={sectionSpacing}>
             <TrustStrip
-              score={score}
+              score={null}
               tierLabel={null}
               reviewsAvg={reviews.average ?? null}
               reviewsCount={reviews.count ?? 0}
-              xHandle={socials.x?.trim() ? "X" : null}
+              xHandle={null}
               variant="public"
             />
           </div>

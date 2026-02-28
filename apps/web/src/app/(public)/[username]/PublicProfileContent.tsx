@@ -433,7 +433,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
       case "header": {
         const headerContent = (
           <header
-            className="rounded-2xl border border-border bg-card/95 shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.07)] transition-shadow duration-200 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.10)] pb-6"
+            className="rounded-2xl border border-border bg-card/95 bg-gradient-to-b from-primary/[0.03] via-transparent to-transparent shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.08)] transition-shadow duration-200 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.10),0_0_8px_16px_hsl(var(--primary)/.08)] pb-6"
             role="banner"
           >
             <div className="relative flex flex-col sm:flex-row sm:items-start gap-4">
@@ -507,7 +507,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         );
         const heroVisible = visibleOrder.includes("hero") && (hasHeroImage || hasHeroVideo);
         return (
-          <div className={heroVisible ? "-mt-2 sm:-mt-4 relative z-10 pt-2 sm:pt-3" : undefined}>
+          <div className={heroVisible ? "mt-3 sm:mt-4 relative z-10" : undefined}>
             {headerContent}
           </div>
         );
@@ -1115,7 +1115,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
       <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden>
         <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,hsl(var(--primary)/0.10),transparent_70%)] blur-3xl opacity-60" />
         <div className="absolute top-1/2 -right-32 w-80 h-80 rounded-full bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,hsl(var(--accent)/0.08),transparent_70%)] blur-3xl opacity-60" />
-        <div className="absolute -bottom-24 -left-20 w-72 h-72 rounded-full bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,hsl(var(--chart-1)/0.08),transparent_70%)] blur-3xl opacity-60" />
+        <div className="absolute -bottom-24 -right-20 w-72 h-72 rounded-full bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,hsl(var(--chart-1)/0.08),transparent_70%)] blur-3xl opacity-60" />
       </div>
       <main className={`mx-auto max-w-6xl px-4 sm:px-6 ${isCompact ? "py-5 sm:py-6" : "py-8 sm:py-10"}`}>
         {/* Hero — full width; only when in visible order */}

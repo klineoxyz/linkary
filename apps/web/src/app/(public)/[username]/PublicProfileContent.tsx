@@ -558,23 +558,56 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             />
           </div>
         );
-      case "proof":
-        if (!hasProofStats) return null;
+      case "proof": {
+        const showProof = caseStudies.length > 0 || isAuthenticated === true;
+        if (!showProof) return null;
+        const proofSource = caseStudies.length > 0 ? (featuredCaseStudy ?? caseStudies[0]) : null;
+        const highlights = proofSource ? proofHighlights(proofSource.summary ?? null, proofSource.tags ?? []).slice(0, 2) : [];
         return (
           <section className={sectionSpacing}>
             <div className={islandClass}>
               <SectionTitle>Proof</SectionTitle>
-              <p className="text-sm text-muted-foreground">REP is based on social activity, verified reviews, and proof cards.</p>
-              {profile.rep_score != null ? (
-                <div className="mt-4">
-                  <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="proof" />
-                </div>
+              {caseStudies.length > 0 ? (
+                <>
+                  <p className="text-sm text-muted-foreground">Recent outcomes</p>
+                  {highlights.length > 0 && (
+                    <ul className="mt-3 space-y-1 text-sm text-foreground" aria-label="Proof highlights">
+                      {highlights.map((h, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" aria-hidden />
+                          <span>{h}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {proofSource?.url && (
+                    <a
+                      href={proofSource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      View case study <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </>
               ) : (
-                <p className="mt-3 text-sm text-muted-foreground">REP is not available yet. Connect X to generate REP.</p>
+                <>
+                  <p className="text-sm text-muted-foreground">Add proof cards to show outcomes. This also improves your REP.</p>
+                  {isAuthenticated && (
+                    <Link
+                      href="/profile/edit#case-studies"
+                      className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      Add proof card
+                    </Link>
+                  )}
+                </>
               )}
             </div>
           </section>
         );
+      }
       case "featured":
         if (!showFeatured) return null;
         return (

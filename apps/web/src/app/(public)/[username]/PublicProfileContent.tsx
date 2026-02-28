@@ -13,7 +13,7 @@ import Link from "next/link";
 import React, { Fragment } from "react";
 import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
 import { ApplyToGigButton } from "./ApplyToGigButton";
-import { TrustStrip, scoreToTier } from "@/components/TrustStrip";
+import { TrustStrip } from "@/components/TrustStrip";
 import { EcosystemModule } from "./EcosystemModule";
 import { ActionBar } from "./ActionBar";
 import { StarterBlock } from "./StarterBlock";
@@ -420,9 +420,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   {profile.rep_score != null && (
                     <span className="rounded-full border border-primary/40 bg-primary/15 px-3 py-1 text-xs font-bold tabular-nums text-primary shadow-sm shadow-primary/15" title="REP is based on social signals, verified work, and network trust.">REP {profile.rep_score}</span>
                   )}
-                  {profile.rep_score != null && (
-                    <span className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm" title="Reputation tier from your Linkary score: Bronze (&lt;25), Silver (25–49), Gold (50–74), Platinum (75+).">{scoreToTier(profile.rep_score)}</span>
-                  )}
                 </div>
                 {(profile.xscore != null || profile.ethos_score != null || profile.rep_score != null) && (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -459,15 +456,16 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </div>
         );
       case "trust_strip": {
+        const score = profile.rep_score ?? null;
         return (
           <div className={sectionSpacing}>
             <TrustStrip
-              score={null}
+              score={score}
               tierLabel={null}
               reviewsAvg={reviews.average ?? null}
               reviewsCount={reviews.count ?? 0}
+              xHandle={socials.x?.trim() ? "X" : null}
               variant="public"
-              hideScoreAndTier
             />
           </div>
         );

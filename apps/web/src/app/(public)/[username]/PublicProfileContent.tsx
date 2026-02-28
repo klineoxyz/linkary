@@ -559,9 +559,13 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             <div className={islandClass}>
               <SectionTitle>Proof</SectionTitle>
               <p className="text-sm text-muted-foreground">REP is based on social activity, verified reviews, and proof cards.</p>
-              <div className="mt-4">
-                <RepPillWithBreakdown repScore={profile.rep_score ?? 0} username={handle} variant="proof" />
-              </div>
+              {profile.rep_score != null ? (
+                <div className="mt-4">
+                  <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="proof" />
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">REP is not available yet. Connect X to generate REP.</p>
+              )}
             </div>
           </section>
         );

@@ -71,6 +71,22 @@ function repToTier(score100: number): string {
   return "Bronze";
 }
 
+/** Tier-specific pill styling (Tailwind palette only). */
+function tierPillClass(tier: string): string {
+  switch (tier) {
+    case "Bronze":
+      return "border-amber-400/40 bg-amber-500/10 text-amber-700 dark:text-amber-200";
+    case "Silver":
+      return "border-slate-400/40 bg-slate-500/10 text-slate-700 dark:text-slate-200";
+    case "Gold":
+      return "border-yellow-400/45 bg-yellow-500/10 text-yellow-800 dark:text-yellow-200";
+    case "Platinum":
+      return "border-indigo-400/35 bg-indigo-500/10 text-indigo-800 dark:text-indigo-200";
+    default:
+      return "border-border bg-card text-foreground";
+  }
+}
+
 type RelationCard = { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string };
 
 function RelationCardLink({ item, basePath }: { item: RelationCard; basePath: string }) {
@@ -446,21 +462,22 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   )}
                 </div>
                 {(profile.xscore != null || profile.ethos_score != null || profile.rep_score != null) && (
-                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {profile.xscore != null && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-                          <Zap className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> XScore {profile.xscore}
-                        </span>
-                      )}
-                      {profile.ethos_score != null && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-                          <Shield className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> ETHOS {profile.ethos_score}
-                        </span>
-                      )}
-                    </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    {profile.xscore != null && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+                        <Zap className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> XScore {profile.xscore}
+                      </span>
+                    )}
+                    {profile.ethos_score != null && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+                        <Shield className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> ETHOS {profile.ethos_score}
+                      </span>
+                    )}
                     {profile.rep_score != null && (
-                      <span className="inline-flex items-center rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground shadow-sm shrink-0" aria-label="REP tier">
+                      <span
+                        className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-medium shadow-sm shrink-0 ${tierPillClass(repToTier(profile.rep_score))}`}
+                        aria-label="REP tier"
+                      >
                         {repToTier(profile.rep_score)}
                       </span>
                     )}
@@ -541,22 +558,9 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           <section className={sectionSpacing}>
             <div className={islandClass}>
               <SectionTitle>Proof</SectionTitle>
-              <div className="flex flex-wrap gap-6">
-                {profile.rep_score != null && (
-                  <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="proof" />
-                )}
-                {profile.xscore != null && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">XScore</p>
-                    <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile.xscore}</p>
-                  </div>
-                )}
-                {profile.ethos_score != null && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ethos score</p>
-                    <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{profile.ethos_score}</p>
-                  </div>
-                )}
+              <p className="text-sm text-muted-foreground">REP is based on social activity, verified reviews, and proof cards.</p>
+              <div className="mt-4">
+                <RepPillWithBreakdown repScore={profile.rep_score ?? 0} username={handle} variant="proof" />
               </div>
             </div>
           </section>

@@ -482,22 +482,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     )}
                   </div>
                 )}
-                {(profile.ethos_score != null || profile.xscore != null) && (
-                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {profile.ethos_score != null && (
-                      <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2 shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-colors hover:border-primary/20">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">ETHOS</p>
-                        <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.ethos_score}</p>
-                      </div>
-                    )}
-                    {profile.xscore != null && (
-                      <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2 shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-colors hover:border-primary/20">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">XScore</p>
-                        <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.xscore}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
             {profile.bio && <p className="mt-3 text-sm text-foreground leading-relaxed">{profile.bio}</p>}

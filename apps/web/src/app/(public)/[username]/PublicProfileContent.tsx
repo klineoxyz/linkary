@@ -55,10 +55,10 @@ function getHostname(url: string): string {
 
 /** Shared card style for sections: Linkary card with subtle glow on hover. */
 const sectionCardClass =
-  "rounded-2xl border border-border bg-card/95 shadow-sm transition-all duration-200 hover:border-primary/20 hover:shadow-md hover:shadow-primary/10";
-/** Island wrapper for major sections: card with subtle primary accent. */
+  "rounded-2xl border border-border bg-card/95 shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-all duration-200 hover:border-primary/20 hover:shadow-md hover:shadow-primary/10";
+/** Island wrapper for major sections: card with faint top highlight, no haze. */
 const islandClass =
-  "rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:border-primary/10 p-5";
+  "rounded-2xl border border-border bg-card shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.07)] transition-all duration-200 hover:border-primary/10 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.08)] p-5";
 
 type RelationCard = { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string };
 

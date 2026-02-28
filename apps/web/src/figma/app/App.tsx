@@ -1275,6 +1275,17 @@ function OverviewPage({ setRoute, headerMedia, getAuthHeaders }) {
   const u = demo.me;
   const p = demo.project;
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
+  const { data: overviewStats } = useSWR<{
+    creators_total?: number;
+    projects_total?: number;
+    opportunities_live?: number;
+    collaborations_done?: number;
+    reviews_verified?: number;
+    rep_profiles?: number;
+    missing_sources?: string[];
+  }>("/api/overview/stats", (url) => fetch(url).then((r) => r.json()), { revalidateOnFocus: false });
+  const stats = overviewStats ?? {};
+  const missing = new Set(stats.missing_sources ?? []);
   const isImageWithPath = headerMedia?.header_media_type === "IMAGE" && headerMedia?.header_media_file_path;
   useEffect(() => {
     if (!isImageWithPath || !getAuthHeaders) {
@@ -1328,113 +1339,103 @@ function OverviewPage({ setRoute, headerMedia, getAuthHeaders }) {
         }
       />
 
-      {/* Rich Platform Stats - Interactive Hover Cards */}
+      {/* Platform Stats - real data from /api/overview/stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Active Creators */}
-        <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-orange-500/20 cursor-pointer group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)' }}>
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-foreground/80 transition-all duration-500 group-hover:from-primary/95 group-hover:to-foreground/90" />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-white">Active Creators</p>
-              <div className="p-2 bg-white/20 rounded-lg transition-all duration-300 group-hover:bg-white/30 group-hover:scale-110">
-                <Users className="h-4 w-4 text-white stroke-[1.75]" />
+        {!missing.has("profiles") && (
+          <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-foreground/80 transition-all duration-500 group-hover:from-primary/95 group-hover:to-foreground/90" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-white">Active Creators</p>
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <Users className="h-4 w-4 text-white stroke-[1.75]" />
+                </div>
               </div>
+              <h2 className="text-4xl font-bold text-white mb-1">{(stats.creators_total ?? 0).toLocaleString()}</h2>
+              <span className="text-xs flex items-center gap-1 text-white">{(stats.creators_total ?? 0) === 0 ? "Beta" : "Published profiles"}</span>
             </div>
-            <h2 className="text-4xl font-bold text-white mb-1 transition-all duration-300 group-hover:scale-105">2,847</h2>
-            <span className="text-xs flex items-center gap-1 text-white">
-              <TrendingUp className="h-3 w-3 stroke-[1.75]" /> +12% from last month
-            </span>
           </div>
-        </div>
-
-        {/* Active Projects */}
-        <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-primary/20 cursor-pointer group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80)' }}>
+        )}
+        {!missing.has("orgs") && (
+          <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80)' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-white">Active Projects</p>
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <Briefcase className="h-4 w-4 text-white stroke-[1.75]" />
+                </div>
+              </div>
+              <h2 className="text-4xl font-bold text-white mb-1">{(stats.projects_total ?? 0).toLocaleString()}</h2>
+              <span className="text-xs flex items-center gap-1 text-white">{(stats.projects_total ?? 0) === 0 ? "Beta" : "Published orgs"}</span>
+            </div>
+          </div>
+        )}
+        {!missing.has("collab_requests") && (
+          <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683311-eac922347aa1?w=800&q=80)' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-white">Live Opportunities</p>
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <Target className="h-4 w-4 text-white stroke-[1.75]" />
+                </div>
+              </div>
+              <h2 className="text-4xl font-bold text-white mb-1">{(stats.opportunities_live ?? 0).toLocaleString()}</h2>
+              <span className="text-xs flex items-center gap-1 text-white">{(stats.opportunities_live ?? 0) === 0 ? "Beta" : "Open collab requests"}</span>
+            </div>
+          </div>
+        )}
+        <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80)' }}>
           <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-white">Active Projects</p>
-              <div className="p-2 bg-white/20 rounded-lg transition-all duration-300 group-hover:bg-white/30 group-hover:scale-110">
-                <Briefcase className="h-4 w-4 text-white stroke-[1.75]" />
+              <p className="text-sm font-medium text-white">Collaborations Done</p>
+              <div className="p-2 bg-white/20 rounded-lg">
+                <CheckCircle2 className="h-4 w-4 text-white stroke-[1.75]" />
               </div>
             </div>
-            <h2 className="text-4xl font-bold text-white mb-1 transition-all duration-300 group-hover:scale-105">1,284</h2>
-            <span className="text-xs flex items-center gap-1 text-white">
-              <TrendingUp className="h-3 w-3 stroke-[1.75]" /> +8% increase
-            </span>
-          </div>
-        </div>
-
-        {/* Live Opportunities */}
-        <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-primary/20 cursor-pointer group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683311-eac922347aa1?w=800&q=80)' }}>
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-white">Live Opportunities</p>
-              <div className="p-2 bg-white/20 rounded-lg transition-all duration-300 group-hover:bg-white/30 group-hover:scale-110">
-                <Target className="h-4 w-4 text-white stroke-[1.75]" />
-              </div>
-            </div>
-            <h2 className="text-4xl font-bold text-white mb-1 transition-all duration-300 group-hover:scale-105">437</h2>
-            <span className="text-xs flex items-center gap-1 text-white">
-              <TrendingUp className="h-3 w-3 stroke-[1.75]" /> +24% active
-            </span>
-          </div>
-        </div>
-
-        {/* Potential Value Paid */}
-        <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-primary/20 cursor-pointer group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80)' }}>
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-white">Potential Value Paid</p>
-              <div className="p-2 bg-white/20 rounded-lg transition-all duration-300 group-hover:bg-white/30 group-hover:scale-110">
-                <DollarSign className="h-4 w-4 text-white stroke-[1.75]" />
-              </div>
-            </div>
-            <h2 className="text-4xl font-bold text-white mb-1 transition-all duration-300 group-hover:scale-105">€2.4M</h2>
-            <span className="text-xs flex items-center gap-1 text-white">
-              <TrendingUp className="h-3 w-3 stroke-[1.75]" /> Last 30 days
-            </span>
+            <h2 className="text-4xl font-bold text-white mb-1">{(stats.collaborations_done ?? 0).toLocaleString()}</h2>
+            <span className="text-xs flex items-center gap-1 text-white">{(stats.collaborations_done ?? 0) === 0 ? "Beta" : "Completed collabs"}</span>
           </div>
         </div>
       </div>
 
-      {/* Featured Events */}
+      {/* Get started - no fake events */}
       <Card>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="font-semibold" style={{ color: '#000000' }}>Featured Events</h3>
-            <p className="mt-1 text-sm" style={{ color: '#1a1a1a' }}>Upcoming X Spaces, podcasts, and community calls</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => setRoute({ name: "overview" })} style={{ color: '#000000' }}>
-            View All
-          </Button>
+        <div className="mb-6">
+          <h3 className="font-semibold text-foreground">Get started</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Simple steps to get the most out of Linkary</p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {demo.events.slice(0, 3).map((e, idx) => {
-            const bgImages = ['1557683316-973673baf926', '1579546929518-9e396f3cc809', '1557683311-eac922347aa1'];
-            return (
-            <div key={e.id} className="relative overflow-hidden rounded-lg border-0 p-4 hover:shadow-lg transition-all cursor-pointer bg-cover bg-center" style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx]}?w=800&q=80)` }}>
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70" />
-              <div className="relative z-10">
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <span className="rounded-full border border-black/30 bg-black/20 px-2.5 py-1 text-xs font-medium backdrop-blur-sm" style={{ color: '#000000' }}>
-                  {e.type}
-                </span>
-                <div className="flex items-center gap-1 text-xs" style={{ color: '#000000' }}>
-                  <Clock className="h-3 w-3 stroke-[1.75]" style={{ stroke: '#000000' }} />
-                  {e.start.split(' ')[1]}
-                </div>
-              </div>
-              <p className="font-semibold line-clamp-2 mb-2" style={{ color: '#000000' }}>{e.title}</p>
-              <div className="flex items-center justify-between">
-                <p className="text-xs" style={{ color: '#000000' }}>Host: {e.host}</p>
-                <Button size="sm" variant="outline" className="h-7 text-xs bg-black/20 border-black/30 hover:bg-black/30" style={{ color: '#000000' }} onClick={() => setRoute({ name: "overview" })}>Join</Button>
-              </div>
-              </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-border bg-card p-4 flex items-start gap-3">
+            <div className="rounded-lg bg-primary/10 p-2 shrink-0"><FileText className="h-5 w-5 text-primary stroke-[1.75]" /></div>
+            <div>
+              <p className="font-medium text-foreground">Complete your profile</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Add bio, links, and skills so others can find you.</p>
             </div>
-            );
-          })}
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4 flex items-start gap-3">
+            <div className="rounded-lg bg-primary/10 p-2 shrink-0"><Twitter className="h-5 w-5 text-primary stroke-[1.75]" /></div>
+            <div>
+              <p className="font-medium text-foreground">Connect X</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Link your X account to power your REP and proof.</p>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4 flex items-start gap-3">
+            <div className="rounded-lg bg-primary/10 p-2 shrink-0"><Send className="h-5 w-5 text-primary stroke-[1.75]" /></div>
+            <div>
+              <p className="font-medium text-foreground">Request a collab</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Browse Work and send a collaboration request.</p>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4 flex items-start gap-3">
+            <div className="rounded-lg bg-primary/10 p-2 shrink-0"><CheckCircle2 className="h-5 w-5 text-primary stroke-[1.75]" /></div>
+            <div>
+              <p className="font-medium text-foreground">Finish a collab to unlock verified reviews</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Mark a request done so both sides can leave a verified review.</p>
+            </div>
+          </div>
         </div>
       </Card>
 

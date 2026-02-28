@@ -1,12 +1,20 @@
 # REP: avg_engagement_per_post backfill and pipeline
 
+## Source priority (real engagement per post, not % × followers)
+
+1. **rollup_avg:** `avg_likes_30d + avg_replies_30d` from `x_analytics_rollups` (preferred).
+2. **tweets:** Last 30d from `x_tweets`: `sum(like_count + reply_count + repost_count + quote_count) / max(posts, 1)`.
+3. **rate_fallback:** Only if no other metric: `engagement_rate_30d * followers_total / 100`.
+
+Log tag: `[ENG_BACKFILL] profile_id=... value=... source=rollup_avg|tweets|rate_fallback`.
+
 ## Commands (run from repo root)
 
 ```bash
 # 1) Diagnose: see profile counts, rollup/tweet row counts, sample data
 pnpm run diagnose-engagement
 
-# 2) Backfill profiles.avg_engagement_per_post (only where NULL)
+# 2) Backfill profiles.avg_engagement_per_post (all profiles with data; re-run to correct formula)
 pnpm run backfill-engagement
 
 # 3) Recalculate REP so it uses the new engagement signal
@@ -40,3 +48,5 @@ After each rollup run in `x-analytics-server.ts` (`computeAndUpsertRollups`):
    Should show non-null numbers.
 
 3. REP values should change for some profiles after backfill (engagement signal now present).
+
+4. **Precision:** `avg_engagement_per_post` should align with `avg_likes_30d + avg_replies_30d` for rollup-backed profiles; no massive outliers from rate × followers.

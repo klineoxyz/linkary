@@ -1,8 +1,8 @@
 /**
- * Backfill profiles.avg_engagement_per_post from x_analytics_rollups (preferred) or x_tweets.
- * Only updates rows where avg_engagement_per_post IS NULL.
- * Run from repo root: pnpm run backfill-engagement
- * Then run: pnpm run backfill-rep
+ * Backfill profiles.avg_engagement_per_post from real engagement per post (not % * followers).
+ * Priority: A = rollup avg_likes_30d + avg_replies_30d, B = x_tweets last 30d, C = rate * followers (last resort).
+ * Run from repo root: pnpm run backfill-engagement, then pnpm run backfill-rep.
+ * Updates all profiles that have a usable source (re-run to correct previously inflated rate*followers values).
  */
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync, existsSync } from "fs";
@@ -38,8 +38,7 @@ const DAY_30_MS = 30 * 24 * 60 * 60 * 1000;
 async function main() {
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, followers_total")
-    .is("avg_engagement_per_post", null);
+    .select("id, followers_total");
 
   const list = profiles ?? [];
   let processed = 0;
@@ -54,7 +53,7 @@ async function main() {
     let value: number | null = null;
     let source = "";
 
-    // Source A: x_analytics_rollups (one row per profile)
+    // Source A (preferred): rollup avg_likes_30d + avg_replies_30d = real engagement per post
     const { data: rollup } = await supabase
       .from("x_analytics_rollups")
       .select("posts_30d, engagement_rate_30d, avg_likes_30d, avg_replies_30d")
@@ -63,23 +62,15 @@ async function main() {
 
     const rollupRow = rollup as { posts_30d?: number; engagement_rate_30d?: number; avg_likes_30d?: number; avg_replies_30d?: number } | null;
     const posts30d = Math.max(0, Number(rollupRow?.posts_30d ?? 0));
-    const engagementRate30d = Number(rollupRow?.engagement_rate_30d ?? 0);
+    const avgLikes = Number(rollupRow?.avg_likes_30d ?? 0);
+    const avgReplies = Number(rollupRow?.avg_replies_30d ?? 0);
 
-    if (rollupRow && posts30d > 0) {
-      if (Number.isFinite(engagementRate30d) && followersTotal > 0) {
-        value = (engagementRate30d * followersTotal) / 100;
-        source = "rollup(engagement_rate_30d*followers/100)";
-      } else {
-        const avgLikes = Number(rollupRow?.avg_likes_30d ?? 0);
-        const avgReplies = Number(rollupRow?.avg_replies_30d ?? 0);
-        if (Number.isFinite(avgLikes) || Number.isFinite(avgReplies)) {
-          value = avgLikes + 2 * avgReplies;
-          source = "rollup(avg_likes+2*avg_replies)";
-        }
-      }
+    if (rollupRow && posts30d > 0 && (Number.isFinite(avgLikes) || Number.isFinite(avgReplies))) {
+      value = (Number.isFinite(avgLikes) ? avgLikes : 0) + (Number.isFinite(avgReplies) ? avgReplies : 0);
+      source = "rollup_avg";
     }
 
-    // Source B: x_tweets fallback (last 30 days)
+    // Source B: x_tweets fallback (last 30 days): sum(like+reply+repost+quote) / max(posts, 1)
     if (value == null) {
       const windowStart = new Date(Date.now() - DAY_30_MS).toISOString();
       const { data: tweets } = await supabase
@@ -98,7 +89,16 @@ async function main() {
           0
         );
         value = total / Math.max(posts, 1);
-        source = "x_tweets(last30d)";
+        source = "tweets";
+      }
+    }
+
+    // Source C (last resort): engagement_rate_30d * followers_total / 100
+    if (value == null && rollupRow) {
+      const engagementRate30d = Number(rollupRow?.engagement_rate_30d ?? 0);
+      if (Number.isFinite(engagementRate30d) && followersTotal > 0) {
+        value = (engagementRate30d * followersTotal) / 100;
+        source = "rate_fallback";
       }
     }
 
@@ -121,9 +121,7 @@ async function main() {
       continue;
     }
     updated += 1;
-    if (updated <= 5) {
-      console.log("Updated", profileId, "avg_engagement_per_post=" + clamped.toFixed(2), "source=" + source);
-    }
+    console.log("[ENG_BACKFILL] profile_id=" + profileId + " value=" + clamped.toFixed(2) + " source=" + source);
   }
 
   console.log("\nDone. processed=" + processed + " updated=" + updated + " skipped_no_data=" + skippedNoData);

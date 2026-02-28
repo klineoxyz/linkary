@@ -58,10 +58,10 @@ const sectionCardClass =
   "rounded-2xl border border-border bg-card/95 shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-all duration-200 hover:border-primary/20 hover:shadow-md hover:shadow-primary/10";
 /** Island wrapper: faint top highlight + subtle gradient tint (theme tokens only). */
 const islandClass =
-  "rounded-2xl border border-border bg-card shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.07)] bg-gradient-to-b from-primary/[0.03] to-transparent transition-all duration-200 hover:border-primary/10 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.08)] p-5";
-/** Right-column sections: same as island + light hover lift. */
+  "rounded-2xl border border-border bg-card/95 shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.07)] bg-gradient-to-b from-primary/[0.02] via-transparent to-transparent transition-all duration-200 hover:border-primary/10 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.08)] p-5";
+/** Right-column sections: same as island + light hover lift + soft drop. */
 const rightColumnIslandClass =
-  "rounded-2xl border border-border bg-card shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.07)] bg-gradient-to-b from-primary/[0.03] to-transparent transition-all duration-200 hover:border-primary/10 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.08)] hover:-translate-y-[1px] hover:shadow-md p-5";
+  "rounded-2xl border border-border bg-card/95 shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.07)] bg-gradient-to-b from-primary/[0.02] via-transparent to-transparent transition-all duration-200 hover:border-primary/10 hover:-translate-y-[1px] hover:shadow-[0_0_0_1px_hsl(var(--primary)/.08),0_10px_30px_-18px_hsl(var(--primary)/.14)] p-5";
 
 /** Local tier label from REP score (public profile header only). Classic naming. */
 function repToTier(score100: number): string {
@@ -433,7 +433,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
       case "header": {
         const headerContent = (
           <header
-            className="rounded-2xl border border-border bg-card/95 bg-gradient-to-b from-primary/[0.03] via-transparent to-transparent shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.08)] transition-shadow duration-200 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.10),0_0_8px_16px_hsl(var(--primary)/.08)] pb-6"
+            className="rounded-2xl border border-border bg-card/95 bg-gradient-to-b from-primary/[0.03] via-transparent to-transparent shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.08)] transition-shadow duration-200 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.10),0_10px_30px_-18px_hsl(var(--primary)/.18)] pb-6"
             role="banner"
           >
             <div className="relative flex flex-col sm:flex-row sm:items-start gap-4">
@@ -488,11 +488,11 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   </div>
                 )}
                 <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2">
+                  <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2 shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-colors hover:border-primary/20">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">ETHOS</p>
                     <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.ethos_score != null ? profile.ethos_score : "—"}</p>
                   </div>
-                  <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2">
+                  <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2 shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-colors hover:border-primary/20">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">XScore</p>
                     <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.xscore != null ? profile.xscore : "—"}</p>
                   </div>

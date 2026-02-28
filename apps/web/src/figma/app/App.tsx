@@ -714,15 +714,15 @@ function Card({ className = "", children }) {
 
 function SectionTitle({ title, subtitle, right, background = "dark" }) {
   const textColors = background === "dark"
-    ? { title: "text-foreground", subtitle: "text-muted-foreground" }
-    : { title: "text-foreground", subtitle: "text-muted-foreground" };
+    ? { title: "text-white", subtitle: "text-zinc-300" }
+    : { title: "text-zinc-900", subtitle: "text-zinc-700" };
 
   return (
     <div className="mb-8 relative z-[10]">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className={`text-3xl font-semibold tracking-tight ${textColors.title}`}>{title}</h1>
-          {subtitle && <p className={`mt-2 ${textColors.subtitle}`}>{subtitle}</p>}
+          {subtitle && <p className="mt-2 text-zinc-900">{subtitle}</p>}
         </div>
         {right && <div className="flex items-center gap-2">{right}</div>}
       </div>

@@ -186,7 +186,7 @@ export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
     <div ref={searchRef} className="relative w-full max-w-2xl">
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground stroke-[1.75]" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400 stroke-[1.75]" />
         <input
           ref={inputRef}
           type="text"
@@ -195,12 +195,12 @@ export default function GlobalSearch({ onResultClick }: GlobalSearchProps) {
           onFocus={() => setIsOpen(true)}
           placeholder="Search creators, projects, agencies..."
           disabled={!canSearch}
-          className="w-full pl-12 pr-12 py-3 rounded-2xl bg-card border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-border transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full pl-12 pr-12 py-3 rounded-2xl bg-white/5 border border-white/10 text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-ring focus:border-border transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         />
         {query && (
           <button
             onClick={clearQuery}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors"
           >
             <X className="w-4 h-4 stroke-[1.75]" />
           </button>

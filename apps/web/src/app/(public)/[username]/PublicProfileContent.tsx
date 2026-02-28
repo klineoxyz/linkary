@@ -455,6 +455,9 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary" aria-label="Profile type">
                     {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
                   </span>
+                  {profile.rep_score != null && (
+                    <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="header" />
+                  )}
                 </div>
                 {(profile.xscore != null || profile.ethos_score != null || profile.rep_score != null) && (
                   <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -467,9 +470,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                       <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
                         <Shield className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> ETHOS {profile.ethos_score}
                       </span>
-                    )}
-                    {profile.rep_score != null && (
-                      <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="header" />
                     )}
                     {profile.rep_score != null && (
                       <span
@@ -485,6 +485,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               </div>
             </div>
             {profile.bio && <p className="mt-3 px-4 text-sm text-foreground leading-relaxed">{profile.bio}</p>}
+            <div className="mt-4"><CopyProfileLinkButton url={profileUrl} /></div>
           </header>
         );
         const heroVisible = visibleOrder.includes("hero") && (hasHeroImage || hasHeroVideo);

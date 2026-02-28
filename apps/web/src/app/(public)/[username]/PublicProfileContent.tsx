@@ -8,7 +8,7 @@ import {
   type PresetName,
   type SectionKey,
 } from "@/lib/publicLayoutPresets";
-import { BadgeCheck, ChevronRight, ExternalLink, Globe, Link2, Share2, Shield, Zap } from "lucide-react";
+import { BadgeCheck, ChevronRight, ExternalLink, FileText, Globe, Link2, Share2, Shield, Zap } from "lucide-react";
 import Link from "next/link";
 import React, { Fragment } from "react";
 import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
@@ -429,8 +429,8 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             )}
           </section>
         );
-      case "header":
-        return (
+      case "header": {
+        const headerContent = (
           <header
             className="rounded-2xl border border-border bg-card/95 shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.07)] transition-shadow duration-200 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.10)] pb-6"
             role="banner"
@@ -483,11 +483,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     )}
                   </div>
                 )}
-                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">REP</p>
-                    <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.rep_score != null ? profile.rep_score : "—"}</p>
-                  </div>
+                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">ETHOS</p>
                     <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.ethos_score != null ? profile.ethos_score : "—"}</p>
@@ -505,6 +501,13 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             <div className="mt-4"><CopyProfileLinkButton url={profileUrl} /></div>
           </header>
         );
+        const heroVisible = visibleOrder.includes("hero") && (hasHeroImage || hasHeroVideo);
+        return (
+          <div className={heroVisible ? "-mt-6 sm:-mt-10 relative z-10" : undefined}>
+            {headerContent}
+          </div>
+        );
+      }
       case "socials":
         if (socialLinks.length === 0) return null;
         return (
@@ -825,7 +828,19 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             <div className={islandClass}>
               <SectionTitle>Case studies</SectionTitle>
               {sortedCaseStudies.length === 0 ? (
-              <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">Add a proof card to show outcomes.</p>
+              <div className="rounded-2xl border border-border bg-muted/20 px-5 py-8 text-center">
+                <FileText className="mx-auto h-10 w-10 text-muted-foreground/80" aria-hidden />
+                <h3 className="mt-3 text-sm font-semibold text-foreground">Add your first proof card</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground">Show outcomes. This also improves your REP.</p>
+                {isAuthenticated && (
+                  <Link
+                    href="/profile/edit#case-studies"
+                    className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    Add proof card
+                  </Link>
+                )}
+              </div>
             ) : (
               <ul className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
                 {sortedCaseStudies.map((c) => {
@@ -1095,7 +1110,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
       <main className={`mx-auto max-w-6xl px-4 sm:px-6 ${isCompact ? "py-5 sm:py-6" : "py-8 sm:py-10"}`}>
         {/* Hero — full width; only when in visible order */}
         {visibleOrder.includes("hero") && (hasHeroImage || hasHeroVideo) && (
-          <section className={isCompact ? "mb-5" : "mb-8"}>
+          <section className={`relative ${isCompact ? "mb-5" : "mb-8"}`}>
             <div className={`overflow-hidden rounded-2xl border shadow-lg transition-all hover:border-primary/20 hover:shadow-primary/10 ${hasHeroImage ? "border-primary/20" : "border-border"} bg-card`}>
               {hasHeroImage && (
                 <div className={`relative w-full ${isCompact ? "h-[140px] sm:h-[180px]" : "h-[200px] sm:h-[260px]"}`}>

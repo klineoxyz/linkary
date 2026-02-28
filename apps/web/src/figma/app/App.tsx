@@ -199,6 +199,7 @@ import MonetizationFlowShowcase from "./components/monetization/MonetizationFlow
 import IntegrationsPage from "./components/IntegrationsPage";
 import RolesSkillsPage from "./components/RolesSkillsPage";
 import WalletShell from "@/components/wallet/WalletShell";
+import { RepBreakdownModal } from "@/components/rep/RepBreakdownModal";
 import ProfileEditPage from "./components/ProfileEditPage";
 import GlobalSearch from "./components/GlobalSearch";
 
@@ -576,7 +577,7 @@ function Stars({ value = 5 }) {
   );
 }
 
-function ScorePills({ ethos, xscore, reputationIndex, repScore, socialPower }) {
+function ScorePills({ ethos, xscore, reputationIndex, repScore, socialPower, onRepClick }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {ethos != null && (
@@ -590,9 +591,15 @@ function ScorePills({ ethos, xscore, reputationIndex, repScore, socialPower }) {
         </span>
       )}
       {repScore != null && (
-        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground" title="REP is based on social signals, verified work, and network trust.">
-          <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" /> REP {repScore}
-        </span>
+        onRepClick ? (
+          <button type="button" onClick={onRepClick} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/80 cursor-pointer" title="REP is based on social signals, verified work, and network trust. Click for breakdown.">
+            <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" /> REP {repScore}
+          </button>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground" title="REP is based on social signals, verified work, and network trust.">
+            <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" /> REP {repScore}
+          </span>
+        )
       )}
       {socialPower != null && (
         <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
@@ -3175,6 +3182,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   const [profileSearchQuery, setProfileSearchQuery] = useState("");
   const [profileSearchResults, setProfileSearchResults] = useState<Array<{ id: string; type: string; name: string; handleLabel?: string; handle?: string; url?: string; avatar?: string; verified?: boolean }>>([]);
   const [profileSearchLoading, setProfileSearchLoading] = useState(false);
+  const [repBreakdownOpen, setRepBreakdownOpen] = useState(false);
 
   const setProfileTab = (newTab: string) => {
     setRoute({ name: "profile", data: { tab: newTab, username: viewUsername } });
@@ -3358,7 +3366,9 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             reputationIndex={u.reputationIndex}
             repScore={u.repScore}
             socialPower={u.socialPower}
+            onRepClick={me?.id ? () => setRepBreakdownOpen(true) : undefined}
           />
+          <RepBreakdownModal open={repBreakdownOpen} onOpenChange={setRepBreakdownOpen} profileId={me?.id ?? null} />
 
           <div className="mt-4 flex items-center justify-between">
             <div className="flex items-center gap-2">

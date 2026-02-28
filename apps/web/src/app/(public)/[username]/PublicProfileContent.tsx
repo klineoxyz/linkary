@@ -14,6 +14,7 @@ import React, { Fragment } from "react";
 import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
 import { ApplyToGigButton } from "./ApplyToGigButton";
 import { TrustStrip } from "@/components/TrustStrip";
+import { RepPillWithBreakdown } from "./RepPillWithBreakdown";
 import { EcosystemModule } from "./EcosystemModule";
 import { ActionBar } from "./ActionBar";
 import { StarterBlock } from "./StarterBlock";
@@ -418,7 +419,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
                   </span>
                   {profile.rep_score != null && (
-                    <span className="rounded-full border border-primary/40 bg-primary/15 px-3 py-1 text-xs font-bold tabular-nums text-primary shadow-sm shadow-primary/15" title="REP is based on social signals, verified work, and network trust.">REP {profile.rep_score}</span>
+                    <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="header" />
                   )}
                 </div>
                 {(profile.xscore != null || profile.ethos_score != null || profile.rep_score != null) && (
@@ -434,9 +435,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                       </span>
                     )}
                     {profile.rep_score != null && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground" title="REP is based on social signals, verified work, and network trust.">
-                        <BadgeCheck className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> REP {profile.rep_score}
-                      </span>
+                      <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="pill" />
                     )}
                   </div>
                 )}
@@ -504,10 +503,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               <SectionTitle>Proof</SectionTitle>
               <div className="flex flex-wrap gap-6">
                 {profile.rep_score != null && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">REP</p>
-                    <p className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground" title="REP is based on social signals, verified work, and network trust.">{profile.rep_score}</p>
-                  </div>
+                  <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="proof" />
                 )}
                 {profile.xscore != null && (
                   <div>

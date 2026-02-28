@@ -230,6 +230,17 @@ export async function computeAndUpsertRollups(
     { onConflict: "profile_id" }
   );
 
+  // REP input: avg engagement per post (raw count). Used by computeRep() with log scaling.
+  const avgEngagementPerPost =
+    w30.posts > 0 ? Math.round((w30.engagementScoreSum / w30.posts) * 100) / 100 : null;
+  await supabase
+    .from("profiles")
+    .update({
+      avg_engagement_per_post: avgEngagementPerPost,
+      updated_at: now.toISOString(),
+    })
+    .eq("id", profileId);
+
   // Top 10 drivers for 30D window (by engagement_score; likes + replies + reposts only, no quote_count)
   const top30 = w30.inWindow
     .map((t) => ({

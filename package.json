@@ -11,6 +11,7 @@
     "backfill-engagement": "pnpm exec tsx apps/web/scripts/backfillAvgEngagementPerPost.ts",
     "qa:rep": "pnpm exec tsx apps/web/scripts/qaRep.ts",
     "launch:check": "pnpm --filter web run launch:check",
+    "verify:rls": "pnpm --filter web run verify:rls",
     "dev": "pnpm --filter web dev",
     "db:push": "npx supabase db push",
     "deploy:auth": "npx supabase functions deploy auth-cdp-login --no-verify-jwt",

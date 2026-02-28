@@ -166,8 +166,65 @@ async function main() {
       console.error("   Public profile sanity failed:", e instanceof Error ? e.message : e);
       process.exit(1);
     }
+      } else {
+        console.log("   Skip (NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set).");
+  }
+
+  // 5) Cron health: x_tweets (7d), x_analytics_rollups updated_at, consistency
+  if (supabaseUrl && serviceKey) {
+    console.log("5) Cron health");
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabase = createClient(supabaseUrl, serviceKey);
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { count: tweets7d } = await supabase
+        .from("x_tweets")
+        .select("id", { count: "exact", head: true })
+        .gte("tweeted_at", sevenDaysAgo);
+
+      const { data: rollupRows } = await supabase
+        .from("x_analytics_rollups")
+        .select("updated_at")
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      const rollupsUpdated =
+        (rollupRows?.[0] as { updated_at?: string } | undefined)?.updated_at ?? null;
+
+      const { count: profilesWithTwitter } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .not("twitter_username", "is", null)
+        .neq("twitter_username", "");
+
+      const tweetsCount = tweets7d ?? 0;
+      const rollupsOk =
+        rollupsUpdated === null ||
+        new Date(rollupsUpdated).getTime() > Date.now() - 48 * 60 * 60 * 1000;
+      const noTweetsButHasProfiles =
+        tweetsCount === 0 && (profilesWithTwitter ?? 0) > 0;
+      const cronStatus = rollupsOk && !noTweetsButHasProfiles ? "OK" : "FAIL";
+
+      console.log("   Cron Health:");
+      console.log("   - Tweets (7d):", tweetsCount);
+      console.log("   - Rollups updated:", rollupsUpdated ?? "—");
+      console.log("   - Status:", cronStatus);
+
+      if (!rollupsOk) {
+        console.error("   Rollups older than 48 hours or missing.");
+        process.exit(1);
+      }
+      if (noTweetsButHasProfiles) {
+        console.error("   Tweets count = 0 but profiles have twitter_username.");
+        process.exit(1);
+      }
+      console.log("");
+    } catch (e) {
+      console.error("   Cron health check failed:", e instanceof Error ? e.message : e);
+      process.exit(1);
+    }
   } else {
-    console.log("   Skip (NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set).");
+    console.log("5) Cron health — skipped (Supabase env not set).\n");
   }
 
   console.log("\n=== Launch check done (pass) ===");

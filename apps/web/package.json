@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "check:storage-url": "pnpm exec tsx src/lib/isPrivateStorageUrl.checks.ts",
-    "launch:check": "tsx scripts/launchCheck.ts"
+    "launch:check": "tsx scripts/launchCheck.ts",
+    "verify:rls": "tsx scripts/verifyRlsSafety.ts"
   },
   "dependencies": {
     "@coinbase/cdp-core": "^0.0.85",

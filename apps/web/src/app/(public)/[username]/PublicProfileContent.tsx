@@ -500,7 +500,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 <p className="mt-3 text-sm text-muted-foreground">@{handle}</p>
               </div>
             </div>
-            {profile.location && <p className="mt-3 text-sm text-muted-foreground">{profile.location}</p>}
             {profile.bio && <p className="mt-3 text-sm text-foreground leading-relaxed">{profile.bio}</p>}
             <div className="mt-4"><CopyProfileLinkButton url={profileUrl} /></div>
           </header>

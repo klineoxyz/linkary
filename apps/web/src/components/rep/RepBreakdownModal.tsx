@@ -21,6 +21,14 @@ function roundScore(x: number): number {
   return Math.round(Number(x) * 10) / 10;
 }
 
+function repTierLabel(rep: number): string {
+  if (rep <= 19) return "Starter";
+  if (rep <= 39) return "Rising";
+  if (rep <= 59) return "Verified";
+  if (rep <= 79) return "Elite";
+  return "Legendary";
+}
+
 export function RepBreakdownModal({
   open,
   onOpenChange,
@@ -90,12 +98,21 @@ export function RepBreakdownModal({
         )}
         {!loading && !error && data && (
           <div className="space-y-4 text-sm">
-            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
-              <span className="font-medium text-foreground">REP total</span>
-              <span className="text-lg font-bold tabular-nums text-foreground">{data.rep}</span>
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-foreground">REP total</span>
+                <span className="text-lg font-bold tabular-nums text-foreground">{data.rep}</span>
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">{repTierLabel(data.rep)}</p>
             </div>
+            {data.proofOfWork === 0 && data.networkTrust === 0 && (
+              <p className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                Early stage: REP is currently based mainly on social signals. Complete verified collaborations on Linkary to strengthen it.
+              </p>
+            )}
             <div className="space-y-2">
-              <div className="font-medium text-foreground">SocialBase (40%)</div>
+              <div className="font-medium text-foreground">Social signals (40%)</div>
+              <p className="text-xs text-muted-foreground">Based on average engagement per post and audience size.</p>
               <div className="rounded-lg border border-border bg-card p-2 space-y-1 text-muted-foreground">
                 {b?.socialBase && (
                   <>
@@ -113,7 +130,7 @@ export function RepBreakdownModal({
               </div>
             </div>
             <div className="space-y-2">
-              <div className="font-medium text-foreground">ProofOfWork (35%)</div>
+              <div className="font-medium text-foreground">Verified work (35%)</div>
               <div className="rounded-lg border border-border bg-card p-2 space-y-1 text-muted-foreground">
                 {b?.proofOfWork && (
                   <>
@@ -129,7 +146,7 @@ export function RepBreakdownModal({
               </div>
             </div>
             <div className="space-y-2">
-              <div className="font-medium text-foreground">NetworkTrust (25%)</div>
+              <div className="font-medium text-foreground">Network trust (25%)</div>
               <div className="rounded-lg border border-border bg-card p-2 space-y-1 text-muted-foreground">
                 {b?.networkTrust && (
                   <>

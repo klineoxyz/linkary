@@ -455,9 +455,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary" aria-label="Profile type">
                     {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
                   </span>
-                  {profile.rep_score != null && (
-                    <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="header" />
-                  )}
                 </div>
                 {(profile.xscore != null || profile.ethos_score != null || profile.rep_score != null) && (
                   <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -479,6 +476,9 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                         <Shield className="h-3.5 w-3.5 shrink-0 opacity-80 stroke-[1.75]" aria-hidden />
                         {repToTier(profile.rep_score)}
                       </span>
+                    )}
+                    {profile.rep_score != null && (
+                      <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="header" />
                     )}
                   </div>
                 )}

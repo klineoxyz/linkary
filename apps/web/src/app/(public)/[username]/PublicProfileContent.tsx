@@ -13,7 +13,7 @@ import Link from "next/link";
 import React, { Fragment } from "react";
 import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
 import { ApplyToGigButton } from "./ApplyToGigButton";
-import { TrustStrip, scoreToTier } from "@/components/TrustStrip";
+import { TrustStrip } from "@/components/TrustStrip";
 import { RepPillWithBreakdown } from "./RepPillWithBreakdown";
 import { EcosystemModule } from "./EcosystemModule";
 import { ActionBar } from "./ActionBar";
@@ -421,11 +421,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   {profile.rep_score != null && (
                     <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="header" />
                   )}
-                  {profile.rep_score != null && (
-                    <span className="inline-flex items-center rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm" aria-label="REP tier">
-                      {scoreToTier(profile.rep_score)}
-                    </span>
-                  )}
                 </div>
                 {(profile.xscore != null || profile.ethos_score != null || profile.rep_score != null) && (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -460,14 +455,15 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </div>
         );
       case "trust_strip": {
+        const score = profile.rep_score ?? null;
         return (
           <div className={sectionSpacing}>
             <TrustStrip
-              score={null}
+              score={score}
               tierLabel={null}
               reviewsAvg={reviews.average ?? null}
               reviewsCount={reviews.count ?? 0}
-              xHandle={null}
+              xHandle={socials.x?.trim() ? "X" : null}
               variant="public"
             />
           </div>

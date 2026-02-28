@@ -10,7 +10,7 @@
     "diagnose-engagement": "pnpm exec tsx apps/web/scripts/diagnoseEngagementSources.ts",
     "backfill-engagement": "pnpm exec tsx apps/web/scripts/backfillAvgEngagementPerPost.ts",
     "qa:rep": "pnpm exec tsx apps/web/scripts/qaRep.ts",
-    "launch:check": "pnpm exec tsx apps/web/scripts/launchCheck.ts",
+    "launch:check": "pnpm --filter web run launch:check",
     "dev": "pnpm --filter web dev",
     "db:push": "npx supabase db push",
     "deploy:auth": "npx supabase functions deploy auth-cdp-login --no-verify-jwt",

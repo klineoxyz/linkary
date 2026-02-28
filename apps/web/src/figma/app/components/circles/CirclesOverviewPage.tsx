@@ -111,11 +111,13 @@ const demoCircles = [
   },
 ];
 
+/** No real circles stats API yet — show Beta placeholders only. */
 const statsData = {
-  totalCircles: 6,
-  verifiedMembers: 68,
-  totalReach: 4370000,
-  avgPowerScore: 598,
+  totalCircles: 0,
+  verifiedMembers: 0,
+  totalReach: 0,
+  avgPowerScore: 0,
+  isBeta: true,
 };
 
 export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (route: any) => void; me?: { id: string } | null }) {
@@ -192,18 +194,21 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
         </div>
       )}
 
-      {/* Stats Row */}
+      {/* Stats Row — Beta: no real circles stats API yet */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard label="Total Circles" value={statsData.totalCircles} icon={Target} color="indigo" />
         <StatsCard label="Verified Members" value={statsData.verifiedMembers} icon={Shield} color="emerald" />
         <StatsCard
           label="Total Potential Reach"
-          value={`${(statsData.totalReach / 1000000).toFixed(1)}M`}
+          value={statsData.totalReach > 0 ? `${(statsData.totalReach / 1000000).toFixed(1)}M` : "—"}
           icon={TrendingUp}
           color="purple"
         />
-        <StatsCard label="Avg Circle Power" value={statsData.avgPowerScore} icon={Users} color="cyan" />
+        <StatsCard label="Avg Circle Power" value={statsData.avgPowerScore > 0 ? statsData.avgPowerScore : "—"} icon={Users} color="cyan" />
       </div>
+      {statsData.isBeta && (
+        <p className="text-xs text-muted-foreground">Circle analytics in beta. Stats will appear when available.</p>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex gap-2 border-b border-indigo-500/20 pb-1">

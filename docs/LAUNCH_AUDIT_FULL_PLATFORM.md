@@ -226,3 +226,18 @@
 ---
 
 **End of audit.** All claims above are tied to file paths, routes, or migrations cited in section 1.
+
+---
+
+## Appendix: Mock data removal (launch hardening)
+
+**Date:** Post-audit hardening.
+
+| Location | What was mock | Change |
+|----------|----------------|--------|
+| **Overview page (App.tsx)** | Stats cards (2,847 creators, 1,284 projects, etc.); Featured Events; AI Matched Opportunities | Already fixed earlier: stats from `/api/overview/stats`, Featured Events replaced with Get started block, AI block uses `demo.marketplace.interestedProjects` (empty array in demo). |
+| **CirclesOverviewPage** | `statsData`: totalCircles 6, verifiedMembers 68, totalReach 4.37M, avgPowerScore 598 | Replaced with zeros + `isBeta: true`; display shows "—" for reach and avg power when 0; added line "Circle analytics in beta. Stats will appear when available." |
+| **Explore / Featured Creators & Projects** | `demo.explore.individuals`, `demo.explore.projects` | Already empty arrays; UI shows "Search for creators and projects" empty state. |
+| **Blog tab** | `demo.blog.posts` | Already empty array; UI shows "No posts yet." |
+| **Leaderboards** | `demo.leaderboards.topCreators`, `demo.leaderboards.topProjects` | Already empty arrays; UI shows "Coming soon." |
+| **AI Matched Opportunities (Overview)** | `demo.marketplace.interestedProjects` | Final demo object has `interestedProjects: []`; block never renders. |

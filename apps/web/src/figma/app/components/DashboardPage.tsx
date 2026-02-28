@@ -141,33 +141,16 @@ const emptyStats: PersonalStats = {
   engagementRateChange: 0,
 };
 
-const volumeData = [
-  { month: "Sep", personal: 1200, brands: 800 },
-  { month: "Oct", personal: 1800, brands: 1200 },
-  { month: "Nov", personal: 2100, brands: 1600 },
-  { month: "Dec", personal: 1900, brands: 1400 },
-  { month: "Jan", personal: 2400, brands: 2200 },
-  { month: "Feb", personal: 2850, brands: 2800 },
-];
-
-const reputationData = [
-  { month: "Sep", ethos: 720, xscore: 650, index: 72 },
-  { month: "Oct", ethos: 750, xscore: 680, index: 76 },
-  { month: "Nov", ethos: 780, xscore: 710, index: 80 },
-  { month: "Dec", ethos: 800, xscore: 735, index: 83 },
-  { month: "Jan", ethos: 825, xscore: 755, index: 85 },
-  { month: "Feb", ethos: 842, xscore: 771, index: 86 },
-];
-
-const activityData = [
-  { day: "Mon", projects: 4, reviews: 2, messages: 8 },
-  { day: "Tue", projects: 3, reviews: 3, messages: 12 },
-  { day: "Wed", projects: 5, reviews: 1, messages: 6 },
-  { day: "Thu", projects: 6, reviews: 4, messages: 10 },
-  { day: "Fri", projects: 4, reviews: 2, messages: 15 },
-  { day: "Sat", projects: 2, reviews: 1, messages: 5 },
-  { day: "Sun", projects: 3, reviews: 2, messages: 7 },
-];
+/** Last 6 month labels (current month last). */
+function last6MonthLabels(): string[] {
+  const labels: string[] = [];
+  const d = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const m = new Date(d.getFullYear(), d.getMonth() - i, 1);
+    labels.push(m.toLocaleString("en-US", { month: "short" }));
+  }
+  return labels;
+}
 
 const categoryDistribution = [
   { name: "Marketing", value: 35, color: "var(--chart-1)" },
@@ -175,15 +158,6 @@ const categoryDistribution = [
   { name: "Design", value: 20, color: "var(--chart-3)" },
   { name: "Content", value: 15, color: "var(--chart-4)" },
   { name: "Other", value: 5, color: "var(--chart-5)" },
-];
-
-const skillsRadarData = [
-  { skill: "Marketing", personal: 85, industry: 70 },
-  { skill: "Strategy", personal: 90, industry: 65 },
-  { skill: "Content", personal: 80, industry: 75 },
-  { skill: "Community", personal: 75, industry: 60 },
-  { skill: "Analytics", personal: 70, industry: 55 },
-  { skill: "Growth", personal: 88, industry: 68 },
 ];
 
 // Brands shown are derived from myOrgs in the component (no hardcoded list)
@@ -406,6 +380,17 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
   const [searchResultsUsers, setSearchResultsUsers] = useState<{ id: string; name: string; role?: string; avatar?: string; url?: string }[]>([]);
   const [searchResultsProjects, setSearchResultsProjects] = useState<{ id: string; name: string; category?: string; logo?: string; url?: string }[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [meStats, setMeStats] = useState<{
+    ethos: number | null;
+    xscore: number | null;
+    reputationIndex: number;
+    repScore: number | null;
+    socialPower: number;
+    reviews: { avg: number; count: number };
+    verifiedGigsCount: number;
+  } | null>(null);
+  const [profileSkills, setProfileSkills] = useState<{ name: string; level: number }[]>([]);
 
   const brandsFromOrgs = useMemo((): Brand[] => {
     return myOrgs.map((org) => ({
@@ -433,23 +418,123 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
       ...emptyStats,
       activeDeals: activeCount,
       completionRate: rate,
+      totalReviews: meStats?.reviews?.count ?? 0,
+      avgRating: meStats?.reviews?.avg ?? 0,
     };
+  }, [myDeals, meStats]);
+
+  const volumeData = useMemo(() => {
+    const months = last6MonthLabels();
+    const now = new Date();
+    const byMonth: Record<string, { personal: number; brands: number }> = {};
+    months.forEach((m, i) => {
+      byMonth[m] = { personal: 0, brands: 0 };
+    });
+    myDeals.forEach((d) => {
+      const created = new Date(d.created_at);
+      const key = created.toLocaleString("en-US", { month: "short" });
+      if (byMonth[key] != null) {
+        byMonth[key].personal += 1;
+      }
+    });
+    return months.map((month) => ({
+      month,
+      personal: byMonth[month]?.personal ?? 0,
+      brands: byMonth[month]?.brands ?? 0,
+    }));
   }, [myDeals]);
+
+  const reputationData = useMemo(() => {
+    const months = last6MonthLabels();
+    const ethos = meStats?.ethos ?? 0;
+    const xscore = meStats?.xscore ?? 0;
+    const index = meStats?.reputationIndex ?? 0;
+    return months.map((month) => ({
+      month,
+      ethos,
+      xscore,
+      index,
+    }));
+  }, [meStats]);
+
+  const activityData = useMemo(() => {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const byDay: Record<string, { projects: number; reviews: number; messages: number }> = {};
+    days.forEach((d) => {
+      byDay[d] = { projects: 0, reviews: 0, messages: 0 };
+    });
+    myDeals.forEach((d) => {
+      const created = new Date(d.created_at);
+      const dayKey = days[created.getDay()];
+      if (byDay[dayKey] != null) {
+        byDay[dayKey].projects += 1;
+      }
+    });
+    const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    return order.map((day) => ({
+      day,
+      projects: byDay[day]?.projects ?? 0,
+      reviews: byDay[day]?.reviews ?? 0,
+      messages: byDay[day]?.messages ?? 0,
+    }));
+  }, [myDeals]);
+
+  const defaultSkillLabels = ["Marketing", "Strategy", "Content", "Community", "Analytics", "Growth"];
+  const defaultIndustry: Record<string, number> = { Marketing: 70, Strategy: 65, Content: 75, Community: 60, Analytics: 55, Growth: 68 };
+  const skillsRadarData = useMemo(() => {
+    const fromProfile = profileSkills.slice(0, 6).map((s) => ({
+      skill: s.name.length > 12 ? s.name.slice(0, 11) + "…" : s.name,
+      personal: Math.min(100, (s.level ?? 1) * 20),
+      industry: defaultIndustry[s.name] ?? 65,
+    }));
+    if (fromProfile.length >= 6) return fromProfile;
+    const used = new Set(fromProfile.map((r) => r.skill));
+    const padded = [...fromProfile];
+    for (const label of defaultSkillLabels) {
+      if (padded.length >= 6) break;
+      if (!used.has(label)) {
+        padded.push({ skill: label, personal: 0, industry: defaultIndustry[label] ?? 65 });
+        used.add(label);
+      }
+    }
+    return padded;
+  }, [profileSkills]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const uid = session?.user?.id ?? null;
+      const token = session?.access_token ?? null;
       setUserId(uid);
       setUserEmail(session?.user?.email ?? null);
+      setAuthToken(token);
       if (uid) {
         listOrgsForUser(uid).then(setMyOrgs);
         listMyDeals().then(setMyDeals);
       } else {
         setMyOrgs([]);
         setMyDeals([]);
+        setMeStats(null);
+        setProfileSkills([]);
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!authToken) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const headers = { Authorization: `Bearer ${authToken}` };
+    Promise.all([
+      fetch(`${origin}/api/profile/me-stats`, { headers }).then((r) => (r.ok ? r.json() : null)),
+      fetch(`${origin}/api/profile/skills`, { headers }).then((r) => (r.ok ? r.json() : null)),
+    ])
+      .then(([stats, skillsRes]) => {
+        if (stats && typeof stats === "object") setMeStats(stats);
+        if (skillsRes?.skills && Array.isArray(skillsRes.skills)) {
+          setProfileSkills(skillsRes.skills.map((s: { name?: string; level?: number }) => ({ name: s.name ?? "", level: s.level ?? 1 })));
+        }
+      })
+      .catch(() => {});
+  }, [authToken]);
 
   useEffect(() => {
     if (searchQuery.trim().length < 2) {

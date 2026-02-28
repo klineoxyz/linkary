@@ -455,9 +455,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary" aria-label="Profile type">
                     {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
                   </span>
-                  {profile.rep_score != null && (
-                    <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="header" />
-                  )}
                 </div>
                 {(profile.xscore != null || profile.ethos_score != null || profile.rep_score != null) && (
                   <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -466,38 +463,44 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                         <Zap className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> XScore {profile.xscore}
                       </span>
                     )}
-                    <div className="flex flex-wrap items-center gap-2">
-                      {profile.ethos_score != null && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-                          <Shield className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> ETHOS {profile.ethos_score}
-                        </span>
-                      )}
-                      {profile.rep_score != null && (
-                        <span
-                          className={tierPillClass(repToTier(profile.rep_score))}
-                          aria-label="REP tier"
-                        >
-                          <Shield className="h-3.5 w-3.5 shrink-0 opacity-80 stroke-[1.75]" aria-hidden />
-                          {repToTier(profile.rep_score)}
-                        </span>
-                      )}
-                    </div>
+                    {profile.ethos_score != null && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+                        <Shield className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> ETHOS {profile.ethos_score}
+                      </span>
+                    )}
+                    {profile.rep_score != null && (
+                      <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="header" />
+                    )}
+                    {profile.rep_score != null && (
+                      <span
+                        className={tierPillClass(repToTier(profile.rep_score))}
+                        aria-label="REP tier"
+                      >
+                        <Shield className="h-3.5 w-3.5 shrink-0 opacity-80 stroke-[1.75]" aria-hidden />
+                        {repToTier(profile.rep_score)}
+                      </span>
+                    )}
                   </div>
                 )}
-                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2 shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-colors hover:border-primary/20">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">ETHOS</p>
-                    <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.ethos_score != null ? profile.ethos_score : "—"}</p>
+                {(profile.ethos_score != null || profile.xscore != null) && (
+                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {profile.ethos_score != null && (
+                      <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2 shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-colors hover:border-primary/20">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">ETHOS</p>
+                        <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.ethos_score}</p>
+                      </div>
+                    )}
+                    {profile.xscore != null && (
+                      <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2 shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-colors hover:border-primary/20">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">XScore</p>
+                        <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.xscore}</p>
+                      </div>
+                    )}
                   </div>
-                  <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2 shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-colors hover:border-primary/20">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">XScore</p>
-                    <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.xscore != null ? profile.xscore : "—"}</p>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
             {profile.bio && <p className="mt-3 text-sm text-foreground leading-relaxed">{profile.bio}</p>}
-            <div className="mt-4"><CopyProfileLinkButton url={profileUrl} /></div>
           </header>
         );
         const heroVisible = visibleOrder.includes("hero") && (hasHeroImage || hasHeroVideo);

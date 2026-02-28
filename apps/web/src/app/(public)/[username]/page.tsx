@@ -607,8 +607,9 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         ...((gigsPayload ?? []).length > 0 ? { gigs: gigsPayload ?? [] } : {}),
         ...(skills.length > 0 ? { skills } : {}),
         ...(achievements.length > 0 ? { achievements } : {}),
-        viewer_is_owner: viewer_is_owner,
       };
+
+      payload.viewer_is_owner = viewer_is_owner;
 
       const displayUsername = payload.profile.username ?? segmentLower;
 

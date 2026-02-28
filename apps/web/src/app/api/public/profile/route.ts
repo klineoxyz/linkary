@@ -432,7 +432,6 @@ export async function GET(request: NextRequest) {
       },
       ...(skills.length > 0 ? { skills } : {}),
       ...(achievements.length > 0 ? { achievements } : {}),
-      viewer_is_owner: false,
     };
 
     const body = isDebug
@@ -476,7 +475,6 @@ export async function GET(request: NextRequest) {
       count: reviewsCount,
       latest: reviewsLatest,
     },
-    viewer_is_owner: false,
   };
 
   const body = isDebug

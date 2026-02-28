@@ -452,6 +452,8 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl break-words min-w-0">{displayName}</h1>
                   {profile.is_verified && <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified" />}
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary" aria-label="Profile type">
                     {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
                   </span>

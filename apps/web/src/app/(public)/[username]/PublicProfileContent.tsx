@@ -71,20 +71,21 @@ function repToTier(score100: number): string {
   return "Bronze";
 }
 
-/** Tier-specific pill styling (Tailwind palette only). */
+/** Tier pill: card-like base + tier-specific tint (Tailwind + theme only). */
+const tierPillBase =
+  "rounded-xl border px-3 py-1.5 text-xs font-medium shrink-0 inline-flex items-center gap-1 shadow-sm shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] transition-all duration-200 hover:shadow-md hover:-translate-y-[1px]";
 function tierPillClass(tier: string): string {
-  switch (tier) {
-    case "Bronze":
-      return "border-amber-400/40 bg-amber-500/10 text-amber-700 dark:text-amber-200";
-    case "Silver":
-      return "border-slate-400/40 bg-slate-500/10 text-slate-700 dark:text-slate-200";
-    case "Gold":
-      return "border-yellow-400/45 bg-yellow-500/10 text-yellow-800 dark:text-yellow-200";
-    case "Platinum":
-      return "border-indigo-400/35 bg-indigo-500/10 text-indigo-800 dark:text-indigo-200";
-    default:
-      return "border-border bg-card text-foreground";
-  }
+  const tint =
+    tier === "Bronze"
+      ? "border-amber-400/40 bg-amber-500/10 text-amber-700 dark:text-amber-200"
+      : tier === "Silver"
+        ? "border-slate-400/40 bg-slate-500/10 text-slate-700 dark:text-slate-200"
+        : tier === "Gold"
+          ? "border-yellow-400/45 bg-yellow-500/10 text-yellow-800 dark:text-yellow-200"
+          : tier === "Platinum"
+            ? "border-indigo-400/35 bg-indigo-500/10 text-indigo-800 dark:text-indigo-200"
+            : "border-border bg-card text-foreground";
+  return `${tierPillBase} ${tint}`;
 }
 
 type RelationCard = { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string };
@@ -468,19 +469,22 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                         <Zap className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> XScore {profile.xscore}
                       </span>
                     )}
-                    {profile.ethos_score != null && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-                        <Shield className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> ETHOS {profile.ethos_score}
-                      </span>
-                    )}
-                    {profile.rep_score != null && (
-                      <span
-                        className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-medium shadow-sm shrink-0 ${tierPillClass(repToTier(profile.rep_score))}`}
-                        aria-label="REP tier"
-                      >
-                        {repToTier(profile.rep_score)}
-                      </span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {profile.ethos_score != null && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+                          <Shield className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> ETHOS {profile.ethos_score}
+                        </span>
+                      )}
+                      {profile.rep_score != null && (
+                        <span
+                          className={tierPillClass(repToTier(profile.rep_score))}
+                          aria-label="REP tier"
+                        >
+                          <Shield className="h-3.5 w-3.5 shrink-0 opacity-80 stroke-[1.75]" aria-hidden />
+                          {repToTier(profile.rep_score)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
                 <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">

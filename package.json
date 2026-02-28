@@ -7,6 +7,8 @@
   },
   "scripts": {
     "backfill-rep": "pnpm exec tsx scripts/backfillRep.ts",
+    "diagnose-engagement": "pnpm exec tsx apps/web/scripts/diagnoseEngagementSources.ts",
+    "backfill-engagement": "pnpm exec tsx apps/web/scripts/backfillAvgEngagementPerPost.ts",
     "dev": "pnpm --filter web dev",
     "db:push": "npx supabase db push",
     "deploy:auth": "npx supabase functions deploy auth-cdp-login --no-verify-jwt",

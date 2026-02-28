@@ -217,15 +217,13 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
       const profileId = minimalRow.id;
       const isPublished = minimalRow.published === true;
-      let isOwner = false;
-      if (!isPublished) {
-        const { createServerSupabase } = await import("@/lib/supabase/server");
-        const serverSupabase = await createServerSupabase();
-        const { data: { user } } = await serverSupabase.auth.getUser();
-        isOwner = user?.id === profileId;
-        if (!isOwner) {
-          return <NotFoundClaimView requestedUsername={segmentLower} />;
-        }
+      let viewer_is_owner = false;
+      const { createServerSupabase } = await import("@/lib/supabase/server");
+      const serverSupabase = await createServerSupabase();
+      const { data: { user } } = await serverSupabase.auth.getUser();
+      if (user?.id != null && user.id === profileId) viewer_is_owner = true;
+      if (!isPublished && !viewer_is_owner) {
+        return <NotFoundClaimView requestedUsername={segmentLower} />;
       }
 
       const isUnpublished = !isPublished;
@@ -609,6 +607,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         ...((gigsPayload ?? []).length > 0 ? { gigs: gigsPayload ?? [] } : {}),
         ...(skills.length > 0 ? { skills } : {}),
         ...(achievements.length > 0 ? { achievements } : {}),
+        viewer_is_owner: viewer_is_owner,
       };
 
       const displayUsername = payload.profile.username ?? segmentLower;

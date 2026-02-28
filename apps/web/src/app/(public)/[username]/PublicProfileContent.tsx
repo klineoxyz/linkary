@@ -293,7 +293,7 @@ type Props = {
 };
 
 export function PublicProfileContent({ data, username, profileUrl: profileUrlProp, isAuthenticated = false }: Props) {
-  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations, skills = [], achievements = [], header_media: headerMedia = null, cv: cvPayload = null, partner_programs: partnerPrograms = [], completed_collabs: completedCollabs = null } = data;
+  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations, skills = [], achievements = [], header_media: headerMedia = null, cv: cvPayload = null, partner_programs: partnerPrograms = [], completed_collabs: completedCollabs = null, viewer_is_owner: viewerIsOwner = false } = data;
   const profileType = profile.profile_type ?? "individual";
   const displayName = profile.display_name ?? profile.username ?? username;
   const handle = profile.username ?? username;
@@ -450,7 +450,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{displayName}</h1>
+                  <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl break-words min-w-0">{displayName}</h1>
                   {profile.is_verified && <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified" />}
                   <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary" aria-label="Profile type">
                     {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
@@ -494,7 +494,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.xscore != null ? profile.xscore : "—"}</p>
                   </div>
                 </div>
-                <p className="mt-3 text-sm text-muted-foreground">@{handle}</p>
               </div>
             </div>
             {profile.bio && <p className="mt-3 text-sm text-foreground leading-relaxed">{profile.bio}</p>}
@@ -599,7 +598,17 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   )}
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">Add proof cards to show outcomes. This also improves your REP.</p>
+                <>
+                  <p className="text-sm text-muted-foreground">Add proof cards to show outcomes. This also improves your REP.</p>
+                  {viewerIsOwner && (
+                    <Link
+                      href="/profile/edit#case-studies"
+                      className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      Add proof card
+                    </Link>
+                  )}
+                </>
               )}
             </div>
           </section>

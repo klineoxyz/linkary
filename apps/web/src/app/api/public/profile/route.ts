@@ -142,6 +142,8 @@ export type PublicProfileApiPayload = {
     description?: string | null;
     is_featured?: boolean;
   }>;
+  /** True when the viewer is the profile owner (server session). Used for owner-only CTAs (e.g. Add proof card). Omit or false when not available. */
+  viewer_is_owner?: boolean;
 };
 
 function tagsFromMetrics(metrics: unknown): string[] {
@@ -430,6 +432,7 @@ export async function GET(request: NextRequest) {
       },
       ...(skills.length > 0 ? { skills } : {}),
       ...(achievements.length > 0 ? { achievements } : {}),
+      viewer_is_owner: false,
     };
 
     const body = isDebug
@@ -473,6 +476,7 @@ export async function GET(request: NextRequest) {
       count: reviewsCount,
       latest: reviewsLatest,
     },
+    viewer_is_owner: false,
   };
 
   const body = isDebug

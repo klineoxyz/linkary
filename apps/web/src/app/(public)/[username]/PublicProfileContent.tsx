@@ -368,9 +368,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const hasHeroVideo = !!(hero?.hero_video_url?.trim()) && !hasHeroImage;
   const heroTitle = hero?.hero_title?.trim() || null;
 
-  const hasProofStats =
-    profile.ethos_score != null || profile.xscore != null || profile.rep_score != null;
-
   const hasHero = hasHeroImage || hasHeroVideo || !!heroTitle;
   const hasAnyRelation =
     relations &&
@@ -570,6 +567,16 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               {caseStudies.length > 0 ? (
                 <>
                   <p className="text-sm text-muted-foreground">Recent outcomes</p>
+                  {proofSource?.title && (
+                    <p className="mt-2 text-sm font-semibold text-foreground">{proofSource.title}</p>
+                  )}
+                  {proofSource?.tags && proofSource.tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {proofSource.tags.slice(0, 2).map((t) => (
+                        <span key={t} className="rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-foreground">{t}</span>
+                      ))}
+                    </div>
+                  )}
                   {highlights.length > 0 && (
                     <ul className="mt-3 space-y-1 text-sm text-foreground" aria-label="Proof highlights">
                       {highlights.map((h, i) => (
@@ -592,17 +599,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   )}
                 </>
               ) : (
-                <>
-                  <p className="text-sm text-muted-foreground">Add proof cards to show outcomes. This also improves your REP.</p>
-                  {isAuthenticated && (
-                    <Link
-                      href="/profile/edit#case-studies"
-                      className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      Add proof card
-                    </Link>
-                  )}
-                </>
+                <p className="text-sm text-muted-foreground">Add proof cards to show outcomes. This also improves your REP.</p>
               )}
             </div>
           </section>

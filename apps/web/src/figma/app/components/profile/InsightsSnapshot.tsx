@@ -320,10 +320,6 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
 
   const island = "rounded-2xl border border-border bg-card shadow-sm overflow-hidden";
 
-  const xHandleForStrip = isOwn && me?.twitter_username?.trim()
-    ? `@${me.twitter_username.replace(/^@/, "")}`
-    : (publicDto && targetUsername ? `@${targetUsername}` : null);
-
   return (
     <div className="space-y-6 pb-10">
       <ProfileHeaderCard
@@ -346,7 +342,6 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
         verifiedGigsCount={isOwn ? verifiedGigsCount : undefined}
         reviewsAvg={isOwn && meStats?.reviews?.count ? (meStats.reviews.avg ?? null) : undefined}
         reviewsCount={isOwn && meStats?.reviews ? meStats.reviews.count : undefined}
-        xHandle={xHandleForStrip}
         variant="insights"
       />
 

@@ -56,9 +56,12 @@ function getHostname(url: string): string {
 /** Shared card style for sections: Linkary card with subtle glow on hover. */
 const sectionCardClass =
   "rounded-2xl border border-border bg-card/95 shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-all duration-200 hover:border-primary/20 hover:shadow-md hover:shadow-primary/10";
-/** Island wrapper for major sections: card with faint top highlight, no haze. */
+/** Island wrapper: faint top highlight + subtle gradient tint (theme tokens only). */
 const islandClass =
-  "rounded-2xl border border-border bg-card shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.07)] transition-all duration-200 hover:border-primary/10 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.08)] p-5";
+  "rounded-2xl border border-border bg-card shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.07)] bg-gradient-to-b from-primary/[0.03] to-transparent transition-all duration-200 hover:border-primary/10 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.08)] p-5";
+/** Right-column sections: same as island + light hover lift. */
+const rightColumnIslandClass =
+  "rounded-2xl border border-border bg-card shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.07)] bg-gradient-to-b from-primary/[0.03] to-transparent transition-all duration-200 hover:border-primary/10 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.08)] hover:-translate-y-[1px] hover:shadow-md p-5";
 
 /** Local tier label from REP score (public profile header only). Classic naming. */
 function repToTier(score100: number): string {
@@ -412,13 +415,25 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         );
       case "header":
         return (
-          <header className="pb-6 border-b border-border">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-              {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt="" className="h-24 w-24 shrink-0 rounded-2xl object-cover border-2 border-border shadow-md ring-2 ring-transparent" />
-              ) : (
-                <div className="h-24 w-24 shrink-0 rounded-2xl bg-muted border-2 border-border" />
-              )}
+          <header
+            className="rounded-2xl border border-border bg-card/95 shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.07)] transition-shadow duration-200 hover:shadow-[0_0_0_1px_hsl(var(--primary)/.10)] pb-6"
+            role="banner"
+          >
+            <div className="relative flex flex-col sm:flex-row sm:items-start gap-4">
+              <div className="relative shrink-0">
+                <div
+                  className="pointer-events-none absolute -inset-4 rounded-3xl opacity-60 blur-2xl"
+                  aria-hidden
+                  style={{
+                    background: `radial-gradient(ellipse 80% 80% at 50% 50%, hsl(var(--primary) / 0.12), hsl(var(--accent) / 0.06) 40%, transparent 70%)`,
+                  }}
+                />
+                {profile.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="relative h-24 w-24 shrink-0 rounded-2xl object-cover border-2 border-border shadow-md ring-2 ring-transparent" />
+                ) : (
+                  <div className="relative h-24 w-24 shrink-0 rounded-2xl bg-muted border-2 border-border" />
+                )}
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{displayName}</h1>
@@ -451,7 +466,21 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     )}
                   </div>
                 )}
-                <p className="mt-1.5 text-sm text-muted-foreground">@{handle}</p>
+                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">REP</p>
+                    <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.rep_score != null ? profile.rep_score : "—"}</p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">ETHOS</p>
+                    <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.ethos_score != null ? profile.ethos_score : "—"}</p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-muted/40 bg-gradient-to-b from-primary/[0.04] to-transparent px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">XScore</p>
+                    <p className="mt-0.5 text-lg font-bold tabular-nums text-foreground">{profile.xscore != null ? profile.xscore : "—"}</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground">@{handle}</p>
               </div>
             </div>
             {profile.location && <p className="mt-3 text-sm text-muted-foreground">{profile.location}</p>}
@@ -737,7 +766,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         if (profileType !== "individual" && profileType !== "company") return null;
         return (
           <section className={rightSectionSpacing}>
-            <div className={islandClass}>
+            <div className={rightColumnIslandClass}>
               <SectionTitle>{profileType === "company" ? "Services / Expertise" : "Skills"}</SectionTitle>
               {skills.length === 0 ? (
                 <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border bg-muted/20 px-4 py-5 text-center">{profileType === "company" ? "No services or expertise listed yet" : "No skills listed yet"}</p>
@@ -844,7 +873,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
       case "links":
         return (
           <section className={rightSectionSpacing}>
-            <div className={islandClass}>
+            <div className={rightColumnIslandClass}>
               <SectionTitle>Links</SectionTitle>
               {links.length === 0 ? (
               <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No links yet</p>
@@ -946,7 +975,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         const restReviews = sortedReviews.slice(1);
         return (
           <section className={rightSectionSpacing}>
-            <div className={islandClass}>
+            <div className={rightColumnIslandClass}>
               <SectionTitle>Reviews</SectionTitle>
               {reviews.count === 0 ? (
               <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">Verified reviews appear after completed deals.</p>

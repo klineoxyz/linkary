@@ -484,7 +484,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 )}
               </div>
             </div>
-            {profile.bio && <p className="mt-3 text-sm text-foreground leading-relaxed">{profile.bio}</p>}
+            {profile.bio && <p className="mt-3 px-4 text-sm text-foreground leading-relaxed">{profile.bio}</p>}
           </header>
         );
         const heroVisible = visibleOrder.includes("hero") && (hasHeroImage || hasHeroVideo);

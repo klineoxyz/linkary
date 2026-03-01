@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 
 /** Domain for favicon URL; safe for any string. */
@@ -30,13 +31,16 @@ function oneHighlight(summary: string | null | undefined, tags: string[]): strin
   return null;
 }
 
+const initialsPlaceholderClass =
+  "h-12 w-12 shrink-0 rounded-xl border border-border bg-muted/40 bg-gradient-to-br from-primary/[0.04] to-transparent flex items-center justify-center text-sm font-semibold text-foreground/80";
+
 export type CaseStudyCardProps = {
   id: string;
   title?: string | null;
   summary?: string | null;
   tags?: string[] | null;
   url?: string | null;
-  /** Optional image URL (e.g. from proof_file_path or upload). When absent, favicon or initials are used. */
+  /** Optional image URL (from proof_file_path signed URL). When absent or on load error, favicon or initials are used. */
   imageUrl?: string | null;
 };
 
@@ -47,23 +51,38 @@ export function CaseStudyCard({
   url,
   imageUrl,
 }: CaseStudyCardProps) {
+  const [imageError, setImageError] = useState(false);
+  const [faviconError, setFaviconError] = useState(false);
   const tagList = Array.isArray(tags) ? tags.slice(0, 2) : [];
   const highlight = oneHighlight(summary ?? null, tagList);
   const domain = url?.trim() ? getDomain(url) : "";
   const faviconSrc = domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64` : null;
 
+  const showImage = imageUrl?.trim() && !imageError;
+  const showFavicon = !showImage && url?.trim() && faviconSrc && !faviconError;
+  const showInitials = !showImage && !showFavicon;
+
   return (
     <div className="rounded-xl border border-border bg-card/95 shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-all duration-200 hover:border-primary/20 hover:shadow-md hover:shadow-primary/10 p-4 flex items-start gap-3">
-      {/* Thumbnail: image > favicon > placeholder with initials */}
-      {imageUrl?.trim() ? (
-        <img src={imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover border border-border" />
-      ) : url?.trim() && faviconSrc ? (
-        <img src={faviconSrc} alt="" className="h-12 w-12 shrink-0 rounded-xl border border-border bg-muted/40 object-cover" />
-      ) : (
-        <div
-          className="h-12 w-12 shrink-0 rounded-xl border border-border bg-muted/40 bg-gradient-to-br from-primary/[0.04] to-transparent flex items-center justify-center text-sm font-semibold text-foreground/80"
-          aria-hidden
-        >
+      {/* Thumbnail: image > favicon > placeholder with initials; onError falls back to initials */}
+      {showImage && (
+        <img
+          src={imageUrl!}
+          alt=""
+          className="h-12 w-12 shrink-0 rounded-xl object-cover border border-border"
+          onError={() => setImageError(true)}
+        />
+      )}
+      {showFavicon && (
+        <img
+          src={faviconSrc}
+          alt=""
+          className="h-12 w-12 shrink-0 rounded-xl border border-border bg-muted/40 object-cover"
+          onError={() => setFaviconError(true)}
+        />
+      )}
+      {showInitials && (
+        <div className={initialsPlaceholderClass} aria-hidden>
           {initials(title ?? null)}
         </div>
       )}

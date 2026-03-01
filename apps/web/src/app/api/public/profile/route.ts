@@ -65,7 +65,7 @@ export type PublicProfileApiPayload = {
     youtube: string | null;
   };
   links: Array<{ title: string; url: string; icon?: string | null }>;
-  caseStudies: Array<{ id: string; title: string | null; summary: string | null; tags: string[]; url: string | null }>;
+  caseStudies: Array<{ id: string; title: string | null; summary: string | null; tags: string[]; url: string | null; imageUrl?: string | null }>;
   reviews: {
     average: number | null;
     count: number;

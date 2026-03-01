@@ -286,6 +286,18 @@ function isXVideoUrl(url: string): boolean {
   }
 }
 
+/** True when URL looks like a direct video file (.mp4, .webm, .ogg, .mov). */
+function isDirectVideoUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.toLowerCase();
+    const ext = path.slice(path.lastIndexOf("."));
+    return /\.(mp4|webm|ogg|ogv|mov|m4v)$/.test(ext);
+  } catch {
+    return false;
+  }
+}
+
 type Props = {
   data: PublicProfileApiPayload;
   username: string;
@@ -462,11 +474,28 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             </section>
           );
         }
-        if (isVideo) {
+        if (isVideo && isDirectVideoUrl(url)) {
           return (
             <section className={sectionSpacing}>
               <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border bg-card/95">
                 <video src={url} controls className="h-full w-full object-cover" />
+              </div>
+            </section>
+          );
+        }
+        if (isVideo) {
+          return (
+            <section className={sectionSpacing}>
+              <div className="rounded-2xl border border-border bg-card/95 bg-gradient-to-b from-primary/[0.02] via-transparent to-transparent p-6 flex flex-col items-center justify-center gap-4 min-h-[200px]">
+                <p className="text-sm text-muted-foreground text-center">Video link (embed not supported)</p>
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  Open video <ExternalLink className="h-4 w-4" />
+                </a>
               </div>
             </section>
           );
@@ -937,6 +966,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                         summary={c.summary}
                         tags={c.tags}
                         url={c.url}
+                        imageUrl={(c as { imageUrl?: string | null }).imageUrl}
                       />
                     </li>
                   ))}

@@ -186,6 +186,11 @@ async function main() {
 
   if (!hasPrivate) {
     console.log("  [WARN] No private case studies exist. Create one is_public=false to fully validate RLS.");
+    console.log("  How to create a private case study:");
+    console.log("  • Via app: Profile → Edit → Case studies → Add case study → uncheck \"Show on public profile\" → Save.");
+    console.log("  • Via SQL (service role): INSERT INTO public.case_studies (owner_type, owner_profile_id, title, is_public)");
+    console.log("    SELECT 'profile', id, 'Private RLS test', false FROM public.profiles LIMIT 1;");
+    console.log("  Then rerun this script: pnpm run verify:rls");
     results.push(pass("Anon SELECT case_studies where is_public = false → 0 rows (no private rows to test)"));
   } else {
     const { data: csAnonPrivate } = await anon

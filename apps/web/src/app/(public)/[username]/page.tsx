@@ -292,7 +292,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         safeSingle(serviceSupabase.from("profile_socials").select("x_url, linkedin_url, website_url, telegram_url, youtube_url").eq("profile_id", profileId).maybeSingle()),
         showReviews ? safe(serviceSupabase.from("reviews").select("id, rating, body, title, created_at, reviewer_profile_id, reviewer_type, verified_deal").eq("reviewee_type", "profile").eq("reviewee_profile_id", profileId).eq("verified_deal", true).order("created_at", { ascending: false }).limit(10)) : globalThis.Promise.resolve([]),
         showReviews ? safe(serviceSupabase.from("collab_reviews").select("id, rating, text, created_at, reviewer_profile_id").eq("target_profile_id", profileId).order("created_at", { ascending: false }).limit(10)) : globalThis.Promise.resolve([]),
-        safe(serviceSupabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20)),
+        safe(serviceSupabase.from("case_studies").select("id, title, description, proof_url, proof_file_path, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profileId).eq("is_public", true).order("created_at", { ascending: false }).limit(20)),
         safe(serviceSupabase.from("profile_links").select("title, url, icon").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true })),
         safe(serviceSupabase.from("profile_relations").select("source_profile_id, target_profile_id, relation_type, sort_order").or(`source_profile_id.eq.${profileId},target_profile_id.eq.${profileId}`).eq("is_public", true).order("relation_type").order("sort_order", { ascending: true })),
         safe(serviceSupabase.from("profile_skills").select("name, level").eq("profile_id", profileId).eq("is_public", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true })),
@@ -308,7 +308,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         { x_url?: string | null; linkedin_url?: string | null; website_url?: string | null; telegram_url?: string | null; youtube_url?: string | null } | null,
         ReviewRow[],
         CollabReviewRow[],
-        Array<{ id: string; title: string | null; description: string | null; proof_url: string | null; metrics: unknown; created_at: string }>,
+        Array<{ id: string; title: string | null; description: string | null; proof_url: string | null; proof_file_path: string | null; metrics: unknown; created_at: string }>,
         Array<{ title: string; url: string; icon?: string | null }>,
         Array<{ source_profile_id: string; target_profile_id: string; relation_type: string; sort_order: number }>,
         Array<{ name: string; level: number | null }>,
@@ -389,13 +389,25 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         reputationIndex = 0;
       }
 
-      const caseStudies = caseStudiesList.map((c) => ({
-        id: c.id,
-        title: c.title ?? null,
-        summary: c.description ?? null,
-        tags: tagsFromMetrics(c.metrics),
-        url: c.proof_url ?? null,
-      }));
+      const { createSignedUrlForPath } = await import("@/lib/mediaSignedUrlServer");
+      const caseStudies = await Promise.all(
+        caseStudiesList.map(async (c) => {
+          let imageUrl: string | null = null;
+          const path = (c as { proof_file_path?: string | null }).proof_file_path?.trim();
+          if (path && !path.includes("..")) {
+            const signed = await createSignedUrlForPath(serviceSupabase, path);
+            imageUrl = signed ?? null;
+          }
+          return {
+            id: c.id,
+            title: c.title ?? null,
+            summary: c.description ?? null,
+            tags: tagsFromMetrics(c.metrics),
+            url: c.proof_url ?? null,
+            imageUrl,
+          };
+        })
+      );
 
       const skills = skillsList.map((s) => ({ name: s.name, level: s.level }));
       const achievements = achievementsList.map((a) => ({ title: a.title, description: a.description ?? null, url: a.proof_url ?? null }));

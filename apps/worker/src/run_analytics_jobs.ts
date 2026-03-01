@@ -44,9 +44,11 @@ async function main() {
     return;
   }
 
-  const payloadProfileId = (job.payload as { profile_id?: string } | null)?.profile_id ?? null;
+  const payload = job.payload as { profile_id?: string; username?: string } | null;
+  const payloadProfileId = payload?.profile_id ?? null;
+  const twitterUsername = payload?.username ?? null;
   console.log(
-    "[JOB] id=" + job.id + " owner_id=" + job.owner_id + " payload_profile_id=" + (payloadProfileId ?? "null") + " job_type=" + job.job_type + " status=queued"
+    "[JOB] start id=" + job.id + " profile_id=" + job.owner_id + " twitter_username=" + (twitterUsername ?? "null") + " job_type=" + job.job_type
   );
 
   const { error: markErr } = await supabase
@@ -59,7 +61,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("[JOB] id=" + job.id + " owner_id=" + job.owner_id + " payload_profile_id=" + (payloadProfileId ?? "null") + " job_type=" + job.job_type + " status=running");
+  console.log("[JOB] running id=" + job.id + " profile_id=" + job.owner_id + " twitter_username=" + (twitterUsername ?? "null"));
 
   let result: { ok: boolean; upserted?: number; verifiedNoOp?: boolean; error?: string };
   if (job.job_type === "x_backfill_90d") {
@@ -81,7 +83,7 @@ async function main() {
       .from("analytics_jobs")
       .update({ status: "done", updated_at: new Date().toISOString(), last_error: null })
       .eq("id", job.id);
-    console.log("[JOB] id=" + job.id + " owner_id=" + job.owner_id + " payload_profile_id=" + (payloadProfileId ?? "null") + " job_type=" + job.job_type + " status=done");
+    console.log("[JOB] success id=" + job.id + " profile_id=" + job.owner_id + " twitter_username=" + (twitterUsername ?? "null"));
   } else if (result.ok && !canMarkDone) {
     await supabase
       .from("analytics_jobs")
@@ -93,8 +95,8 @@ async function main() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", job.id);
-    console.log("[JOB] id=" + job.id + " owner_id=" + job.owner_id + " payload_profile_id=" + (payloadProfileId ?? "null") + " job_type=" + job.job_type + " status=requeued(no_inserts)");
-    console.error("Job", job.id, "not marked done: no tweet inserts and not verified no-op.");
+    console.log("[JOB] requeued(no_inserts) id=" + job.id + " profile_id=" + job.owner_id + " twitter_username=" + (twitterUsername ?? "null"));
+    console.error("[JOB] error profile_id=" + job.owner_id + " twitter_username=" + (twitterUsername ?? "null") + " error=no tweet inserts and not verified no-op");
     process.exit(1);
   } else {
     await supabase
@@ -107,8 +109,8 @@ async function main() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", job.id);
-    console.log("[JOB] id=" + job.id + " owner_id=" + job.owner_id + " payload_profile_id=" + (payloadProfileId ?? "null") + " job_type=" + job.job_type + " status=requeued(failed)");
-    console.error("Job", job.id, "failed:", result.error);
+    console.log("[JOB] requeued(failed) id=" + job.id + " profile_id=" + job.owner_id + " twitter_username=" + (twitterUsername ?? "null"));
+    console.error("[JOB] error profile_id=" + job.owner_id + " twitter_username=" + (twitterUsername ?? "null") + " error=" + (result.error ?? "unknown"));
     process.exit(1);
   }
 }

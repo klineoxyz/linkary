@@ -12,6 +12,10 @@ const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 export type BackfillX90dOptions = {
   limit?: number;
   dryRun?: boolean;
+  /** When true, enqueue even when 90d aggregate exists if updated_at is older than staleMaxAgeMs (default 24h). */
+  forceRefresh?: boolean;
+  /** Used with forceRefresh: max age in ms for existing 90d row to still enqueue (default 24h). */
+  staleMaxAgeMs?: number;
 };
 
 export type BackfillX90dResult = {
@@ -36,6 +40,8 @@ export async function enqueueXBackfill90dJobs(
 ): Promise<BackfillX90dResult> {
   const limit = Math.min(Math.max(1, options.limit ?? 50), 200);
   const dryRun = options.dryRun === true;
+  const forceRefresh = options.forceRefresh === true;
+  const staleMaxAgeMs = options.staleMaxAgeMs ?? 24 * 60 * 60 * 1000;
 
   const { data: socialRows } = await service
     .from("social_accounts")
@@ -58,17 +64,32 @@ export async function enqueueXBackfill90dJobs(
   }
 
   const twoHoursAgo = new Date(Date.now() - TWO_HOURS_MS).toISOString();
+  const staleCutoff = new Date(Date.now() - staleMaxAgeMs).toISOString();
   let enqueued = 0;
 
   for (const p of profileList) {
-    const { data: has90 } = await service
-      .from("x_window_aggregates")
-      .select("id")
-      .eq("owner_type", "profile")
-      .eq("owner_id", p.id)
-      .eq("window_days", 90)
-      .limit(1);
-    if ((has90 ?? []).length > 0) continue;
+    if (!forceRefresh) {
+      const { data: has90 } = await service
+        .from("x_window_aggregates")
+        .select("id")
+        .eq("owner_type", "profile")
+        .eq("owner_id", p.id)
+        .eq("window_days", 90)
+        .limit(1);
+      if ((has90 ?? []).length > 0) continue;
+    } else {
+      const { data: row90 } = await service
+        .from("x_window_aggregates")
+        .select("updated_at")
+        .eq("owner_type", "profile")
+        .eq("owner_id", p.id)
+        .eq("window_days", 90)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const updatedAt = (row90 as { updated_at?: string } | null)?.updated_at;
+      if (updatedAt && updatedAt >= staleCutoff) continue;
+    }
 
     const { data: recentJob } = await service
       .from("analytics_jobs")

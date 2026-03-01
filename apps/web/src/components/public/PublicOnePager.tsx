@@ -50,6 +50,14 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+function tagsFromMetrics(metrics: unknown): string[] {
+  if (metrics == null || typeof metrics !== "object") return [];
+  const m = metrics as Record<string, unknown>;
+  const t = m.tags ?? m.tag;
+  if (Array.isArray(t) && t.every((x) => typeof x === "string")) return t as string[];
+  return [];
+}
+
 function FadeInSection({ children, className }: { children: React.ReactNode; className?: string }) {
   const { ref, visible } = useFadeIn();
   return (
@@ -567,7 +575,14 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
               <div className="space-y-3">
                 {caseStudies.slice(0, 4).map((cs) => (
                   <div key={cs.id} className="transition-transform duration-200 hover:scale-[1.02]">
-                    <CaseStudyCard title={cs.title} description={cs.description} proofUrl={cs.proof_url} metrics={(cs as { metrics?: Record<string, unknown> }).metrics} createdAt={cs.created_at} />
+                    <CaseStudyCard
+                      id={cs.id}
+                      title={cs.title ?? null}
+                      summary={cs.description ?? null}
+                      tags={tagsFromMetrics((cs as { metrics?: Record<string, unknown> }).metrics)}
+                      url={cs.proof_url ?? null}
+                      imageUrl={(cs as { imageUrl?: string | null }).imageUrl}
+                    />
                   </div>
                 ))}
                 {entity.caseStudies.length > 4 && <p className="text-sm text-muted-foreground">View all on profile.</p>}
@@ -768,7 +783,14 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
                       <div className="space-y-3">
                         {caseStudies.map((cs) => (
                           <div key={cs.id} className="transition-transform duration-200 hover:scale-[1.02]">
-                            <CaseStudyCard title={cs.title} description={cs.description} proofUrl={cs.proof_url} metrics={(cs as { metrics?: Record<string, unknown> }).metrics} createdAt={cs.created_at} />
+                            <CaseStudyCard
+                              id={cs.id}
+                              title={cs.title ?? null}
+                              summary={cs.description ?? null}
+                              tags={tagsFromMetrics((cs as { metrics?: Record<string, unknown> }).metrics)}
+                              url={cs.proof_url ?? null}
+                              imageUrl={(cs as { imageUrl?: string | null }).imageUrl}
+                            />
                           </div>
                         ))}
                       </div>

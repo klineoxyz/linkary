@@ -169,6 +169,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const base = typeof window !== "undefined" ? window.location.origin : "";
 
   const swrOpts = { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS };
+  // Analytics X data: refetch on focus and every 90s so Follower Growth, Engagement Rate, and KPI tiles stay current
+  const analyticsSwrOpts = { revalidateOnFocus: true, dedupingInterval: 30_000, refreshInterval: 90_000 };
   const { data: initSwr, mutate: mutateInit } = useSWR<InitStatus>(
     "/api/analytics/init-status",
     authFetcher as (url: string) => Promise<InitStatus>,
@@ -177,12 +179,12 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const { data: xSwr, mutate: mutateX } = useSWR<Record<string, unknown>>(
     "/api/analytics/x",
     authFetcher as (url: string) => Promise<Record<string, unknown>>,
-    swrOpts
+    analyticsSwrOpts
   );
   const { data: summarySwr } = useSWR<{ windows?: Record<string, Record<string, unknown> | null>; is_backfilling?: boolean }>(
     "/api/analytics/x/summary",
     authFetcher as (url: string) => Promise<{ windows?: Record<string, Record<string, unknown> | null>; is_backfilling?: boolean }>,
-    swrOpts
+    analyticsSwrOpts
   );
 
   useEffect(() => {

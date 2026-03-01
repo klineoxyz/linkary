@@ -195,9 +195,10 @@ export async function runXBackfill90d(
       totalPosts > 0 && followersEndSafe > 0
         ? Math.min(100, (totalEngagement / totalPosts / followersEndSafe) * 100)
         : null;
+    // Potential reach: estimated unique accounts that could see content; cap at followers (industry practice).
     const reachAvg =
-      totalPosts > 0 && followersEnd != null
-        ? totalPosts * followersEnd
+      followersEnd != null
+        ? Math.min(followersEnd, Math.round(totalEngagement))
         : null;
 
     const agg = {

@@ -174,18 +174,54 @@ async function main() {
     results.push(fail(`Service role SELECT public_profile_preview_view → ${prevSvcErr?.message ?? "error"}`));
   }
 
-  // --- E) case_studies (is_public = false) ---
+  // --- E) case_studies ---
   console.log("\nE) case_studies");
 
-  const { data: csAnon } = await anon
+  const { data: privateRows } = await service
     .from("case_studies")
     .select("id")
     .eq("is_public", false)
     .limit(1);
-  if (Array.isArray(csAnon) && csAnon.length === 0) {
-    results.push(pass("Anon SELECT case_studies where is_public = false → 0 rows"));
+  const hasPrivate = Array.isArray(privateRows) && privateRows.length > 0;
+
+  if (!hasPrivate) {
+    console.log("  [WARN] No private case studies exist. Create one is_public=false to fully validate RLS.");
+    results.push(pass("Anon SELECT case_studies where is_public = false → 0 rows (no private rows to test)"));
   } else {
-    results.push(fail("Anon SELECT case_studies where is_public = false → must return 0 rows"));
+    const { data: csAnonPrivate } = await anon
+      .from("case_studies")
+      .select("id")
+      .eq("is_public", false)
+      .limit(1);
+    if (Array.isArray(csAnonPrivate) && csAnonPrivate.length === 0) {
+      results.push(pass("Anon SELECT case_studies where is_public = false → 0 rows"));
+    } else {
+      results.push(fail("Anon SELECT case_studies where is_public = false → must return 0 rows"));
+    }
+  }
+
+  const { data: csAnonPublic, error: csAnonPublicErr } = await anon
+    .from("case_studies")
+    .select("id")
+    .eq("is_public", true)
+    .limit(1);
+  if (!csAnonPublicErr && Array.isArray(csAnonPublic)) {
+    results.push(pass("Anon SELECT case_studies where is_public = true → succeed"));
+  } else if (csAnonPublicErr) {
+    results.push(fail(`Anon SELECT case_studies where is_public = true → ${csAnonPublicErr.message}`));
+  } else {
+    results.push(pass("Anon SELECT case_studies where is_public = true → succeed (0 rows ok)"));
+  }
+
+  const { data: csSvcPrivate, error: csSvcErr } = await service
+    .from("case_studies")
+    .select("id")
+    .eq("is_public", false)
+    .limit(1);
+  if (!csSvcErr && Array.isArray(csSvcPrivate)) {
+    results.push(pass("Service role SELECT case_studies (private) → succeed"));
+  } else {
+    results.push(fail(`Service role SELECT case_studies (private) → ${csSvcErr?.message ?? "error"}`));
   }
 
   // --- Summary ---

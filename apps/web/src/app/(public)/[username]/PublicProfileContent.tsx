@@ -18,6 +18,7 @@ import { RepPillWithBreakdown } from "./RepPillWithBreakdown";
 import { EcosystemModule } from "./EcosystemModule";
 import { ActionBar } from "./ActionBar";
 import { StarterBlock } from "./StarterBlock";
+import { CaseStudyCard } from "@/components/public/CaseStudyCard";
 
 /** Derive 2–4 highlight bullets from case study (no DB). Use summary sentences or tag-based. */
 function proofHighlights(
@@ -412,21 +413,72 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
 
   const renderSection = (key: SectionKey): React.ReactNode => {
     switch (key) {
-      case "header_media":
-        if (!headerMedia?.url) return null;
+      case "header_media": {
+        if (!headerMedia?.url) {
+          if (!viewerIsOwner) return null;
+          return (
+            <section className={sectionSpacing}>
+              <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-5 py-8 text-center">
+                <p className="text-sm text-muted-foreground">Add a header image or video to stand out.</p>
+                <Link
+                  href="/profile/edit#header-media"
+                  className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  Add header media
+                </Link>
+              </div>
+            </section>
+          );
+        }
+        const url = headerMedia.url;
+        const isVideo = headerMedia.type === "VIDEO";
+        if (isVideo && isYouTubeUrl(url)) {
+          return (
+            <section className={sectionSpacing}>
+              <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border bg-card/95">
+                <iframe
+                  src={youtubeEmbedUrl(url)}
+                  title="Header video (YouTube)"
+                  className="h-full w-full"
+                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </section>
+          );
+        }
+        if (isVideo && isVimeoUrl(url)) {
+          return (
+            <section className={sectionSpacing}>
+              <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border bg-card/95">
+                <iframe
+                  src={vimeoEmbedUrl(url)}
+                  title="Header video (Vimeo)"
+                  className="h-full w-full"
+                  allow="fullscreen; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </section>
+          );
+        }
+        if (isVideo) {
+          return (
+            <section className={sectionSpacing}>
+              <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border bg-card/95">
+                <video src={url} controls className="h-full w-full object-cover" />
+              </div>
+            </section>
+          );
+        }
         return (
           <section className={sectionSpacing}>
-            {headerMedia.type === "VIDEO" ? (
-              <div className="overflow-hidden rounded-2xl border border-border bg-muted aspect-video max-h-[280px] sm:max-h-[320px]">
-                <video src={headerMedia.url} controls className="h-full w-full object-cover" />
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-2xl border border-border bg-muted aspect-video max-h-[280px] sm:max-h-[320px]">
-                <img src={headerMedia.url} alt="" className="h-full w-full object-cover" />
-              </div>
-            )}
+            <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border bg-card/95 max-h-[280px] sm:max-h-[320px]">
+              <img src={url} alt="" className="h-full w-full object-cover" />
+            </div>
           </section>
         );
+      }
       case "header": {
         const headerContent = (
           <header
@@ -545,7 +597,8 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </div>
         );
       case "proof": {
-        const showProof = caseStudies.length > 0 || isAuthenticated === true;
+        if (caseStudies.length === 0 && !viewerIsOwner) return null;
+        const showProof = caseStudies.length > 0 || viewerIsOwner;
         if (!showProof) return null;
         const proofSource = caseStudies.length > 0 ? (featuredCaseStudy ?? caseStudies[0]) : null;
         const highlights = proofSource ? proofHighlights(proofSource.summary ?? null, proofSource.tags ?? []).slice(0, 2) : [];
@@ -849,6 +902,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </section>
         );
       case "case_studies": {
+        if (caseStudies.length === 0 && !viewerIsOwner) return null;
         const sortedCaseStudies =
           featuredCaseStudyId
             ? [...caseStudies].sort((a, b) =>
@@ -860,79 +914,57 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             <div className={islandClass}>
               <SectionTitle>Case studies</SectionTitle>
               {sortedCaseStudies.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-muted/20 px-5 py-8 text-center">
-                <FileText className="mx-auto h-10 w-10 text-muted-foreground/80" aria-hidden />
-                <h3 className="mt-3 text-sm font-semibold text-foreground">Add your first proof card</h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">Show outcomes. This also improves your REP.</p>
-                {isAuthenticated && (
-                  <Link
-                    href="/profile/edit#case-studies"
-                    className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  >
-                    Add proof card
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <ul className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
-                {sortedCaseStudies.map((c) => {
-                  const highlights = proofHighlights(c.summary ?? null, c.tags ?? []);
-                  return (
-                    <li key={c.id} className={isShowcase ? featuredCardClass : sectionCardClass}>
-                      <div className={`flex flex-col h-full ${isShowcase ? "p-5" : "p-4"}`}>
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          {c.title && <h3 className="font-semibold text-foreground">{c.title}</h3>}
-                          {Array.isArray(c.tags) && c.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {c.tags.map((t) => (
-                                <span key={t} className="rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-foreground">
-                                  {t}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        {c.summary && (
-                          <p className="mt-2 text-sm text-muted-foreground line-clamp-3">{c.summary}</p>
-                        )}
-                        {highlights.length > 0 && (
-                          <ul className="mt-3 space-y-1 text-sm text-foreground" aria-label="Highlights">
-                            {highlights.map((h, i) => (
-                              <li key={i} className="flex items-start gap-2">
-                                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" aria-hidden />
-                                <span>{h}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        {c.url && (
-                          <a
-                            href={c.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                          >
-                            View case study <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                        )}
-                      </div>
+                <div className="rounded-2xl border border-border bg-muted/20 px-5 py-8 text-center">
+                  <FileText className="mx-auto h-10 w-10 text-muted-foreground/80" aria-hidden />
+                  <h3 className="mt-3 text-sm font-semibold text-foreground">Add your first proof card</h3>
+                  <p className="mt-1.5 text-sm text-muted-foreground">Show outcomes. This also improves your REP.</p>
+                  {viewerIsOwner && (
+                    <Link
+                      href="/profile/edit#case-studies"
+                      className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      Add proof card
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <ul className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+                  {sortedCaseStudies.map((c) => (
+                    <li key={c.id}>
+                      <CaseStudyCard
+                        id={c.id}
+                        title={c.title}
+                        summary={c.summary}
+                        tags={c.tags}
+                        url={c.url}
+                      />
                     </li>
-                  );
-                })}
-              </ul>
-            )}
+                  ))}
+                </ul>
+              )}
             </div>
           </section>
         );
       }
-      case "links":
+      case "links": {
+        if (links.length === 0 && !viewerIsOwner) return null;
         return (
           <section className={rightSectionSpacing}>
             <div className={rightColumnIslandClass}>
               <SectionTitle>Links</SectionTitle>
               {links.length === 0 ? (
-              <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">No links yet</p>
-            ) : (
+                <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-5 py-8 text-center">
+                  <p className="text-sm text-muted-foreground">No links yet.</p>
+                  {viewerIsOwner && (
+                    <Link
+                      href="/profile/edit#links"
+                      className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      Add links
+                    </Link>
+                  )}
+                </div>
+              ) : (
               <ul className="space-y-2">
                 {links.map((link, i) => {
                   const host = getHostname(link.url);
@@ -947,10 +979,11 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   );
                 })}
               </ul>
-            )}
+              )}
             </div>
           </section>
         );
+      }
       case "roles":
         if (!profile.roles?.length) return null;
         return (
@@ -1017,8 +1050,10 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             </div>
           </section>
         );
-      case "reviews":
+      case "reviews": {
         if (!showReviews) return null;
+        const hasReviews = (reviews.count ?? 0) > 0 && (reviews.latest?.length ?? 0) > 0;
+        if (!hasReviews && !viewerIsOwner) return null;
         const sortedReviews =
           reviews.latest?.length > 0
             ? [...reviews.latest].sort((a, b) => {
@@ -1107,6 +1142,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             </div>
           </section>
         );
+      }
       case "completed_collabs":
         if (!completedCollabs || completedCollabs.total === 0) return null;
         return (

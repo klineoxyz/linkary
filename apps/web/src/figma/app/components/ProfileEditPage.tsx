@@ -10,6 +10,7 @@ import { listCaseStudiesForProfile, createCaseStudyForProfile, type CaseStudy } 
 import ProfessionSelect from "./ProfessionSelect";
 import { MediaUploadField } from "@/components/MediaUploadField";
 import { SignedMediaImage } from "@/components/SignedMediaImage";
+import { CaseStudyCard } from "@/components/public/CaseStudyCard";
 import type { Profession } from "@/lib/professions";
 import type { Profile } from "@/lib/profiles";
 import { PRESET_DEFAULT_ORDER, PRESET_DEFAULT_HIDDEN, SECTION_KEYS, type PresetName } from "@/lib/publicLayoutPresets";
@@ -1039,15 +1040,21 @@ function CaseStudiesEditor({
         <button type="button" onClick={onOpenAddModal} className="text-sm text-primary font-medium hover:underline">+ Add case study</button>
       </div>
       <p className="text-xs text-zinc-500">Proof and outcomes shown on your public page.</p>
-      <ul className="space-y-2">
+      <ul className="space-y-3">
         {caseStudies.map((cs) => (
-          <li key={cs.id} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-white p-2">
+          <li key={cs.id} className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
-              <div className="font-medium text-zinc-900 truncate">{cs.title || "Untitled"}</div>
-              {cs.description && <div className="text-xs text-zinc-500 line-clamp-2">{cs.description}</div>}
+              <CaseStudyCard
+                id={cs.id}
+                title={cs.title}
+                summary={cs.description}
+                tags={tagsFromMetrics(cs.metrics)}
+                url={cs.proof_url}
+                imageUrl={undefined}
+              />
             </div>
-            {!(cs as { is_public?: boolean }).is_public && <span className="shrink-0 text-xs text-zinc-500">Hidden</span>}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 pt-1">
+              {!(cs as { is_public?: boolean }).is_public && <span className="text-xs text-zinc-500">Hidden</span>}
               <button type="button" onClick={() => onOpenEditModal(cs)} className="text-xs text-primary hover:underline">Edit</button>
               <button type="button" onClick={() => remove(cs.id)} className="text-xs text-red-600 hover:underline">Delete</button>
             </div>
@@ -1110,6 +1117,13 @@ function PartnerModal({
   );
 }
 
+function tagsFromMetrics(metrics: Record<string, unknown> | null | undefined): string[] {
+  if (metrics == null || typeof metrics !== "object") return [];
+  const t = (metrics as Record<string, unknown>).tags ?? (metrics as Record<string, unknown>).tag;
+  if (Array.isArray(t) && t.every((x) => typeof x === "string")) return t as string[];
+  return [];
+}
+
 function CaseStudyModal({
   edit,
   form,
@@ -1118,6 +1132,7 @@ function CaseStudyModal({
   onClose,
   onSubmit,
   getAuthHeaders,
+  onImageSaved,
 }: {
   edit?: CaseStudy | null;
   form: { title: string; description: string; proofUrl: string; is_public: boolean };
@@ -1126,6 +1141,7 @@ function CaseStudyModal({
   onClose: () => void;
   onSubmit: () => void;
   getAuthHeaders: () => Promise<Record<string, string>>;
+  onImageSaved?: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
@@ -1143,6 +1159,22 @@ function CaseStudyModal({
             className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900"
           />
         </div>
+        {edit && (
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Image (optional)</label>
+            <MediaUploadField
+              label=""
+              type="case_study_proof"
+              ownerId={edit.id}
+              value={edit.proof_file_path ?? null}
+              onChange={() => {}}
+              getAuthHeaders={getAuthHeaders}
+              onSaved={onImageSaved}
+              accept="image/*"
+              maxSizeMB={2}
+            />
+          </div>
+        )}
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={form.is_public} onChange={(e) => setForm((f) => ({ ...f, is_public: e.target.checked }))} />
           <span className="text-sm text-zinc-700">Show on public profile</span>
@@ -2723,6 +2755,7 @@ export default function ProfileEditPage({
             setEditingCaseStudy(null);
           }}
           getAuthHeaders={getAuthHeaders}
+          onImageSaved={loadCaseStudies}
           onSubmit={async () => {
             if (!me?.id) return;
             setCaseStudySaving(true);

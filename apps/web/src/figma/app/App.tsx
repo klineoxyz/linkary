@@ -3187,6 +3187,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   const [profileSearchResults, setProfileSearchResults] = useState<Array<{ id: string; type: string; name: string; handleLabel?: string; handle?: string; url?: string; avatar?: string; verified?: boolean }>>([]);
   const [profileSearchLoading, setProfileSearchLoading] = useState(false);
   const [repBreakdownOpen, setRepBreakdownOpen] = useState(false);
+  const [signedCaseStudyUrlsByPath, setSignedCaseStudyUrlsByPath] = useState<Record<string, string | null>>({});
 
   const setProfileTab = (newTab: string) => {
     setRoute({ name: "profile", data: { tab: newTab, username: viewUsername } });
@@ -3198,6 +3199,38 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   useEffect(() => {
     if (me?.id) listCaseStudiesForProfile(me.id).then(setCaseStudies);
   }, [me?.id]);
+  useEffect(() => {
+    if (!me?.id || caseStudies.length === 0) {
+      setSignedCaseStudyUrlsByPath({});
+      return;
+    }
+    const paths = caseStudies
+      .map((c) => (c as { proof_file_path?: string | null }).proof_file_path?.trim())
+      .filter((p): p is string => !!p && !p.includes(".."))
+      .slice(0, 20);
+    if (paths.length === 0) {
+      setSignedCaseStudyUrlsByPath({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const base = typeof window !== "undefined" ? window.location.origin : "";
+        const res = await fetch(`${base}/api/media/sign-case-study-images`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({ paths }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!cancelled && json.urlsByPath && typeof json.urlsByPath === "object") setSignedCaseStudyUrlsByPath(json.urlsByPath);
+        else if (!cancelled) setSignedCaseStudyUrlsByPath({});
+      } catch {
+        if (!cancelled) setSignedCaseStudyUrlsByPath({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [me?.id, caseStudies, getAuthHeaders]);
   useEffect(() => {
     if (!me?.id) return;
     getXConnection(me.id).then((conn) => setXHandle(conn?.username ?? null));
@@ -3514,7 +3547,9 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             </div>
             <div className="space-y-3">
               {(displayCaseStudies ?? []).map((cs) => {
-                const props = toCaseStudyCardProps(cs as CaseStudyRow, { includeDetails: true });
+                const path = (cs as CaseStudyRow).proof_file_path?.trim();
+                const imageUrl = path ? (signedCaseStudyUrlsByPath[path] ?? null) : null;
+                const props = toCaseStudyCardProps(cs as CaseStudyRow, { includeDetails: true, imageUrl });
                 return <CaseStudyCard key={cs.id} {...props} />;
               })}
             </div>

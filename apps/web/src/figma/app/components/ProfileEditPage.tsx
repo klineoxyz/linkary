@@ -1016,6 +1016,7 @@ function GigsEditor({
 function CaseStudiesEditor({
   me,
   caseStudies,
+  signedImageUrlsByPath,
   onReload,
   onOpenAddModal,
   onOpenEditModal,
@@ -1023,6 +1024,7 @@ function CaseStudiesEditor({
 }: {
   me: Profile;
   caseStudies: CaseStudy[];
+  signedImageUrlsByPath?: Record<string, string | null>;
   onReload: () => void;
   onOpenAddModal: () => void;
   onOpenEditModal: (cs: CaseStudy) => void;
@@ -1043,7 +1045,8 @@ function CaseStudiesEditor({
       <p className="text-xs text-zinc-500">Proof and outcomes shown on your public page.</p>
       <ul className="space-y-3">
         {caseStudies.map((cs) => {
-          const props = toCaseStudyCardProps(cs, { includeDetails: true });
+          const imageUrl = cs.proof_file_path?.trim() ? (signedImageUrlsByPath?.[cs.proof_file_path] ?? null) : null;
+          const props = toCaseStudyCardProps(cs, { includeDetails: true, imageUrl });
           return (
             <li key={cs.id}>
               <CaseStudyCard
@@ -1213,6 +1216,7 @@ export default function ProfileEditPage({
   const [partnersLoading, setPartnersLoading] = useState(false);
   const [partnerModal, setPartnerModal] = useState<{ open: true; programType: "affiliate" | "ambassador"; edit?: PartnerRow } | { open: false }>({ open: false });
   const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
+  const [signedCaseStudyUrlsByPath, setSignedCaseStudyUrlsByPath] = useState<Record<string, string | null>>({});
   const [caseStudyModal, setCaseStudyModal] = useState(false);
   const [editingCaseStudy, setEditingCaseStudy] = useState<CaseStudy | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -1311,7 +1315,29 @@ export default function ProfileEditPage({
     if (!me?.id) return;
     const list = await listCaseStudiesForProfile(me.id);
     setCaseStudies(list);
-  }, [me?.id]);
+    const paths = list
+      .map((c) => c.proof_file_path?.trim())
+      .filter((p): p is string => !!p && !p.includes(".."))
+      .slice(0, 20);
+    if (paths.length > 0) {
+      try {
+        const headers = await getAuthHeaders();
+        const base = typeof window !== "undefined" ? window.location.origin : "";
+        const res = await fetch(`${base}/api/media/sign-case-study-images`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({ paths }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (json.urlsByPath && typeof json.urlsByPath === "object") setSignedCaseStudyUrlsByPath(json.urlsByPath);
+        else setSignedCaseStudyUrlsByPath({});
+      } catch {
+        setSignedCaseStudyUrlsByPath({});
+      }
+    } else {
+      setSignedCaseStudyUrlsByPath({});
+    }
+  }, [me?.id, getAuthHeaders]);
 
   const loadGigs = useCallback(async () => {
     if (!me?.id) return;
@@ -2477,6 +2503,7 @@ export default function ProfileEditPage({
         <CaseStudiesEditor
           me={me}
           caseStudies={caseStudies}
+          signedImageUrlsByPath={signedCaseStudyUrlsByPath}
           onReload={loadCaseStudies}
           onOpenAddModal={() => {
             setEditingCaseStudy(null);

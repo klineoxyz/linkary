@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
 import useSWR from "swr";
 import { supabase } from "@/lib/supabase";
@@ -129,6 +130,11 @@ type XAnalyticsData = {
     aggregate_max_as_of: string | null;
   };
   data_status?: DataStatus | null;
+  chart_points?: {
+    follower_growth: Array<{ date: string; followers: number | null }>;
+    engagement_rate: Array<{ date: string; engagement_pct: number | null; posts: number }>;
+    posting_cadence: Array<{ date: string; posts: number }>;
+  } | null;
   diagnostics?: {
     top_day_last30_from_x_tweets: {
       day: string;
@@ -173,6 +179,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const [rebuildError, setRebuildError] = useState<string | null>(null);
   const [rebuildQueuedToast, setRebuildQueuedToast] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [debugTruthOpen, setDebugTruthOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const showDebugPanel = searchParams?.get("debug") === "1";
   const rebuildPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rollupPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rollupUpdatedAtBeforeRebuildRef = useRef<string | null>(null);
@@ -181,7 +190,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const base = typeof window !== "undefined" ? window.location.origin : "";
 
   const swrOpts = { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS };
-  // Analytics X data: refetch on focus and every 90s so Follower Growth, Engagement Rate, and KPI tiles stay current
+  // Analytics X data: key includes window so 7D/30D/90D switch fetches the correct chart_points from API
+  const windowParam = timePeriod === "7D" ? "7d" : timePeriod === "30D" ? "30d" : "90d";
+  const analyticsXKey = `/api/analytics/x?window=${windowParam}`;
   const analyticsSwrOpts = { revalidateOnFocus: true, dedupingInterval: 30_000, refreshInterval: 90_000 };
   const { data: initSwr, mutate: mutateInit } = useSWR<InitStatus>(
     "/api/analytics/init-status",
@@ -189,7 +200,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     swrOpts
   );
   const { data: xSwr, mutate: mutateX } = useSWR<Record<string, unknown>>(
-    "/api/analytics/x",
+    analyticsXKey,
     authFetcher as (url: string) => Promise<Record<string, unknown>>,
     analyticsSwrOpts
   );
@@ -213,6 +224,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         source: (xSwr.source as XAnalyticsData["source"]) ?? "fallback",
         freshness: xSwr.freshness as XAnalyticsData["freshness"],
         data_status: (xSwr.data_status as DataStatus) ?? null,
+        chart_points: (xSwr.chart_points as XAnalyticsData["chart_points"]) ?? null,
         diagnostics: xSwr.diagnostics as XAnalyticsData["diagnostics"],
       });
     }
@@ -328,7 +340,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     const pollRollup = async () => {
       iterations += 1;
       try {
-        const body = await (authFetcher as (url: string) => Promise<Record<string, unknown>>)("/api/analytics/x");
+        const body = await (authFetcher as (url: string) => Promise<Record<string, unknown>>)(analyticsXKey);
         const next = (body?.data_status as { rollup_updated_at?: string | null } | undefined)?.rollup_updated_at ?? null;
         if (next !== rollupUpdatedAtBeforeRebuildRef.current || iterations >= MAX_ITERATIONS) {
           if (rollupPollRef.current) {
@@ -354,7 +366,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         rollupPollRef.current = null;
       }
     };
-  }, [rebuildJob?.id, rebuildJob?.status, mutateX, mutateSummary]);
+  }, [rebuildJob?.id, rebuildJob?.status, analyticsXKey, mutateX, mutateSummary]);
 
   // When user has X connected but no baseline yet, take initial snapshot so 7D/30D/90D have a baseline
   useEffect(() => {
@@ -413,6 +425,12 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           ? (dataStatus.tweet_count_90d ?? 0)
           : null;
 
+  // Chart points: only from API (no UI-derived arrays). Window is in the API key.
+  const chartPoints = xAnalyticsData?.chart_points ?? null;
+  const followerGrowthPoints = chartPoints?.follower_growth ?? [];
+  const engagementRatePoints = chartPoints?.engagement_rate ?? [];
+  const postingCadencePoints = chartPoints?.posting_cadence ?? [];
+
   const baseline = xAnalyticsData?.baseline ?? null;
   const bNum = (v: unknown) => (typeof v === "number" && !Number.isNaN(v) ? v : 0);
   const baselineFollowers = baseline ? bNum(baseline.followers_total) : 0;
@@ -464,44 +482,6 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const latestFollowerCount = snapshotsAsc.length
     ? (snapshotsAsc[snapshotsAsc.length - 1].followers_total ?? followersTotal)
     : followersTotal;
-  // Last N days of daily data for cadence and engagement charts (date -> value); N = 7, 30, or 90 from timePeriod
-  const dayMap = (() => {
-    const map = new Map<string, { posts: number; engagementPct: number | null }>();
-    const today = new Date();
-    const days = timePeriod === "7D" ? 7 : timePeriod === "30D" ? 30 : 90;
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dayStr = d.toISOString().slice(0, 10);
-      map.set(dayStr, { posts: 0, engagementPct: null });
-    }
-    snapshotsAsc.forEach((s) => {
-      const posts = typeof s.tweets_count === "number" && Number.isFinite(s.tweets_count) ? s.tweets_count : 0;
-      let engagementPct: number | null = null;
-      if (typeof s.engagement_rate === "number" && Number.isFinite(s.engagement_rate)) {
-        engagementPct = s.engagement_rate;
-      } else if (
-        typeof s.likes_received === "number" &&
-        Number.isFinite(s.likes_received) &&
-        typeof s.tweets_count === "number" &&
-        s.tweets_count > 0
-      ) {
-        // rough proxy: likes / tweets (no follower denominator)
-        engagementPct = (s.likes_received / s.tweets_count) * 100;
-      }
-      if (map.has(s.snapshot_date)) map.set(s.snapshot_date, { posts, engagementPct });
-    });
-    return map;
-  })();
-  const last30DaysOrdered = Array.from(dayMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  const cadenceValues = last30DaysOrdered.map(([, v]) => v.posts);
-  const engagementValues = last30DaysOrdered.map(([, v]) => v.engagementPct);
-  const hasCadenceData = cadenceValues.some((n) => n > 0);
-  const hasEngagementChartData = engagementValues.some((v) => v != null && Number.isFinite(v));
-  // Only real datapoints (no zero-filled bars): so charts don't look fake when most days are empty
-  const engagementChartPoints = last30DaysOrdered.filter(([, v]) => v.engagementPct != null && Number.isFinite(v.engagementPct) || (v.posts ?? 0) > 0);
-  const cadenceChartPoints = last30DaysOrdered.filter(([, v]) => (v.posts ?? 0) > 0);
-  const noPostsInWindow = dataStatus != null && tweetCountForWindow === 0;
   const pctDelta = (current: number, past: number | null): number | null => {
     if (past == null || past === 0 || !Number.isFinite(current)) return null;
     return ((current - past) / past) * 100;
@@ -1173,6 +1153,33 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           </motion.div>
         )}
 
+        {/* Debug truth panel (owner-only, ?debug=1): raw counts + points so we can verify without guessing */}
+        {activePlatform === "x" && showDebugPanel && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-border bg-card overflow-hidden"
+          >
+            <button
+              type="button"
+              onClick={() => setDebugTruthOpen((o) => !o)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left text-sm font-medium text-foreground hover:bg-muted/50"
+            >
+              <span>Debug (truth)</span>
+              {debugTruthOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            {debugTruthOpen && (
+              <div className="px-4 pb-4 border-t border-border text-xs text-muted-foreground space-y-1 pt-3">
+                <p><span className="font-semibold text-foreground">Window:</span> {timePeriod}</p>
+                <p><span className="font-semibold text-foreground">Tweets:</span> {tweetCountForWindow ?? "—"}</p>
+                <p><span className="font-semibold text-foreground">Last tweet:</span> {dataStatus?.last_tweet_at ? formatTimeAgo(dataStatus.last_tweet_at) : "none"}</p>
+                <p><span className="font-semibold text-foreground">Rollup updated:</span> {dataStatus?.rollup_updated_at ? formatTimeAgo(dataStatus.rollup_updated_at) : "unknown"}</p>
+                <p><span className="font-semibold text-foreground">Points:</span> growth {followerGrowthPoints.length}, engagement {engagementRatePoints.length}, cadence {postingCadencePoints.length}</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+
         {/* Diagnostics panel (dev only) */}
         {activePlatform === "x" && isDev && xAnalyticsData?.diagnostics != null && (
           <motion.div
@@ -1394,40 +1401,40 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               </div>
             </div>
 
-            {snapshotsForFollowerChart.length >= 2 ? (
+            {followerGrowthPoints.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8">
+                No data in this period.
+              </p>
+            ) : (
             <div className="flex gap-3">
               <div className="flex-1">
                 <div className="relative h-48 flex items-end gap-0.5 border-l border-b border-border">
-                  {snapshotsForFollowerChart.map((s, i) => {
-                    const val = Number(s.followers_total ?? 0);
-                    const max = Math.max(...snapshotsForFollowerChart.map((x) => Number(x.followers_total ?? 0)), 1);
+                  {followerGrowthPoints.map((p, i) => {
+                    const val = Number(p.followers ?? 0);
+                    const max = Math.max(...followerGrowthPoints.map((x) => Number(x.followers ?? 0)), 1);
                     const heightPct = (val / max) * 100;
                     return (
                       <motion.div
-                        key={s.snapshot_date}
+                        key={p.date}
                         className="flex-1 min-w-[4px] rounded-t-md bg-gradient-to-t from-chart-1/80 to-chart-1/40 border-t border-chart-1/50 relative group"
                         initial={{ height: 0 }}
                         animate={{ height: `${heightPct}%` }}
                         transition={{ duration: 0.3, delay: i * 0.02 }}
-                        title={`${s.snapshot_date}: ${val.toLocaleString()}`}
+                        title={`${p.date}: ${val.toLocaleString()}`}
                       >
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                          {s.snapshot_date}: {val.toLocaleString()}
+                          {p.date}: {val.toLocaleString()}
                         </div>
                       </motion.div>
                     );
                   })}
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground mt-2 px-1">
-                  <span>{snapshotsForFollowerChart[0]?.snapshot_date ?? ""}</span>
-                  <span>{snapshotsForFollowerChart[snapshotsForFollowerChart.length - 1]?.snapshot_date ?? ""}</span>
+                  <span>{followerGrowthPoints[0]?.date ?? ""}</span>
+                  <span>{followerGrowthPoints[followerGrowthPoints.length - 1]?.date ?? ""}</span>
                 </div>
               </div>
             </div>
-            ) : (
-              <p className="text-sm text-muted-foreground py-8">
-                Sync from Integrations to see follower growth. Data is collected from the day you connect X.
-              </p>
             )}
           </motion.div>
 
@@ -1461,13 +1468,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               </div>
             </div>
 
-            {noPostsInWindow ? (
+            {engagementRatePoints.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8">
-                No posts found in this period.
-              </p>
-            ) : engagementChartPoints.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8">
-                Sync from Integrations and run the backfill to see daily engagement. Data comes from your synced X tweets.
+                No data in this period.
               </p>
             ) : (
             <div className="flex gap-3">
@@ -1476,29 +1479,29 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   {[0, 1, 2, 3, 4].map((i) => (
                     <div key={i} className="absolute left-0 right-0 border-t border-border/50" style={{ bottom: `${i * 25}%` }} />
                   ))}
-                  {engagementChartPoints.map(([day, v], i) => {
-                    const val = v.engagementPct;
-                    const valid = engagementChartPoints.map(([, x]) => x.engagementPct).filter((x): x is number => x != null && Number.isFinite(x));
+                  {engagementRatePoints.map((p, i) => {
+                    const val = p.engagement_pct;
+                    const valid = engagementRatePoints.map((x) => x.engagement_pct).filter((x): x is number => x != null && Number.isFinite(x));
                     const max = valid.length ? Math.max(...valid, 0.01) : 5;
                     const heightPct = val != null && Number.isFinite(val) ? (val / max) * 100 : 0;
                     return (
                       <motion.div
-                        key={day}
+                        key={p.date}
                         className="flex-1 min-w-[4px] rounded-t-md bg-gradient-to-t from-chart-2 to-chart-2/70 border-t border-chart-1/50 relative group"
                         initial={{ height: 0 }}
                         animate={{ height: `${heightPct}%` }}
                         transition={{ duration: 0.6, delay: i * 0.02 }}
                       >
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          {day}: {val != null && Number.isFinite(val) ? `${val.toFixed(1)}%` : "—"}
+                          {p.date}: {val != null && Number.isFinite(val) ? `${val.toFixed(1)}%` : "—"}
                         </div>
                       </motion.div>
                     );
                   })}
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground mt-2 px-1">
-                  <span>{engagementChartPoints[0]?.[0] ?? ""}</span>
-                  <span>{engagementChartPoints[engagementChartPoints.length - 1]?.[0] ?? ""}</span>
+                  <span>{engagementRatePoints[0]?.date ?? ""}</span>
+                  <span>{engagementRatePoints[engagementRatePoints.length - 1]?.date ?? ""}</span>
                 </div>
               </div>
             </div>
@@ -1515,17 +1518,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-primary stroke-[1.75]" />
-                Posting Cadence (30D)
+                Posting Cadence ({timePeriod})
               </h3>
             </div>
 
-            {noPostsInWindow ? (
+            {postingCadencePoints.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8">
-                No posts found in this period.
-              </p>
-            ) : cadenceChartPoints.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8">
-                Sync from Integrations and run the backfill to see posting cadence. Data comes from your synced X tweets.
+                No data in this period.
               </p>
             ) : (
             <div className="flex gap-3">
@@ -1534,15 +1533,15 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   {[0, 1, 2, 3, 4].map((i) => (
                     <div key={i} className="absolute left-0 right-0 border-t border-border/50" style={{ bottom: `${i * 25}%` }} />
                   ))}
-                  {cadenceChartPoints.map(([dateStr, v], i) => {
-                    const posts = v.posts ?? 0;
-                    const max = Math.max(...cadenceChartPoints.map(([, x]) => x.posts ?? 0), 1);
+                  {postingCadencePoints.map((p, i) => {
+                    const posts = p.posts ?? 0;
+                    const max = Math.max(...postingCadencePoints.map((x) => x.posts ?? 0), 1);
                     const heightPct = (posts / max) * 100;
-                    const d = dateStr ? new Date(dateStr) : null;
+                    const d = p.date ? new Date(p.date) : null;
                     const isWeekend = d ? (d.getDay() === 6 || d.getDay() === 0) : false;
                     return (
                       <motion.div
-                        key={dateStr}
+                        key={p.date}
                         className={`flex-1 min-w-[4px] rounded-t-md bg-gradient-to-t border-t relative group ${
                           isWeekend ? "from-chart-3 to-chart-3/80 border-border" : "from-chart-4 to-chart-4/80 border-border"
                         }`}
@@ -1551,15 +1550,15 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                         transition={{ duration: 0.6, delay: i * 0.02 }}
                       >
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          {dateStr}: {posts} posts {isWeekend ? "(Weekend)" : ""}
+                          {p.date}: {posts} posts {isWeekend ? "(Weekend)" : ""}
                         </div>
                       </motion.div>
                     );
                   })}
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground mt-2 px-1">
-                  <span>{cadenceChartPoints[0]?.[0] ?? ""}</span>
-                  <span>{cadenceChartPoints[cadenceChartPoints.length - 1]?.[0] ?? ""}</span>
+                  <span>{postingCadencePoints[0]?.date ?? ""}</span>
+                  <span>{postingCadencePoints[postingCadencePoints.length - 1]?.date ?? ""}</span>
                 </div>
               </div>
             </div>

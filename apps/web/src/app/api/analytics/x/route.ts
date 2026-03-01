@@ -5,6 +5,8 @@ import { ok, fail } from "@/lib/api-response";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+type WindowParam = "7d" | "30d" | "90d";
+
 /** GET: X analytics for current user. Uses x_daily_snapshots + x_window_aggregates (worker backfill); falls back to legacy tables. */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -12,6 +14,11 @@ export async function GET(request: NextRequest) {
   if (!token || !supabaseUrl || !supabaseAnonKey) {
     return fail("UNAUTHORIZED", "Unauthorized", 401);
   }
+
+  const { searchParams } = new URL(request.url ?? "", "http://localhost");
+  const windowRaw = (searchParams.get("window") ?? "30d").toLowerCase();
+  const window: WindowParam = windowRaw === "7d" || windowRaw === "90d" ? windowRaw : "30d";
+  const windowDays = window === "7d" ? 7 : window === "30d" ? 30 : 90;
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -22,15 +29,19 @@ export async function GET(request: NextRequest) {
   }
 
   // Window filters: UTC date ranges (tweeted_at gte), profile_id = user.id
-  const thirtyDaysAgo = new Date();
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
-  const sevenDaysAgo = new Date();
+  const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   const sevenDaysAgoStr = sevenDaysAgo.toISOString();
-  const ninetyDaysAgo = new Date();
+  const ninetyDaysAgo = new Date(now);
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
   const ninetyDaysAgoStr = ninetyDaysAgo.toISOString();
+  const windowStart = new Date(now);
+  windowStart.setDate(windowStart.getDate() - windowDays);
+  const windowStartStr = windowStart.toISOString().slice(0, 10);
 
   const [profileRes, legacyRollupRes, driversRes, baselineRes, legacySnapshotsRes, dailySnapshotsRes, windowAggsRes, tweetsLast30Res, tweetsCount90dRes, lastTweet90dRes] = await Promise.all([
     supabase
@@ -79,7 +90,7 @@ export async function GET(request: NextRequest) {
       .from("x_tweets")
       .select("tweet_id, tweeted_at, like_count, reply_count, repost_count")
       .eq("profile_id", user.id)
-      .gte("tweeted_at", thirtyDaysAgoStr)
+      .gte("tweeted_at", ninetyDaysAgoStr)
       .order("tweeted_at", { ascending: true }),
     supabase
       .from("x_tweets")
@@ -285,7 +296,7 @@ export async function GET(request: NextRequest) {
 
   // Data status: tweet counts per window and rollup freshness (for "Data status" line and empty-state logic)
   const tweetCount7d = tweetsLast30.filter((t) => (t.tweeted_at ?? "") >= sevenDaysAgoStr).length;
-  const tweetCount30d = tweetsLast30.length;
+  const tweetCount30d = tweetsLast30.filter((t) => (t.tweeted_at ?? "") >= thirtyDaysAgoStr).length;
   const lastTweetAt30d = tweetsLast30.length > 0 ? tweetsLast30[tweetsLast30.length - 1]?.tweeted_at ?? null : null;
   const lastTweetAt = lastTweet90dAt ?? lastTweetAt30d ?? null;
   const rollupUpdatedAt =
@@ -304,6 +315,62 @@ export async function GET(request: NextRequest) {
     rollup_updated_at: rollupUpdatedAt,
   };
 
+  // Chart points: only real data, no zero-fill. Scoped to selected window.
+  const snapshotsInWindow = snapshots.filter((s) => s.snapshot_date >= windowStartStr).sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
+  const tweetsInWindow = tweetsLast30.filter((t) => (t.tweeted_at ?? "").slice(0, 10) >= windowStartStr);
+  const dayAggForWindow = new Map<string, { posts: number; likes: number; replies: number; reposts: number }>();
+  for (const t of tweetsInWindow) {
+    const day = t.tweeted_at?.slice(0, 10) ?? "";
+    if (!day) continue;
+    const cur = dayAggForWindow.get(day) ?? { posts: 0, likes: 0, replies: 0, reposts: 0 };
+    cur.posts += 1;
+    cur.likes += Number(t.like_count) || 0;
+    cur.replies += Number(t.reply_count) || 0;
+    cur.reposts += Number(t.repost_count) || 0;
+    dayAggForWindow.set(day, cur);
+  }
+
+  const follower_growth: Array<{ date: string; followers: number | null }> = snapshotsInWindow
+    .filter((s) => s.followers_total != null)
+    .map((s) => ({ date: s.snapshot_date, followers: s.followers_total ?? null }));
+
+  const engagement_rate: Array<{ date: string; engagement_pct: number | null; posts: number }> = (() => {
+    if (snapshotsInWindow.length > 0) {
+      return snapshotsInWindow
+        .filter((s) => (s.tweets_count ?? 0) > 0 || s.engagement_rate != null)
+        .map((s) => {
+          const posts = s.tweets_count ?? 0;
+          let engagement_pct: number | null = s.engagement_rate != null && Number.isFinite(s.engagement_rate) ? Number(s.engagement_rate) : null;
+          if (engagement_pct == null && posts > 0 && typeof s.likes_received === "number")
+            engagement_pct = (s.likes_received / posts) * 100;
+          return { date: s.snapshot_date, engagement_pct, posts };
+        });
+    }
+    return Array.from(dayAggForWindow.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, agg]) => {
+        const engagement_pct = agg.posts > 0 ? ((agg.likes + agg.replies + agg.reposts) / agg.posts) * 100 : null;
+        return { date, engagement_pct, posts: agg.posts };
+      });
+  })();
+
+  const posting_cadence: Array<{ date: string; posts: number }> = (() => {
+    if (snapshotsInWindow.length > 0) {
+      return snapshotsInWindow
+        .filter((s) => (s.tweets_count ?? 0) > 0)
+        .map((s) => ({ date: s.snapshot_date, posts: s.tweets_count ?? 0 }));
+    }
+    return Array.from(dayAggForWindow.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, agg]) => ({ date, posts: agg.posts }));
+  })();
+
+  const chart_points = {
+    follower_growth,
+    engagement_rate,
+    posting_cadence,
+  };
+
   return ok({
     profile: profile ?? {},
     rollup: rollup ?? null,
@@ -317,6 +384,7 @@ export async function GET(request: NextRequest) {
       aggregate_max_as_of: aggregateMaxAsOf,
     },
     data_status,
+    chart_points,
     diagnostics,
   });
 }

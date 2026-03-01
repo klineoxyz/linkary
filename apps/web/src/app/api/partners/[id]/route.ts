@@ -90,6 +90,7 @@ export async function PATCH(
     sinceDate?: string | null;
     isFeatured?: boolean;
     sortOrder?: number;
+    targetProfileId?: string | null;
   };
   try {
     body = await request.json().catch(() => ({}));
@@ -120,9 +121,19 @@ export async function PATCH(
   }
   if (typeof body?.isFeatured === "boolean") updates.is_featured = body.isFeatured;
   if (typeof body?.sortOrder === "number" && Number.isFinite(body.sortOrder)) updates.sort_order = Math.round(body.sortOrder);
+  if (body?.targetProfileId !== undefined) {
+    updates.target_profile_id =
+      body.targetProfileId === null || body.targetProfileId === ""
+        ? null
+        : typeof body.targetProfileId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.targetProfileId.trim())
+          ? body.targetProfileId.trim()
+          : undefined;
+    if (updates.target_profile_id === undefined) delete updates.target_profile_id;
+  }
 
+  const selectCols = "id, owner_type, owner_id, program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured, sort_order, target_profile_id, created_at, updated_at";
   if (Object.keys(updates).length === 0) {
-    const { data: row } = await supabase.from("partner_programs").select("id, owner_type, owner_id, program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured, sort_order, created_at, updated_at").eq("id", id).single();
+    const { data: row } = await supabase.from("partner_programs").select(selectCols).eq("id", id).single();
     return ok({ partner: row });
   }
 
@@ -130,7 +141,7 @@ export async function PATCH(
     .from("partner_programs")
     .update(updates)
     .eq("id", id)
-    .select("id, owner_type, owner_id, program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured, sort_order, created_at, updated_at")
+    .select(selectCols)
     .single();
 
   if (error) return fail("DB_ERROR", error.message, 500);

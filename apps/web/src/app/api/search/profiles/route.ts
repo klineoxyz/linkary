@@ -34,18 +34,20 @@ export async function GET(request: NextRequest) {
   const safe = q.replace(/\*/g, "");
   const { data: rows, error } = await supabase
     .from("public_profile_view")
-    .select("id, username, display_name, avatar_url, profile_type")
+    .select("id, username, display_name, avatar_url, profile_type, twitter_username, website")
     .or(`username.ilike.*${safe}*,display_name.ilike.*${safe}*,twitter_username.ilike.*${safe}*`)
     .limit(10);
 
   if (error) return fail("DB_ERROR", error.message, 500);
 
-  const profiles = (rows ?? []).map((r: { id: string; username: string | null; display_name: string | null; avatar_url: string | null; profile_type: string | null }) => ({
+  const profiles = (rows ?? []).map((r: { id: string; username: string | null; display_name: string | null; avatar_url: string | null; profile_type: string | null; twitter_username?: string | null; website?: string | null }) => ({
     id: r.id,
     username: r.username ?? null,
     display_name: r.display_name ?? null,
     avatar_url: r.avatar_url ?? null,
     profile_type: r.profile_type ?? "individual",
+    twitter_username: r.twitter_username ?? null,
+    website: r.website ?? null,
   }));
 
   return ok({ profiles });

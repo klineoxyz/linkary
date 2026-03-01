@@ -3188,6 +3188,8 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   const [profileSearchLoading, setProfileSearchLoading] = useState(false);
   const [repBreakdownOpen, setRepBreakdownOpen] = useState(false);
   const [signedCaseStudyUrlsByPath, setSignedCaseStudyUrlsByPath] = useState<Record<string, string | null>>({});
+  const signPathsCacheRef = useRef<Record<string, Record<string, string | null>>>({});
+  const lastSignPathsKeyRef = useRef<string | null>(null);
 
   const setProfileTab = (newTab: string) => {
     setRoute({ name: "profile", data: { tab: newTab, username: viewUsername } });
@@ -3201,6 +3203,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   }, [me?.id]);
   useEffect(() => {
     if (!me?.id || caseStudies.length === 0) {
+      lastSignPathsKeyRef.current = null;
       setSignedCaseStudyUrlsByPath({});
       return;
     }
@@ -3209,9 +3212,18 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
       .filter((p): p is string => !!p && !p.includes(".."))
       .slice(0, 20);
     if (paths.length === 0) {
+      lastSignPathsKeyRef.current = null;
       setSignedCaseStudyUrlsByPath({});
       return;
     }
+    const pathsKey = paths.slice(0, 20).sort().join("|");
+    const cached = signPathsCacheRef.current[pathsKey];
+    if (cached !== undefined) {
+      setSignedCaseStudyUrlsByPath(cached);
+      return;
+    }
+    if (lastSignPathsKeyRef.current === pathsKey) return;
+    lastSignPathsKeyRef.current = pathsKey;
     let cancelled = false;
     (async () => {
       try {
@@ -3223,8 +3235,11 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           body: JSON.stringify({ paths }),
         });
         const json = await res.json().catch(() => ({}));
-        if (!cancelled && json.urlsByPath && typeof json.urlsByPath === "object") setSignedCaseStudyUrlsByPath(json.urlsByPath);
-        else if (!cancelled) setSignedCaseStudyUrlsByPath({});
+        const urlsByPath = json.urlsByPath && typeof json.urlsByPath === "object" ? (json.urlsByPath as Record<string, string | null>) : {};
+        if (!cancelled) {
+          signPathsCacheRef.current[pathsKey] = urlsByPath;
+          setSignedCaseStudyUrlsByPath(urlsByPath);
+        }
       } catch {
         if (!cancelled) setSignedCaseStudyUrlsByPath({});
       }

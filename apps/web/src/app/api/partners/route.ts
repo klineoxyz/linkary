@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("partner_programs")
-    .select("id, owner_type, owner_id, program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured, sort_order, created_at, updated_at")
+    .select("id, owner_type, owner_id, program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured, sort_order, target_profile_id, created_at, updated_at")
     .eq("owner_type", ownerType)
     .eq("owner_id", ownerId)
     .order("sort_order", { ascending: true })
@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
     sinceDate?: string | null;
     isFeatured?: boolean;
     sortOrder?: number;
+    targetProfileId?: string | null;
   };
   try {
     body = await request.json().catch(() => ({}));
@@ -159,6 +160,12 @@ export async function POST(request: NextRequest) {
   const sinceDate = typeof body.sinceDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.sinceDate.trim()) ? body.sinceDate.trim() : null;
   const isFeatured = Boolean(body?.isFeatured);
   const sortOrder = typeof body?.sortOrder === "number" && Number.isFinite(body.sortOrder) ? Math.round(body.sortOrder) : 0;
+  const targetProfileId =
+    body.targetProfileId === null || body.targetProfileId === undefined
+      ? null
+      : typeof body.targetProfileId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.targetProfileId.trim())
+        ? body.targetProfileId.trim()
+        : null;
 
   const { data: row, error } = await supabase
     .from("partner_programs")
@@ -173,8 +180,9 @@ export async function POST(request: NextRequest) {
       since_date: sinceDate,
       is_featured: isFeatured,
       sort_order: sortOrder,
+      target_profile_id: targetProfileId,
     })
-    .select("id, owner_type, owner_id, program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured, sort_order, created_at, updated_at")
+    .select("id, owner_type, owner_id, program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured, sort_order, target_profile_id, created_at, updated_at")
     .single();
 
   if (error) return fail("DB_ERROR", error.message, 500);

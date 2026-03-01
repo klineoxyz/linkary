@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { updateMyProfile } from "@/lib/profiles";
 import { getProfileProfessions, setProfileProfessions } from "@/lib/profileProfessions";
@@ -90,6 +90,7 @@ type PartnerRow = {
   since_date: string | null;
   is_featured: boolean;
   sort_order: number;
+  target_profile_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -1067,6 +1068,26 @@ function CaseStudiesEditor({
   );
 }
 
+type PartnerFormState = {
+  name: string;
+  websiteUrl: string;
+  logoUrl: string;
+  description: string;
+  sinceDate: string;
+  isFeatured: boolean;
+  targetProfileId: string | null;
+};
+
+type SearchProfileResult = {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  profile_type?: string;
+  twitter_username?: string | null;
+  website?: string | null;
+};
+
 function PartnerModal({
   programType,
   edit,
@@ -1082,8 +1103,8 @@ function PartnerModal({
   programType: "affiliate" | "ambassador";
   edit?: PartnerRow;
   partners: PartnerRow[];
-  form: { name: string; websiteUrl: string; logoUrl: string; description: string; sinceDate: string; isFeatured: boolean };
-  setForm: React.Dispatch<React.SetStateAction<{ name: string; websiteUrl: string; logoUrl: string; description: string; sinceDate: string; isFeatured: boolean }>>;
+  form: PartnerFormState;
+  setForm: React.Dispatch<React.SetStateAction<PartnerFormState>>;
   saving: boolean;
   onClose: () => void;
   onSubmit: (body: { name: string; websiteUrl?: string | null; logoUrl?: string | null; description?: string | null; sinceDate?: string | null; isFeatured?: boolean }) => void;
@@ -1091,10 +1112,116 @@ function PartnerModal({
   onLogoSaved?: () => void;
 }) {
   const currentEdit = edit ? (partners.find((p) => p.id === edit.id) ?? edit) : undefined;
+  const [partnerSearchQuery, setPartnerSearchQuery] = useState("");
+  const [partnerSearchResults, setPartnerSearchResults] = useState<SearchProfileResult[]>([]);
+  const [partnerSearchLoading, setPartnerSearchLoading] = useState(false);
+  const [linkedProfileDisplay, setLinkedProfileDisplay] = useState<SearchProfileResult | { id: string; display_name: null; username: null; twitter_username?: null } | null>(null);
+
+  useEffect(() => {
+    if (edit?.target_profile_id) {
+      setLinkedProfileDisplay({ id: edit.target_profile_id, display_name: null, username: null, twitter_username: null });
+    } else {
+      setLinkedProfileDisplay(null);
+    }
+  }, [edit?.target_profile_id]);
+
+  useEffect(() => {
+    const q = partnerSearchQuery.trim();
+    if (q.length < 2) {
+      setPartnerSearchResults([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setPartnerSearchLoading(true);
+      try {
+        const headers = await getAuthHeaders();
+        const base = typeof window !== "undefined" ? window.location.origin : "";
+        const res = await fetch(`${base}/api/search/profiles?q=${encodeURIComponent(q)}`, { headers });
+        const json = await res.json().catch(() => ({}));
+        const list = Array.isArray(json?.profiles) ? json.profiles as SearchProfileResult[] : [];
+        setPartnerSearchResults(list);
+      } catch {
+        setPartnerSearchResults([]);
+      } finally {
+        setPartnerSearchLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [partnerSearchQuery, getAuthHeaders]);
+
+  const onSelectProfile = (profile: SearchProfileResult) => {
+    setLinkedProfileDisplay(profile);
+    setForm((f) => ({
+      ...f,
+      targetProfileId: profile.id,
+      name: profile.display_name?.trim() || profile.username?.trim() || f.name,
+      websiteUrl: profile.website?.trim() || f.websiteUrl,
+    }));
+    setPartnerSearchQuery("");
+    setPartnerSearchResults([]);
+  };
+
+  const onRemoveLink = () => {
+    setLinkedProfileDisplay(null);
+    setForm((f) => ({ ...f, targetProfileId: null }));
+  };
+
+  const linkLabel = linkedProfileDisplay
+    ? (linkedProfileDisplay.display_name?.trim() || linkedProfileDisplay.username?.trim() || "Linked profile")
+    : (form.targetProfileId ? "Linked profile" : null);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-4 space-y-3 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h3 className="font-semibold text-zinc-900">{edit ? "Edit" : "Add"} {programType}</h3>
+
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Search project by name or X handle</label>
+          <input
+            type="text"
+            placeholder="Type name or @handle…"
+            value={partnerSearchQuery}
+            onChange={(e) => setPartnerSearchQuery(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900"
+          />
+          {partnerSearchLoading && <p className="text-xs text-zinc-500 mt-1">Searching…</p>}
+          {partnerSearchResults.length > 0 && (
+            <ul className="mt-2 border border-zinc-200 rounded-lg divide-y divide-zinc-100 max-h-40 overflow-y-auto">
+              {partnerSearchResults.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelectProfile(p)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-zinc-50 text-zinc-900"
+                  >
+                    {p.avatar_url ? (
+                      <img src={p.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-zinc-200 shrink-0 flex items-center justify-center text-xs font-medium text-zinc-600">
+                        {(p.display_name || p.username || "?")[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <span className="font-medium truncate block">{p.display_name || p.username || "—"}</span>
+                      <span className="text-xs text-zinc-500">
+                        {p.username ? `@${p.username}` : ""}
+                        {p.twitter_username ? (p.username ? ` · @${p.twitter_username}` : `@${p.twitter_username}`) : ""}
+                      </span>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {linkLabel && (
+          <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+            <span className="text-sm text-zinc-700">Linked to: {linkLabel}</span>
+            <button type="button" onClick={onRemoveLink} className="text-xs text-primary hover:underline ml-auto">Remove link</button>
+          </div>
+        )}
+
         <input type="text" placeholder="Name (required)" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
         <input type="url" placeholder="Website URL" value={form.websiteUrl} onChange={(e) => setForm((f) => ({ ...f, websiteUrl: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900" />
         {currentEdit ? (
@@ -1217,10 +1344,12 @@ export default function ProfileEditPage({
   const [partnerModal, setPartnerModal] = useState<{ open: true; programType: "affiliate" | "ambassador"; edit?: PartnerRow } | { open: false }>({ open: false });
   const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
   const [signedCaseStudyUrlsByPath, setSignedCaseStudyUrlsByPath] = useState<Record<string, string | null>>({});
+  const signPathsCacheRef = useRef<Record<string, Record<string, string | null>>>({});
+  const lastSignPathsKeyRef = useRef<string | null>(null);
   const [caseStudyModal, setCaseStudyModal] = useState(false);
   const [editingCaseStudy, setEditingCaseStudy] = useState<CaseStudy | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [partnerForm, setPartnerForm] = useState({ name: "", websiteUrl: "", logoUrl: "", description: "", sinceDate: "", isFeatured: false });
+  const [partnerForm, setPartnerForm] = useState({ name: "", websiteUrl: "", logoUrl: "", description: "", sinceDate: "", isFeatured: false, targetProfileId: null as string | null });
   const [caseStudyForm, setCaseStudyForm] = useState({ title: "", description: "", proofUrl: "", is_public: true });
   const [partnerSaving, setPartnerSaving] = useState(false);
   const [caseStudySaving, setCaseStudySaving] = useState(false);
@@ -1319,22 +1448,32 @@ export default function ProfileEditPage({
       .map((c) => c.proof_file_path?.trim())
       .filter((p): p is string => !!p && !p.includes(".."))
       .slice(0, 20);
-    if (paths.length > 0) {
-      try {
-        const headers = await getAuthHeaders();
-        const base = typeof window !== "undefined" ? window.location.origin : "";
-        const res = await fetch(`${base}/api/media/sign-case-study-images`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...headers },
-          body: JSON.stringify({ paths }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (json.urlsByPath && typeof json.urlsByPath === "object") setSignedCaseStudyUrlsByPath(json.urlsByPath);
-        else setSignedCaseStudyUrlsByPath({});
-      } catch {
-        setSignedCaseStudyUrlsByPath({});
-      }
-    } else {
+    if (paths.length === 0) {
+      lastSignPathsKeyRef.current = null;
+      setSignedCaseStudyUrlsByPath({});
+      return;
+    }
+    const pathsKey = paths.slice(0, 20).sort().join("|");
+    const cached = signPathsCacheRef.current[pathsKey];
+    if (cached !== undefined) {
+      setSignedCaseStudyUrlsByPath(cached);
+      return;
+    }
+    if (lastSignPathsKeyRef.current === pathsKey) return;
+    lastSignPathsKeyRef.current = pathsKey;
+    try {
+      const headers = await getAuthHeaders();
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/media/sign-case-study-images`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ paths }),
+      });
+      const json = await res.json().catch(() => ({}));
+      const urlsByPath = json.urlsByPath && typeof json.urlsByPath === "object" ? json.urlsByPath as Record<string, string | null> : {};
+      signPathsCacheRef.current[pathsKey] = urlsByPath;
+      setSignedCaseStudyUrlsByPath(urlsByPath);
+    } catch {
       setSignedCaseStudyUrlsByPath({});
     }
   }, [me?.id, getAuthHeaders]);
@@ -1570,9 +1709,10 @@ export default function ProfileEditPage({
         description: edit.description ?? "",
         sinceDate: edit.since_date ?? "",
         isFeatured: edit.is_featured,
+        targetProfileId: edit.target_profile_id ?? null,
       });
     } else {
-      setPartnerForm({ name: "", websiteUrl: "", logoUrl: "", description: "", sinceDate: "", isFeatured: false });
+      setPartnerForm({ name: "", websiteUrl: "", logoUrl: "", description: "", sinceDate: "", isFeatured: false, targetProfileId: null });
     }
   }, [partnerModal]);
 
@@ -2562,7 +2702,7 @@ export default function ProfileEditPage({
               const res = await fetch(`${base}/api/partners/${editing.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json", ...headers },
-                body: JSON.stringify(body),
+                body: JSON.stringify({ ...body, targetProfileId: partnerForm.targetProfileId ?? null }),
               });
               if (!res.ok) {
                 const j = await res.json().catch(() => ({}));
@@ -2575,7 +2715,7 @@ export default function ProfileEditPage({
               const res = await fetch(`${base}/api/partners`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", ...headers },
-                body: JSON.stringify({ ownerType: "profile", ownerId: me.id, programType: partnerModal.programType, ...body }),
+                body: JSON.stringify({ ownerType: "profile", ownerId: me.id, programType: partnerModal.programType, ...body, targetProfileId: partnerForm.targetProfileId ?? null }),
               });
               if (!res.ok) {
                 const j = await res.json().catch(() => ({}));

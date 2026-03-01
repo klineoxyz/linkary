@@ -91,6 +91,7 @@ type PartnerRow = {
   is_featured: boolean;
   sort_order: number;
   target_profile_id?: string | null;
+  target_profile_username?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -206,9 +207,18 @@ function PartnerProgramsEditor({
                   <img src={p.logo_url} alt="" className="h-8 w-8 rounded object-cover shrink-0" />
                 ) : null}
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium text-zinc-900 truncate">{p.name}</div>
+                  <div className="font-medium text-zinc-900 truncate">
+                    {p.target_profile_username ? (
+                      <a href={`/${encodeURIComponent(p.target_profile_username)}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate inline-block max-w-full">
+                        {p.name}
+                      </a>
+                    ) : (
+                      p.name
+                    )}
+                  </div>
                   {p.description && <div className="text-xs text-zinc-500 truncate">{p.description}</div>}
                 </div>
+                {p.target_profile_id && <span className="shrink-0 rounded border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600">Linked</span>}
                 {p.is_featured && <span className="shrink-0 rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-xs text-primary">Featured</span>}
                 <div className="flex items-center gap-1 shrink-0">
                   <button type="button" onClick={() => move(p, "up")} disabled={idx === 0} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↑</button>
@@ -1088,6 +1098,23 @@ type SearchProfileResult = {
   website?: string | null;
 };
 
+/** Normalize partner search input: strip @, trim, extract handle from x.com/twitter.com URLs. */
+function normalizePartnerSearchQuery(input: string): string {
+  let s = input.trim().replace(/^@+/, "").trim();
+  if (!s) return "";
+  try {
+    const url = new URL(s.startsWith("http") ? s : `https://${s}`);
+    const host = url.hostname.toLowerCase();
+    if (host === "x.com" || host === "twitter.com") {
+      const segment = url.pathname.replace(/^\/+|\/+$/g, "").split("/")[0];
+      return segment || s;
+    }
+  } catch {
+    /* not a URL */
+  }
+  return s;
+}
+
 function PartnerModal({
   programType,
   edit,
@@ -1126,7 +1153,7 @@ function PartnerModal({
   }, [edit?.target_profile_id]);
 
   useEffect(() => {
-    const q = partnerSearchQuery.trim();
+    const q = normalizePartnerSearchQuery(partnerSearchQuery);
     if (q.length < 2) {
       setPartnerSearchResults([]);
       return;

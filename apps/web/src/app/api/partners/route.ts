@@ -85,7 +85,24 @@ export async function GET(request: NextRequest) {
     .order("created_at", { ascending: true });
 
   if (error) return fail("DB_ERROR", error.message, 500);
-  return ok({ partners: data ?? [] });
+  const rows = (data ?? []) as Array<{ target_profile_id?: string | null }>;
+  const profileIds = [...new Set(rows.map((r) => r.target_profile_id).filter((id): id is string => !!id))];
+  let usernameByProfileId: Record<string, string | null> = {};
+  if (profileIds.length > 0) {
+    const { data: profiles } = await supabase.from("profiles").select("id, username").in("id", profileIds);
+    usernameByProfileId = (profiles ?? []).reduce(
+      (acc, p) => {
+        acc[p.id] = (p as { username: string | null }).username ?? null;
+        return acc;
+      },
+      {} as Record<string, string | null>
+    );
+  }
+  const partners = rows.map((r) => ({
+    ...r,
+    target_profile_username: r.target_profile_id ? usernameByProfileId[r.target_profile_id] ?? null : null,
+  }));
+  return ok({ partners });
 }
 
 export async function POST(request: NextRequest) {
@@ -160,11 +177,12 @@ export async function POST(request: NextRequest) {
   const sinceDate = typeof body.sinceDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.sinceDate.trim()) ? body.sinceDate.trim() : null;
   const isFeatured = Boolean(body?.isFeatured);
   const sortOrder = typeof body?.sortOrder === "number" && Number.isFinite(body.sortOrder) ? Math.round(body.sortOrder) : 0;
+  const rawTarget = body.targetProfileId;
   const targetProfileId =
-    body.targetProfileId === null || body.targetProfileId === undefined
+    rawTarget === null || rawTarget === undefined || (typeof rawTarget === "string" && rawTarget.trim() === "")
       ? null
-      : typeof body.targetProfileId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.targetProfileId.trim())
-        ? body.targetProfileId.trim()
+      : typeof rawTarget === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawTarget.trim())
+        ? rawTarget.trim()
         : null;
 
   const { data: row, error } = await supabase

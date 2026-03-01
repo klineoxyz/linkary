@@ -71,3 +71,14 @@
 - If you want to **skip schema for now** and only add “search by X handle” in the UI that **prefills** name/website when user picks a profile (without storing `target_profile_id`), we can do that with no DB change; the partner row stays manual but the UX is better.
 
 Tell me which you prefer: **Phase 1 with schema**, **prefill-only (no schema)**, or **full plan (Phases 2–4)** and I’ll outline or implement the concrete steps.
+
+---
+
+## Phase 1 polish & sanity checks (done)
+
+- **Sign route rate limit:** Uses `rateLimit()` from `@/lib/rate-limit`, which calls Postgres `consume_rate_limit` RPC. The sign route passes **service role** Supabase (`createClient(supabaseUrl, supabaseServiceKey)`) as `supabaseAdmin`, so the RPC runs with sufficient privileges. Same pattern as partners GET/POST.
+- **Search profiles `website`:** Search hits `public_profile_view`, which only includes **published** profiles. The view already exposes `p.website`; returning it in search is safe because it’s only for profiles that are already public.
+- **Partner display:** When `target_profile_id` is set, the list shows a “Linked” badge; when the API returns `target_profile_username` (from profiles join), the partner name is a link to that profile’s public page.
+- **Search UX:** Input is normalized before calling the API: strip leading `@`, trim, and extract handle from `https://x.com/...` or `https://twitter.com/...` URLs.
+- **API:** `targetProfileId` empty string or whitespace-only is treated as `null` in POST and PATCH.
+- **Data stability:** Prefill (name/website) happens only on first profile select; manual edits are kept and not overwritten.

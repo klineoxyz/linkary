@@ -122,11 +122,12 @@ export async function PATCH(
   if (typeof body?.isFeatured === "boolean") updates.is_featured = body.isFeatured;
   if (typeof body?.sortOrder === "number" && Number.isFinite(body.sortOrder)) updates.sort_order = Math.round(body.sortOrder);
   if (body?.targetProfileId !== undefined) {
+    const raw = body.targetProfileId;
     updates.target_profile_id =
-      body.targetProfileId === null || body.targetProfileId === ""
+      raw === null || raw === "" || (typeof raw === "string" && raw.trim() === "")
         ? null
-        : typeof body.targetProfileId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.targetProfileId.trim())
-          ? body.targetProfileId.trim()
+        : typeof raw === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw.trim())
+          ? raw.trim()
           : undefined;
     if (updates.target_profile_id === undefined) delete updates.target_profile_id;
   }

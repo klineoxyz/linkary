@@ -443,7 +443,13 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           );
         }
         const url = headerMedia.url;
-        const isVideo = headerMedia.type === "VIDEO";
+        const headerIsVideo = headerMedia.type === "VIDEO";
+        if (headerIsVideo && hasHeroVideo && hero?.hero_video_url?.trim()) {
+          const heroUrl = hero.hero_video_url.trim();
+          if (isYouTubeUrl(heroUrl) && isYouTubeUrl(url) && youtubeEmbedUrl(heroUrl) === youtubeEmbedUrl(url)) return null;
+          if (isVimeoUrl(heroUrl) && isVimeoUrl(url) && vimeoEmbedUrl(heroUrl) === vimeoEmbedUrl(url)) return null;
+        }
+        const isVideo = headerIsVideo;
         if (isVideo && isYouTubeUrl(url)) {
           return (
             <section className={sectionSpacing}>
@@ -931,6 +937,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           </section>
         );
       case "case_studies": {
+        // Future: Auto-generated case studies from campaign contributions (ambassador tasks, tracked metrics, verified outcomes).
         if (caseStudies.length === 0 && !viewerIsOwner) return null;
         const sortedCaseStudies =
           featuredCaseStudyId

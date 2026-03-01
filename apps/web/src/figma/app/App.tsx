@@ -170,6 +170,7 @@ import PublicProfileDemo from "./components/PublicProfileDemo";
 import PublicStandalonePage from "./components/PublicStandalonePage";
 import { ProfileAvatar } from "./components/SharedComponents";
 import { MediaHeader } from "@/components/public/MediaHeader";
+import { CaseStudyCard } from "@/components/public/CaseStudyCard";
 
 // Import Circles system components
 import CirclesOverviewPage from "./components/circles/CirclesOverviewPage";
@@ -3498,7 +3499,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             </Card>
           )}
 
-          {/* Case Studies */}
+          {/* Case Studies — same CaseStudyCard as Edit and Public */}
           <Card>
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-semibold text-foreground">Case Studies</h3>
@@ -3510,38 +3511,27 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
               )}
             </div>
             <div className="space-y-3">
-              {(displayCaseStudies ?? []).map((cs) => (
-                <div key={cs.id} className="rounded-lg border border-border bg-muted p-4 hover:bg-secondary transition-colors">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-foreground">{cs.title ?? cs.projectName}</span>
-                        {cs.verified && <BadgeCheck className="h-4 w-4 text-primary stroke-[1.75]" />}
-                      </div>
-                      {cs.role != null && <p className="mt-1 text-xs font-medium text-foreground">{cs.role}{cs.duration ? ` · ${cs.duration}` : ""}</p>}
-                      {cs.description && <p className="mt-1 text-sm font-medium text-foreground">{cs.description}</p>}
-                    </div>
-                    {cs.proof_url && (
-                      <a href={cs.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary">Proof</a>
-                    )}
-                  </div>
-                  {cs.results && (
-                    <div className="rounded-lg border border-border bg-card p-3">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-primary stroke-[1.75]" />
-                        <span className="text-sm font-semibold text-foreground">
-                          {cs.results.metric}: <span className="text-primary">{cs.results.value}</span>
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  {cs.testimonial && (
-                    <div className="mt-3 border-l-2 border-primary/50 pl-3 text-sm font-medium italic text-foreground">
-                      "{cs.testimonial}"
-                    </div>
-                  )}
-                </div>
-              ))}
+              {(displayCaseStudies ?? []).map((cs) => {
+                const metrics = (cs as { metrics?: Record<string, unknown> }).metrics;
+                const tags = metrics != null && typeof metrics === "object" && !Array.isArray(metrics)
+                  ? (Array.isArray(metrics.tags) ? metrics.tags : Array.isArray(metrics.tag) ? metrics.tag : []).filter((x): x is string => typeof x === "string")
+                  : [];
+                const details = metrics && typeof metrics === "object" && !Array.isArray(metrics)
+                  ? Object.fromEntries(Object.entries(metrics).filter(([k, v]) => k !== "tags" && k !== "tag" && v != null && v !== ""))
+                  : undefined;
+                return (
+                  <CaseStudyCard
+                    key={cs.id}
+                    id={cs.id}
+                    title={(cs as { title?: string | null }).title ?? (cs as { projectName?: string }).projectName ?? null}
+                    summary={(cs as { description?: string | null }).description ?? null}
+                    tags={tags.length > 0 ? tags : undefined}
+                    url={(cs as { proof_url?: string | null }).proof_url ?? null}
+                    imageUrl={undefined}
+                    details={details && Object.keys(details).length > 0 ? details : undefined}
+                  />
+                );
+              })}
             </div>
           </Card>
 

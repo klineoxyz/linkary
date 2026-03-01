@@ -1041,25 +1041,31 @@ function CaseStudiesEditor({
       </div>
       <p className="text-xs text-zinc-500">Proof and outcomes shown on your public page.</p>
       <ul className="space-y-3">
-        {caseStudies.map((cs) => (
-          <li key={cs.id} className="flex items-start gap-2">
-            <div className="min-w-0 flex-1">
+        {caseStudies.map((cs) => {
+          const metricsForDetails = cs.metrics && typeof cs.metrics === "object" && !Array.isArray(cs.metrics)
+            ? Object.fromEntries(Object.entries(cs.metrics).filter(([k, v]) => k !== "tags" && k !== "tag" && v != null && v !== ""))
+            : undefined;
+          return (
+            <li key={cs.id}>
               <CaseStudyCard
                 id={cs.id}
-                title={cs.title}
-                summary={cs.description}
+                title={cs.title ?? null}
+                summary={cs.description ?? null}
                 tags={tagsFromMetrics(cs.metrics)}
-                url={cs.proof_url}
+                url={cs.proof_url ?? null}
                 imageUrl={undefined}
+                actions={
+                  <div className="flex items-center gap-2">
+                    {!(cs as { is_public?: boolean }).is_public && <span className="text-xs text-zinc-500">Hidden</span>}
+                    <button type="button" onClick={() => onOpenEditModal(cs)} className="text-xs text-primary hover:underline">Edit</button>
+                    <button type="button" onClick={() => remove(cs.id)} className="text-xs text-red-600 hover:underline">Delete</button>
+                  </div>
+                }
+                details={metricsForDetails && Object.keys(metricsForDetails).length > 0 ? metricsForDetails : undefined}
               />
-            </div>
-            <div className="flex items-center gap-2 shrink-0 pt-1">
-              {!(cs as { is_public?: boolean }).is_public && <span className="text-xs text-zinc-500">Hidden</span>}
-              <button type="button" onClick={() => onOpenEditModal(cs)} className="text-xs text-primary hover:underline">Edit</button>
-              <button type="button" onClick={() => remove(cs.id)} className="text-xs text-red-600 hover:underline">Delete</button>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

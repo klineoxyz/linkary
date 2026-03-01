@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 
 /** Domain for favicon URL; safe for any string. */
 function getDomain(url: string): string {
@@ -42,6 +42,10 @@ export type CaseStudyCardProps = {
   url?: string | null;
   /** Optional image URL (from proof_file_path signed URL). When absent or on load error, favicon or initials are used. */
   imageUrl?: string | null;
+  /** Optional top-right actions (e.g. Edit/Delete on edit page). */
+  actions?: React.ReactNode;
+  /** Optional metrics/details for expandable "Details" section (collapsed by default). Only shown when present and has entries. */
+  details?: Record<string, unknown> | null;
 };
 
 export function CaseStudyCard({
@@ -50,9 +54,12 @@ export function CaseStudyCard({
   tags = [],
   url,
   imageUrl,
+  actions,
+  details,
 }: CaseStudyCardProps) {
   const [imageError, setImageError] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const tagList = Array.isArray(tags) ? tags.slice(0, 2) : [];
   const highlight = oneHighlight(summary ?? null, tagList);
   const domain = url?.trim() ? getDomain(url) : "";
@@ -61,6 +68,12 @@ export function CaseStudyCard({
   const showImage = imageUrl?.trim() && !imageError;
   const showFavicon = !showImage && url?.trim() && faviconSrc && !faviconError;
   const showInitials = !showImage && !showFavicon;
+
+  const detailsEntries =
+    details && typeof details === "object" && !Array.isArray(details)
+      ? Object.entries(details).filter(([, v]) => v != null && v !== "")
+      : [];
+  const hasDetails = detailsEntries.length > 0;
 
   return (
     <div className="rounded-xl border border-border bg-card/95 shadow-sm shadow-[inset_0_1px_0_0_hsl(var(--primary)/.06)] transition-all duration-200 hover:border-primary/20 hover:shadow-md hover:shadow-primary/10 p-4 flex items-start gap-3">
@@ -87,12 +100,17 @@ export function CaseStudyCard({
         </div>
       )}
       <div className="min-w-0 flex-1">
-        {title != null && title !== "" && (
-          <h3 className="font-semibold text-foreground line-clamp-1">{title}</h3>
-        )}
-        {highlight != null && (
-          <p className="mt-1 text-sm text-muted-foreground line-clamp-1">{highlight}</p>
-        )}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            {title != null && title !== "" && (
+              <h3 className="font-semibold text-foreground line-clamp-1">{title}</h3>
+            )}
+            {highlight != null && (
+              <p className="mt-1 text-sm text-muted-foreground line-clamp-1">{highlight}</p>
+            )}
+          </div>
+          {actions != null && <div className="shrink-0 flex items-center gap-2">{actions}</div>}
+        </div>
         {tagList.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {tagList.map((t) => (
@@ -111,6 +129,28 @@ export function CaseStudyCard({
           >
             View <ExternalLink className="h-3.5 w-3.5" />
           </a>
+        )}
+        {hasDetails && (
+          <div className="mt-3 border-t border-border pt-3">
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((o) => !o)}
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+            >
+              {detailsOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              Details
+            </button>
+            {detailsOpen && (
+              <dl className="mt-2 space-y-1 text-xs">
+                {detailsEntries.map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-2">
+                    <dt className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</dt>
+                    <dd className="text-foreground font-medium truncate">{String(v)}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
         )}
       </div>
     </div>

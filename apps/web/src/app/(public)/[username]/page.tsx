@@ -261,11 +261,20 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       const heroVideoUrl = profileRow.hero_video_url ?? null;
       const heroTitle = profileRow.hero_title ?? null;
 
-      const { data: profileExtData } = await serviceSupabase.from("profiles").select("show_reviews, token_dexscreener_url, cv_document_id").eq("id", profileId).maybeSingle();
-      const ext = profileExtData as { show_reviews?: boolean | null; token_dexscreener_url?: string | null; cv_document_id?: string | null } | null;
+      const { data: profileExtData } = await serviceSupabase.from("profiles").select("show_reviews, token_dexscreener_url, cv_document_id, meta").eq("id", profileId).maybeSingle();
+      const ext = profileExtData as {
+        show_reviews?: boolean | null;
+        token_dexscreener_url?: string | null;
+        cv_document_id?: string | null;
+        meta?: { public_location?: boolean; public_pricing?: boolean; pricing?: { post?: { price_usd?: number | null; platforms?: string[]; notes?: string | null }; podcast?: { price_usd?: number | null; platforms?: string[]; notes?: string | null } } } | null;
+      } | null;
       const showReviews = ext?.show_reviews !== false;
       const tokenDexscreenerUrl = (ext?.token_dexscreener_url ?? "").trim();
       const hasCv = !!ext?.cv_document_id;
+      const meta = ext?.meta ?? {};
+      const publicLocation = meta.public_location === true;
+      const publicPricing = meta.public_pricing === true;
+      const pricingMeta = meta.pricing;
 
       type ReviewRow = { id: string; rating: number; body: string | null; title: string | null; created_at: string; reviewer_profile_id: string | null; reviewer_type: string; verified_deal?: boolean };
       type TeamRow = { name: string; role: string | null; avatar_url: string | null; linkedin_url?: string | null; x_url?: string | null; website_url?: string | null; is_public: boolean };
@@ -552,13 +561,29 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       const featuredReviewId = (layoutObj as { featured_review_id?: string | null }).featured_review_id ?? null;
       const featuredGigId = (layoutObj as { featured_gig_id?: string | null }).featured_gig_id ?? null;
       const displayUsernameForPayload = profileRow.username ?? profileRow.twitter_username ?? segmentLower;
+      const locationForPayload = publicLocation && profileRow.location?.trim() ? profileRow.location.trim() : null;
+      const pricingPayload: PublicProfileApiPayload["pricing"] =
+        publicPricing && pricingMeta
+          ? (() => {
+              const post = pricingMeta.post;
+              const podcast = pricingMeta.podcast;
+              const postUsd = typeof post?.price_usd === "number" && post.price_usd >= 0 ? post.price_usd : null;
+              const podcastUsd = typeof podcast?.price_usd === "number" && podcast.price_usd >= 0 ? podcast.price_usd : null;
+              if (postUsd == null && podcastUsd == null) return null;
+              return {
+                ...(postUsd != null ? { post: { price_usd: postUsd, platforms: Array.isArray(post?.platforms) ? post.platforms : [], notes: post?.notes ?? null } } : {}),
+                ...(podcastUsd != null ? { podcast: { price_usd: podcastUsd, platforms: Array.isArray(podcast?.platforms) ? podcast.platforms : [], notes: podcast?.notes ?? null } } : {}),
+              } as PublicProfileApiPayload["pricing"];
+            })()
+          : null;
+
       const payload: PublicProfileApiPayload = {
         profile: {
           username: profileRow.username ?? profileRow.twitter_username ?? null,
           display_name: profileRow.display_name ?? null,
           bio: profileRow.bio ?? null,
           avatar_url: profileRow.avatar_url ?? null,
-          location: profileRow.location ?? null,
+          location: locationForPayload,
           roles: rolesList,
           is_verified: false,
           ethos_score: profileRow.ethos_score ?? null,
@@ -619,6 +644,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
         ...((gigsPayload ?? []).length > 0 ? { gigs: gigsPayload ?? [] } : {}),
         ...(skills.length > 0 ? { skills } : {}),
         ...(achievements.length > 0 ? { achievements } : {}),
+        ...(pricingPayload ? { pricing: pricingPayload } : {}),
       };
 
       payload.viewer_is_owner = viewer_is_owner;

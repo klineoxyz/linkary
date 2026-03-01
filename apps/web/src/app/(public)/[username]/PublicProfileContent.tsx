@@ -306,7 +306,7 @@ type Props = {
 };
 
 export function PublicProfileContent({ data, username, profileUrl: profileUrlProp, isAuthenticated = false }: Props) {
-  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations, skills = [], achievements = [], header_media: headerMedia = null, cv: cvPayload = null, partner_programs: partnerPrograms = [], completed_collabs: completedCollabs = null, viewer_is_owner: viewerIsOwner = false } = data;
+  const { profile, hero, team = [], socials, links, caseStudies, reviews, show_reviews: showReviews = true, token, relations, skills = [], achievements = [], header_media: headerMedia = null, cv: cvPayload = null, partner_programs: partnerPrograms = [], completed_collabs: completedCollabs = null, viewer_is_owner: viewerIsOwner = false, pricing: pricingBlock = null } = data;
   const profileType = profile.profile_type ?? "individual";
   const displayName = profile.display_name ?? profile.username ?? username;
   const handle = profile.username ?? username;
@@ -544,6 +544,9 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary" aria-label="Profile type">
                     {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
                   </span>
+                  {profile.location && profile.location.trim() && (
+                    <span className="text-xs text-muted-foreground">{profile.location.trim()}</span>
+                  )}
                 </div>
                 {(profile.xscore != null || profile.ethos_score != null || profile.rep_score != null) && (
                   <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -574,6 +577,43 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               </div>
             </div>
             {profile.bio && <p className="mt-3 px-4 text-sm text-foreground leading-relaxed">{profile.bio}</p>}
+            {pricingBlock && (pricingBlock.post || pricingBlock.podcast) && (
+              <div className="mt-4 px-4">
+                <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 space-y-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pricing</h3>
+                  {pricingBlock.post != null && typeof pricingBlock.post.price_usd === "number" && (
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">Per post: ${pricingBlock.post.price_usd}</span>
+                        {Array.isArray(pricingBlock.post.platforms) && pricingBlock.post.platforms.length > 0 && (
+                          <span className="flex flex-wrap gap-1">
+                            {pricingBlock.post.platforms.map((p) => (
+                              <span key={p} className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs text-foreground">{p}</span>
+                            ))}
+                          </span>
+                        )}
+                      </div>
+                      {pricingBlock.post.notes?.trim() && <p className="mt-1 text-xs text-muted-foreground">{pricingBlock.post.notes.trim()}</p>}
+                    </div>
+                  )}
+                  {pricingBlock.podcast != null && typeof pricingBlock.podcast.price_usd === "number" && (
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">Podcast: ${pricingBlock.podcast.price_usd}</span>
+                        {Array.isArray(pricingBlock.podcast.platforms) && pricingBlock.podcast.platforms.length > 0 && (
+                          <span className="flex flex-wrap gap-1">
+                            {pricingBlock.podcast.platforms.map((p) => (
+                              <span key={p} className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs text-foreground">{p}</span>
+                            ))}
+                          </span>
+                        )}
+                      </div>
+                      {pricingBlock.podcast.notes?.trim() && <p className="mt-1 text-xs text-muted-foreground">{pricingBlock.podcast.notes.trim()}</p>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="mt-4"><CopyProfileLinkButton url={profileUrl} /></div>
           </header>
         );

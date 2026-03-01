@@ -53,6 +53,15 @@ export type Profile = {
   show_reviews?: boolean;
   /** Dexscreener pair URL for project token (profile_type=project) */
   token_dexscreener_url?: string | null;
+  /** Optional: public_location, public_pricing, pricing (post/podcast with price_usd, platforms, notes). */
+  meta?: {
+    public_location?: boolean;
+    public_pricing?: boolean;
+    pricing?: {
+      post?: { price_usd?: number | null; platforms?: string[]; notes?: string | null };
+      podcast?: { price_usd?: number | null; platforms?: string[]; notes?: string | null };
+    };
+  } | null;
 };
 
 /** Identity shape from Supabase auth (user.identities or provider raw_user_meta) */
@@ -168,10 +177,39 @@ export async function updateMyProfile(
     featured_case_study_id?: string | null;
     featured_review_id?: string | null;
     featured_gig_id?: string | null;
+    /** Show location on public profile (stored in meta.public_location). */
+    public_location?: boolean | null;
+    /** Show pricing block on public profile (stored in meta.public_pricing). */
+    public_pricing?: boolean | null;
+    /** Pricing entries (stored in meta.pricing). USD only; post and podcast with price_usd, platforms[], notes. */
+    pricing?: {
+      post?: { price_usd?: number | null; platforms?: string[]; notes?: string | null };
+      podcast?: { price_usd?: number | null; platforms?: string[]; notes?: string | null };
+    } | null;
   }
 ): Promise<{ error: string | null }> {
   const updates: Record<string, unknown> = { ...payload };
   delete updates.xscore;
+  const metaKeys = ["public_location", "public_pricing", "pricing"];
+  const hasMetaUpdate = metaKeys.some((k) => updates[k] !== undefined);
+  if (hasMetaUpdate) {
+    const { data: row } = await supabase.from(PROFILES).select("meta").eq("id", userId).maybeSingle();
+    const current = (row as { meta?: Record<string, unknown> | null } | null)?.meta ?? {};
+    const merged: Record<string, unknown> = { ...current };
+    if (updates.public_location !== undefined) {
+      merged.public_location = updates.public_location === true;
+      delete updates.public_location;
+    }
+    if (updates.public_pricing !== undefined) {
+      merged.public_pricing = updates.public_pricing === true;
+      delete updates.public_pricing;
+    }
+    if (updates.pricing !== undefined) {
+      merged.pricing = updates.pricing ?? null;
+      delete updates.pricing;
+    }
+    updates.meta = merged;
+  }
   const layoutKeys = ["public_layout_preset", "public_layout_order", "public_layout_hidden", "featured_case_study_id", "featured_review_id", "featured_gig_id"];
   const hasLayoutUpdate = layoutKeys.some((k) => updates[k] !== undefined);
   if (hasLayoutUpdate) {

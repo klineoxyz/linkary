@@ -142,6 +142,11 @@ export type PublicProfileApiPayload = {
     description?: string | null;
     is_featured?: boolean;
   }>;
+  /** Pricing block (USD). Only present when meta.public_pricing and at least one price set. */
+  pricing?: {
+    post?: { price_usd: number; platforms: string[]; notes?: string | null };
+    podcast?: { price_usd: number; platforms: string[]; notes?: string | null };
+  } | null;
   /** True when the viewer is the profile owner (server session). Used for owner-only CTAs (e.g. Add proof card). Omit or false when not available. */
   viewer_is_owner?: boolean;
 };

@@ -3170,7 +3170,7 @@ function WorkRequestsPage({ setRoute, route, me }) {
   );
 }
 
-function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
+function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
   const router = useRouter();
   const tab = (route?.data?.tab ?? "overview") as string;
   const viewUsername = route?.data?.username as string | undefined;
@@ -3190,6 +3190,41 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
   const [signedCaseStudyUrlsByPath, setSignedCaseStudyUrlsByPath] = useState<Record<string, string | null>>({});
   const signPathsCacheRef = useRef<Record<string, Record<string, string | null>>>({});
   const lastSignPathsKeyRef = useRef<string | null>(null);
+
+  const [coreDisplayName, setCoreDisplayName] = useState("");
+  const [coreBio, setCoreBio] = useState("");
+  const [coreLocation, setCoreLocation] = useState("");
+  const [coreWebsite, setCoreWebsite] = useState("");
+  const [corePublicLocation, setCorePublicLocation] = useState(false);
+  const [corePublicPricing, setCorePublicPricing] = useState(false);
+  const [corePricing, setCorePricing] = useState<{ post: { price_usd: number | null; platforms: string[]; notes: string }; podcast: { price_usd: number | null; platforms: string[]; notes: string } }>({
+    post: { price_usd: null, platforms: [], notes: "" },
+    podcast: { price_usd: null, platforms: [], notes: "" },
+  });
+  const [coreSaving, setCoreSaving] = useState(false);
+
+  useEffect(() => {
+    if (!me) return;
+    setCoreDisplayName(me.display_name ?? "");
+    setCoreBio(me.bio ?? "");
+    setCoreLocation(me.location ?? "");
+    setCoreWebsite(me.website ?? "");
+    const meta = (me as { meta?: { public_location?: boolean; public_pricing?: boolean; pricing?: { post?: { price_usd?: number | null; platforms?: string[]; notes?: string | null }; podcast?: { price_usd?: number | null; platforms?: string[]; notes?: string | null } } } }).meta;
+    setCorePublicLocation(meta?.public_location === true);
+    setCorePublicPricing(meta?.public_pricing === true);
+    setCorePricing({
+      post: {
+        price_usd: typeof meta?.pricing?.post?.price_usd === "number" ? meta.pricing.post.price_usd : null,
+        platforms: Array.isArray(meta?.pricing?.post?.platforms) ? meta.pricing.post.platforms : [],
+        notes: meta?.pricing?.post?.notes?.trim() ?? "",
+      },
+      podcast: {
+        price_usd: typeof meta?.pricing?.podcast?.price_usd === "number" ? meta.pricing.podcast.price_usd : null,
+        platforms: Array.isArray(meta?.pricing?.podcast?.platforms) ? meta.pricing.podcast.platforms : [],
+        notes: meta?.pricing?.podcast?.notes?.trim() ?? "",
+      },
+    });
+  }, [me?.id, me?.display_name, me?.bio, me?.location, me?.website, (me as { meta?: unknown })?.meta]);
 
   const setProfileTab = (newTab: string) => {
     setRoute({ name: "profile", data: { tab: newTab, username: viewUsername } });
@@ -3373,9 +3408,9 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
         <div className="flex flex-wrap gap-3">
           {isMyProfile && (
             <>
-              <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "profileEdit" })}>
-                Edit profile
-              </Button>
+              <a href="/profile/edit" className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground">
+                Advanced editor
+              </a>
               <Button variant="outline" className="flex items-center gap-2" onClick={() => router.push("/settings/wallet")}>
                 <Wallet className="h-4 w-4 stroke-[1.75]" /> Wallet
               </Button>
@@ -3398,6 +3433,82 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
           </Button>
         </div>
       </div>
+
+      {isMyProfile && me && (
+        <Card className="mb-6">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Core profile</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Display name</label>
+              <input type="text" value={coreDisplayName} onChange={(e) => setCoreDisplayName(e.target.value)} placeholder="Your name" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Bio</label>
+              <textarea value={coreBio} onChange={(e) => setCoreBio(e.target.value)} placeholder="Short bio" rows={2} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Location</label>
+              <input type="text" value={coreLocation} onChange={(e) => setCoreLocation(e.target.value)} placeholder="City or region" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Website</label>
+              <input type="url" value={coreWebsite} onChange={(e) => setCoreWebsite(e.target.value)} placeholder="https://…" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+            </div>
+            <div className="flex flex-wrap gap-4 pt-2 border-t border-border">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={corePublicLocation} onChange={(e) => setCorePublicLocation(e.target.checked)} className="rounded border-border" />
+                <span className="text-sm text-foreground">Show location on public profile</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={corePublicPricing} onChange={(e) => setCorePublicPricing(e.target.checked)} className="rounded border-border" />
+                <span className="text-sm text-foreground">Show pricing on public profile</span>
+              </label>
+            </div>
+            <div className="pt-4 border-t border-border space-y-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pricing (USD)</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Price per post</label>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <input type="number" min={0} step={1} value={corePricing.post.price_usd ?? ""} onChange={(e) => setCorePricing((p) => ({ ...p, post: { ...p.post, price_usd: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) } }))} placeholder="0" className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+                    <span className="text-sm text-muted-foreground">USD</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {["X", "Instagram", "YouTube", "TikTok"].map((platform) => (
+                      <label key={platform} className="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" checked={corePricing.post.platforms.includes(platform)} onChange={(e) => setCorePricing((p) => ({ ...p, post: { ...p.post, platforms: e.target.checked ? [...p.post.platforms, platform] : p.post.platforms.filter((x) => x !== platform) } }))} className="rounded border-border" />
+                        <span className="text-xs text-foreground">{platform}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <input type="text" value={corePricing.post.notes} onChange={(e) => setCorePricing((p) => ({ ...p, post: { ...p.post, notes: e.target.value } }))} placeholder="Optional notes" className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Price per podcast</label>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <input type="number" min={0} step={1} value={corePricing.podcast.price_usd ?? ""} onChange={(e) => setCorePricing((p) => ({ ...p, podcast: { ...p.podcast, price_usd: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) } }))} placeholder="0" className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+                    <span className="text-sm text-muted-foreground">USD</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {["X Spaces", "YouTube", "TikTok Live"].map((platform) => (
+                      <label key={platform} className="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" checked={corePricing.podcast.platforms.includes(platform)} onChange={(e) => setCorePricing((p) => ({ ...p, podcast: { ...p.podcast, platforms: e.target.checked ? [...p.podcast.platforms, platform] : p.podcast.platforms.filter((x) => x !== platform) } }))} className="rounded border-border" />
+                        <span className="text-xs text-foreground">{platform}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <input type="text" value={corePricing.podcast.notes} onChange={(e) => setCorePricing((p) => ({ ...p, podcast: { ...p.podcast, notes: e.target.value } }))} placeholder="Optional notes" className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+                </div>
+              </div>
+            </div>
+            <div className="pt-2">
+              <Button disabled={coreSaving} onClick={async () => { if (!me?.id) return; setCoreSaving(true); const { error } = await updateMyProfile(me.id, { display_name: coreDisplayName.trim() || null, bio: coreBio.trim() || null, location: coreLocation.trim() || null, website: coreWebsite.trim() || null, public_location: corePublicLocation, public_pricing: corePublicPricing, pricing: { post: corePricing.post.price_usd != null ? { price_usd: corePricing.post.price_usd, platforms: corePricing.post.platforms, notes: corePricing.post.notes.trim() || null } : undefined, podcast: corePricing.podcast.price_usd != null ? { price_usd: corePricing.podcast.price_usd, platforms: corePricing.podcast.platforms, notes: corePricing.podcast.notes.trim() || null } : undefined } }); setCoreSaving(false); if (!error && refreshMe) refreshMe(); }}>
+                {coreSaving ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
@@ -4442,7 +4553,7 @@ function LinkaryAppInner() {
                   />
                 )}
                 {route.name === "landing" && <LandingPage setRoute={setRoute} />}
-                {route.name === "profile" && <ProfilePage setRoute={setRoute} me={me} route={route} getAuthHeaders={getAuthHeaders} />}
+                {route.name === "profile" && <ProfilePage setRoute={setRoute} me={me} route={route} getAuthHeaders={getAuthHeaders} refreshMe={refreshMe} />}
                 {route.name === "profileEdit" && (
                   <ProfileEditPage setRoute={setRoute} me={me} onSaved={() => { refreshMe(); refreshHeaderMedia(); }} />
                 )}

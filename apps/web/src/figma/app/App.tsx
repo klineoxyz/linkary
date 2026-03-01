@@ -171,6 +171,8 @@ import PublicStandalonePage from "./components/PublicStandalonePage";
 import { ProfileAvatar } from "./components/SharedComponents";
 import { MediaHeader } from "@/components/public/MediaHeader";
 import { CaseStudyCard } from "@/components/public/CaseStudyCard";
+import type { CaseStudyRow } from "@/lib/caseStudyCardProps";
+import { toCaseStudyCardProps } from "@/lib/caseStudyCardProps";
 
 // Import Circles system components
 import CirclesOverviewPage from "./components/circles/CirclesOverviewPage";
@@ -3512,25 +3514,8 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders }) {
             </div>
             <div className="space-y-3">
               {(displayCaseStudies ?? []).map((cs) => {
-                const metrics = (cs as { metrics?: Record<string, unknown> }).metrics;
-                const tags = metrics != null && typeof metrics === "object" && !Array.isArray(metrics)
-                  ? (Array.isArray(metrics.tags) ? metrics.tags : Array.isArray(metrics.tag) ? metrics.tag : []).filter((x): x is string => typeof x === "string")
-                  : [];
-                const details = metrics && typeof metrics === "object" && !Array.isArray(metrics)
-                  ? Object.fromEntries(Object.entries(metrics).filter(([k, v]) => k !== "tags" && k !== "tag" && v != null && v !== ""))
-                  : undefined;
-                return (
-                  <CaseStudyCard
-                    key={cs.id}
-                    id={cs.id}
-                    title={(cs as { title?: string | null }).title ?? (cs as { projectName?: string }).projectName ?? null}
-                    summary={(cs as { description?: string | null }).description ?? null}
-                    tags={tags.length > 0 ? tags : undefined}
-                    url={(cs as { proof_url?: string | null }).proof_url ?? null}
-                    imageUrl={undefined}
-                    details={details && Object.keys(details).length > 0 ? details : undefined}
-                  />
-                );
+                const props = toCaseStudyCardProps(cs as CaseStudyRow, { includeDetails: true });
+                return <CaseStudyCard key={cs.id} {...props} />;
               })}
             </div>
           </Card>

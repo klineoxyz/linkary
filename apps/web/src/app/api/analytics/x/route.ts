@@ -21,11 +21,18 @@ export async function GET(request: NextRequest) {
     return fail("INVALID_SESSION", "Invalid session", 401);
   }
 
+  // Window filters: UTC date ranges (tweeted_at gte), profile_id = user.id
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString();
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  const ninetyDaysAgoStr = ninetyDaysAgo.toISOString();
 
-  const [profileRes, legacyRollupRes, driversRes, baselineRes, legacySnapshotsRes, dailySnapshotsRes, windowAggsRes, tweetsLast30Res] = await Promise.all([
+  const [profileRes, legacyRollupRes, driversRes, baselineRes, legacySnapshotsRes, dailySnapshotsRes, windowAggsRes, tweetsLast30Res, tweetsCount90dRes, lastTweet90dRes] = await Promise.all([
     supabase
       .from("profiles")
       .select("followers_total, avg_engagement_rate, x_last_profile_sync_at, x_last_tweets_sync_at, x_sync_status, twitter_username, analytics_initialized_at")
@@ -74,6 +81,19 @@ export async function GET(request: NextRequest) {
       .eq("profile_id", user.id)
       .gte("tweeted_at", thirtyDaysAgoStr)
       .order("tweeted_at", { ascending: true }),
+    supabase
+      .from("x_tweets")
+      .select("tweet_id", { count: "exact", head: true })
+      .eq("profile_id", user.id)
+      .gte("tweeted_at", ninetyDaysAgoStr),
+    supabase
+      .from("x_tweets")
+      .select("tweeted_at")
+      .eq("profile_id", user.id)
+      .gte("tweeted_at", ninetyDaysAgoStr)
+      .order("tweeted_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const profile = profileRes.data as {
@@ -148,8 +168,13 @@ export async function GET(request: NextRequest) {
     avg_replies_per_post?: unknown;
     avg_engagement_rate?: unknown;
     reach_avg?: unknown;
+    updated_at?: string | null;
   };
   const windowRows = (windowAggsRes.data ?? []) as WindowAgg[];
+  type CountRes = { count?: number };
+  const tweetsCount90d = (tweetsCount90dRes as CountRes)?.count ?? 0;
+  const lastTweet90dRow = lastTweet90dRes.data as { tweeted_at?: string | null } | null;
+  const lastTweet90dAt = lastTweet90dRow?.tweeted_at ?? null;
   const byWindow = windowRows.reduce(
     (acc, r) => {
       const w = Number(r.window_days);
@@ -258,6 +283,27 @@ export async function GET(request: NextRequest) {
     has_outlier_day: hasOutlierDay,
   };
 
+  // Data status: tweet counts per window and rollup freshness (for "Data status" line and empty-state logic)
+  const tweetCount7d = tweetsLast30.filter((t) => (t.tweeted_at ?? "") >= sevenDaysAgoStr).length;
+  const tweetCount30d = tweetsLast30.length;
+  const lastTweetAt30d = tweetsLast30.length > 0 ? tweetsLast30[tweetsLast30.length - 1]?.tweeted_at ?? null : null;
+  const lastTweetAt = lastTweet90dAt ?? lastTweetAt30d ?? null;
+  const rollupUpdatedAt =
+    (windowRows.length > 0
+      ? (windowRows as WindowAgg[]).reduce(
+          (max, r) => (r.updated_at && (max == null || r.updated_at > max) ? r.updated_at : max),
+          null as string | null
+        )
+      : null) ?? (legacyRollup && typeof (legacyRollup as { updated_at?: string }).updated_at === "string" ? (legacyRollup as { updated_at: string }).updated_at : null);
+
+  const data_status = {
+    tweet_count_7d: tweetCount7d,
+    tweet_count_30d: tweetCount30d,
+    tweet_count_90d: tweetsCount90d,
+    last_tweet_at: lastTweetAt,
+    rollup_updated_at: rollupUpdatedAt,
+  };
+
   return ok({
     profile: profile ?? {},
     rollup: rollup ?? null,
@@ -270,6 +316,7 @@ export async function GET(request: NextRequest) {
       snapshot_max_day: snapshotMaxDay,
       aggregate_max_as_of: aggregateMaxAsOf,
     },
+    data_status,
     diagnostics,
   });
 }

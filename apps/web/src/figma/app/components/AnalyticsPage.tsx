@@ -108,6 +108,14 @@ type SnapshotPoint = {
   likes_received?: number | null;
   engagement_rate?: number | null;
 };
+type DataStatus = {
+  tweet_count_7d?: number;
+  tweet_count_30d?: number;
+  tweet_count_90d?: number;
+  last_tweet_at?: string | null;
+  rollup_updated_at?: string | null;
+};
+
 type XAnalyticsData = {
   profile: { followers_total?: number; avg_engagement_rate?: number; x_last_profile_sync_at?: string | null; x_last_tweets_sync_at?: string | null; twitter_username?: string | null };
   rollup: Record<string, unknown> | null;
@@ -120,6 +128,7 @@ type XAnalyticsData = {
     snapshot_max_day: string | null;
     aggregate_max_as_of: string | null;
   };
+  data_status?: DataStatus | null;
   diagnostics?: {
     top_day_last30_from_x_tweets: {
       day: string;
@@ -162,8 +171,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const [rebuildJob, setRebuildJob] = useState<RebuildJob | null>(null);
   const [rebuildLoading, setRebuildLoading] = useState(false);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
+  const [rebuildQueuedToast, setRebuildQueuedToast] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const rebuildPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rollupPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rollupUpdatedAtBeforeRebuildRef = useRef<string | null>(null);
   const isDev = process.env.NODE_ENV !== "production";
   const initialSyncTriggered = useRef(false);
   const base = typeof window !== "undefined" ? window.location.origin : "";
@@ -181,7 +193,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     authFetcher as (url: string) => Promise<Record<string, unknown>>,
     analyticsSwrOpts
   );
-  const { data: summarySwr } = useSWR<{ windows?: Record<string, Record<string, unknown> | null>; is_backfilling?: boolean }>(
+  const { data: summarySwr, mutate: mutateSummary } = useSWR<{ windows?: Record<string, Record<string, unknown> | null>; is_backfilling?: boolean }>(
     "/api/analytics/x/summary",
     authFetcher as (url: string) => Promise<{ windows?: Record<string, Record<string, unknown> | null>; is_backfilling?: boolean }>,
     analyticsSwrOpts
@@ -200,6 +212,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         snapshots: Array.isArray(xSwr.snapshots) ? (xSwr.snapshots as SnapshotPoint[]) : [],
         source: (xSwr.source as XAnalyticsData["source"]) ?? "fallback",
         freshness: xSwr.freshness as XAnalyticsData["freshness"],
+        data_status: (xSwr.data_status as DataStatus) ?? null,
         diagnostics: xSwr.diagnostics as XAnalyticsData["diagnostics"],
       });
     }
@@ -229,9 +242,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     setRetryingBackfill(false);
   }, [base, fetchInitStatus]);
 
-  const triggerRebuild = React.useCallback(async () => {
+  const triggerRebuild = React.useCallback(async (currentRollupUpdatedAt?: string | null) => {
     setRebuildError(null);
     setRebuildLoading(true);
+    rollupUpdatedAtBeforeRebuildRef.current = currentRollupUpdatedAt ?? null;
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     if (!token) {
@@ -254,6 +268,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           updated_at: jobPayload.created_at,
           last_error: null,
         });
+        setRebuildQueuedToast(true);
       }
     } catch (e) {
       setRebuildError(e instanceof Error ? e.message : "Request failed");
@@ -285,6 +300,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             rebuildPollRef.current = null;
           }
           fetchXAnalytics();
+          mutateSummary();
         }
         if (job.status === "failed") {
           if (rebuildPollRef.current) {
@@ -302,7 +318,43 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         rebuildPollRef.current = null;
       }
     };
-  }, [base, rebuildJob?.id, rebuildJob?.status, fetchXAnalytics]);
+  }, [base, rebuildJob?.id, rebuildJob?.status, fetchXAnalytics, mutateSummary]);
+
+  // Poll analytics API every 15s for up to 2 min until rollup_updated_at changes (so charts update without manual refresh)
+  useEffect(() => {
+    if (!rebuildJob || (rebuildJob.status !== "queued" && rebuildJob.status !== "running")) return;
+    let iterations = 0;
+    const MAX_ITERATIONS = 8;
+    const pollRollup = async () => {
+      iterations += 1;
+      try {
+        const body = await (authFetcher as (url: string) => Promise<Record<string, unknown>>)("/api/analytics/x");
+        const next = (body?.data_status as { rollup_updated_at?: string | null } | undefined)?.rollup_updated_at ?? null;
+        if (next !== rollupUpdatedAtBeforeRebuildRef.current || iterations >= MAX_ITERATIONS) {
+          if (rollupPollRef.current) {
+            clearInterval(rollupPollRef.current);
+            rollupPollRef.current = null;
+          }
+          await mutateX();
+          await mutateSummary();
+          setRebuildQueuedToast(false);
+        }
+      } catch {
+        if (iterations >= MAX_ITERATIONS && rollupPollRef.current) {
+          clearInterval(rollupPollRef.current);
+          rollupPollRef.current = null;
+        }
+      }
+    };
+    rollupPollRef.current = setInterval(pollRollup, 15_000);
+    pollRollup();
+    return () => {
+      if (rollupPollRef.current) {
+        clearInterval(rollupPollRef.current);
+        rollupPollRef.current = null;
+      }
+    };
+  }, [rebuildJob?.id, rebuildJob?.status, mutateX, mutateSummary]);
 
   // When user has X connected but no baseline yet, take initial snapshot so 7D/30D/90D have a baseline
   useEffect(() => {
@@ -350,6 +402,16 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const engagementRateByPeriod = timePeriod === "7D" ? engagementRate7d : timePeriod === "30D" ? engagementRate30d : engagementRate90d;
   const reachProxyByPeriod = timePeriod === "7D" ? reachProxy7d : timePeriod === "30D" ? reachProxy30d : reachProxy90d;
   const periodLabel = timePeriod === "7D" ? "7D" : timePeriod === "30D" ? "30D" : "90D";
+
+  const dataStatus = xAnalyticsData?.data_status ?? null;
+  const tweetCountForWindow =
+    dataStatus && timePeriod === "7D"
+      ? (dataStatus.tweet_count_7d ?? 0)
+      : dataStatus && timePeriod === "30D"
+        ? (dataStatus.tweet_count_30d ?? 0)
+        : dataStatus && timePeriod === "90D"
+          ? (dataStatus.tweet_count_90d ?? 0)
+          : null;
 
   const baseline = xAnalyticsData?.baseline ?? null;
   const bNum = (v: unknown) => (typeof v === "number" && !Number.isNaN(v) ? v : 0);
@@ -436,6 +498,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const engagementValues = last30DaysOrdered.map(([, v]) => v.engagementPct);
   const hasCadenceData = cadenceValues.some((n) => n > 0);
   const hasEngagementChartData = engagementValues.some((v) => v != null && Number.isFinite(v));
+  // Only real datapoints (no zero-filled bars): so charts don't look fake when most days are empty
+  const engagementChartPoints = last30DaysOrdered.filter(([, v]) => v.engagementPct != null && Number.isFinite(v.engagementPct) || (v.posts ?? 0) > 0);
+  const cadenceChartPoints = last30DaysOrdered.filter(([, v]) => (v.posts ?? 0) > 0);
+  const noPostsInWindow = dataStatus != null && tweetCountForWindow === 0;
   const pctDelta = (current: number, past: number | null): number | null => {
     if (past == null || past === 0 || !Number.isFinite(current)) return null;
     return ((current - past) / past) * 100;
@@ -561,7 +627,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       delta30D: reachDelta30 ?? 0,
       delta90D: reachDelta90 ?? 0,
       signal: "good",
-      insight: rollup ? "Estimated unique accounts that could see your content; capped at follower count. From rollup for selected period." : "Sync from Integrations to see trends",
+      insight: rollup ? "Estimated unique accounts that could see your content; capped at follower count. From rollup for selected period. Updates after rebuild/backfill." : "Sync from Integrations to see trends",
       sparklineData: undefined,
       sinceJoining: baseline && baselineReach30 > 0 ? pctSince(reachProxyByPeriod, baselineReach30) : undefined,
     },
@@ -691,7 +757,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             <div className="shrink-0 flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => triggerRebuild()}
+                onClick={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)}
                 disabled={rebuildLoading || rebuildJob?.status === "queued" || rebuildJob?.status === "running"}
                 className="px-3 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -707,6 +773,15 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             </div>
           </motion.div>
         ) : null}
+        {rebuildQueuedToast && (rebuildJob?.status === "queued" || rebuildJob?.status === "running") && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-sm text-foreground"
+          >
+            Rebuild queued. Charts will update automatically when rollups are ready (polling every 15s).
+          </motion.div>
+        )}
         {rebuildJob && (rebuildJob.status === "queued" || rebuildJob.status === "running" || rebuildJob.status === "done" || rebuildJob.status === "failed") && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -728,7 +803,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             {rebuildJob.status === "failed" && (
               <button
                 type="button"
-                onClick={() => triggerRebuild()}
+                onClick={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)}
                 disabled={rebuildLoading}
                 className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
               >
@@ -869,6 +944,15 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   </div>
                 </div>
               </div>
+              {/* Data status (owner-only truth check: tweets in window, last tweet, rollup updated) */}
+              {activePlatform === "x" && dataStatus && (
+                <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 border-t border-border/50 mt-2">
+                  <span>Tweets in window: {timePeriod === "7D" ? (dataStatus.tweet_count_7d ?? "—") : timePeriod === "30D" ? (dataStatus.tweet_count_30d ?? "—") : (dataStatus.tweet_count_90d ?? "—")}</span>
+                  <span>Window: {timePeriod}</span>
+                  <span>Last tweet: {dataStatus.last_tweet_at ? formatTimeAgo(dataStatus.last_tweet_at) : "none"}</span>
+                  <span>Rollup updated: {dataStatus.rollup_updated_at ? formatTimeAgo(dataStatus.rollup_updated_at) : "unknown"}</span>
+                </div>
+              )}
 
               {/* Right: Platform Tabs (X supported; other platforms can be added later) */}
               <div className="flex items-center gap-2">
@@ -1377,42 +1461,47 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               </div>
             </div>
 
-            {hasEngagementChartData ? (
+            {noPostsInWindow ? (
+              <p className="text-sm text-muted-foreground py-8">
+                No posts found in this period.
+              </p>
+            ) : engagementChartPoints.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8">
+                Sync from Integrations and run the backfill to see daily engagement. Data comes from your synced X tweets.
+              </p>
+            ) : (
             <div className="flex gap-3">
               <div className="flex-1">
                 <div className="relative h-48 flex items-end gap-2 border-l border-b border-border">
                   {[0, 1, 2, 3, 4].map((i) => (
                     <div key={i} className="absolute left-0 right-0 border-t border-border/50" style={{ bottom: `${i * 25}%` }} />
                   ))}
-                  {engagementValues.map((val, i) => {
-                    const valid = engagementValues.filter((v): v is number => v != null && Number.isFinite(v));
+                  {engagementChartPoints.map(([day, v], i) => {
+                    const val = v.engagementPct;
+                    const valid = engagementChartPoints.map(([, x]) => x.engagementPct).filter((x): x is number => x != null && Number.isFinite(x));
                     const max = valid.length ? Math.max(...valid, 0.01) : 5;
                     const heightPct = val != null && Number.isFinite(val) ? (val / max) * 100 : 0;
                     return (
                       <motion.div
-                        key={last30DaysOrdered[i]?.[0] ?? i}
-                        className="flex-1 rounded-t-md bg-gradient-to-t from-chart-2 to-chart-2/70 border-t border-chart-1/50 relative group"
+                        key={day}
+                        className="flex-1 min-w-[4px] rounded-t-md bg-gradient-to-t from-chart-2 to-chart-2/70 border-t border-chart-1/50 relative group"
                         initial={{ height: 0 }}
                         animate={{ height: `${heightPct}%` }}
                         transition={{ duration: 0.6, delay: i * 0.02 }}
                       >
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          {last30DaysOrdered[i]?.[0]}: {val != null && Number.isFinite(val) ? `${val.toFixed(1)}%` : "—"}
+                          {day}: {val != null && Number.isFinite(val) ? `${val.toFixed(1)}%` : "—"}
                         </div>
                       </motion.div>
                     );
                   })}
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground mt-2 px-1">
-                  <span>{last30DaysOrdered[0]?.[0] ?? "Day 1"}</span>
-                  <span>{last30DaysOrdered[last30DaysOrdered.length - 1]?.[0] ?? "Day " + last30DaysOrdered.length}</span>
+                  <span>{engagementChartPoints[0]?.[0] ?? ""}</span>
+                  <span>{engagementChartPoints[engagementChartPoints.length - 1]?.[0] ?? ""}</span>
                 </div>
               </div>
             </div>
-            ) : (
-              <p className="text-sm text-muted-foreground py-8">
-                Sync from Integrations and run the backfill to see daily engagement. Data comes from your synced X tweets.
-              </p>
             )}
           </motion.div>
 
@@ -1430,23 +1519,31 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               </h3>
             </div>
 
-            {hasCadenceData ? (
+            {noPostsInWindow ? (
+              <p className="text-sm text-muted-foreground py-8">
+                No posts found in this period.
+              </p>
+            ) : cadenceChartPoints.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8">
+                Sync from Integrations and run the backfill to see posting cadence. Data comes from your synced X tweets.
+              </p>
+            ) : (
             <div className="flex gap-3">
               <div className="flex-1">
                 <div className="relative h-48 flex items-end gap-2 border-l border-b border-border">
                   {[0, 1, 2, 3, 4].map((i) => (
                     <div key={i} className="absolute left-0 right-0 border-t border-border/50" style={{ bottom: `${i * 25}%` }} />
                   ))}
-                  {cadenceValues.map((posts, i) => {
-                    const max = Math.max(...cadenceValues, 1);
+                  {cadenceChartPoints.map(([dateStr, v], i) => {
+                    const posts = v.posts ?? 0;
+                    const max = Math.max(...cadenceChartPoints.map(([, x]) => x.posts ?? 0), 1);
                     const heightPct = (posts / max) * 100;
-                    const dateStr = last30DaysOrdered[i]?.[0];
                     const d = dateStr ? new Date(dateStr) : null;
                     const isWeekend = d ? (d.getDay() === 6 || d.getDay() === 0) : false;
                     return (
                       <motion.div
-                        key={dateStr ?? i}
-                        className={`flex-1 rounded-t-md bg-gradient-to-t border-t relative group ${
+                        key={dateStr}
+                        className={`flex-1 min-w-[4px] rounded-t-md bg-gradient-to-t border-t relative group ${
                           isWeekend ? "from-chart-3 to-chart-3/80 border-border" : "from-chart-4 to-chart-4/80 border-border"
                         }`}
                         initial={{ height: 0 }}
@@ -1461,15 +1558,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   })}
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground mt-2 px-1">
-                  <span>{last30DaysOrdered[0]?.[0] ?? "Day 1"}</span>
-                  <span>{last30DaysOrdered[last30DaysOrdered.length - 1]?.[0] ?? "Day " + last30DaysOrdered.length}</span>
+                  <span>{cadenceChartPoints[0]?.[0] ?? ""}</span>
+                  <span>{cadenceChartPoints[cadenceChartPoints.length - 1]?.[0] ?? ""}</span>
                 </div>
               </div>
             </div>
-            ) : (
-              <p className="text-sm text-muted-foreground py-8">
-                Sync from Integrations and run the backfill to see posting cadence. Data comes from your synced X tweets.
-              </p>
             )}
           </motion.div>
         </div>

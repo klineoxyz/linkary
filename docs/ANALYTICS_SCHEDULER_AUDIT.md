@@ -1,97 +1,99 @@
 # X Analytics Scheduler Audit
 
-Single source of truth for how X ingestion and rollups are scheduled, what runs in production, and what auth protects them.
+**Railway is the single source of truth for X analytics scheduling.** The web app (Vercel) does not run analytics crons; freshness does not depend on Vercel.
 
 ---
 
-## 1. Which system triggers X ingestion?
+## 1. Railway cron jobs (scheduling authority)
+
+| Cron name | Script | Recommended schedule | What it does |
+|-----------|--------|----------------------|---------------|
+| **sync:x:profiles:daily** | `pnpm run sync:x:profiles:daily` → `sync_x_profiles_daily.js` | **Daily** (e.g. `0 8 * * *`) | Profile info (followers, bio, avatar) + today’s `x_daily_snapshots` for eligible profiles. |
+| **sync:x:tweets:daily** | `pnpm run sync:x:tweets:daily` → `sync_x_tweets_weekly.js` | **Every 6 hours** (e.g. `0 */6 * * *`) | Tweet ingestion into `x_tweets`, legacy rollups (`x_analytics_rollups`), then **enqueues** `x_backfill_90d` jobs for profiles with missing/stale 90d. |
+| **linkary-queue-drainer** | `pnpm run run:jobs` → `run_analytics_jobs.js` | **Every 2–5 minutes** | Picks one queued `x_backfill_90d` job, runs it → writes `x_daily_snapshots` + `x_window_aggregates`. |
+
+Schedules are configured in the **Railway dashboard** (Cron Runs). In-repo: `apps/worker/railway.toml` (comments) and `apps/worker/package.json` (scripts).
+
+---
+
+## 2. Which system triggers X ingestion?
 
 | Trigger | Source | Frequency | What it does |
 |--------|--------|-----------|----------------|
-| **Railway Cron: linkary-worker-weekly** | `apps/worker` → `pnpm run sync:x:tweets:weekly` → `sync_x_tweets_weekly.ts` | **Weekly** (config in Railway dashboard) | Fetches tweets (twitterapi.io), inserts into `x_tweets`, calls `refreshXRollupsForProfile` → writes `x_analytics_rollups` + `x_top_drivers`. Does **not** write `x_window_aggregates`. |
-| **Web cron route** | `POST /api/cron/sync-x-tweets-weekly` | Only if something calls it (e.g. Vercel Cron or external scheduler) | Same logic as worker weekly: uses `profiles.is_indexed`, fetches tweets, `insertXTweets`, `computeAndUpsertRollups`. Auth: `CRON_SECRET` (header `x-cron-secret` or `Authorization: Bearer <CRON_SECRET>`). |
+| **Railway: sync:x:tweets:daily** | `apps/worker` → `pnpm run sync:x:tweets:daily` → `sync_x_tweets_weekly.ts` | **Every 6h** (when cron set to `0 */6 * * *`) | Fetches tweets (twitterapi.io), inserts into `x_tweets`, calls `refreshXRollupsForProfile` → `x_analytics_rollups` + `x_top_drivers`. At end calls `enqueueXBackfill90d()` so queue drainer can refresh `x_window_aggregates`. |
 
-**Conclusion:** Ingestion today is **weekly** (worker or web). There is **no daily** tweet ingestion in the repo unless an external scheduler calls the web route daily. No `vercel.json` crons in repo; Vercel Cron may be configured in the dashboard.
+Eligible profiles: `profiles` with `twitter_username` and `twitter_connected_at` set. Incremental: only syncs where `x_last_tweets_sync_at` is null or older than **6 hours** (not 6 days).
 
 ---
 
-## 2. Which system triggers rollups / snapshots?
+## 3. Which system triggers rollups / snapshots?
 
 | Data | Written by | Trigger |
 |------|------------|---------|
-| **x_analytics_rollups** (legacy 7d/30d/90d KPIs) | `computeAndUpsertRollups` (web) or worker `refreshXRollupsForProfile` | `sync-x-tweets-weekly` (worker or web) |
-| **x_daily_snapshots** (per-day rows) | (1) Today-only row: `x-analytics-daily` or `sync-x-profiles-daily`. (2) Full 90d history: **worker** `runXBackfill90d` only. | (1) Daily crons. (2) Queue drainer when it runs an `x_backfill_90d` job. |
-| **x_window_aggregates** (7/30/90d windows) | **Worker only** in `runXBackfill90d` (after writing `x_daily_snapshots` from tweets). | **Railway linkary-queue-drainer** running `pnpm run run:jobs` and processing `analytics_jobs` with `job_type = x_backfill_90d`. |
-
-**Conclusion:**  
-- **Rollups (legacy):** weekly, with tweet sync.  
-- **Snapshots (today):** daily cron (profiles or social_accounts).  
-- **Snapshots (90d) + x_window_aggregates:** only when a backfill job is **enqueued** and then **processed** by the queue drainer.
+| **x_analytics_rollups** | Worker `refreshXRollupsForProfile` | During sync:x:tweets:daily (after ingest per profile). |
+| **x_daily_snapshots** (today only) | Worker `sync_x_profiles_daily` | sync:x:profiles:daily. |
+| **x_daily_snapshots** (90d history) | Worker `runXBackfill90d` | linkary-queue-drainer when it runs an `x_backfill_90d` job. |
+| **x_window_aggregates** | Worker `runXBackfill90d` only | linkary-queue-drainer; jobs are enqueued by sync:x:tweets:daily (when 90d missing or stale 24h). |
 
 ---
 
-## 3. Frequency and env (prod vs staging)
+## 4. Frequency and env
 
-| Component | Intended frequency | Where configured | Prod vs staging |
-|-----------|--------------------|------------------|------------------|
-| **Railway: sync:x:profiles:daily** | Daily | Railway Cron Runs (dashboard) | Same env as Railway worker (prod/staging by project). |
-| **Railway: sync:x:tweets:weekly** | Weekly | Railway Cron Runs | Same. |
-| **Railway: linkary-queue-drainer** | Every 5 min (or 2 min with backlog) | Railway Cron Runs | Same. |
-| **Web: POST /api/cron/x-analytics-daily** | Daily (if used) | Vercel Cron or external cron | Vercel project env; `CRON_SECRET` must be set. |
-| **Web: POST /api/cron/sync-x-tweets-weekly** | Weekly (if used) | Vercel Cron or external | Same. |
-| **Web: POST /api/cron/backfill-x-90d-batch** | Daily/nightly (if used) | Vercel Cron or external | Same. Enqueues jobs; does not run them. |
-| **Web: POST /api/cron/x-analytics-refresh** | Every 6h (when using `apps/web/vercel.json`) | `apps/web/vercel.json` crons | Ingestion + today snapshot + enqueue backfill; one route for daily freshness. |
+| Component | Intended frequency | Where configured |
+|-----------|--------------------|------------------|
+| **sync:x:profiles:daily** | Daily | Railway Cron Runs |
+| **sync:x:tweets:daily** | Every 6 hours | Railway Cron Runs |
+| **linkary-queue-drainer** | Every 2–5 minutes | Railway Cron Runs |
 
-In-repo config: **`apps/web/vercel.json`** defines one cron: `POST /api/cron/x-analytics-refresh` at `0 */6 * * *` (every 6 hours). Other schedules remain in **Vercel** and **Railway** dashboards.
+No `vercel.json` crons for analytics. Web cron routes (e.g. `/api/cron/sync-x-tweets-weekly`, `/api/cron/x-analytics-refresh`) exist for **manual** or on-demand use only; analytics freshness does **not** depend on them.
 
 ---
 
-## 4. Endpoints and auth
+## 5. Logging (worker)
+
+Worker logs use clear prefixes for observability:
+
+| Prefix | When | Example |
+|--------|------|---------|
+| **[INGEST]** | Tweet sync script | `[INGEST] profile_id=... twitter_username=... tweets_inserted=...` |
+| **[ROLLUP]** | After legacy rollup refresh, or after backfill job writes aggregates | `[ROLLUP] profile_id=... updated` |
+| **[BACKFILL]** | Queue drainer processing `x_backfill_90d` | `[BACKFILL] start job_id=... profile_id=...` then `[BACKFILL] success job_id=... profile_id=...` or `[BACKFILL] failed job_id=... profile_id=... error=...` |
+
+---
+
+## 6. Endpoints and auth
 
 | Endpoint | Method | Auth | Purpose |
 |----------|--------|------|---------|
-| `/api/cron/x-analytics-daily` | POST | `CRON_SECRET` (header `x-cron-secret` or Bearer) | Today’s `x_daily_snapshots` + profile followers for **social_accounts** (X connected). |
-| `/api/cron/sync-x-profiles-daily` | POST | `CRON_SECRET` | Today’s snapshot + profile update for **profiles.is_indexed** with twitter_username. |
-| `/api/cron/sync-x-tweets-weekly` | POST | `CRON_SECRET` | Tweet ingestion + `x_analytics_rollups` + `x_top_drivers` for **profiles.is_indexed**. |
-| `/api/cron/backfill-x-90d-batch` | POST | `CRON_SECRET` | Enqueue `x_backfill_90d` jobs into `analytics_jobs`. Worker drainer processes them. |
-| `/api/cron/sync-org-influence-daily` | POST | `CRON_SECRET` | Org influence rollups (not X analytics). |
-| **Worker:** `run_analytics_jobs.js` | N/A (one-shot process) | None (uses Supabase service role) | Picks one `analytics_jobs` row (queued), runs `runXBackfill90d`, marks done/failed. |
+| `/api/cron/x-analytics-daily` | POST | `CRON_SECRET` | Manual / on-demand: today’s snapshot (social_accounts). |
+| `/api/cron/sync-x-profiles-daily` | POST | `CRON_SECRET` | Manual: today’s snapshot (profiles.is_indexed). |
+| `/api/cron/sync-x-tweets-weekly` | POST | `CRON_SECRET` | Manual: same ingestion logic as worker. |
+| `/api/cron/backfill-x-90d-batch` | POST | `CRON_SECRET` | Manual: enqueue backfill jobs only. |
+| `/api/cron/x-analytics-refresh` | POST | `CRON_SECRET` | Manual: ingest + snapshot + enqueue (web path; not used by Railway). |
+| `/api/cron/health/x-analytics` | GET | `CRON_SECRET` | Pipeline health: last_ingestion_run_at, last_rollup_run_at, counts, last_error. |
+| **Worker** `run_analytics_jobs.js` | N/A | Supabase service role | Picks one queued job, runs `runXBackfill90d`, marks done/failed. |
 
 ---
 
-## 5. Why freshness can be stale
-
-1. **Tweet ingestion is weekly** – If only the weekly worker/cron runs, `x_tweets` and chart data from it update at most weekly.  
-2. **x_window_aggregates** – Only updated when **backfill jobs** run (worker). Jobs must be **enqueued** (e.g. by `backfill-x-90d-batch` or ensure-backfill) and **drained** by linkary-queue-drainer. If no one calls the enqueue endpoint or the drainer is not running, aggregates never update.  
-3. **Daily snapshot only** – `x-analytics-daily` / `sync-x-profiles-daily` write **today** only; they do not backfill 90d or write `x_window_aggregates`.  
-4. **Scheduler not configured** – If Vercel Cron is not set for the web cron routes, only Railway cron runs exist; if Railway schedules are wrong or disabled, nothing runs.
-
----
-
-## 6. Files reference
+## 7. Files reference
 
 | Purpose | File(s) |
 |---------|--------|
-| Web cron auth | All under `apps/web/src/app/api/cron/*` – check `CRON_SECRET`. |
-| X analytics daily (today snapshot) | `apps/web/src/app/api/cron/x-analytics-daily/route.ts` |
-| X profiles daily | `apps/web/src/app/api/cron/sync-x-profiles-daily/route.ts` |
-| X tweets weekly (ingestion + legacy rollups) | `apps/web/src/app/api/cron/sync-x-tweets-weekly/route.ts` |
-| Enqueue backfill jobs | `apps/web/src/app/api/cron/backfill-x-90d-batch/route.ts` |
-| X analytics refresh (ingestion + snapshot + enqueue) | `apps/web/src/app/api/cron/x-analytics-refresh/route.ts` |
-| X analytics job health | `apps/web/src/app/api/cron/health/x-analytics/route.ts` |
-| Vercel Cron config | `apps/web/vercel.json` (path `/api/cron/x-analytics-refresh`, schedule `0 */6 * * *`) |
-| Worker: tweet sync weekly | `apps/worker/src/sync_x_tweets_weekly.ts` |
-| Worker: profiles daily | `apps/worker/src/sync_x_profiles_daily.ts` |
-| Worker: run one backfill job | `apps/worker/src/run_analytics_jobs.ts` → `jobs/xBackfill90d.ts` |
-| Worker build/config | `apps/worker/railway.toml`, `apps/worker/package.json` (scripts: `sync:x:profiles:daily`, `sync:x:tweets:weekly`, `run:jobs`) |
-| Enqueue helper | `apps/web/src/lib/backfill-x-90d.ts` (`enqueueXBackfill90dJobs`) |
-| Rollups (legacy) | `apps/web/src/lib/x-analytics-server.ts` (`computeAndUpsertRollups`), `apps/worker/src/lib/refreshXRollups.ts` |
+| Worker cron scripts | `apps/worker/package.json` (scripts), `apps/worker/railway.toml` (comments) |
+| Tweet ingestion (6h window + enqueue) | `apps/worker/src/sync_x_tweets_weekly.ts` |
+| Profile/snapshot daily | `apps/worker/src/sync_x_profiles_daily.ts` |
+| Enqueue backfill (worker) | `apps/worker/src/lib/enqueueXBackfill.ts` |
+| Queue drainer | `apps/worker/src/run_analytics_jobs.ts` → `jobs/xBackfill90d.ts` |
+| Legacy rollups | `apps/worker/src/lib/refreshXRollups.ts` |
+| Web cron routes (manual only) | `apps/web/src/app/api/cron/*` |
+| Health | `apps/web/src/app/api/cron/health/x-analytics/route.ts` |
 
 ---
 
-## 7. Implemented (post-audit)
+## 8. Freshness guarantees
 
-- **GET /api/cron/health/x-analytics** – Service-only; returns `scheduler_present`, `last_ingestion_run_at`, `last_rollup_run_at`, `last_success_at`, `last_error_at`, `counts` (ingested_last_24h_tweets, updated_rollups_last_24h_profiles). Use for pipeline visibility.
-- **POST /api/cron/x-analytics-refresh** – Service-only; for X-connected profiles (social_accounts): ingest tweets, update today’s `x_daily_snapshots`, legacy rollups, then enqueue `x_backfill_90d` (with force refresh when 90d is stale). Worker drainer fills `x_window_aggregates`.
-- **apps/web/vercel.json** – Cron `0 */6 * * *` for `/api/cron/x-analytics-refresh`. Ensure `CRON_SECRET` is set in Vercel so the cron can authenticate.
-- **Failure visibility** – Refresh route logs `[x-analytics-refresh] start`, `success` (profile_id, twitter_username), and `error` (profile_id, twitter_username, error). Health endpoint surfaces `last_error_at` and `last_error_message` from `analytics_jobs`.
+- **Tweet ingestion:** Every 6h (sync:x:tweets:daily with schedule `0 */6 * * *`).
+- **Queue drainer:** Every 2–5 min so enqueued backfill jobs are processed quickly.
+- **Backfill enqueue:** Only when 90d aggregate is missing or `x_window_aggregates.updated_at` is older than 24h (see `enqueueXBackfill90d` in worker).
+
+Result: `x_window_aggregates.updated_at` advances at least daily for active connected accounts; debug panel should not show >24h stale data when Railway crons are running as above.

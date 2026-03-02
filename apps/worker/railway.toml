@@ -7,10 +7,13 @@ builder = "nixpacks"
 # Use corepack only to activate pnpm, then run pnpm directly (no "corepack run pnpm@...").
 buildCommand = "corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install && pnpm run build"
 
-# Do NOT set startCommand to a server. Cron services override start per run:
-# Daily: pnpm run sync:x:profiles:daily
-# Weekly: pnpm run sync:x:tweets:weekly
-# Drainer: pnpm run run:jobs
+# Do NOT set startCommand to a server. Cron services override start per run.
+# Railway is the single source of truth for X analytics scheduling (no Vercel cron).
+#
+# Recommended Railway Cron Runs:
+# 1) sync:x:profiles:daily  — daily (e.g. 0 8 * * *) — profile info + today snapshot
+# 2) sync:x:tweets:daily    — every 6h (e.g. 0 */6 * * *) — tweet ingestion + rollups + enqueue backfill
+# 3) linkary-queue-drainer  — every 2–5 min — pnpm run run:jobs (processes x_backfill_90d → x_window_aggregates)
 [deploy]
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3

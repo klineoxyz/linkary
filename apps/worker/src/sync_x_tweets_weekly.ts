@@ -1,8 +1,8 @@
 /**
- * Weekly cron: fetch tweets per eligible profile, ingest into public.x_tweets, update x_last_tweets_sync_at.
- * One-shot script: exits 0 when done. No server.
+ * X tweet ingestion cron: fetch tweets per eligible profile, ingest into x_tweets, refresh rollups, enqueue backfill.
+ * Run every 6 hours via Railway (sync:x:tweets:daily or sync:x:tweets:weekly).
  * Eligible: twitter_username non-empty, twitter_connected_at set.
- * Incremental: only sync where x_last_tweets_sync_at is null OR &lt; 6 days ago.
+ * Incremental: only sync where x_last_tweets_sync_at is null OR older than 6 hours.
  */
 import { config } from "dotenv";
 import { fileURLToPath } from "url";
@@ -16,11 +16,13 @@ config({ path: resolve(__dirname, ".env") });
 import { getSupabaseAdmin } from "./lib/supabase.js";
 import { ingestXTweets } from "./lib/ingestXTweets.js";
 import { refreshXRollupsForProfile } from "./lib/refreshXRollups.js";
+import { enqueueXBackfill90d } from "./lib/enqueueXBackfill.js";
 import { sleep } from "./lib/utils.js";
 
 const BATCH_SIZE = 100;
 const MAX_TWEETS = 50;
 const DELAY_MS = 600;
+const STALE_HOURS = 6;
 
 function envPresent(name: string): boolean {
   const v = process.env[name];
@@ -28,7 +30,7 @@ function envPresent(name: string): boolean {
 }
 
 async function main() {
-  console.log("[WEEKLY] starting weekly tweet sync");
+  console.log("[INGEST] starting X tweet sync (stale threshold=" + STALE_HOURS + "h)");
   const supabaseUrlPresent =
     envPresent("SUPABASE_URL") || envPresent("NEXT_PUBLIC_SUPABASE_URL");
   const serviceRolePresent =
@@ -37,18 +39,15 @@ async function main() {
     envPresent("SERVICE_ROLE_KEY");
   const twitterApiPresent = envPresent("TWITTERAPI_API_KEY");
   console.log(
-    "[WEEKLY] env: SUPABASE_URL present=" +
-      supabaseUrlPresent +
-      ", SERVICE_ROLE present=" +
-      serviceRolePresent +
-      ", TWITTERAPI present=" +
-      twitterApiPresent
+    "[INGEST] env: SUPABASE_URL=" + supabaseUrlPresent +
+    " SERVICE_ROLE=" + serviceRolePresent +
+    " TWITTERAPI=" + twitterApiPresent
   );
 
   const supabase = getSupabaseAdmin();
   const TABLE = "profiles";
-  const past6d = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString();
-  console.log("[WEEKLY] query table=" + TABLE + " past6d=" + past6d);
+  const pastThreshold = new Date(Date.now() - STALE_HOURS * 60 * 60 * 1000).toISOString();
+  console.log("[INGEST] query table=" + TABLE + " stale_before=" + pastThreshold);
 
   // Sanity counts (no filters that might exclude everyone)
   const { count: totalProfiles } = await supabase.from(TABLE).select("*", { count: "exact", head: true });
@@ -60,19 +59,14 @@ async function main() {
     .from(TABLE)
     .select("*", { count: "exact", head: true })
     .not("twitter_connected_at", "is", null);
-  const { count: withUserId } = await supabase
-    .from(TABLE)
-    .select("*", { count: "exact", head: true })
-    .not("twitter_user_id", "is", null);
   const { count: withSyncOk } = await supabase
     .from(TABLE)
     .select("*", { count: "exact", head: true })
     .eq("x_sync_status", "ok");
   console.log(
-    "[WEEKLY] sanity total_profiles=" + (totalProfiles ?? "?") +
+    "[INGEST] sanity total_profiles=" + (totalProfiles ?? "?") +
     " with_handle=" + (withHandle ?? "?") +
     " with_connected_at=" + (withConnectedAt ?? "?") +
-    " with_user_id=" + (withUserId ?? "?") +
     " with_sync_ok=" + (withSyncOk ?? "?")
   );
 
@@ -80,9 +74,9 @@ async function main() {
   const base = () =>
     supabase.from(TABLE).select("id, twitter_username, followers_total").not("twitter_username", "is", null).not("twitter_connected_at", "is", null);
 
-  // Incremental: need sync = never synced OR last sync older than 6 days. Two queries to avoid .or() string bugs.
+  // Incremental: need sync = never synced OR last sync older than STALE_HOURS (6h)
   const { data: needSyncNull, error: errNull } = await base().is("x_last_tweets_sync_at", null).order("id").limit(BATCH_SIZE);
-  const { data: needSyncStale, error: errStale } = await base().lt("x_last_tweets_sync_at", past6d).order("id").limit(BATCH_SIZE);
+  const { data: needSyncStale, error: errStale } = await base().lt("x_last_tweets_sync_at", pastThreshold).order("id").limit(BATCH_SIZE);
 
   if (errNull || errStale) {
     console.error("[WEEKLY] supabase_error null=" + (errNull?.message ?? "ok") + " stale=" + (errStale?.message ?? "ok"));
@@ -99,26 +93,23 @@ async function main() {
     (p) => p.twitter_username != null && String(p.twitter_username).trim().length > 0
   );
 
-  // Count skipped due to recent sync (eligible but x_last_tweets_sync_at >= past6d)
+  // Count skipped due to recent sync (eligible but x_last_tweets_sync_at >= pastThreshold)
   const { count: skippedDueToRecentSync } = await supabase
     .from(TABLE)
     .select("*", { count: "exact", head: true })
     .not("twitter_username", "is", null)
     .not("twitter_connected_at", "is", null)
     .not("x_last_tweets_sync_at", "is", null)
-    .gte("x_last_tweets_sync_at", past6d);
+    .gte("x_last_tweets_sync_at", pastThreshold);
 
   console.log(
-    "[WEEKLY] selected_count=" + selectedCount +
-    " skipped_due_to_recent_sync=" + (skippedDueToRecentSync ?? "?")
+    "[INGEST] selected_count=" + selectedCount +
+    " skipped_recent_sync=" + (skippedDueToRecentSync ?? "?")
   );
 
   if (list.length === 0) {
-    console.warn(
-      "[WEEKLY] selected_count=0. Sanity: total_profiles=" + (totalProfiles ?? "?") +
-      " with_handle=" + (withHandle ?? "?") + " with_connected_at=" + (withConnectedAt ?? "?") +
-      " skipped_due_to_recent_sync=" + (skippedDueToRecentSync ?? "?") + ". Nothing to sync this run."
-    );
+    const enqueueResult = await enqueueXBackfill90d(supabase);
+    console.log("[INGEST] no profiles to sync this run. enqueue_backfill enqueued=" + enqueueResult.enqueued + " processed=" + enqueueResult.processed);
     process.exit(0);
   }
 
@@ -139,7 +130,7 @@ async function main() {
       });
       profilesProcessed += 1;
       tweetsTotalUpserted += result.upserted;
-      console.log("[WEEKLY] profile_id=" + profile.id + " handle=" + handle + " fetched=" + result.fetched + " upserted=" + result.upserted);
+      console.log("[INGEST] profile_id=" + profile.id + " twitter_username=" + handle + " tweets_inserted=" + result.upserted);
 
       const { error: updateErr } = await supabase
         .from("profiles")
@@ -164,14 +155,15 @@ async function main() {
       } else if (result.upserted > 0) {
         try {
           await refreshXRollupsForProfile(supabase, profile.id);
+          console.log("[ROLLUP] profile_id=" + profile.id + " updated");
         } catch (e) {
-          console.warn("[WEEKLY] rollups refresh failed for profile " + profile.id + ":", e);
+          console.warn("[ROLLUP] profile_id=" + profile.id + " refresh failed:", e);
         }
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("x_tweets") || msg.includes("relation") || msg.includes("does not exist")) {
-        console.error("[WEEKLY] x_tweets table missing for profile " + profile.id + ". Run migration: supabase/migrations/20260220000000_x_analytics_ingestion.sql");
+        console.error("[INGEST] x_tweets table missing for profile " + profile.id + ". Run migration: supabase/migrations/20260220000000_x_analytics_ingestion.sql");
       }
       await supabase
         .from("profiles")
@@ -186,11 +178,12 @@ async function main() {
     await sleep(DELAY_MS);
   }
 
+  const enqueueResult = await enqueueXBackfill90d(supabase);
   console.log(
-    "[WEEKLY] done processed=" + profilesProcessed +
+    "[INGEST] done processed=" + profilesProcessed +
     " failures=" + err +
     " tweets_total_upserted=" + tweetsTotalUpserted +
-    " skipped_due_to_recent_sync=" + (skippedDueToRecentSync ?? "?")
+    " enqueue_backfill enqueued=" + enqueueResult.enqueued + " processed=" + enqueueResult.processed
   );
   process.exit(0);
 }

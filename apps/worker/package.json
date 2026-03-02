@@ -9,6 +9,7 @@
     "sync:x:profiles:daily": "node dist/sync_x_profiles_daily.js",
     "sync:x:daily": "node dist/sync_x_profiles_daily.js",
     "sync:x:tweets:weekly": "node dist/sync_x_tweets_weekly.js",
+    "sync:x:tweets:daily": "node dist/sync_x_tweets_weekly.js",
     "sync:x:weekly": "node dist/sync_x_tweets_weekly.js",
     "run:jobs": "node dist/run_analytics_jobs.js",
     "debug:x:tweets": "node dist/debug_x_tweets.js",

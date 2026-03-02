@@ -233,6 +233,7 @@ export async function runXBackfill90d(
       .eq("id", job.owner_id);
   }
 
+  console.log("[ROLLUP] profile_id=" + job.owner_id + " updated");
   return {
     ok: true,
     upserted: result.upserted,

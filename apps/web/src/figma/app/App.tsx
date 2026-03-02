@@ -904,13 +904,13 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
         setMobileOpen(false);
       }}
       className={cn(
-        "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+        "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug",
         isActive(name)
           ? "border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground backdrop-blur-xl"
           : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
       )}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-4 w-4 shrink-0" aria-hidden />
       <span className="truncate">{label}</span>
       {badge && (
         <span className="ml-auto rounded-full bg-sidebar-accent px-2 py-0.5 text-[10px] font-medium text-sidebar-foreground">
@@ -949,14 +949,14 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
         </button>
       </div>
 
-      <nav className={cn("flex flex-col gap-1.5 lg:gap-2 w-full flex-1 min-h-0 overflow-y-auto", mobileOpen ? "flex" : "hidden lg:flex")}>
+      <nav className={cn("flex flex-col gap-1.5 lg:gap-2 w-full flex-1 min-h-0 overflow-y-auto antialiased", mobileOpen ? "flex" : "hidden lg:flex")}>
         <Link
           href="/"
           onClick={() => {
             setRoute({ name: "landing" });
             setMobileOpen(false);
           }}
-          className="uppercase text-xs font-medium text-muted-foreground mt-2 lg:mt-0 tracking-wide text-left w-full hover:text-sidebar-foreground transition-colors"
+          className="text-sm font-semibold text-sidebar-foreground/90 mt-2 lg:mt-0 tracking-wide text-left w-full hover:text-sidebar-foreground transition-colors py-1"
         >
           Home
         </Link>
@@ -964,36 +964,36 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="overview" icon={Home} label="Overview" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Profile</span>
+        <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Profile</span>
         <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
           <NavLink name="profile" icon={Users} label="My Profile" />
           <NavLink name="profileEdit" icon={FileText} label="Profile Builder" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Work</span>
+        <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Work</span>
         <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="market" icon={Briefcase} label="Jobs & Sprints" />
           <button
             type="button"
             disabled
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted-foreground opacity-60 cursor-not-allowed"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground/70 opacity-80 cursor-not-allowed leading-snug"
             aria-disabled="true"
           >
-            <MessageSquare className="h-4 w-4" />
+            <MessageSquare className="h-4 w-4 shrink-0" aria-hidden />
             <span className="truncate">Messages (soon)</span>
           </button>
           <Link
             href="/work/requests"
             onClick={() => setMobileOpen(false)}
             className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug",
               route?.name === "workRequests"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             )}
           >
-            <Inbox className="h-4 w-4" />
+            <Inbox className="h-4 w-4 shrink-0" aria-hidden />
             <span className="truncate">Requests</span>
             {inboxNew > 0 && (
               <span className="ml-auto rounded-full bg-sidebar-accent px-2 py-0.5 text-[10px] font-medium text-sidebar-foreground">
@@ -1003,7 +1003,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           </Link>
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Network</span>
+        <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Network</span>
         <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="circles" icon={Users} label="Circles" />
           <NavLink name="connections" icon={UserPlus} label="Connections" />
@@ -1012,27 +1012,27 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="calendar" icon={CalendarDays} label="XSpaces &amp; Calendar" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Analytics & Data</span>
+        <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Analytics & Data</span>
         <div className="flex flex-col gap-1.5 lg:gap-2">
           <NavLink name="analytics" icon={BarChart3} label="Analytics" />
           <NavLink name="privacy" icon={Shield} label="Privacy & Data" />
         </div>
 
-        <span className="uppercase text-xs font-medium text-muted-foreground mt-3 lg:mt-6 tracking-wide">Account</span>
+        <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Account</span>
         <div className="flex flex-col gap-1.5 lg:gap-2">
           <button
             type="button"
             onClick={() => setRoute({ name: "rolesSkills" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
           >
-            <Briefcase className="h-4 w-4 stroke-[1.75]" /> Roles &amp; Skills
+            <Briefcase className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Roles &amp; Skills</span>
           </button>
           <button
             type="button"
             onClick={() => setRoute({ name: "integrations" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
           >
-            <LinkIcon className="h-4 w-4 stroke-[1.75]" /> Integrations
+            <LinkIcon className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Integrations</span>
           </button>
           {isLoggedIn ? (
             <button
@@ -1041,9 +1041,9 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
                 onSignOut?.();
                 setMobileOpen(false);
               }}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
             >
-              <LogOut className="h-4 w-4 stroke-[1.75]" /> Log out
+              <LogOut className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Log out</span>
             </button>
           ) : (
             <button
@@ -1052,9 +1052,9 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
                 setRoute({ name: "login" });
                 setMobileOpen(false);
               }}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
             >
-              <LogIn className="h-4 w-4 stroke-[1.75]" /> Login
+              <LogIn className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Login</span>
             </button>
           )}
         </div>

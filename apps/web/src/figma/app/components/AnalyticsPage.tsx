@@ -147,6 +147,7 @@ type XAnalyticsData = {
   follower_earliest_snapshot_date?: string | null;
   follower_window_days?: number;
   engagement_data_coverage_days?: number;
+  engagement_rate_pct?: number | null;
   window_days?: number;
   debug?: {
     window_days?: number;
@@ -265,6 +266,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         follower_earliest_snapshot_date: typeof xSwr.follower_earliest_snapshot_date === "string" ? xSwr.follower_earliest_snapshot_date : undefined,
         follower_window_days: typeof xSwr.follower_window_days === "number" ? xSwr.follower_window_days : undefined,
         engagement_data_coverage_days: typeof xSwr.engagement_data_coverage_days === "number" ? xSwr.engagement_data_coverage_days : undefined,
+        engagement_rate_pct: typeof (xSwr as Record<string, unknown>).engagement_rate_pct === "number" ? (xSwr as Record<string, unknown>).engagement_rate_pct as number : undefined,
         debug: xSwr.debug as XAnalyticsData["debug"],
         diagnostics: xSwr.diagnostics as XAnalyticsData["diagnostics"],
         ...(typeof (xSwr as Record<string, unknown>).window_days === "number" && { window_days: (xSwr as Record<string, unknown>).window_days as number }),
@@ -1500,7 +1502,30 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 ? `${xAnalyticsData.follower_data_coverage_days}/${xAnalyticsData.follower_window_days} days`
                 : "—"}
             </p>
-            {followerGrowthPoints.length === 0 ? (
+            {typeof xAnalyticsData?.follower_window_days === "number" &&
+            xAnalyticsData.follower_window_days >= 30 &&
+            typeof xAnalyticsData?.follower_data_coverage_days === "number" &&
+            xAnalyticsData.follower_data_coverage_days < 10 ? (
+              <div className="py-10 text-center">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Follower history is still building. We start showing trends after a few daily snapshots.
+                </p>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Snapshots so far: {xAnalyticsData.follower_data_coverage_days} days
+                  {xAnalyticsData.follower_earliest_snapshot_date
+                    ? ` · First snapshot: ${xAnalyticsData.follower_earliest_snapshot_date}`
+                    : ""}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)}
+                  disabled={rebuildLoading || rebuildJob?.status === "queued" || rebuildJob?.status === "running"}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border border-border bg-card text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+                >
+                  {rebuildLoading ? "Starting…" : "Refresh data"}
+                </button>
+              </div>
+            ) : followerGrowthPoints.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8">
                 No data in this period.
               </p>
@@ -1614,6 +1639,22 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   {rebuildLoading ? "Starting…" : "Refresh data"}
                 </button>
               </div>
+            ) : typeof xAnalyticsData?.tweet_count_window === "number" &&
+              xAnalyticsData.tweet_count_window > 0 &&
+              typeof xAnalyticsData?.engagement_data_coverage_days === "number" &&
+              xAnalyticsData.engagement_data_coverage_days <= 2 ? (
+              <div className="py-8 px-4 rounded-xl border border-border bg-muted/20">
+                <p className="text-sm font-medium text-foreground mb-2">Summary</p>
+                <p className="text-sm text-muted-foreground">
+                  Active days: {xAnalyticsData.engagement_data_coverage_days} / {xAnalyticsData.window_days ?? periodDays} · Posts: {xAnalyticsData.tweet_count_window}
+                </p>
+                {typeof xAnalyticsData?.engagement_rate_pct === "number" && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Engagement rate (window): {xAnalyticsData.engagement_rate_pct.toFixed(1)}%
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-3">Not enough activity for a trend chart yet.</p>
+              </div>
             ) : engagementRatePoints.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8">
                 No data in this period.
@@ -1694,6 +1735,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 >
                   {rebuildLoading ? "Starting…" : "Refresh data"}
                 </button>
+              </div>
+            ) : typeof xAnalyticsData?.tweet_count_window === "number" && xAnalyticsData.tweet_count_window <= 2 ? (
+              <div className="py-8 px-4 rounded-xl border border-border bg-muted/20">
+                <p className="text-sm font-medium text-foreground mb-1">Posts in window: {xAnalyticsData.tweet_count_window}</p>
+                <p className="text-sm text-muted-foreground">
+                  Cadence: {(xAnalyticsData.tweet_count_window / (xAnalyticsData.window_days ?? periodDays)).toFixed(1)} posts/day
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">Not enough activity for a trend chart yet.</p>
               </div>
             ) : postingCadencePoints.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8">

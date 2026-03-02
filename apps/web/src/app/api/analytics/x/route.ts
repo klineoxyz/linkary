@@ -160,7 +160,13 @@ export async function GET(request: NextRequest) {
     likes_received?: number | null;
     engagement_rate?: number | null;
   };
-  const dailyRows = (dailySnapshotsRes.data ?? []) as DailyRow[];
+  const rawDailyRows = (dailySnapshotsRes.data ?? []) as DailyRow[];
+  // Normalize day to YYYY-MM-DD so window filtering is consistent (Postgres date returns as string)
+  const dailyRows = rawDailyRows.map((r) => {
+    const raw = r.day;
+    const dayStr = typeof raw === "string" ? raw.slice(0, 10) : String(raw).slice(0, 10);
+    return { ...r, day: dayStr };
+  });
   const snapshotsFromDaily = dailyRows.map((r) => ({
     snapshot_date: r.day,
     followers_total: r.followers ?? null,
@@ -483,6 +489,13 @@ export async function GET(request: NextRequest) {
     (d) => (dayAggForWindow.get(d)?.posts ?? 0) > 0
   ).length;
 
+  // Snapshot debug: rows in current window (for diagnosing low follower coverage)
+  const snapshotRowsInWindow = dailyRows.filter((r) => r.day >= windowStartStr && r.day <= windowEndStr);
+  const snapshot_rows_count_in_window = snapshotRowsInWindow.length;
+  const distinct_snapshot_dates_in_window = new Set(snapshotRowsInWindow.map((r) => r.day)).size;
+  const min_snapshot_date = snapshotRowsInWindow.length > 0 ? snapshotRowsInWindow.reduce((a, r) => (r.day < a ? r.day : a), snapshotRowsInWindow[0].day) : null;
+  const max_snapshot_date = snapshotRowsInWindow.length > 0 ? snapshotRowsInWindow.reduce((a, r) => (r.day > a ? r.day : a), snapshotRowsInWindow[0].day) : null;
+
   // Engagement rate chart: daily engagement_rate = daily_engagement_sum / daily_impressions_sum; 0 if impressions = 0; full window
   const engagement_rate: Array<{ date: string; engagement_pct: number; posts: number }> = fullWindowDates.map((date) => {
     const agg = dayAggForWindow.get(date) ?? { likes: 0, replies: 0, reposts: 0, quotes: 0, impressions: 0, posts: 0 };
@@ -562,6 +575,10 @@ export async function GET(request: NextRequest) {
       window_end: windowEndStr,
       latest_tweet_date: latestTweetDate,
       latest_follower_snapshot_date: latestFollowerSnapshotDate,
+      snapshot_rows_count_in_window,
+      distinct_snapshot_dates_in_window,
+      min_snapshot_date,
+      max_snapshot_date,
       follower_data_coverage_days,
       follower_earliest_snapshot_date: earliestSnapshotDate,
       follower_window_days,

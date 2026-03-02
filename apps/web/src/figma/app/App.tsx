@@ -4564,7 +4564,7 @@ function LinkaryAppInner() {
                 {route.name === "dashboard" && <DashboardPage setRoute={setRoute} />}
                 {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "dealDetail" && <DealDetailPage setRoute={setRoute} dealId={route.data?.dealId} />}
-                {route.name === "analytics" && <AnalyticsPage />}
+                {route.name === "analytics" && <AnalyticsPage setRoute={setRoute} />}
                 {route.name === "calendar" && <XSpacesPage setRoute={setRoute} me={me} />}
                 {route.name === "circles" && <CirclesOverviewPage setRoute={setRoute} me={me} />}
                 {route.name === "circleDetail" && <CircleDetailPage setRoute={setRoute} data={route.data} />}

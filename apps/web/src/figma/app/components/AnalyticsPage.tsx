@@ -13,7 +13,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Eye,
-  Shield,
   Clock,
   Youtube,
   Video,
@@ -23,12 +22,10 @@ import {
   MessageSquare,
   Heart,
   Repeat,
-  Users,
   Activity,
   Calendar,
   Zap,
   Target,
-  Search,
 } from "lucide-react";
 import FlipCard from "./FlipCard";
 import { FeatureStatusBadge } from "./SharedComponents";
@@ -53,8 +50,6 @@ function formatTimeAgo(iso: string): string {
 
 type SignalType = "good" | "watch" | "risk";
 type PlatformType = "x" | "youtube" | "tiktok";
-type VisibilityType = "public" | "shared" | "restricted";
-
 interface KPITile {
   id: string;
   label: string;
@@ -196,9 +191,6 @@ type InitStatus = {
 export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) => void }) {
   const [activePlatform, setActivePlatform] = useState<PlatformType>("x");
   const [timePeriod, setTimePeriod] = useState<"7D" | "30D" | "90D">("30D");
-  const [viewingEntity, setViewingEntity] = useState("My Analytics");
-  const [entityType, setEntityType] = useState<"creator" | "project" | "agency" | "company">("creator");
-  const [visibility, setVisibility] = useState<VisibilityType>("public");
   const [xAnalyticsData, setXAnalyticsData] = useState<XAnalyticsData | null>(null);
   const [windowSummary, setWindowSummary] = useState<{ windows: Record<string, Record<string, unknown> | null>; is_backfilling: boolean } | null>(null);
   const [initStatus, setInitStatus] = useState<InitStatus>(null);
@@ -228,7 +220,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     authFetcher as (url: string) => Promise<InitStatus>,
     swrOpts
   );
-  const { data: xSwr, mutate: mutateX } = useSWR<Record<string, unknown>>(
+  const { data: xSwr, error: xError, isLoading: xLoading, mutate: mutateX } = useSWR<Record<string, unknown>>(
     analyticsXKey,
     authFetcher as (url: string) => Promise<Record<string, unknown>>,
     analyticsSwrOpts
@@ -752,12 +744,6 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     { id: "tiktok" as PlatformType, label: "TikTok", icon: Video, active: false },
   ];
 
-  const visibilityOptions = [
-    { id: "public" as VisibilityType, label: "Public", icon: Eye },
-    { id: "shared" as VisibilityType, label: "Shared", icon: Users },
-    { id: "restricted" as VisibilityType, label: "Restricted", icon: Shield },
-  ];
-
   return (
     <div className="min-h-screen pb-12">
       <div className="max-w-7xl mx-auto px-6 lg:px-10 space-y-10">
@@ -779,30 +765,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground flex flex-wrap items-center justify-between gap-2"
+            className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground"
           >
-            <span>
-              {hasRealInsights
-                ? "7D/30D/90D windows are being computed. Your latest stats are below. (For new accounts under 90 days, full windows appear shortly.)"
-                : "Connect X in Integrations to load your data. 7D/30D/90D windows are backfilled automatically on login and when your profile is viewed."}
-            </span>
-            <div className="shrink-0 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)}
-                disabled={rebuildLoading || rebuildJob?.status === "queued" || rebuildJob?.status === "running"}
-                className="px-3 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {rebuildLoading ? "Starting…" : "Rebuild analytics"}
-              </button>
-              <button
-                type="button"
-                onClick={() => fetchXAnalytics()}
-                className="px-3 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary font-medium text-sm transition-colors"
-              >
-                Refresh analytics
-              </button>
-            </div>
+            {hasRealInsights
+              ? "7D/30D/90D windows are being computed. Your latest stats are below. Use Refresh data above when ready."
+              : "Connect X in Integrations to load your data. 7D/30D/90D windows are backfilled automatically on login and when your profile is viewed."}
           </motion.div>
         ) : null}
         {rebuildQueuedToast && (rebuildJob?.status === "queued" || rebuildJob?.status === "running") && (
@@ -862,6 +829,25 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             {rebuildError}
           </motion.div>
         )}
+        {/* API error: actionable message + keep Refresh data available (header button) */}
+        {xError && activePlatform === "x" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 flex flex-wrap items-center justify-between gap-2"
+          >
+            <p className="text-sm text-destructive">
+              Could not load analytics. {xError instanceof Error ? xError.message : "Please try again."}
+            </p>
+            <button
+              type="button"
+              onClick={() => mutateX()}
+              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+            >
+              Retry
+            </button>
+          </motion.div>
+        )}
         {((initStatus?.ok && !initStatus?.initialized) || xAnalyticsData?.source === "partial") && (profile?.twitter_username ?? "").toString().trim() && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -913,7 +899,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             <p className="text-xs text-muted-foreground">Your full history is still loading. Some metrics may be limited.</p>
           </motion.div>
         )}
-        {/* A) Sticky Analytics Context Header */}
+        {/* A) Sticky Analytics Context Header — contract: platform tabs, freshness badges, window selector, single Refresh data CTA */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -921,72 +907,28 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           className="sticky top-0 z-40 rounded-3xl border border-border bg-gradient-to-br from-card to-muted/30 backdrop-blur-xl p-6"
         >
           <div className="flex flex-col gap-4">
-            {/* Row 1: Context + Platform Tabs */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              {/* Left: Context */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-accent border border-border">
                   <BarChart3 className="w-6 h-6 text-primary stroke-[1.75]" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-3">
-                    <h1 className="text-2xl font-bold text-foreground">{viewingEntity}</h1>
-                    <span className="px-3 py-1 rounded-full bg-accent text-foreground text-xs font-medium border border-border">
-                      {entityType.charAt(0).toUpperCase() + entityType.slice(1)}
+                  <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
+                  {/* Freshness badges: tweets_last_synced_at, follower_last_synced_at, follower_data_stale */}
+                  <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${xAnalyticsData?.tweets_last_synced_at ? "bg-primary/80" : "bg-muted-foreground/50"}`} aria-hidden />
+                      Tweets: {xAnalyticsData?.tweets_last_synced_at ? formatTimeAgo(xAnalyticsData.tweets_last_synced_at) : "—"}
                     </span>
-                  </div>
-                  <div className="flex items-center gap-3 mt-2">
-                    {/* Visibility Selector */}
-                    <div className="flex items-center gap-2">
-                      {visibilityOptions.map((option) => (
-                        <button
-                          key={option.id}
-                          onClick={() => setVisibility(option.id)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            visibility === option.id
-                              ? "bg-muted/50 text-foreground border border-primary/20"
-                              : "text-muted-foreground hover:text-foreground border border-transparent"
-                          }`}
-                        >
-                          <option.icon className="w-3 h-3 stroke-[1.75]" />
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                    
-                    {/* Last Synced + Refresh */}
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3 stroke-[1.75]" />
-                      <span>
-                        {profile.x_last_profile_sync_at || profile.x_last_tweets_sync_at
-                          ? `Synced ${formatTimeAgo(profile.x_last_profile_sync_at || profile.x_last_tweets_sync_at || "")}`
-                          : "Not synced (Settings → Integrations)"}
-                      </span>
-                      {(profile.x_last_profile_sync_at || profile.x_last_tweets_sync_at) && (
-                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => fetchXAnalytics()}
-                        className="text-primary hover:underline font-medium"
-                      >
-                        Refresh
-                      </button>
-                    </div>
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${xAnalyticsData?.follower_last_synced_at ? (xAnalyticsData?.follower_data_stale ? "bg-amber-500" : "bg-primary/80") : "bg-muted-foreground/50"}`} aria-hidden />
+                      Followers: {xAnalyticsData?.follower_last_synced_at ? formatTimeAgo(xAnalyticsData.follower_last_synced_at) : "—"}
+                      {xAnalyticsData?.follower_data_stale && <span className="text-amber-600 dark:text-amber-400">(stale)</span>}
+                    </span>
                   </div>
                 </div>
               </div>
-              {/* Data status (owner-only truth check: tweets in window, last tweet, rollup updated) */}
-              {activePlatform === "x" && dataStatus && (
-                <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 border-t border-border/50 mt-2">
-                  <span>Tweets in window: {timePeriod === "7D" ? (dataStatus.tweet_count_7d ?? "—") : timePeriod === "30D" ? (dataStatus.tweet_count_30d ?? "—") : (dataStatus.tweet_count_90d ?? "—")}</span>
-                  <span>Window: {timePeriod}</span>
-                  <span>Last tweet: {dataStatus.last_tweet_at ? formatTimeAgo(dataStatus.last_tweet_at) : "none"}</span>
-                  <span>Rollup updated: {dataStatus.rollup_updated_at ? formatTimeAgo(dataStatus.rollup_updated_at) : "unknown"}</span>
-                </div>
-              )}
-
-              {/* Right: Platform Tabs (X supported; other platforms can be added later) */}
+              {/* Platform tabs: X active, YouTube/TikTok Soon */}
               <div className="flex items-center gap-2">
                 {platforms.map((platform) => (
                   <button
@@ -1014,34 +956,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 ))}
               </div>
             </div>
-
-            {/* Row 1.5: Search (brands: public profiles or approved/applicants) */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-border">
-              <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border focus-within:border-primary/20 transition-colors">
-                <Search className="w-4 h-4 text-muted-foreground stroke-[1.75]" />
-                <input
-                  type="search"
-                  placeholder={entityType === "creator" ? "Search your analytics…" : "Search public profiles or approved applicants…"}
-                  className="flex-1 min-w-0 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-                  aria-label="Search profiles"
-                />
-              </div>
-              {entityType !== "creator" && (
-                <p className="text-xs text-muted-foreground">
-                  Brands can search all public profiles or limit to users who approved access or applied to your project.
-                </p>
-              )}
-            </div>
-
-            {/* Row 2: Global Time Period Selector */}
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-muted-foreground">Time Period:</span>
+            {/* Window selector (7D/30D/90D → window=7d|30d|90d) + single primary CTA: Refresh data */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border">
               <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Window:</span>
                 {(["7D", "30D", "90D"] as const).map((period) => (
-                  <motion.button
+                  <button
                     key={period}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    type="button"
                     onClick={() => setTimePeriod(period)}
                     className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                       timePeriod === period
@@ -1049,22 +971,34 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                         : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/20"
                     }`}
                   >
-                    {period === "7D" ? "Last 7 Days" : period === "30D" ? "Last 30 Days" : "Last 90 Days"}
-                  </motion.button>
+                    {period}
+                  </button>
                 ))}
               </div>
-              
-              {/* Period Summary */}
-              <div className="ml-auto flex items-center gap-2 text-xs">
-                <div className="px-3 py-1.5 rounded-lg bg-accent border border-border text-primary font-medium">
-                  {timePeriod === "7D" ? "7 days" : timePeriod === "30D" ? "30 days" : "90 days"} of data
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)}
+                disabled={rebuildLoading || rebuildJob?.status === "queued" || rebuildJob?.status === "running"}
+                className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {rebuildLoading ? "Starting…" : rebuildJob?.status === "queued" || rebuildJob?.status === "running" ? "Refreshing…" : "Refresh data"}
+              </button>
             </div>
           </div>
         </motion.div>
 
-        {/* B) KPI Signal Tiles Row */}
+        {/* B) KPI Signal Tiles Row — contract: Followers, Engagement Rate, Avg Likes/Post, Avg Replies/Post, Posts, Potential Reach */}
+        {xLoading && activePlatform === "x" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="rounded-3xl border border-border bg-card p-6 animate-pulse">
+                <div className="h-4 w-24 bg-muted rounded mb-3" />
+                <div className="h-10 w-32 bg-muted rounded mb-4" />
+                <div className="h-3 w-full bg-muted rounded" />
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           {xKPIs.map((kpi, index) => {
             const signalStyle = getSignalColor(kpi.signal);
@@ -1092,7 +1026,15 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 </div>
 
                 {/* Label */}
-                <p className="text-sm font-medium text-muted-foreground mb-2">{kpi.label}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                  {kpi.label}
+                  {kpi.id === "engagement" && xAnalyticsData?.engagement_rate_is_estimated && (
+                    <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-medium">Estimated</span>
+                  )}
+                  {kpi.id === "reach" && xAnalyticsData?.potential_reach_is_estimated && (
+                    <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-medium">Estimated</span>
+                  )}
+                </p>
 
                 {/* Value */}
                 <div className="flex items-end gap-3 mb-3">
@@ -1165,6 +1107,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             );
           })}
         </div>
+        )}
 
         {/* Freshness indicator: compact badge with status dot */}
         {activePlatform === "x" && (() => {
@@ -1466,9 +1409,20 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           )}
         </motion.div>
 
-        {/* E) Trend Explorer (Secondary Charts) */}
+        {/* E) Trend Explorer — contract: chart_points.follower_growth, .engagement_rate, .posting_cadence; empty states per doc */}
+        {xLoading && activePlatform === "x" ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="rounded-3xl border border-border bg-card p-6 animate-pulse">
+                <div className="h-5 w-40 bg-muted rounded mb-4" />
+                <div className="h-48 bg-muted rounded" />
+                <div className="h-3 w-full bg-muted rounded mt-3" />
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Follower Growth Chart: real data from snapshots when available */}
+          {/* Follower Growth Chart: chart_points.follower_growth; empty when follower_window_days >= 30 AND follower_data_coverage_days < 10 */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1787,6 +1741,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             )}
           </motion.div>
         </div>
+        )}
 
         {/* Platform-Specific Notice (for future YouTube/TikTok) */}
         {activePlatform !== "x" && (

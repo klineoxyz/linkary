@@ -91,7 +91,7 @@ export function AnalyticsHeader({
                 key={p}
                 type="button"
                 onClick={() => onWindowChange(p)}
-                className={`px-2.5 py-1 rounded text-xs font-medium tabular-nums transition-colors ${
+                className={`px-2.5 py-1 rounded text-xs font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
                   windowPeriod === p ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -103,7 +103,7 @@ export function AnalyticsHeader({
             type="button"
             onClick={onRefresh}
             disabled={refreshLoading || refreshDisabled}
-            className="px-2.5 py-1 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-2.5 py-1 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
           >
             {refreshLoading || refreshDisabled ? "Refreshing…" : "Refresh data"}
           </button>

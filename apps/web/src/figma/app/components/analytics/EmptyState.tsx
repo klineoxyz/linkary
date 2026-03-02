@@ -38,7 +38,7 @@ export function EmptyState({
             type="button"
             onClick={onRefresh}
             disabled={refreshDisabled}
-            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 disabled:opacity-50"
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary rounded"
           >
             Refresh
           </button>
@@ -46,7 +46,7 @@ export function EmptyState({
         {integrationsHref && (
           <a
             href={integrationsHref}
-            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary rounded"
           >
             Connect more in Integrations
           </a>

@@ -84,6 +84,22 @@ export function EngagementChart({
     );
   }
 
+  const MIN_POINTS_FOR_TREND = 3;
+  if (points.length < MIN_POINTS_FOR_TREND) {
+    return (
+      <ChartCard title="Engagement Rate" coverage={coverage}>
+        <EmptyState
+          message="Need at least 3 data points to show trend."
+          secondary={coverage ? `Active days: ${coverage}` : "More posts in the window will fill the chart."}
+          coverage={coverage}
+          onRefresh={onRefresh}
+          refreshDisabled={refreshDisabled}
+          integrationsHref={integrationsHref}
+        />
+      </ChartCard>
+    );
+  }
+
   return (
     <ChartCard title="Engagement Rate" coverage={coverage} lowVariance={lowVariance}>
       <div className="relative border-l border-b border-border pl-6 pb-5 pt-1" style={{ minHeight: CHART_H }}>

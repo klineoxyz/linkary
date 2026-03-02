@@ -66,6 +66,22 @@ export function FollowerGrowthChart({
     );
   }
 
+  const MIN_POINTS_FOR_TREND = 3;
+  if (points.length < MIN_POINTS_FOR_TREND) {
+    return (
+      <ChartCard title="Follower Growth" coverage={coverage}>
+        <EmptyState
+          message="Need at least 3 days to show trend."
+          secondary={coverage ? `Active days: ${coverage}` : "More daily snapshots will fill the chart."}
+          coverage={earliestDate ? `First: ${earliestDate}` : undefined}
+          onRefresh={onRefresh}
+          refreshDisabled={refreshDisabled}
+          integrationsHref={integrationsHref}
+        />
+      </ChartCard>
+    );
+  }
+
   const zeroPct = min < 0 && max > 0 ? ((0 - min) / range) * 100 : min >= 0 ? 0 : 100;
   const CHART_H = 180;
 

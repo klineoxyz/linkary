@@ -22,7 +22,7 @@ export function ChartCard({ title, children, coverage, lowVariance, className = 
         {children}
       </div>
       {lowVariance && (
-        <p className="text-[11px] text-muted-foreground/80 mt-2">Low variance in this window.</p>
+        <p className="text-[11px] text-muted-foreground/70 mt-2" data-page="analytics">Low variance in window.</p>
       )}
     </div>
   );

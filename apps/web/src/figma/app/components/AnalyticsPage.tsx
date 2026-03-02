@@ -372,60 +372,63 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const reachDeltaForPeriod: KpiDelta = timePeriod === "7D" ? reachDelta7 : timePeriod === "30D" ? reachDelta30 : reachDelta90;
 
   const hasRollup = !!rollup;
-  const kpiCards: KpiCardData[] = useMemo(() => [
-    {
-      id: "followers",
-      label: "Followers",
-      value: xAnalyticsData ? followersTotal.toLocaleString() : "—",
-      delta: followersDeltaForPeriod,
-      helper: followersDeltaForPeriod === null ? "Not enough data" : hasRealFollowerHistory ? "From X profile sync" : "Sync from Integrations to see trends",
-      badge: hasRealFollowerHistory || useWindowAggregates ? "Active" : "Building",
-    },
-    {
-      id: "engagement",
-      label: "Engagement Rate",
-      value: xAnalyticsData ? `${Number(engagementRateByPeriod).toFixed(2)}%` : "—",
-      delta: engagementDeltaForPeriod,
-      helper: engagementDeltaForPeriod === null ? "Not enough data" : hasRollup ? "Window aggregate for selected period" : "Sync from Integrations to see trends",
-      badge: hasRollup ? "Active" : "Building",
-      estimated: xAnalyticsData?.engagement_rate_is_estimated === true,
-    },
-    {
-      id: "likes",
-      label: "Avg Likes/Post",
-      value: xAnalyticsData ? String(Math.round(avgLikesByPeriod)) : "—",
-      delta: likesDeltaForPeriod,
-      helper: likesDeltaForPeriod === null ? "Not enough data" : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
-      badge: hasRollup ? "Active" : "Building",
-    },
-    {
-      id: "replies",
-      label: "Avg Replies/Post",
-      value: xAnalyticsData ? String(Math.round(avgRepliesByPeriod)) : "—",
-      delta: repliesDeltaForPeriod,
-      helper: repliesDeltaForPeriod === null ? "Not enough data" : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
-      badge: hasRollup ? "Active" : "Building",
-    },
-    {
-      id: "posts",
-      label: `Posts (${periodLabel})`,
-      value: xAnalyticsData ? String(postsByPeriod) : "—",
-      delta: postsDeltaForPeriod,
-      helper: postsDeltaForPeriod === null ? "Not enough data" : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
-      badge: hasRollup ? "Active" : "Building",
-    },
-    {
-      id: "reach",
-      label: xAnalyticsData?.potential_reach_label ?? "Potential Reach",
-      value: xAnalyticsData
-        ? (reachProxyByPeriod >= 1e6 ? `${(reachProxyByPeriod / 1e6).toFixed(1)}M` : reachProxyByPeriod >= 1e3 ? `${(reachProxyByPeriod / 1e3).toFixed(1)}K` : String(Math.round(reachProxyByPeriod)))
-        : "—",
-      delta: reachDeltaForPeriod,
-      helper: reachDeltaForPeriod === null ? "Not enough data" : hasRollup ? "Sum of impressions or estimated for window" : "Sync from Integrations to see trends",
-      badge: hasRollup ? "Active" : "Building",
-      estimated: xAnalyticsData?.potential_reach_is_estimated === true,
-    },
-  ], [
+  const kpiCards: KpiCardData[] = useMemo(() => {
+    const badge = (delta: KpiDelta, hasData: boolean) => (delta !== null && hasData ? "Active" : "Building");
+    return [
+      {
+        id: "followers",
+        label: "Followers",
+        value: xAnalyticsData ? followersTotal.toLocaleString() : "—",
+        delta: followersDeltaForPeriod,
+        helper: followersDeltaForPeriod === null ? "Not enough data" : hasRealFollowerHistory ? "From X profile sync" : "Sync from Integrations to see trends",
+        badge: badge(followersDeltaForPeriod, !!(hasRealFollowerHistory || useWindowAggregates)),
+      },
+      {
+        id: "engagement",
+        label: "Engagement Rate",
+        value: xAnalyticsData ? `${Number(engagementRateByPeriod).toFixed(2)}%` : "—",
+        delta: engagementDeltaForPeriod,
+        helper: engagementDeltaForPeriod === null ? "Not enough data" : hasRollup ? "Window aggregate for selected period" : "Sync from Integrations to see trends",
+        badge: badge(engagementDeltaForPeriod, !!hasRollup),
+        estimated: xAnalyticsData?.engagement_rate_is_estimated === true,
+      },
+      {
+        id: "likes",
+        label: "Avg Likes/Post",
+        value: xAnalyticsData ? String(Math.round(avgLikesByPeriod)) : "—",
+        delta: likesDeltaForPeriod,
+        helper: likesDeltaForPeriod === null ? "Not enough data" : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
+        badge: badge(likesDeltaForPeriod, !!hasRollup),
+      },
+      {
+        id: "replies",
+        label: "Avg Replies/Post",
+        value: xAnalyticsData ? String(Math.round(avgRepliesByPeriod)) : "—",
+        delta: repliesDeltaForPeriod,
+        helper: repliesDeltaForPeriod === null ? "Not enough data" : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
+        badge: badge(repliesDeltaForPeriod, !!hasRollup),
+      },
+      {
+        id: "posts",
+        label: `Posts (${periodLabel})`,
+        value: xAnalyticsData ? String(postsByPeriod) : "—",
+        delta: postsDeltaForPeriod,
+        helper: postsDeltaForPeriod === null ? "Not enough data" : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
+        badge: badge(postsDeltaForPeriod, !!hasRollup),
+      },
+      {
+        id: "reach",
+        label: "Potential Reach",
+        value: xAnalyticsData
+          ? (reachProxyByPeriod >= 1e6 ? `${(reachProxyByPeriod / 1e6).toFixed(1)}M` : reachProxyByPeriod >= 1e3 ? `${(reachProxyByPeriod / 1e3).toFixed(1)}K` : String(Math.round(reachProxyByPeriod)))
+          : "—",
+        delta: reachDeltaForPeriod,
+        helper: reachDeltaForPeriod === null ? "Not enough data" : hasRollup ? "Impressions or estimated for window" : "Sync from Integrations to see trends",
+        badge: badge(reachDeltaForPeriod, !!hasRollup),
+        estimated: xAnalyticsData?.potential_reach_is_estimated === true,
+      },
+    ];
+  }, [
     xAnalyticsData,
     followersTotal,
     followersDeltaForPeriod,
@@ -530,7 +533,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               type="button"
               onClick={onRetry}
               disabled={rebuildLoading || retryingBackfill}
-              className="shrink-0 px-2 py-1 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-50"
+              className="shrink-0 px-2 py-1 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
             >
               {retryingBackfill ? "Retrying…" : "Retry"}
             </button>

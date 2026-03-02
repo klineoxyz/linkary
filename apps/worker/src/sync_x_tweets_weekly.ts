@@ -8,10 +8,12 @@ import { config } from "dotenv";
 import { fileURLToPath } from "url";
 import { resolve, dirname } from "path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(__dirname, "../..");
+// dist/ is inside apps/worker, so repo root is three levels up (same as run_analytics_jobs)
+const repoRoot = resolve(__dirname, "../../..");
 config({ path: resolve(repoRoot, ".env") });
 config({ path: resolve(repoRoot, ".env.local") });
-config({ path: resolve(__dirname, ".env") });
+config({ path: resolve(__dirname, "../.env") });
+config({ path: resolve(repoRoot, "apps/web/.env.local") });
 
 import { getSupabaseAdmin } from "./lib/supabase.js";
 import { ingestXTweets } from "./lib/ingestXTweets.js";

@@ -20,6 +20,9 @@
     "build": "pnpm -r run build",
     "build:web": "pnpm --filter web build",
     "build:api": "pnpm --filter linkary-api build",
+    "sync:x:tweets:daily": "pnpm --filter worker run sync:x:tweets:daily",
+    "sync:x:profiles:daily": "pnpm --filter worker run sync:x:profiles:daily",
+    "run:jobs": "pnpm --filter worker run run:jobs",
     "check:storage-url": "pnpm --filter web run check:storage-url",
     "start": "node apps/api/dist/index.js"
   },

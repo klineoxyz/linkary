@@ -16,10 +16,20 @@ config({ path: resolve(__dirname, "../.env") });
 config({ path: resolve(repoRoot, "apps/web/.env.local") });
 
 import { getSupabaseAdmin } from "./lib/supabase.js";
+import { getApiKeyInfo } from "./lib/twitterapi.js";
 import { ingestXTweets } from "./lib/ingestXTweets.js";
 import { refreshXRollupsForProfile } from "./lib/refreshXRollups.js";
 import { enqueueXBackfill90d } from "./lib/enqueueXBackfill.js";
 import { sleep } from "./lib/utils.js";
+
+/** Classify provider/sync failure for profiles.x_last_tweets_sync_error. */
+function classifySyncError(message: string): string {
+  const m = String(message ?? "");
+  if (/\bstatus=401\b/.test(m) || /\bstatus=403\b/.test(m)) return "auth_invalid";
+  if (/\bstatus=429\b/.test(m)) return "rate_limited";
+  if (/\bstatus=5\d{2}\b/.test(m)) return "provider_down";
+  return "unknown";
+}
 
 const BATCH_SIZE = 100;
 const MAX_TWEETS = 50;
@@ -33,6 +43,14 @@ function envPresent(name: string): boolean {
 
 async function main() {
   console.log("[INGEST] starting X tweet sync (stale threshold=" + STALE_HOURS + "h)");
+
+  try {
+    getApiKeyInfo();
+  } catch {
+    console.error("[INGEST] missing twitterapi key. Set TWITTERAPI_API_KEY (or TWITTERAPI_IO_KEY, TWITTERAPI_KEY, TWITTERAPI_TOKEN).");
+    process.exit(1);
+  }
+
   const supabaseUrlPresent =
     envPresent("SUPABASE_URL") || envPresent("NEXT_PUBLIC_SUPABASE_URL");
   const serviceRolePresent =
@@ -140,6 +158,8 @@ async function main() {
           x_last_tweets_sync_at: new Date().toISOString(),
           x_sync_status: "ok",
           x_sync_error: null,
+          x_last_tweets_sync_error: null,
+          x_last_tweets_sync_error_at: null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", profile.id);
@@ -164,6 +184,7 @@ async function main() {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      const classified = classifySyncError(msg);
       if (msg.includes("x_tweets") || msg.includes("relation") || msg.includes("does not exist")) {
         console.error("[INGEST] x_tweets table missing for profile " + profile.id + ". Run migration: supabase/migrations/20260220000000_x_analytics_ingestion.sql");
       }
@@ -172,6 +193,8 @@ async function main() {
         .update({
           x_sync_status: "error",
           x_sync_error: msg.slice(0, 500),
+          x_last_tweets_sync_error: classified,
+          x_last_tweets_sync_error_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq("id", profile.id);

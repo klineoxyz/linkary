@@ -13,6 +13,7 @@
     "sync:x:weekly": "node dist/sync_x_tweets_weekly.js",
     "run:jobs": "node dist/run_analytics_jobs.js",
     "x:provider:selftest": "node dist/x_provider_selftest.js",
+    "x:ingest:healthcheck": "node dist/x_ingest_healthcheck.js",
     "debug:x:tweets": "node dist/debug_x_tweets.js",
     "debug:ingest:x:tweets": "node dist/debug_ingest_x_tweets.js",
     "rebuild:x:rollups": "node dist/rebuild_x_rollups.js",

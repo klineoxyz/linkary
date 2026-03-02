@@ -24,6 +24,7 @@
     "sync:x:profiles:daily": "pnpm --filter worker run sync:x:profiles:daily",
     "run:jobs": "pnpm --filter worker run run:jobs",
     "x:provider:selftest": "pnpm --filter worker run x:provider:selftest",
+    "x:ingest:healthcheck": "pnpm --filter worker run x:ingest:healthcheck",
     "check:storage-url": "pnpm --filter web run check:storage-url",
     "start": "node apps/api/dist/index.js"
   },

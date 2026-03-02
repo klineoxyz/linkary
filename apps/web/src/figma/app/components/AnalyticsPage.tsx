@@ -1473,7 +1473,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             transition={{ duration: 0.5, delay: 0.5 }}
             className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card to-muted/20 backdrop-blur-xl p-6"
           >
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-primary stroke-[1.75]" />
                 Follower Growth
@@ -1495,7 +1495,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 ))}
               </div>
             </div>
-
+            <p className="text-xs text-muted-foreground mb-2">
+              Coverage: {typeof xAnalyticsData?.follower_data_coverage_days === "number" && typeof xAnalyticsData?.follower_window_days === "number"
+                ? `${xAnalyticsData.follower_data_coverage_days}/${xAnalyticsData.follower_window_days} days`
+                : "—"}
+            </p>
             {followerGrowthPoints.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8">
                 No data in this period.
@@ -1505,12 +1509,29 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               <div className="flex-1">
                 <div className="relative h-48 flex items-end gap-0.5 border-l border-b border-border">
                   {followerGrowthPoints.map((p, i) => {
-                    const val = p.follower_delta ?? 0;
-                    const max = Math.max(...followerGrowthPoints.map((x) => x.follower_delta ?? 0), 1);
-                    const min = Math.min(...followerGrowthPoints.map((x) => x.follower_delta ?? 0), 0);
+                    const val = p.follower_delta;
+                    const hasData = val !== null && val !== undefined;
+                    const numericValues = followerGrowthPoints
+                      .map((x) => x.follower_delta)
+                      .filter((v): v is number => v != null && typeof v === "number");
+                    const max = numericValues.length ? Math.max(...numericValues, 1) : 1;
+                    const min = numericValues.length ? Math.min(...numericValues, 0) : 0;
                     const range = max - min || 1;
-                    const heightPct = Math.max(0, ((val - min) / range) * 100);
-                    const isNegative = val < 0;
+                    const heightPct = hasData ? Math.max(0, (((val as number) - min) / range) * 100) : 0;
+                    const isNegative = hasData && (val as number) < 0;
+                    if (!hasData) {
+                      return (
+                        <div
+                          key={p.date}
+                          className="flex-1 min-w-[4px] relative group"
+                          title={`${p.date}: No snapshot`}
+                        >
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                            {p.date}: No snapshot
+                          </div>
+                        </div>
+                      );
+                    }
                     return (
                       <motion.div
                         key={p.date}
@@ -1518,10 +1539,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                         initial={{ height: 0 }}
                         animate={{ height: `${heightPct}%` }}
                         transition={{ duration: 0.3, delay: i * 0.02 }}
-                        title={`${p.date}: ${val >= 0 ? "+" : ""}${val.toLocaleString()}`}
+                        title={`${p.date}: ${(val as number) >= 0 ? "+" : ""}${(val as number).toLocaleString()}`}
                       >
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                          {p.date}: {val >= 0 ? "+" : ""}{val.toLocaleString()}
+                          {p.date}: {(val as number) >= 0 ? "+" : ""}{(val as number).toLocaleString()}
                         </div>
                       </motion.div>
                     );
@@ -1551,7 +1572,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             transition={{ duration: 0.5, delay: 0.55 }}
             className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card to-muted/20 backdrop-blur-xl p-6"
           >
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary stroke-[1.75]" />
                 Engagement Rate
@@ -1573,8 +1594,27 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 ))}
               </div>
             </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Coverage: {typeof xAnalyticsData?.engagement_data_coverage_days === "number" && typeof xAnalyticsData?.window_days === "number"
+                ? `${xAnalyticsData.engagement_data_coverage_days}/${xAnalyticsData.window_days} days`
+                : "—"}
+            </p>
 
-            {engagementRatePoints.length === 0 ? (
+            {typeof xAnalyticsData?.tweet_count_window === "number" && xAnalyticsData.tweet_count_window === 0 ? (
+              <div className="py-10 text-center">
+                <p className="text-sm text-muted-foreground mb-4">
+                  {timePeriod === "7D" ? "No posts in the last 7 days." : "No posts in the selected period."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)}
+                  disabled={rebuildLoading || rebuildJob?.status === "queued" || rebuildJob?.status === "running"}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border border-border bg-card text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+                >
+                  {rebuildLoading ? "Starting…" : "Refresh data"}
+                </button>
+              </div>
+            ) : engagementRatePoints.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8">
                 No data in this period.
               </p>
@@ -1609,7 +1649,12 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   <span>{engagementRatePoints[0]?.date ?? ""}</span>
                   <span>{engagementRatePoints[engagementRatePoints.length - 1]?.date ?? ""}</span>
                 </div>
-                {typeof xAnalyticsData?.tweet_count_window === "number" && xAnalyticsData.tweet_count_window < 3 && (
+                {typeof xAnalyticsData?.engagement_data_coverage_days === "number" && xAnalyticsData.engagement_data_coverage_days <= 1 && xAnalyticsData.engagement_data_coverage_days > 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Only {xAnalyticsData.engagement_data_coverage_days} active day{xAnalyticsData.engagement_data_coverage_days === 1 ? "" : "s"} in this period.
+                  </p>
+                )}
+                {typeof xAnalyticsData?.tweet_count_window === "number" && xAnalyticsData.tweet_count_window >= 3 && xAnalyticsData.tweet_count_window < 5 && (
                   <p className="text-xs text-muted-foreground mt-2">
                     Low posting activity during selected period
                   </p>
@@ -1626,14 +1671,31 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
             transition={{ duration: 0.5, delay: 0.6 }}
             className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card to-muted/20 backdrop-blur-xl p-6 lg:col-span-2"
           >
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-primary stroke-[1.75]" />
                 Posting Cadence ({timePeriod})
               </h3>
             </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Posts in window: {typeof xAnalyticsData?.tweet_count_window === "number" ? xAnalyticsData.tweet_count_window : "—"}
+            </p>
 
-            {postingCadencePoints.length === 0 ? (
+            {typeof xAnalyticsData?.tweet_count_window === "number" && xAnalyticsData.tweet_count_window === 0 ? (
+              <div className="py-10 text-center">
+                <p className="text-sm text-muted-foreground mb-4">
+                  {timePeriod === "7D" ? "No posts in the last 7 days." : "No posts in the selected period."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)}
+                  disabled={rebuildLoading || rebuildJob?.status === "queued" || rebuildJob?.status === "running"}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border border-border bg-card text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+                >
+                  {rebuildLoading ? "Starting…" : "Refresh data"}
+                </button>
+              </div>
+            ) : postingCadencePoints.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8">
                 No data in this period.
               </p>
@@ -1671,11 +1733,6 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   <span>{postingCadencePoints[0]?.date ?? ""}</span>
                   <span>{postingCadencePoints[postingCadencePoints.length - 1]?.date ?? ""}</span>
                 </div>
-                {xAnalyticsData?.tweet_count_window === 0 && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    No posts during selected period
-                  </p>
-                )}
               </div>
             </div>
             )}

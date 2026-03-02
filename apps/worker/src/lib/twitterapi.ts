@@ -1,11 +1,88 @@
-const TWITTERAPI_BASE = "https://api.twitterapi.io";
+export const TWITTERAPI_BASE = "https://api.twitterapi.io";
+
+/** Canonical order: first found wins. Backward compat: TWITTERAPI_API_KEY is primary. */
+const KEY_ENV_VARS = [
+  "TWITTERAPI_API_KEY",
+  "TWITTERAPI_IO_KEY",
+  "TWITTERAPI_KEY",
+  "TWITTERAPI_TOKEN",
+] as const;
+
+const AUTH_HEADER_NAME = "X-API-Key";
+
+export type ProviderKeyInfo = {
+  key: string;
+  sourceVar: string;
+  keyLen: number;
+  keySuffix: string;
+};
+
+let keyInfoLogged = false;
+
+/**
+ * Resolve API key from env (multiple names supported). Use for requests.
+ * Logs [X_PROVIDER] key_source/len/suffix once at first use (no secret).
+ * Exported for provider selftest only; do not log the returned key.
+ */
+export function getApiKeyInfo(): ProviderKeyInfo {
+  for (const name of KEY_ENV_VARS) {
+    const raw = process.env[name];
+    const key = typeof raw === "string" ? raw.trim() : "";
+    if (key.length > 0) {
+      const keySuffix = key.length >= 4 ? key.slice(-4) : "...";
+      if (!keyInfoLogged) {
+        keyInfoLogged = true;
+        console.log(
+          "[X_PROVIDER] key_source=" + name + " present=true len=" + key.length + " suffix=..." + keySuffix
+        );
+      }
+      return { key, sourceVar: name, keyLen: key.length, keySuffix };
+    }
+  }
+  throw new Error("Twitter API key not set. Set one of: " + KEY_ENV_VARS.join(", "));
+}
+
+/**
+ * Safe for logging only: returns present + source/len/suffix without throwing.
+ * Use in selftest or when key might be missing.
+ */
+export function getProviderKeyInfoForLog(): {
+  present: boolean;
+  sourceVar?: string;
+  keyLen?: number;
+  keySuffix?: string;
+} {
+  for (const name of KEY_ENV_VARS) {
+    const raw = process.env[name];
+    const key = typeof raw === "string" ? raw.trim() : "";
+    if (key.length > 0) {
+      const keySuffix = key.length >= 4 ? key.slice(-4) : "...";
+      return { present: true, sourceVar: name, keyLen: key.length, keySuffix: "..." + keySuffix };
+    }
+  }
+  return { present: false };
+}
 
 function getApiKey(): string {
-  const key = process.env.TWITTERAPI_API_KEY;
-  if (!key) {
-    throw new Error("TWITTERAPI_API_KEY must be set");
+  return getApiKeyInfo().key;
+}
+
+/** Log that auth is attached to the outgoing request (no secret). */
+function logAuthAttached(): void {
+  console.log("[X_PROVIDER] auth_header_present=true auth_header_name=" + AUTH_HEADER_NAME);
+}
+
+/** Log provider failure classification for 401/429/5xx. */
+function logProviderFailure(status: number, keyPresent: boolean): void {
+  if (status === 401) {
+    console.error(
+      "[X_PROVIDER] auth_invalid_or_missing auth_method=" + AUTH_HEADER_NAME + " key_present=" + keyPresent
+    );
+  } else if (status === 429) {
+    console.error("[X_PROVIDER] rate_limited");
+  } else if (status >= 500 && status < 600) {
+    console.error("[X_PROVIDER] provider_down status=" + status);
   }
-  return key;
 }
 
 export type UserInfo = {
@@ -22,11 +99,16 @@ export type UserInfo = {
 export async function getUserInfo(username: string): Promise<UserInfo | null> {
   const u = username.trim().replace(/^@/, "");
   if (!u) return null;
+  const keyPresent = getProviderKeyInfoForLog().present;
+  logAuthAttached();
   const res = await fetch(
     `${TWITTERAPI_BASE}/twitter/user/info?userName=${encodeURIComponent(u)}`,
-    { headers: { "X-API-Key": getApiKey() } }
+    { headers: { [AUTH_HEADER_NAME]: getApiKey() } }
   );
-  if (!res.ok) return null;
+  if (!res.ok) {
+    logProviderFailure(res.status, keyPresent);
+    return null;
+  }
   const json = await res.json();
   const data = json?.data;
   if (!data || json?.status === "error") return null;
@@ -104,10 +186,13 @@ export async function getRecentTweets(
     const queryParamsLog = Object.fromEntries(params.entries());
     console.log("[X_TWEETS] request params (no key)", JSON.stringify(queryParamsLog));
 
-    const res = await fetch(url, { headers: { "X-API-Key": getApiKey() } });
+    const keyPresent = getProviderKeyInfoForLog().present;
+    logAuthAttached();
+    const res = await fetch(url, { headers: { [AUTH_HEADER_NAME]: getApiKey() } });
 
     const responseText = await res.text();
     if (!res.ok) {
+      logProviderFailure(res.status, keyPresent);
       console.error(
         "[X_TWEETS] HTTP error status=" + res.status + " body_snippet=" + responseSnippet(responseText)
       );

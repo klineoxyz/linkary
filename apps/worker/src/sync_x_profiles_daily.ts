@@ -2,7 +2,19 @@
  * Daily cron: sync X profile info (followers, avatar, bio, display_name) + insert snapshot.
  * Eligible: is_indexed, twitter_connected_at not null, twitter_username not null,
  * and (x_last_profile_sync_at is null or older than 24h).
+ * Loads .env from repo root and apps/web/.env.local so local runs pick up API/Supabase vars.
  */
+import { config } from "dotenv";
+import { fileURLToPath } from "url";
+import { resolve, dirname } from "path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(__dirname, "../../..");
+config({ path: resolve(repoRoot, ".env") });
+config({ path: resolve(repoRoot, ".env.local") });
+config({ path: resolve(__dirname, "../.env") });
+config({ path: resolve(repoRoot, "apps/web/.env.local") });
+
 import { getSupabaseAdmin } from "./lib/supabase.js";
 import { getUserInfo } from "./lib/twitterapi.js";
 import { sleep, normalizeHandle } from "./lib/utils.js";

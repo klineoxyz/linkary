@@ -3539,23 +3539,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
           <Card className="h-fit">
             <h3 className="text-sm font-semibold text-foreground mb-4">Core profile</h3>
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Display name</label>
-                <input type="text" value={coreDisplayName} onChange={(e) => setCoreDisplayName(e.target.value)} placeholder="Your name" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Bio</label>
-                <textarea value={coreBio} onChange={(e) => setCoreBio(e.target.value)} placeholder="Short bio" rows={2} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Location</label>
-                <input type="text" value={coreLocation} onChange={(e) => setCoreLocation(e.target.value)} placeholder="City or region" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Website</label>
-                <input type="url" value={coreWebsite} onChange={(e) => setCoreWebsite(e.target.value)} placeholder="https://…" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
-              </div>
-              <div className="flex flex-wrap gap-4 pt-2 border-t border-border">
+              <div className="flex flex-wrap gap-4 pt-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={corePublicLocation} onChange={(e) => setCorePublicLocation(e.target.checked)} className="rounded border-border" />
                   <span className="text-sm text-foreground">Show location on public profile</span>
@@ -3603,7 +3587,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
                 </div>
               </div>
               <div className="pt-2">
-                <Button disabled={coreSaving} onClick={async () => { if (!me?.id) return; setCoreSaving(true); const { error } = await updateMyProfile(me.id, { display_name: coreDisplayName.trim() || null, bio: coreBio.trim() || null, location: coreLocation.trim() || null, website: coreWebsite.trim() || null, public_location: corePublicLocation, public_pricing: corePublicPricing, pricing: { post: corePricing.post.price_usd != null ? { price_usd: corePricing.post.price_usd, platforms: corePricing.post.platforms, notes: corePricing.post.notes.trim() || null } : undefined, podcast: corePricing.podcast.price_usd != null ? { price_usd: corePricing.podcast.price_usd, platforms: corePricing.podcast.platforms, notes: corePricing.podcast.notes.trim() || null } : undefined } }); setCoreSaving(false); if (!error && refreshMe) refreshMe(); }}>
+                <Button disabled={coreSaving} onClick={async () => { if (!me?.id) return; setCoreSaving(true); const { error } = await updateMyProfile(me.id, { public_location: corePublicLocation, public_pricing: corePublicPricing, pricing: { post: corePricing.post.price_usd != null ? { price_usd: corePricing.post.price_usd, platforms: corePricing.post.platforms, notes: corePricing.post.notes.trim() || null } : undefined, podcast: corePricing.podcast.price_usd != null ? { price_usd: corePricing.podcast.price_usd, platforms: corePricing.podcast.platforms, notes: corePricing.podcast.notes.trim() || null } : undefined } }); setCoreSaving(false); if (!error && refreshMe) refreshMe(); }}>
                   {coreSaving ? "Saving…" : "Save"}
                 </Button>
               </div>
@@ -3685,87 +3669,6 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
               })}
             </div>
           </Card>
-
-          {/* Profile summary below portfolio when viewing own profile */}
-          {isMyProfile && me && (
-          <Card>
-            <div className="flex items-start gap-3 mb-4">
-              <ProfileAvatar handle={me?.twitter_username || u.handle} alt={u.name} fallbackGradient="from-primary to-primary/80" avatarUrl={me?.avatar_url} />
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold text-foreground truncate">{u.name}</span>
-                  {u.verified && <BadgeCheck className="h-5 w-5 text-primary stroke-[1.75]" />}
-                </div>
-                <p className="text-sm font-medium text-foreground truncate">@{u.handle} · {u.location}</p>
-              </div>
-            </div>
-            <ScorePills
-              ethos={u.ethos}
-              xscore={u.xscore}
-              reputationIndex={u.reputationIndex}
-              repScore={u.repScore}
-              socialPower={u.socialPower}
-              onRepClick={me?.id ? () => setRepBreakdownOpen(true) : undefined}
-            />
-            <RepBreakdownModal open={repBreakdownOpen} onOpenChange={setRepBreakdownOpen} profileId={me?.id ?? null} />
-            <div className="mt-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Stars value={u.reviews.avg} />
-                <span className="text-xs font-medium text-foreground">{u.reviews.avg} ({u.reviews.count})</span>
-              </div>
-              <div className="text-xs font-medium text-foreground">{formatMoneyEUR(u.volume.current)} volume</div>
-            </div>
-            <p className="mt-4 text-sm font-medium text-foreground leading-relaxed">{u.bio}</p>
-            <div className="mt-4">
-              <div className="text-xs font-semibold text-foreground mb-2">Roles</div>
-              <div className="flex flex-wrap gap-2">
-                {(u.roleTags ?? []).map((role) => (
-                  <span key={role} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground">{role}</span>
-                ))}
-              </div>
-            </div>
-            {u.ambassadorOf && u.ambassadorOf.length > 0 && (
-              <div className="mt-4">
-                <div className="text-xs font-semibold text-foreground mb-2">Ambassador Of</div>
-                <div className="flex flex-wrap gap-2">
-                  {u.ambassadorOf.map((proj) => (
-                    <span key={proj} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground">{proj}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {u.partnerships && u.partnerships.length > 0 && (
-              <div className="mt-4">
-                <div className="text-xs font-semibold text-foreground mb-2">Partnerships</div>
-                <div className="space-y-2">
-                  {u.partnerships.map((p) => (
-                    <div key={p.name} className="relative overflow-hidden rounded-lg border-0 px-4 py-3 bg-cover bg-center" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)" }}>
-                      <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70" />
-                      <div className="relative z-10 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-primary-foreground">{p.name}</p>
-                          <p className="text-xs text-primary-foreground/80">{p.type}</p>
-                        </div>
-                        {p.verified && <BadgeCheck className="h-4 w-4 text-primary-foreground stroke-[1.75]" />}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="mt-4 space-y-2">
-              {(u.links ?? []).map((l) => (
-                <div key={l.label} className="flex items-center justify-between rounded-lg border border-border bg-muted px-4 py-3 hover:bg-secondary transition-colors">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <ExternalLink className="h-4 w-4 text-primary stroke-[1.75]" />
-                    <span className="truncate font-medium text-foreground">{l.label}</span>
-                  </div>
-                  <span className="text-xs font-medium text-foreground">{l.clicks.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-          )}
 
           {/* Discover people - search other profiles */}
           <Card className="rounded-2xl border border-border bg-card shadow-sm">

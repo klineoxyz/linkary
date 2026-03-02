@@ -39,11 +39,11 @@ export function AnalyticsHeader({
 
   return (
     <header
-      className="sticky top-0 z-40 rounded-xl border border-border bg-card py-2 px-4 md:px-5"
+      className="sticky top-0 z-40 rounded-xl border border-border bg-card py-2.5 px-4 md:px-5"
       data-page="analytics"
     >
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 md:gap-x-4">
           {setRoute && (
             <a
               href="/dashboard"
@@ -76,10 +76,10 @@ export function AnalyticsHeader({
             </div>
           </div>
           <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-            <span className={`w-1 h-1 rounded-full ${tweetsSyncedAt ? "bg-primary/80" : "bg-muted-foreground/50"}`} />
+            <span className={`w-1 h-1 rounded-full shrink-0 ${tweetsSyncedAt ? "bg-primary/80" : "bg-muted-foreground/50"}`} />
             Tweets {tweetsLabel}
             <span className="text-muted-foreground/60">·</span>
-            <span className={`w-1 h-1 rounded-full ${followersSyncedAt ? (followerDataStale ? "bg-amber-500" : "bg-primary/80") : "bg-muted-foreground/50"}`} />
+            <span className={`w-1 h-1 rounded-full shrink-0 ${followersSyncedAt ? (followerDataStale ? "bg-amber-500" : "bg-primary/80") : "bg-muted-foreground/50"}`} />
             Followers {followersLabel}
             {followerDataStale && <span className="text-amber-600 dark:text-amber-400">(stale)</span>}
           </span>
@@ -91,7 +91,7 @@ export function AnalyticsHeader({
                 key={p}
                 type="button"
                 onClick={() => onWindowChange(p)}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                className={`px-2.5 py-1 rounded text-xs font-medium tabular-nums transition-colors ${
                   windowPeriod === p ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >

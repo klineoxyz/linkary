@@ -27,43 +27,43 @@ export function TopDriversTable({ rows, emptyMessage = "No top drivers yet. Sync
           Posts that drove the most engagement. ER = (likes + replies + reposts) / followers.
         </p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
+      <div className="overflow-x-auto -mx-px">
+        <table className="w-full text-sm border-collapse min-w-[480px]" style={{ minWidth: 480 }}>
           <thead>
             <tr className="border-b border-border bg-card sticky top-0 z-10">
-              <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2.5 px-4 bg-card">Date</th>
-              <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2.5 px-4 bg-card">Likes</th>
-              <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2.5 px-4 bg-card">Replies</th>
-              <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2.5 px-4 bg-card">Reposts</th>
-              <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2.5 px-4 bg-card">ER %</th>
+              <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2 px-4 bg-card border-b border-border">Date</th>
+              <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2 px-4 bg-card border-b border-border">Likes</th>
+              <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2 px-4 bg-card border-b border-border">Replies</th>
+              <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2 px-4 bg-card border-b border-border">Reposts</th>
+              <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2 px-4 bg-card border-b border-border">ER %</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row, index) => (
               <tr key={row.tweet_id ?? index} className="border-b border-border/50 hover:bg-muted/10 transition-colors">
-                <td className="py-2.5 px-4 font-medium text-foreground">
+                <td className="py-2 px-4 font-medium text-foreground">
                   {row.date}
                   {row.time ? ` · ${row.time}` : ""}
                 </td>
-                <td className="py-2.5 px-4 text-right tabular-nums">
-                  <span className="inline-flex items-center gap-1 justify-end text-muted-foreground">
-                    <Heart className="w-3 h-3 opacity-70" />
+                <td className="py-2 px-4 text-right tabular-nums">
+                  <span className="inline-flex items-center gap-1 justify-end text-foreground">
+                    <Heart className="w-3 h-3 text-muted-foreground opacity-70" />
                     {row.likes.toLocaleString()}
                   </span>
                 </td>
-                <td className="py-2.5 px-4 text-right tabular-nums">
-                  <span className="inline-flex items-center gap-1 justify-end text-muted-foreground">
-                    <MessageSquare className="w-3 h-3 opacity-70" />
+                <td className="py-2 px-4 text-right tabular-nums">
+                  <span className="inline-flex items-center gap-1 justify-end text-foreground">
+                    <MessageSquare className="w-3 h-3 text-muted-foreground opacity-70" />
                     {row.replies.toLocaleString()}
                   </span>
                 </td>
-                <td className="py-2.5 px-4 text-right tabular-nums">
-                  <span className="inline-flex items-center gap-1 justify-end text-muted-foreground">
-                    <Repeat className="w-3 h-3 opacity-70" />
+                <td className="py-2 px-4 text-right tabular-nums">
+                  <span className="inline-flex items-center gap-1 justify-end text-foreground">
+                    <Repeat className="w-3 h-3 text-muted-foreground opacity-70" />
                     {row.reposts.toLocaleString()}
                   </span>
                 </td>
-                <td className="py-2.5 px-4 text-right font-medium tabular-nums text-foreground">
+                <td className="py-2 px-4 text-right font-medium tabular-nums text-foreground">
                   {row.engagementOver100 ? "100%+" : `${row.engagementRate}%`}
                 </td>
               </tr>

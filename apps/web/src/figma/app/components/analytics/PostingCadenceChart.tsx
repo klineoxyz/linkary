@@ -37,23 +37,33 @@ export function PostingCadenceChart({
   const hasAnyData = points.length > 0 && points.some((p) => (p.posts ?? 0) > 0);
   const coverage = tweetCountWindow != null ? `${tweetCountWindow} posts` : undefined;
 
+  const integrationsHref = "/settings/integrations";
+
   if (noPostsInPeriod) {
     return (
       <ChartCard title="Posting Cadence" coverage={coverage}>
-        <EmptyState message="No posts in the selected period." onRefresh={onRefresh} refreshDisabled={refreshDisabled} />
+        <EmptyState
+          message="No posts in the selected period."
+          secondary="Post to see cadence."
+          onRefresh={onRefresh}
+          refreshDisabled={refreshDisabled}
+          integrationsHref={integrationsHref}
+        />
       </ChartCard>
     );
   }
 
-  if (insufficientForTrend && summaryMessage) {
+  if (insufficientForTrend) {
     return (
       <ChartCard title="Posting Cadence" coverage={coverage}>
-        <div className="py-4 px-1">
-          <p className="text-sm text-muted-foreground">{summaryMessage}</p>
-          {tweetCountWindow != null && windowDays != null && (
-            <p className="text-xs text-muted-foreground mt-1">{tweetCountWindow} posts · {windowDays}d</p>
-          )}
-        </div>
+        <EmptyState
+          message="Not enough data for trend yet."
+          secondary={tweetCountWindow != null && windowDays != null ? `${tweetCountWindow} posts in ${windowDays}d. Need more activity.` : "Need more posts to show trend."}
+          coverage={coverage}
+          onRefresh={onRefresh}
+          refreshDisabled={refreshDisabled}
+          integrationsHref={integrationsHref}
+        />
       </ChartCard>
     );
   }
@@ -61,7 +71,13 @@ export function PostingCadenceChart({
   if (!hasAnyData || points.length === 0) {
     return (
       <ChartCard title="Posting Cadence" coverage={coverage}>
-        <EmptyState message="No data in this period." onRefresh={onRefresh} refreshDisabled={refreshDisabled} />
+        <EmptyState
+          message="No data in this period."
+          secondary="Connect X in Integrations to sync."
+          onRefresh={onRefresh}
+          refreshDisabled={refreshDisabled}
+          integrationsHref={integrationsHref}
+        />
       </ChartCard>
     );
   }

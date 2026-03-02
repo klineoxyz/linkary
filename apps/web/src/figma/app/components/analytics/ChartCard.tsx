@@ -18,9 +18,11 @@ export function ChartCard({ title, children, coverage, lowVariance, className = 
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {coverage && <span className="text-xs text-muted-foreground tabular-nums">{coverage}</span>}
       </div>
-      {children}
+      <div className="min-h-[152px]">
+        {children}
+      </div>
       {lowVariance && (
-        <p className="text-[11px] text-muted-foreground mt-2">Low variance in this window.</p>
+        <p className="text-[11px] text-muted-foreground/80 mt-2">Low variance in this window.</p>
       )}
     </div>
   );

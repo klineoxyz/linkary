@@ -490,7 +490,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     !!rebuildError ||
     !!xError ||
     (initStatus?.job?.status === "failed" && (profile?.twitter_username ?? "").toString().trim());
-  const errorMessage = rebuildJob?.status === "failed"
+  const rawError = rebuildJob?.status === "failed"
     ? (rebuildJob?.last_error ?? "Rebuild failed.")
     : rebuildError
       ? rebuildError
@@ -499,6 +499,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         : initStatus?.job?.status === "failed"
           ? (initStatus.job?.last_error ?? "Backfill didn't complete.")
           : null;
+  const errorMessage = rawError && (rawError.length > 80 || /error:|exception|at \s+\w+\./.test(rawError))
+    ? (rebuildJob?.status === "failed" ? "Rebuild failed. Try again." : xError ? "Could not load analytics. Try again." : "Something went wrong. Try again.")
+    : rawError;
   const onRetry = rebuildJob?.status === "failed" || rebuildError
     ? () => triggerRebuild(dataStatus?.rollup_updated_at ?? null)
     : xError
@@ -612,7 +615,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         <div className="rounded-xl border border-border bg-card p-4" data-page="analytics">
           <h3 className="text-sm font-semibold text-foreground mb-2">Signals</h3>
           {signalsList.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Signals will appear as your data builds.</p>
+            <div>
+              <p className="text-sm text-muted-foreground">Signals will appear as your data builds.</p>
+              <a href="/settings/integrations" className="mt-2 inline-block text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">Connect more in Integrations</a>
+            </div>
           ) : (
             <ul className="space-y-2">
               {signalsList.slice(0, 3).map((s) => (

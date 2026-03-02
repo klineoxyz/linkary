@@ -39,22 +39,33 @@ export function EngagementChart({
   }, [points]);
 
   const coverage = coverageDays != null && windowDays != null ? `${coverageDays}/${windowDays}d` : undefined;
+  const integrationsHref = "/settings/integrations";
 
   if (noPostsInPeriod) {
     return (
       <ChartCard title="Engagement Rate" coverage={coverage}>
-        <EmptyState message="No posts in the selected period." onRefresh={onRefresh} refreshDisabled={refreshDisabled} />
+        <EmptyState
+          message="No posts in the selected period."
+          secondary="Post to see engagement trend."
+          onRefresh={onRefresh}
+          refreshDisabled={refreshDisabled}
+          integrationsHref={integrationsHref}
+        />
       </ChartCard>
     );
   }
 
-  if (insufficientForTrend && summaryMessage) {
+  if (insufficientForTrend) {
     return (
       <ChartCard title="Engagement Rate" coverage={coverage}>
-        <div className="py-4 px-1">
-          <p className="text-sm text-muted-foreground">{summaryMessage}</p>
-          {tweetCountWindow != null && <p className="text-xs text-muted-foreground mt-1">Posts in window: {tweetCountWindow}</p>}
-        </div>
+        <EmptyState
+          message="Not enough data for trend yet."
+          secondary={tweetCountWindow != null ? `${tweetCountWindow} posts in window. Need more days.` : "Need more posts to show trend."}
+          coverage={coverage}
+          onRefresh={onRefresh}
+          refreshDisabled={refreshDisabled}
+          integrationsHref={integrationsHref}
+        />
       </ChartCard>
     );
   }
@@ -62,7 +73,13 @@ export function EngagementChart({
   if (!hasAnyData || points.length === 0) {
     return (
       <ChartCard title="Engagement Rate" coverage={coverage}>
-        <EmptyState message="No data in this period." onRefresh={onRefresh} refreshDisabled={refreshDisabled} />
+        <EmptyState
+          message="No data in this period."
+          secondary="Connect X in Integrations to sync."
+          onRefresh={onRefresh}
+          refreshDisabled={refreshDisabled}
+          integrationsHref={integrationsHref}
+        />
       </ChartCard>
     );
   }

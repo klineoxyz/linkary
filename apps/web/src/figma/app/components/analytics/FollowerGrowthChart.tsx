@@ -35,14 +35,18 @@ export function FollowerGrowthChart({
   const coverage = coverageDays != null && windowDays != null ? `${coverageDays}/${windowDays}d` : undefined;
   const lowVariance = hasAnyData && range > 0 && range <= 2;
 
+  const integrationsHref = "/settings/integrations";
+
   if (insufficientData) {
     return (
       <ChartCard title="Follower Growth" coverage={coverage}>
         <EmptyState
-          message="Building history. A few daily snapshots needed for trends."
+          message="Building history."
+          secondary="Need more daily snapshots to show trend."
           coverage={earliestDate ? `First: ${earliestDate}` : coverage}
           onRefresh={onRefresh}
           refreshDisabled={refreshDisabled}
+          integrationsHref={integrationsHref}
         />
       </ChartCard>
     );
@@ -51,7 +55,13 @@ export function FollowerGrowthChart({
   if (!hasAnyData || points.length === 0) {
     return (
       <ChartCard title="Follower Growth" coverage={coverage}>
-        <EmptyState message="No data in this period." onRefresh={onRefresh} refreshDisabled={refreshDisabled} />
+        <EmptyState
+          message="No data in this period."
+          secondary="Connect X in Integrations to sync."
+          onRefresh={onRefresh}
+          refreshDisabled={refreshDisabled}
+          integrationsHref={integrationsHref}
+        />
       </ChartCard>
     );
   }

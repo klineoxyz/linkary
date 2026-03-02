@@ -27,9 +27,11 @@ export function PostingCadenceChart({
   onRefresh,
   refreshDisabled,
 }: PostingCadenceChartProps) {
-  const maxPosts = useMemo(() => {
+  const { maxPosts, lowVariance } = useMemo(() => {
     const vals = points.map((p) => p.posts ?? 0);
-    return vals.length ? Math.max(1, ...vals) : 1;
+    const max = vals.length ? Math.max(1, ...vals) : 1;
+    const min = vals.length ? Math.min(...vals) : 0;
+    return { maxPosts: max, lowVariance: max - min <= 1 && vals.length > 0 };
   }, [points]);
 
   const hasAnyData = points.length > 0 && points.some((p) => (p.posts ?? 0) > 0);
@@ -65,7 +67,7 @@ export function PostingCadenceChart({
   }
 
   return (
-    <ChartCard title="Posting Cadence" coverage={coverage}>
+    <ChartCard title="Posting Cadence" coverage={coverage} lowVariance={lowVariance}>
       <div className="relative border-l border-b border-border pl-6 pb-5 pt-1" style={{ minHeight: CHART_H }}>
         <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{maxPosts}</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>

@@ -6,18 +6,13 @@ import { formatTimeAgo } from "./utils";
 import type { WindowPeriod } from "./types";
 
 export interface AnalyticsHeaderProps {
-  /** Tweets synced: time ago */
   tweetsSyncedAt: string | null;
-  /** Followers synced: time ago */
   followersSyncedAt: string | null;
-  /** Show subtle stale indicator when true */
   followerDataStale?: boolean;
-  /** Global window: single source of truth */
   windowPeriod: WindowPeriod;
   onWindowChange: (period: WindowPeriod) => void;
   onRefresh: () => void;
   refreshLoading: boolean;
-  /** e.g. when job is queued or running */
   refreshDisabled?: boolean;
   setRoute?: (route: { name: string }) => void;
 }
@@ -39,13 +34,16 @@ export function AnalyticsHeader({
   refreshDisabled,
   setRoute,
 }: AnalyticsHeaderProps) {
+  const tweetsLabel = tweetsSyncedAt ? formatTimeAgo(tweetsSyncedAt) : "—";
+  const followersLabel = followersSyncedAt ? formatTimeAgo(followersSyncedAt) : "—";
+
   return (
     <header
-      className="sticky top-0 z-40 rounded-xl border border-border bg-card shadow-sm py-2.5 px-4 md:px-5"
+      className="sticky top-0 z-40 rounded-xl border border-border bg-card py-2 px-4 md:px-5"
       data-page="analytics"
     >
-      <div className="flex flex-col gap-2 md:gap-0 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-4">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           {setRoute && (
             <a
               href="/dashboard"
@@ -53,9 +51,9 @@ export function AnalyticsHeader({
                 e.preventDefault();
                 setRoute({ name: "dashboard" });
               }}
-              className="text-sm text-muted-foreground hover:text-foreground self-start sm:order-[-1] sm:mr-2"
+              className="text-xs text-muted-foreground hover:text-foreground"
             >
-              ← Back
+              Back
             </a>
           )}
           <div className="flex items-center gap-2">
@@ -77,36 +75,23 @@ export function AnalyticsHeader({
               ))}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span
-                className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${tweetsSyncedAt ? "bg-primary/80" : "bg-muted-foreground/50"}`}
-                aria-hidden
-              />
-              Tweets synced: {tweetsSyncedAt ? formatTimeAgo(tweetsSyncedAt) : "—"}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span
-                className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${
-                  followersSyncedAt ? (followerDataStale ? "bg-amber-500" : "bg-primary/80") : "bg-muted-foreground/50"
-                }`}
-                aria-hidden
-              />
-              Followers synced: {followersSyncedAt ? formatTimeAgo(followersSyncedAt) : "—"}
-              {followerDataStale && <span className="text-amber-600 dark:text-amber-400">(stale)</span>}
-            </span>
-          </div>
+          <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+            <span className={`w-1 h-1 rounded-full ${tweetsSyncedAt ? "bg-primary/80" : "bg-muted-foreground/50"}`} />
+            Tweets {tweetsLabel}
+            <span className="text-muted-foreground/60">·</span>
+            <span className={`w-1 h-1 rounded-full ${followersSyncedAt ? (followerDataStale ? "bg-amber-500" : "bg-primary/80") : "bg-muted-foreground/50"}`} />
+            Followers {followersLabel}
+            {followerDataStale && <span className="text-amber-600 dark:text-amber-400">(stale)</span>}
+          </span>
         </div>
-
-        {/* Right: window selector + Refresh */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-0.5">
+          <div className="flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
             {(["7D", "30D", "90D"] as const).map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => onWindowChange(p)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                   windowPeriod === p ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -118,7 +103,7 @@ export function AnalyticsHeader({
             type="button"
             onClick={onRefresh}
             disabled={refreshLoading || refreshDisabled}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-2.5 py-1 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {refreshLoading || refreshDisabled ? "Refreshing…" : "Refresh data"}
           </button>

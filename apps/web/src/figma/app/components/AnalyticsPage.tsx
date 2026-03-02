@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { supabase } from "@/lib/supabase";
 import { authFetcher, SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
-import { AlertTriangle, Clock, Eye } from "lucide-react";
 import {
   AnalyticsHeader,
   KpiGrid,
@@ -484,59 +483,54 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     ? [{ id: "1", title: "X metrics synced", metric: "View 7D / 30D / 90D trends above. Connect more in Integrations for richer data." }]
     : [];
 
+  const showRebuildRunning = rebuildJob?.status === "running";
+  const showRebuildQueued = rebuildJob?.status === "queued";
+  const showError =
+    (rebuildJob?.status === "failed" && (rebuildJob?.last_error || true)) ||
+    !!rebuildError ||
+    !!xError ||
+    (initStatus?.job?.status === "failed" && (profile?.twitter_username ?? "").toString().trim());
+  const errorMessage = rebuildJob?.status === "failed"
+    ? (rebuildJob?.last_error ?? "Rebuild failed.")
+    : rebuildError
+      ? rebuildError
+      : xError
+        ? (xError instanceof Error ? xError.message : "Could not load analytics.")
+        : initStatus?.job?.status === "failed"
+          ? (initStatus.job?.last_error ?? "Backfill didn't complete.")
+          : null;
+  const onRetry = rebuildJob?.status === "failed" || rebuildError
+    ? () => triggerRebuild(dataStatus?.rollup_updated_at ?? null)
+    : xError
+      ? () => mutateX()
+      : () => handleRetryBackfill();
+
   return (
     <div className="min-h-screen bg-background" data-page="analytics">
-      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4 space-y-6">
-        {/* Banners: backfill building, rebuild status, API error, init/fallback */}
-        {windowSummary?.is_backfilling && (profile?.twitter_username ?? "").toString().trim() && (
-          <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground">
-            {hasRealInsights ? "7D/30D/90D windows are being computed. Use Refresh data when ready." : "Building your 90-day history. This can take a few minutes."}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6">
+        {/* Single status row: rebuild running | queued | error (only one at a time) */}
+        {showRebuildRunning && (
+          <div className="rounded-lg border border-border bg-card px-3 py-2 flex items-center justify-between gap-2 text-sm">
+            <span className="text-muted-foreground">Rebuild running</span>
+            <span className="text-xs text-muted-foreground">Charts will update when ready.</span>
           </div>
         )}
-        {rebuildQueuedToast && (rebuildJob?.status === "queued" || rebuildJob?.status === "running") && (
-          <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground">
-            Rebuild queued. Charts will update when rollups are ready.
+        {!showRebuildRunning && showRebuildQueued && (
+          <div className="rounded-lg border border-border bg-card px-3 py-2 flex items-center gap-2 text-sm text-muted-foreground">
+            Rebuild queued.
           </div>
         )}
-        {rebuildJob && (rebuildJob.status === "queued" || rebuildJob.status === "running" || rebuildJob.status === "done" || rebuildJob.status === "failed") && (
-          <div className="rounded-lg border border-border bg-card px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-sm">
-            <span className="text-muted-foreground">Rebuild: <span className="font-medium capitalize text-foreground">{rebuildJob.status}</span></span>
-            {(rebuildJob.last_error || rebuildJob.status === "failed") && <p className="text-xs text-destructive w-full">{rebuildJob.last_error ?? "Job failed."}</p>}
-            {rebuildJob.status === "failed" && (
-              <button type="button" onClick={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)} disabled={rebuildLoading} className="px-2 py-1 rounded bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-50">Try again</button>
-            )}
-            {rebuildJob.status === "done" && (
-              <button type="button" onClick={() => fetchXAnalytics()} className="px-2 py-1 rounded border border-border text-xs font-medium">Refresh data</button>
-            )}
-          </div>
-        )}
-        {rebuildError && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{rebuildError}</div>
-        )}
-        {xError && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-destructive">Could not load analytics. {xError instanceof Error ? xError.message : "Please try again."}</p>
-            <button type="button" onClick={() => mutateX()} className="px-2 py-1 rounded bg-primary text-primary-foreground text-xs font-medium hover:opacity-90">Retry</button>
-          </div>
-        )}
-        {((initStatus?.ok && !initStatus?.initialized) || xAnalyticsData?.source === "partial") && (profile?.twitter_username ?? "").toString().trim() && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 flex flex-wrap items-center gap-2">
-            <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-            <p className="text-sm text-amber-900 dark:text-amber-200">Building your 90-day history…</p>
-            <button type="button" onClick={() => { fetchInitStatus(); fetchXAnalytics(); }} className="px-2 py-1 rounded border border-amber-500/50 text-amber-800 dark:text-amber-200 text-xs font-medium">Refresh</button>
-          </div>
-        )}
-        {initStatus?.job?.status === "failed" && (profile?.twitter_username ?? "").toString().trim() && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 flex flex-wrap items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-            <p className="text-sm text-destructive">Backfill didn’t complete. {initStatus.job?.last_error && <span className="text-xs block">{initStatus.job.last_error}</span>}</p>
-            <button type="button" onClick={handleRetryBackfill} disabled={retryingBackfill} className="px-2 py-1 rounded bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-50">{retryingBackfill ? "Retrying…" : "Retry backfill"}</button>
-          </div>
-        )}
-        {xAnalyticsData?.source === "fallback" && initStatus?.initialized === true && (profile?.twitter_username ?? "").toString().trim() && (
-          <div className="rounded-lg border border-muted bg-muted/30 px-3 py-2 flex items-center gap-2 text-sm">
-            <Eye className="w-4 h-4 text-muted-foreground shrink-0" />
-            <p className="text-muted-foreground">Full history still loading. Some metrics may be limited.</p>
+        {!showRebuildRunning && !showRebuildQueued && showError && errorMessage && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 flex items-center justify-between gap-2 text-sm">
+            <span className="text-destructive truncate">{errorMessage}</span>
+            <button
+              type="button"
+              onClick={onRetry}
+              disabled={rebuildLoading || retryingBackfill}
+              className="shrink-0 px-2 py-1 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {retryingBackfill ? "Retrying…" : "Retry"}
+            </button>
           </div>
         )}
 
@@ -624,7 +618,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               {signalsList.slice(0, 3).map((s) => (
                 <li key={s.id} className="text-sm">
                   <span className="font-medium text-foreground">{s.title}</span>
-                  <span className="text-muted-foreground"> — {s.metric}</span>
+                  <span className="text-muted-foreground"> · {s.metric}</span>
                 </li>
               ))}
             </ul>

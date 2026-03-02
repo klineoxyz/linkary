@@ -5,12 +5,13 @@ import React, { type ReactNode } from "react";
 export interface ChartCardProps {
   title: string;
   children: ReactNode;
-  /** Optional coverage line e.g. "7/30 days" */
   coverage?: string;
+  /** When true, show "Low variance in this window" below chart */
+  lowVariance?: boolean;
   className?: string;
 }
 
-export function ChartCard({ title, children, coverage, className = "" }: ChartCardProps) {
+export function ChartCard({ title, children, coverage, lowVariance, className = "" }: ChartCardProps) {
   return (
     <div className={`rounded-xl border border-border bg-card p-4 md:p-5 ${className}`} data-page="analytics">
       <div className="flex items-baseline justify-between gap-2 mb-3">
@@ -18,6 +19,9 @@ export function ChartCard({ title, children, coverage, className = "" }: ChartCa
         {coverage && <span className="text-xs text-muted-foreground tabular-nums">{coverage}</span>}
       </div>
       {children}
+      {lowVariance && (
+        <p className="text-[11px] text-muted-foreground mt-2">Low variance in this window.</p>
+      )}
     </div>
   );
 }

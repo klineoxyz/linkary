@@ -32,7 +32,8 @@ export function FollowerGrowthChart({
   }, [points]);
 
   const range = max - min || 1;
-  const coverage = coverageDays != null && windowDays != null ? `${coverageDays}/${windowDays} days` : undefined;
+  const coverage = coverageDays != null && windowDays != null ? `${coverageDays}/${windowDays}d` : undefined;
+  const lowVariance = hasAnyData && range > 0 && range <= 2;
 
   if (insufficientData) {
     return (
@@ -59,7 +60,7 @@ export function FollowerGrowthChart({
   const CHART_H = 180;
 
   return (
-    <ChartCard title="Follower Growth" coverage={coverage}>
+    <ChartCard title="Follower Growth" coverage={coverage} lowVariance={lowVariance}>
       <div className="relative border-l border-b border-border pl-6 pb-5 pt-1" style={{ minHeight: CHART_H }}>
         <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{max}</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>

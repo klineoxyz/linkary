@@ -138,8 +138,17 @@ type XAnalyticsData = {
   potential_reach_label?: string;
   potential_reach_is_estimated?: boolean;
   engagement_rate_is_estimated?: boolean;
+  data_freshness_at?: string | null;
+  tweets_last_synced_at?: string | null;
+  follower_last_synced_at?: string | null;
+  follower_data_stale?: boolean;
   debug?: {
     window_days?: number;
+    window_start?: string;
+    window_end?: string;
+    latest_tweet_date?: string | null;
+    latest_follower_snapshot_date?: string | null;
+    chart_points_count?: { follower_growth?: number; engagement_rate?: number; posting_cadence?: number };
     tweet_count_window?: number;
     total_engagement_window?: number;
     total_impressions_window?: number;
@@ -238,6 +247,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         freshness: xSwr.freshness as XAnalyticsData["freshness"],
         data_status: (xSwr.data_status as DataStatus) ?? null,
         chart_points: (xSwr.chart_points as XAnalyticsData["chart_points"]) ?? null,
+        data_freshness_at: typeof xSwr.data_freshness_at === "string" ? xSwr.data_freshness_at : undefined,
+        tweets_last_synced_at: typeof xSwr.tweets_last_synced_at === "string" ? xSwr.tweets_last_synced_at : undefined,
+        follower_last_synced_at: typeof xSwr.follower_last_synced_at === "string" ? xSwr.follower_last_synced_at : undefined,
+        follower_data_stale: xSwr.follower_data_stale === true,
         potential_reach_label: typeof xSwr.potential_reach_label === "string" ? xSwr.potential_reach_label : undefined,
         potential_reach_is_estimated: xSwr.potential_reach_is_estimated === true,
         engagement_rate_is_estimated: xSwr.engagement_rate_is_estimated === true,
@@ -1203,13 +1216,24 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 {xAnalyticsData?.debug != null && (
                   <>
                     <p><span className="font-semibold text-foreground">window_days:</span> {xAnalyticsData.debug.window_days ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">window_start / window_end:</span> {xAnalyticsData.debug.window_start ?? "—"} → {xAnalyticsData.debug.window_end ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">latest_tweet_date:</span> {xAnalyticsData.debug.latest_tweet_date ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">latest_follower_snapshot_date:</span> {xAnalyticsData.debug.latest_follower_snapshot_date ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">chart_points_count:</span> growth {xAnalyticsData.debug.chart_points_count?.follower_growth ?? "—"}, engagement {xAnalyticsData.debug.chart_points_count?.engagement_rate ?? "—"}, cadence {xAnalyticsData.debug.chart_points_count?.posting_cadence ?? xAnalyticsData.debug.cadence_points_count ?? "—"} (cadence should be 7/30/90)</p>
                     <p><span className="font-semibold text-foreground">tweet_count_window:</span> {xAnalyticsData.debug.tweet_count_window ?? "—"}</p>
                     <p><span className="font-semibold text-foreground">total_engagement_window:</span> {xAnalyticsData.debug.total_engagement_window ?? "—"}</p>
                     <p><span className="font-semibold text-foreground">total_impressions_window:</span> {xAnalyticsData.debug.total_impressions_window ?? "—"}</p>
                     <p><span className="font-semibold text-foreground">engagement_rate_is_estimated:</span> {String(xAnalyticsData.debug.engagement_rate_is_estimated ?? false)}</p>
                     <p><span className="font-semibold text-foreground">potential_reach_label:</span> {xAnalyticsData.debug.potential_reach_label ?? "—"}</p>
                     <p><span className="font-semibold text-foreground">potential_reach_is_estimated:</span> {String(xAnalyticsData.debug.potential_reach_is_estimated ?? false)}</p>
-                    <p><span className="font-semibold text-foreground">cadence_points_count:</span> {xAnalyticsData.debug.cadence_points_count ?? "—"} (should be 7/30/90)</p>
+                  </>
+                )}
+                {(xAnalyticsData?.data_freshness_at != null || xAnalyticsData?.follower_data_stale != null) && (
+                  <>
+                    <p><span className="font-semibold text-foreground">data_freshness_at:</span> {xAnalyticsData.data_freshness_at ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">tweets_last_synced_at:</span> {xAnalyticsData.tweets_last_synced_at ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">follower_last_synced_at:</span> {xAnalyticsData.follower_last_synced_at ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">follower_data_stale:</span> {String(xAnalyticsData.follower_data_stale ?? false)}</p>
                   </>
                 )}
               </div>

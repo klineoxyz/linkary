@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabase, fetchXUserInfo } from "@/lib/x-analytics-server";
 
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 500;
 const DELAY_MS = 400;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Daily cron: sync profile snapshot (followers etc.) for all is_indexed profiles. Protected by CRON_SECRET. */
+/** Daily cron: sync profile snapshot (followers etc.) for is_indexed profiles. Protected by CRON_SECRET. Priority profile IDs in header X-Priority-Profile-Ids (comma-separated) are always included first. */
 export async function POST(request: NextRequest) {
   const secret =
     request.headers.get("x-cron-secret") ??
@@ -24,6 +24,26 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createServiceSupabase();
+
+  const priorityHeader = request.headers.get("x-priority-profile-ids") ?? "";
+  const priorityIds = priorityHeader
+    ? priorityHeader.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  let list: Array<{ id: string; twitter_username: string | null; followers_total?: number }> = [];
+
+  if (priorityIds.length > 0) {
+    const { data: priorityProfiles } = await supabase
+      .from("profiles")
+      .select("id, twitter_username, followers_total")
+      .in("id", priorityIds)
+      .not("twitter_username", "is", null);
+    const priorityList = (priorityProfiles ?? []).filter(
+      (p: { twitter_username: string | null }) => p.twitter_username && String(p.twitter_username).trim()
+    );
+    list = priorityList;
+  }
+
   const { data: profiles, error: listError } = await supabase
     .from("profiles")
     .select("id, twitter_username, followers_total")
@@ -35,13 +55,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: listError.message }, { status: 500 });
   }
 
-  const list = (profiles ?? []).filter(
+  const batchList = (profiles ?? []).filter(
     (p: { twitter_username: string | null }) =>
       p.twitter_username && String(p.twitter_username).trim()
   );
+  const seen = new Set<string>(list.map((p) => p.id));
+  for (const p of batchList) {
+    if (!seen.has(p.id)) {
+      seen.add(p.id);
+      list.push(p);
+    }
+  }
+
   let ok = 0;
   let err = 0;
   const today = new Date().toISOString().slice(0, 10);
+
+  console.log(
+    "[sync-x-profiles-daily] profiles_selected=%d first_10_ids=[%s] priority_included=%s",
+    list.length,
+    list.slice(0, 10).map((p) => p.id).join(","),
+    JSON.stringify(priorityIds.map((id: string) => ({ id, included: list.some((p) => p.id === id) })))
+  );
 
   for (const profile of list) {
     const userName = String(profile.twitter_username).trim().replace(/^@/, "");
@@ -100,9 +135,12 @@ export async function POST(request: NextRequest) {
     ok += 1;
   }
 
+  console.log("[sync-x-profiles-daily] done. processed=%d snapshots_upserted=%d errors=%d", list.length, ok, err);
+
   return NextResponse.json({
     ok: true,
     processed: list.length,
+    snapshots_upserted: ok,
     success: ok,
     errors: err,
   });

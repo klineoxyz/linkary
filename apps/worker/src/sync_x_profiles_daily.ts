@@ -19,19 +19,36 @@ import { getSupabaseAdmin } from "./lib/supabase.js";
 import { getUserInfo } from "./lib/twitterapi.js";
 import { sleep, normalizeHandle } from "./lib/utils.js";
 
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 500;
 const DELAY_MS = 150;
 
 async function main() {
   const supabase = getSupabaseAdmin();
   const past24 = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
+  // Priority profile IDs (env: comma-separated UUIDs) — always included first so e.g. current user is never excluded by limit
+  const priorityIdsRaw = (process.env.PRIORITY_PROFILE_IDS ?? "").trim();
+  const priorityIds = priorityIdsRaw ? priorityIdsRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+
+  let list: Array<{ id: string; twitter_username: string | null }> = [];
+
+  if (priorityIds.length > 0) {
+    const { data: priorityProfiles } = await supabase
+      .from("profiles")
+      .select("id, twitter_username")
+      .in("id", priorityIds)
+      .not("twitter_username", "is", null);
+    const priorityList = (priorityProfiles ?? []).filter(
+      (p: { twitter_username: string | null }) => p.twitter_username && String(p.twitter_username).trim()
+    );
+    list = priorityList;
+  }
+
   const { data: profiles, error: listError } = await supabase
     .from("profiles")
     .select("id, twitter_username")
     .eq("is_indexed", true)
     .not("twitter_username", "is", null)
-    .not("twitter_connected_at", "is", null)
     .or(`x_last_profile_sync_at.is.null,x_last_profile_sync_at.lt.${past24}`)
     .order("id")
     .limit(BATCH_SIZE);
@@ -41,13 +58,28 @@ async function main() {
     process.exit(1);
   }
 
-  const list = (profiles ?? []).filter(
+  const batchList = (profiles ?? []).filter(
     (p: { twitter_username: string | null }) => p.twitter_username && String(p.twitter_username).trim()
   );
+  const seen = new Set<string>(list.map((p) => p.id));
+  for (const p of batchList) {
+    if (!seen.has(p.id)) {
+      seen.add(p.id);
+      list.push(p);
+    }
+  }
+
   const today = new Date().toISOString().slice(0, 10);
   let ok = 0;
   let err = 0;
   let skipped = 0;
+
+  console.log(
+    "[sync_x_profiles_daily] profiles_selected=%d first_10_ids=[%s] priority_included=%s",
+    list.length,
+    list.slice(0, 10).map((p) => p.id).join(","),
+    JSON.stringify(priorityIds.map((id) => ({ id, included: list.some((p) => p.id === id) })))
+  );
 
   for (const profile of list) {
     const handle = normalizeHandle(String(profile.twitter_username));
@@ -145,7 +177,13 @@ async function main() {
     }
   }
 
-  console.log(`Daily sync done. processed=${list.length} ok=${ok} errors=${err} skipped=${skipped}`);
+  console.log(
+    "[sync_x_profiles_daily] done. processed=%d snapshots_upserted=%d errors=%d skipped=%d",
+    list.length,
+    ok,
+    err,
+    skipped
+  );
 }
 
 main().catch((e) => {

@@ -50,13 +50,12 @@ export async function GET(request: NextRequest) {
   const thirtyWindowStartStr = (() => { const d = new Date(now); d.setDate(d.getDate() - 29); return d.toISOString().slice(0, 10); })();
   const ninetyWindowStartStr = (() => { const d = new Date(now); d.setDate(d.getDate() - 89); return d.toISOString().slice(0, 10); })();
 
-  const [profileRes, legacyRollupRes, driversRes, baselineRes, legacySnapshotsRes, dailySnapshotsRes, windowAggsRes, tweetsLast30Res, tweetsCount90dRes, lastTweet90dRes] = await Promise.all([
+  const [profileRes, driversRes, baselineRes, dailySnapshotsRes, windowAggsRes, tweetsLast30Res, tweetsCount90dRes, lastTweet90dRes] = await Promise.all([
     supabase
       .from("profiles")
       .select("followers_total, avg_engagement_rate, x_last_profile_sync_at, x_last_tweets_sync_at, x_sync_status, twitter_username, analytics_initialized_at")
       .eq("id", user.id)
       .maybeSingle(),
-    supabase.from("x_analytics_rollups").select("*").eq("profile_id", user.id).maybeSingle(),
     supabase
       .from("x_top_drivers")
       .select("tweet_id, tweeted_at, like_count, reply_count, repost_count, engagement_score")
@@ -70,15 +69,6 @@ export async function GET(request: NextRequest) {
       .eq("profile_id", user.id)
       .eq("platform", "x")
       .maybeSingle(),
-    supabase
-      .from("analytics_snapshots")
-      .select("day, metrics")
-      .eq("owner_type", "profile")
-      .eq("owner_id", user.id)
-      .eq("platform", "x")
-      .eq("window_days", 1)
-      .order("day", { ascending: false })
-      .limit(90),
     supabase
       .from("x_daily_snapshots")
       .select("day, followers, tweets_count, likes_received, engagement_rate")
@@ -123,7 +113,6 @@ export async function GET(request: NextRequest) {
     twitter_username?: string | null;
     analytics_initialized_at?: string | null;
   } | null;
-  const legacyRollup = legacyRollupRes.data as Record<string, unknown> | null;
   // Dedupe by tweet_id (source: x_top_drivers for this profile, window_days=30)
   const rawDrivers = (driversRes.data ?? []) as Array<{
     tweet_id: string;
@@ -150,9 +139,6 @@ export async function GET(request: NextRequest) {
     reach_proxy_30d?: number | null;
   } | null;
 
-  type LegacySnapshotRow = { day: string; metrics?: { followers_total?: number } | null };
-  const legacySnapshots = (legacySnapshotsRes.data ?? []) as LegacySnapshotRow[];
-
   type DailyRow = {
     day: string;
     followers: number | null;
@@ -167,23 +153,13 @@ export async function GET(request: NextRequest) {
     const dayStr = typeof raw === "string" ? raw.slice(0, 10) : String(raw).slice(0, 10);
     return { ...r, day: dayStr };
   });
-  const snapshotsFromDaily = dailyRows.map((r) => ({
+  const snapshots = dailyRows.map((r) => ({
     snapshot_date: r.day,
     followers_total: r.followers ?? null,
     tweets_count: r.tweets_count ?? null,
     likes_received: r.likes_received ?? null,
     engagement_rate: r.engagement_rate != null ? Number(r.engagement_rate) : null,
   }));
-  const snapshots =
-    snapshotsFromDaily.length > 0
-      ? snapshotsFromDaily
-      : legacySnapshots.map((s) => ({
-          snapshot_date: s.day,
-          followers_total: s.metrics?.followers_total ?? null,
-          tweets_count: null as number | null,
-          likes_received: null as number | null,
-          engagement_rate: null as number | null,
-        }));
 
   type WindowAgg = {
     window_days?: number;
@@ -321,12 +297,12 @@ export async function GET(request: NextRequest) {
   const lastTweetAt30d = tweetsLast90.length > 0 ? tweetsLast90[tweetsLast90.length - 1]?.tweeted_at ?? null : null;
   const lastTweetAt = lastTweet90dAt ?? lastTweetAt30d ?? null;
   const rollupUpdatedAt =
-    (windowRows.length > 0
+    windowRows.length > 0
       ? (windowRows as WindowAgg[]).reduce(
           (max, r) => (r.updated_at && (max == null || r.updated_at > max) ? r.updated_at : max),
           null as string | null
         )
-      : null) ?? (legacyRollup && typeof (legacyRollup as { updated_at?: string }).updated_at === "string" ? (legacyRollup as { updated_at: string }).updated_at : null);
+      : null;
 
   const data_status = {
     tweet_count_7d: tweetCount7d,
@@ -416,8 +392,35 @@ export async function GET(request: NextRequest) {
     };
   }
 
-  // Override rollup engagement_rate and reach with window-aggregate values from x_tweets
-  const baseRollup = rollupFromWindows ?? legacyRollup;
+  // Rollup: from x_window_aggregates when present, else computed from x_tweets (windowMetrics). Same response shape.
+  const rollupFromWindowMetrics =
+    !rollupFromWindows &&
+    (windowMetrics["7"] || windowMetrics["30"] || windowMetrics["90"])
+      ? ({
+          posts_7d: windowMetrics["7"]?.tweet_count ?? 0,
+          posts_30d: windowMetrics["30"]?.tweet_count ?? 0,
+          posts_90d: windowMetrics["90"]?.tweet_count ?? 0,
+          avg_likes_7d: windowMetrics["7"]?.tweet_count
+            ? (windowMetrics["7"].total_engagement_window ?? 0) / windowMetrics["7"].tweet_count
+            : 0,
+          avg_likes_30d: windowMetrics["30"]?.tweet_count
+            ? (windowMetrics["30"].total_engagement_window ?? 0) / windowMetrics["30"].tweet_count
+            : 0,
+          avg_likes_90d: windowMetrics["90"]?.tweet_count
+            ? (windowMetrics["90"].total_engagement_window ?? 0) / windowMetrics["90"].tweet_count
+            : 0,
+          avg_replies_7d: 0,
+          avg_replies_30d: 0,
+          avg_replies_90d: 0,
+          engagement_rate_7d: windowMetrics["7"]?.engagement_rate_pct ?? 0,
+          engagement_rate_30d: windowMetrics["30"]?.engagement_rate_pct ?? 0,
+          engagement_rate_90d: windowMetrics["90"]?.engagement_rate_pct ?? 0,
+          reach_proxy_7d: windowMetrics["7"]?.potential_reach_value ?? 0,
+          reach_proxy_30d: windowMetrics["30"]?.potential_reach_value ?? 0,
+          reach_proxy_90d: windowMetrics["90"]?.potential_reach_value ?? 0,
+        } as Record<string, unknown>)
+      : null;
+  const baseRollup = rollupFromWindows ?? rollupFromWindowMetrics;
   const rollup =
     baseRollup && typeof baseRollup === "object"
       ? {

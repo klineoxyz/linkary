@@ -337,6 +337,8 @@ export async function GET(request: NextRequest) {
   type WindowMetric = {
     tweet_count: number;
     total_engagement_window: number;
+    total_likes_window: number;
+    total_replies_window: number;
     total_impressions_window: number;
     engagement_rate_pct: number;
     engagement_rate_is_estimated: boolean;
@@ -357,15 +359,12 @@ export async function GET(request: NextRequest) {
       return d >= startStr && d <= todayStr;
     });
     const tweet_count = inWindow.length;
-    const total_engagement_window = inWindow.reduce(
-      (s, t) =>
-        s +
-        (Number(t.like_count) || 0) +
-        (Number(t.reply_count) || 0) +
-        (Number(t.repost_count) || 0) +
-        (Number(t.quote_count) || 0),
-      0
-    );
+    const total_likes_window = inWindow.reduce((s, t) => s + (Number(t.like_count) || 0), 0);
+    const total_replies_window = inWindow.reduce((s, t) => s + (Number(t.reply_count) || 0), 0);
+    const total_engagement_window =
+      total_likes_window +
+      total_replies_window +
+      inWindow.reduce((s, t) => s + (Number(t.repost_count) || 0) + (Number(t.quote_count) || 0), 0);
     const total_impressions_window = inWindow.reduce((s, t) => s + (Number(t.impression_count) || 0), 0);
     const hasImpressions = total_impressions_window > 0;
     const engagement_rate_pct =
@@ -382,6 +381,8 @@ export async function GET(request: NextRequest) {
     windowMetrics[String(days)] = {
       tweet_count,
       total_engagement_window,
+      total_likes_window,
+      total_replies_window,
       total_impressions_window,
       engagement_rate_pct,
       engagement_rate_is_estimated,
@@ -393,6 +394,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Rollup: from x_window_aggregates when present, else computed from x_tweets (windowMetrics). Same response shape.
+  // KPI fallback: avg_likes_* = sum(like_count)/tweet_count, avg_replies_* = sum(reply_count)/tweet_count (not total_engagement).
   const rollupFromWindowMetrics =
     !rollupFromWindows &&
     (windowMetrics["7"] || windowMetrics["30"] || windowMetrics["90"])
@@ -401,17 +403,23 @@ export async function GET(request: NextRequest) {
           posts_30d: windowMetrics["30"]?.tweet_count ?? 0,
           posts_90d: windowMetrics["90"]?.tweet_count ?? 0,
           avg_likes_7d: windowMetrics["7"]?.tweet_count
-            ? (windowMetrics["7"].total_engagement_window ?? 0) / windowMetrics["7"].tweet_count
+            ? (windowMetrics["7"].total_likes_window ?? 0) / windowMetrics["7"].tweet_count
             : 0,
           avg_likes_30d: windowMetrics["30"]?.tweet_count
-            ? (windowMetrics["30"].total_engagement_window ?? 0) / windowMetrics["30"].tweet_count
+            ? (windowMetrics["30"].total_likes_window ?? 0) / windowMetrics["30"].tweet_count
             : 0,
           avg_likes_90d: windowMetrics["90"]?.tweet_count
-            ? (windowMetrics["90"].total_engagement_window ?? 0) / windowMetrics["90"].tweet_count
+            ? (windowMetrics["90"].total_likes_window ?? 0) / windowMetrics["90"].tweet_count
             : 0,
-          avg_replies_7d: 0,
-          avg_replies_30d: 0,
-          avg_replies_90d: 0,
+          avg_replies_7d: windowMetrics["7"]?.tweet_count
+            ? (windowMetrics["7"].total_replies_window ?? 0) / windowMetrics["7"].tweet_count
+            : 0,
+          avg_replies_30d: windowMetrics["30"]?.tweet_count
+            ? (windowMetrics["30"].total_replies_window ?? 0) / windowMetrics["30"].tweet_count
+            : 0,
+          avg_replies_90d: windowMetrics["90"]?.tweet_count
+            ? (windowMetrics["90"].total_replies_window ?? 0) / windowMetrics["90"].tweet_count
+            : 0,
           engagement_rate_7d: windowMetrics["7"]?.engagement_rate_pct ?? 0,
           engagement_rate_30d: windowMetrics["30"]?.engagement_rate_pct ?? 0,
           engagement_rate_90d: windowMetrics["90"]?.engagement_rate_pct ?? 0,

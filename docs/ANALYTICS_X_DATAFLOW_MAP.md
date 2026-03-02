@@ -40,7 +40,7 @@ All of the above (except init/summary) are served by **one** request: `GET /api/
 **KPIs (decided approach):**
 
 - **Single approach:** KPIs are computed at request time from **x_tweets** and **x_daily_snapshots** (and profile/baseline for current followers and “since joining”). Optionally one rollup table (**x_window_aggregates**) can be used when present for 7/30/90 window sums and counts to avoid heavy aggregation; the API contract keeps the same shape either way.
-- **Documented choice:** API uses **x_window_aggregates** when available for posts_*, avg_likes_*, avg_replies_*, engagement_rate_*, reach_proxy_* (one rollup table). When x_window_aggregates is missing, the API computes the same metrics from **x_tweets** (and x_daily_snapshots for follower-related fields) so the response shape is stable. No mixing of analytics_snapshots or x_analytics_rollups for chart or primary KPI logic; those are legacy/fallback only if explicitly required elsewhere.
+- **Documented choice:** API uses **x_window_aggregates** when available for posts_*, avg_likes_*, avg_replies_*, engagement_rate_*, reach_proxy_* (one rollup table). When x_window_aggregates is missing, the API computes the same metrics from **x_tweets** so the response shape is stable. **KPI fallback correctness (from x_tweets):** avg_likes_* = sum(like_count)/tweet_count, avg_replies_* = sum(reply_count)/tweet_count; do not use total_engagement for "avg likes". Chart math (engagement rate, cadence) is unchanged. No use of analytics_snapshots or x_analytics_rollups for chart or primary KPI logic.
 
 **DB tables used for analytics:**
 
@@ -52,8 +52,39 @@ All of the above (except init/summary) are served by **one** request: `GET /api/
 | **profiles** | followers_total, x_last_profile_sync_at, x_last_tweets_sync_at, twitter_username | Current follower count and sync timestamps. |
 | **profile_analytics_baseline** | “Since joining” deltas | Baseline values only. |
 | **x_top_drivers** | Top drivers table | Top drivers only. |
-| **analytics_snapshots** | Legacy fallback for snapshots if x_daily_snapshots empty | Not authoritative; optional fallback. |
-| **x_analytics_rollups** | Legacy fallback for rollup when x_window_aggregates missing | Not authoritative; optional fallback. |
+| **analytics_snapshots** | Not used by /api/analytics/x | Legacy; do not use for charts or KPIs. |
+| **x_analytics_rollups** | Not used by /api/analytics/x | Legacy; do not use for charts or KPIs. |
+
+---
+
+## 2b) API endpoints involved (Analytics UI)
+
+Every endpoint the Analytics UI calls:
+
+| Endpoint | Method | Params / headers | Purpose |
+|----------|--------|------------------|---------|
+| **/api/analytics/x** | GET | Query: `window=7d\|30d\|90d`, optional `debug=1`. Header: `Authorization: Bearer <token>`. | Main payload: charts, KPIs, rollup, snapshots, freshness. |
+| **/api/analytics/init-status** | GET | Header: `Authorization: Bearer <token>`. | Initialized state, 90d aggregate, snapshot count, backfill job status. |
+| **/api/analytics/x/summary** | GET | Header: `Authorization: Bearer <token>`. | 7D/30D/90D window aggregates from x_window_aggregates; backfilling state; snapshot day count. |
+| **/api/analytics/x/rebuild** | POST | Header: `Authorization: Bearer <token>`. | Enqueue **x_backfill_90d** for current user (idempotent). Does not run the job; Railway worker drains the queue. |
+| **/api/analytics/x/job** | GET | Header: `Authorization: Bearer <token>`. | Latest x_backfill_90d job for current user (poll for status after rebuild). |
+| **/api/analytics/backfill-90** | POST | Header: `Authorization: Bearer <token>`. | Enqueue x_backfill_90d for current user when not yet initialized (rate-limited). Used by “Start backfill” / empty state. |
+| **/api/analytics/ensure-backfill** | GET or POST | Header: `Authorization: Bearer <token>`. Optional POST body: `{ profile_id }` or `{ username }`. | Ensures today’s snapshot is written (upsert x_daily_snapshots) and enqueues x_backfill_90d if no 90d data. Called on login / first load. |
+| **/api/profile/refresh-x-insights** | POST | Header: `Authorization: Bearer <token>`. | Refreshes X “insights” cache (top followers, mentions, account feed). Writes: **x_top_followers_cache**, **x_account_feed_cache**, **x_mentions_weekly_cache**, **x_insights_refresh_state**. Does **not** write x_tweets or x_daily_snapshots. Used by “Refresh insights” in some dashboards. |
+
+**Rebuild / refresh (what they trigger):**
+
+- **“Refresh data” (Analytics page):** Calls **POST /api/analytics/x/rebuild** → inserts one row into **analytics_jobs** (job_type = `x_backfill_90d`). Railway worker (queue drainer) picks it up and runs the backfill (ingestXTweets, snapshots, x_window_aggregates, etc.). UI then polls **GET /api/analytics/x/job** and refetches **/api/analytics/x** when job completes.
+- **“Refresh insights” (Insights tab / Profile dashboard):** Calls **POST /api/profile/refresh-x-insights** → **refreshXInsightsForProfile** → writes cache tables only (no x_tweets, no x_daily_snapshots).
+- **“Refresh now” (public one-pager):** Calls **GET/POST /api/analytics/ensure-backfill** → writes today’s **x_daily_snapshots** row and enqueues **x_backfill_90d** if needed.
+
+**“Refresh data” button flow (exact):**
+
+1. User clicks “Refresh data” (or “Rebuild analytics”).
+2. Frontend: **POST /api/analytics/x/rebuild** with `Authorization: Bearer <token>`.
+3. Backend: Validates token; if no existing queued/running x_backfill_90d for this profile, inserts into **analytics_jobs** (owner_type=profile, owner_id=user.id, job_type=x_backfill_90d, status=queued). Returns `{ job: { id, status, run_after, ... }, existing: true|false }`.
+4. Frontend: Polls **GET /api/analytics/x/job** every 5s until status is `done` or `failed`; optionally refetches /api/analytics/x and /api/analytics/x/summary when done.
+5. **Who runs the job:** Railway worker (run:jobs / queue drainer) processes analytics_jobs and executes the backfill (writes **x_tweets**, **x_daily_snapshots**, **x_window_aggregates**, **profiles.analytics_initialized_at**, etc.). Vercel does not run the job.
 
 ---
 
@@ -64,7 +95,7 @@ All of the above (except init/summary) are served by **one** request: `GET /api/
 | Field | Value |
 |-------|--------|
 | **Script name** | `apps/worker/src/sync_x_tweets_weekly.ts` (Railway cron name e.g. `sync:x:tweets:daily`). Vercel: `POST /api/cron/sync-x-tweets-weekly`. |
-| **Schedule** | Railway: every 6h recommended (e.g. `0 */6 * * *`). Vercel: if configured. |
+| **Schedule** | Railway only: every 6h recommended (e.g. `0 */6 * * *`). Vercel route: manual/admin only, not scheduled. |
 | **Filter query** | Profiles with `twitter_username` not null; batch limit (see script). |
 | **Writes** | **x_tweets** (via ingestXTweets). Then **x_analytics_rollups** and **x_top_drivers** (refreshXRollupsForProfile). Updates **profiles.x_last_tweets_sync_at**. |
 
@@ -73,8 +104,8 @@ All of the above (except init/summary) are served by **one** request: `GET /api/
 | Field | Value |
 |-------|--------|
 | **Script name** | Worker: `apps/worker/src/sync_x_profiles_daily.ts` (Railway: `sync:x:profiles:daily`). Vercel: `POST /api/cron/sync-x-profiles-daily`. |
-| **Schedule** | **Must run DAILY.** Railway: e.g. `0 8 * * *`. Vercel: if configured. |
-| **Filter query** | Worker: `profiles` where `is_indexed = true`, `twitter_username` not null, and (`x_last_profile_sync_at` null or &lt; 24h). Optional: priority profile IDs (env) always included first. Limit raised to 500. Vercel cron: same filter + limit 500; optional priority header/param. |
+| **Schedule** | **Must run DAILY.** Railway only: e.g. `0 8 * * *`. Vercel route: manual/admin only, **not scheduled**. |
+| **Filter query** | Worker: `profiles` where `is_indexed = true`, `twitter_username` not null, and (`x_last_profile_sync_at` null or &lt; 24h). Priority profile IDs (env) prepended; limit 500. Vercel: same base + limit 500 + priority header; no 24h throttle (see § Snapshot selection logic). |
 | **Writes** | **profiles** (followers_total, x_last_profile_sync_at, etc.). **x_daily_snapshots** (one row per profile for **today** only). **profile_analytics_baseline** (first insert only). Upsert key: (owner_type, owner_id, day) — idempotent. |
 
 ### Backfill job
@@ -84,6 +115,25 @@ All of the above (except init/summary) are served by **one** request: `GET /api/
 | **Who enqueues** | ensure-backfill (on login/first load), backfill-90 (user retry), rebuild (user-triggered). All insert into **analytics_jobs** (job_type = `x_backfill_90d`). |
 | **Who drains** | Railway: queue drainer (`run:jobs`) every 2–5 min. Processes analytics_jobs. |
 | **What it fills** | **x_tweets** (ingestXTweets, up to 1000). **x_daily_snapshots** (90 days; followers only for today, rest from tweet aggregates). **x_window_aggregates** (7/30/90). **profiles.analytics_initialized_at**. |
+
+### Single scheduling authority
+
+**Railway worker cron is the only scheduled job** for daily snapshots and tweet sync. Do not schedule Vercel cron routes for these.
+
+- **Daily snapshots:** Schedule only on Railway (e.g. `sync:x:profiles:daily` at `0 8 * * *`). **Do not** add `/api/cron/sync-x-profiles-daily` to Vercel Cron. The Vercel route exists for **manual/admin triggers only** (e.g. with CRON_SECRET and optional X-Priority-Profile-Ids).
+- **Tweet sync:** Schedule only on Railway (e.g. sync:x:tweets every 6h). **Do not** schedule `/api/cron/sync-x-tweets-weekly` (or equivalent) on Vercel unless it is explicitly a manual trigger.
+
+**Confirmation:** Railway is the scheduler for X analytics ingestion (snapshots + tweets). Vercel cron routes for X are not scheduled; they are for on-demand or admin use only.
+
+### Snapshot selection logic (worker vs manual route)
+
+| | Railway worker (`sync_x_profiles_daily.ts`) | Vercel manual (`POST /api/cron/sync-x-profiles-daily`) |
+|--|---------------------------------------------|--------------------------------------------------------|
+| **Filter** | `is_indexed = true`, `twitter_username` not null, and (`x_last_profile_sync_at` is null or &lt; 24h). Limit 500. Priority profile IDs (env) prepended. | Same base: `is_indexed = true`, `twitter_username` not null. Limit 500. Priority profile IDs from header `X-Priority-Profile-Ids` prepended. |
+| **24h throttle** | **Yes.** Only profiles not synced in the last 24h (or never) are selected. | **No.** Does not filter by `x_last_profile_sync_at`, so an admin can force re-sync the same profile the same day. |
+| **Why differ** | Prevents over-calling the X API when running daily; each profile at most once per day. | Manual/admin run may need to re-sync a specific profile (e.g. after fix or for priority user). |
+
+To align behavior: if the manual route should also respect 24h throttle, add the same `.or(\`x_last_profile_sync_at.is.null,x_last_profile_sync_at.lt.${past24}\`)` to the Vercel route. Currently they differ by design (scheduled = throttle, manual = no throttle).
 
 ---
 

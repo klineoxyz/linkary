@@ -8,7 +8,7 @@
  *    If API provides label/levelKey/color (e.g. in score_json), use them; else derive from rawScore via fallback bands.
  * 3. Pill: EthosPill component renders "<Label> • <rawScore>" with tier color (hex → inline style; else Tailwind by levelKey).
  *    Used on public profile (PublicOnePager), profile overview (App ScorePills), PublicStandaloneProfile, Insights (InsightsSnapshot).
- * 4. Scoring prep: ethosToComponentScore(rawScore) → 0–100. Not wired into REP calculation yet.
+ * 4. REP component: ethosToComponentScore(rawScore) → 0–100 by tier bands (Untrusted→10 … Renowned→100). Used in repScore.ts.
  */
 
 export type EthosBadge = {
@@ -96,12 +96,27 @@ export function normalizeEthosBadge(input: EthosBadgeInput): EthosBadge {
   };
 }
 
+/** ETHOS raw score bands → REP component score (0–100). 2600–2800 = 100; 2200–2399 = 80; etc. */
+const ETHOS_COMPONENT_BANDS: Array<{ min: number; max: number; component: number }> = [
+  { min: 0, max: 799, component: 10 },       // Untrusted
+  { min: 800, max: 1199, component: 20 },    // Questionable
+  { min: 1200, max: 1399, component: 30 },   // Neutral
+  { min: 1400, max: 1599, component: 40 },   // Known
+  { min: 1600, max: 1799, component: 50 },   // Established
+  { min: 1800, max: 1999, component: 60 },   // Reputable
+  { min: 2000, max: 2199, component: 70 },   // Exemplary
+  { min: 2200, max: 2399, component: 80 },  // Distinguished
+  { min: 2400, max: 2599, component: 90 },  // Revered
+  { min: 2600, max: 2800, component: 100 },  // Renowned
+];
+
 /**
- * Convert ETHOS raw score to a 0–100 component score for future use in composite scoring.
- * NOT wired into REP calculation yet.
+ * Convert ETHOS raw score (0–2800) to a 0–100 component score for REP SocialBase.
+ * Tiered bands: 0–799→10, 800–1199→20, … 2600–2800→100. Used in repScore.ts for the ETHOS row in the breakdown.
  */
 export function ethosToComponentScore(rawScore: number | null): number | null {
   if (rawScore == null || !Number.isFinite(rawScore)) return null;
   const clamped = Math.max(0, Math.min(2800, rawScore));
-  return Math.round((clamped / 2800) * 100);
+  const band = ETHOS_COMPONENT_BANDS.find((b) => clamped >= b.min && clamped <= b.max);
+  return band?.component ?? 10;
 }

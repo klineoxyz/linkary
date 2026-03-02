@@ -3,9 +3,11 @@
  * Store in profiles.rep_score. Always returns integer 0–100; always writes when write !== false.
  *
  * SocialBase: When verified_followers is null, we use engagement + ethos + follower_tier only (no penalty).
+ * ETHOS component: raw score (0–2800) is normalized to 0–100 via ethosToComponentScore (linear scale raw/2800*100).
  * TODO: When verified_followers data is available, add verified_ratio component; until then reweight over the rest.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ethosToComponentScore } from "@/lib/ethosAdapter";
 
 export type RepBreakdown = {
   rep: number;
@@ -151,7 +153,7 @@ export async function computeRep(
     const engagementScore = logScale100(avgEngagementPerPost ?? 0, ENGAGEMENT_PER_POST_CAP);
     const verifiedRatioScore =
       verifiedFollowers != null && followers > 0 ? clamp((verifiedFollowers / followers) * 100, 0, 100) : null;
-    const ethosNorm = ethos != null ? clamp(ethos, 0, 100) : 0;
+    const ethosNorm = ethos != null ? (ethosToComponentScore(ethos) ?? 0) : 0;
     const followerTierScore = logScale100(followers, 500000);
 
     detail.socialBase = {

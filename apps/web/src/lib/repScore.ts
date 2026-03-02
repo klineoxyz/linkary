@@ -20,6 +20,8 @@ export type RepBreakdownDetail = {
     followerTierScore: number;
     engagementScore: number;
     ethosScore: number;
+    /** Raw ETHOS score (0–2800) for display only; used by UI for tier label + pill. */
+    ethosRaw?: number | null;
     verifiedRatioScore: number | null;
   };
   proofOfWork: {
@@ -156,6 +158,7 @@ export async function computeRep(
       followerTierScore,
       engagementScore,
       ethosScore: ethosNorm,
+      ethosRaw: ethos ?? undefined,
       verifiedRatioScore,
     };
 

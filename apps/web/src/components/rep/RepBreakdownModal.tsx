@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/figma/app/components/ui/dialog";
 import type { RepBreakdownDetail } from "@/lib/repScore";
+import { EthosPill } from "@/components/EthosPill";
 
 type BreakdownResponse = {
   rep: number;
@@ -118,7 +119,16 @@ export function RepBreakdownModal({
                   <>
                     <div className="flex justify-between"><span>Followers tier</span><span className="tabular-nums">{roundScore(b.socialBase.followerTierScore)}</span></div>
                     <div className="flex justify-between"><span>Engagement</span><span className="tabular-nums">{roundScore(b.socialBase.engagementScore)}</span></div>
-                    <div className="flex justify-between"><span>ETHOS</span><span className="tabular-nums">{roundScore(b.socialBase.ethosScore)}</span></div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center min-w-0">
+                        {b.socialBase.ethosRaw != null ? (
+                          <EthosPill ethosScore={b.socialBase.ethosRaw} className="text-[10px] px-2 py-0.5" />
+                        ) : (
+                          "ETHOS"
+                        )}
+                      </span>
+                      <span className="tabular-nums shrink-0">→ {roundScore(b.socialBase.ethosScore)}</span>
+                    </div>
                     {b.socialBase.verifiedRatioScore != null && (
                       <div className="flex justify-between"><span>Verified followers</span><span className="tabular-nums">{roundScore(b.socialBase.verifiedRatioScore)}</span></div>
                     )}

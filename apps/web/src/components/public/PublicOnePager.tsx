@@ -11,6 +11,7 @@ import dynamic from "next/dynamic";
 import { PublicHeader } from "./PublicHeader";
 import { MetricCard } from "./MetricCard";
 import { CaseStudyCard } from "./CaseStudyCard";
+import { EthosPill } from "../EthosPill";
 
 const StickyClaimBar = dynamic(
   () => import("./StickyClaimBar").then((m) => ({ default: m.StickyClaimBar })),
@@ -464,9 +465,9 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
             {isProfile && (
               <>
                 <div className="rounded-md border border-border bg-background p-4">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Community credibility score">ETHOS</div>
-                  <div className={`mt-1 text-3xl font-semibold tabular-nums ${reputationMetricClass(entity.ethosScore ?? null, ETHOS_PRIMARY_THRESHOLD)}`}>{entity.ethosScore ?? "—"}</div>
-                  <p className="mt-1 text-xs text-muted-foreground">Community credibility score</p>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2" title="Community credibility score">ETHOS</div>
+                  <EthosPill ethosScore={entity.ethosScore ?? null} ethosPayload={"ethosResults" in entity && entity.ethosResults ? { score: entity.ethosScore, ...entity.ethosResults } : undefined} className="mt-1" />
+                  <p className="mt-2 text-xs text-muted-foreground">Community credibility score</p>
                 </div>
                 <div className="rounded-md border border-border bg-background p-4">
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide" title="Engagement-based influence">XScore</div>

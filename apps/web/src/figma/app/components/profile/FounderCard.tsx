@@ -1,6 +1,7 @@
 import React from 'react';
 import { BadgeCheck, Play } from 'lucide-react';
 import { Card } from '../ui/card';
+import { EthosPill } from '@/components/EthosPill';
 
 export interface FounderData {
   name: string;
@@ -75,10 +76,8 @@ export function FounderCard({ founder }: FounderCardProps) {
         {/* Reputation Scores */}
         {(founder.ethos || founder.xscore || founder.socialPower) && (
           <div className="mt-3 flex flex-wrap gap-2">
-            {founder.ethos && (
-              <div className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs font-medium" style={{ color: '#334155' }}>
-                ETHOS {founder.ethos}
-              </div>
+            {founder.ethos != null && (
+              <EthosPill ethosScore={founder.ethos} />
             )}
             {founder.xscore && (
               <div className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs font-medium" style={{ color: '#334155' }}>

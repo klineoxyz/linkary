@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Star, TrendingUp, TrendingDown, CheckCircle2, ExternalLink, X as XIcon, Linkedin, Youtube, Twitch, Instagram, Globe, Copy, Check, MapPin, Languages, Briefcase, Award, Calendar, Clock, Download, FileText, Target, TrendingUpIcon, Link2, MousePointer, Eye, Plus, GripVertical, X, Edit2, Image, Play, Zap, ArrowRight, MessageSquare, Sparkles, Shield, LayoutGrid, BadgeCheck, AlertTriangle, XCircle } from "lucide-react";
+import { EthosPill } from "@/components/EthosPill";
 
 /**
  * Linkary Shared Components
@@ -528,11 +529,9 @@ export function MemberCard({
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-white text-sm truncate">{name}</div>
         <div className="text-xs text-neutral-400 truncate">{role}</div>
-        {ethos && (
+        {ethos != null && (
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
-              ETHOS {ethos}
-            </span>
+            <EthosPill ethosScore={ethos} className="text-[10px]" />
           </div>
         )}
       </div>

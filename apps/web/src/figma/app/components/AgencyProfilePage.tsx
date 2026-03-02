@@ -1,5 +1,6 @@
 import React from "react";
 import { ProfileAvatar } from "./SharedComponents";
+import { EthosPill } from "@/components/EthosPill";
 import { BadgeCheck, ExternalLink, Users, Eye, TrendingUp, Briefcase, Award } from "lucide-react";
 
 /**
@@ -36,9 +37,7 @@ function Stars({ value = 5 }: { value: number }) {
 function ScorePills({ ethos, xscore, reputationIndex, socialPower }: any) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-        🛡️ ETHOS {ethos}
-      </span>
+      <EthosPill ethosScore={ethos} />
       <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
         ⚡ XScore {xscore}
       </span>

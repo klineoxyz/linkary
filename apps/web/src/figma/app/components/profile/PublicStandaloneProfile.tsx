@@ -7,6 +7,7 @@ import { TokenPriceCard, TokenData } from './TokenPriceCard';
 import { FounderCard, FounderData } from './FounderCard';
 import { VerificationBadge } from './VerificationBadge';
 import { Stars } from '../ui/stars';
+import { EthosPill } from '@/components/EthosPill';
 
 export interface PublicProfileData {
   type: 'individual' | 'project' | 'company' | 'brand' | 'agency';
@@ -194,10 +195,8 @@ export function PublicStandaloneProfile({ data, isLoggedIn = false, onLogin }: P
           {/* Reputation Scores */}
           {(data.ethos || data.xscore || data.reputationIndex || data.socialPower) && (
             <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
-              {data.ethos && (
-                <div className="rounded-full border border-border bg-accent px-3 py-1.5 text-sm font-semibold" style={{ color: '#334155' }}>
-                  ETHOS {data.ethos}
-                </div>
+              {data.ethos != null && (
+                <EthosPill ethosScore={data.ethos} />
               )}
               {data.xscore && (
                 <div className="rounded-full border border-border bg-accent px-3 py-1.5 text-sm font-semibold" style={{ color: '#334155' }}>

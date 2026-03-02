@@ -152,6 +152,7 @@ import XSpacesPage from "./components/XSpacesPage";
 import OrgDetailPage from "./components/OrgDetailPage";
 import DealDetailPage from "./components/DealDetailPage";
 import AffiliationAmbassadorSection from "./components/AffiliationAmbassadorSection";
+import { EthosPill } from "@/components/EthosPill";
 import LoginPage from "./components/LoginPage";
 import OnboardingPage from "./components/OnboardingPage";
 import { supabase } from "@/lib/supabase";
@@ -583,11 +584,7 @@ function Stars({ value = 5 }) {
 function ScorePills({ ethos, xscore, reputationIndex, repScore, socialPower, onRepClick }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {ethos != null && (
-        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-          <Shield className="h-3.5 w-3.5 stroke-[1.75]" /> ETHOS {ethos}
-        </span>
-      )}
+      <EthosPill ethosScore={ethos} />
       {xscore != null && (
         <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
           <Zap className="h-3.5 w-3.5 stroke-[1.75]" /> XScore {xscore}

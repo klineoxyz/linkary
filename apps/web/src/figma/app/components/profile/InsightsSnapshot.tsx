@@ -18,6 +18,7 @@ import type { ScoreBreakdownRow } from "../profile-dashboard";
 import { BarChart3 } from "lucide-react";
 import { computeLinkaryPower } from "@/lib/linkaryScore";
 import { authFetcher, SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
+import { EthosPill } from "@/components/EthosPill";
 
 const DEDUP_MS = 60_000;
 
@@ -445,6 +446,14 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
                 {isOwn && me?.twitter_username?.trim() ? `@${me.twitter_username.replace(/^@/, "")}` : isOwn ? "Not connected" : "—"}
               </dd>
             </div>
+            {isOwn && (
+              <div>
+                <dt className="text-xs font-semibold text-foreground">ETHOS</dt>
+                <dd className="mt-1">
+                  <EthosPill ethosScore={meStats?.ethos ?? null} />
+                </dd>
+              </div>
+            )}
             <div>
               <dt className="text-xs font-semibold text-foreground">Data health</dt>
               <dd className="mt-1 flex flex-wrap gap-2">

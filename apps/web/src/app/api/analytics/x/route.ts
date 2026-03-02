@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
   const windowRaw = (searchParams.get("window") ?? "30d").toLowerCase();
   const window: WindowParam = windowRaw === "7d" || windowRaw === "90d" ? windowRaw : "30d";
   const windowDays = window === "7d" ? 7 : window === "30d" ? 30 : 90;
+  const debug = searchParams.get("debug") === "1";
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest) {
       .order("as_of", { ascending: false }),
     supabase
       .from("x_tweets")
-      .select("tweet_id, tweeted_at, like_count, reply_count, repost_count")
+      .select("tweet_id, tweeted_at, like_count, reply_count, repost_count, quote_count, impression_count")
       .eq("profile_id", user.id)
       .gte("tweeted_at", ninetyDaysAgoStr)
       .order("tweeted_at", { ascending: true }),
@@ -218,7 +219,6 @@ export async function GET(request: NextRequest) {
           reach_proxy_90d: w90 ? num(w90.reach_avg) : 0,
         } as Record<string, unknown>)
       : null;
-  const rollup = rollupFromWindows ?? legacyRollup;
   // source = worker only when real 90d backfill is complete (avoids "false worker" from single daily cron row).
   // ready90 scoped by (owner_type, owner_id) above so org vs profile cannot collide.
   const ready90 = !!w90 || !!(profile?.analytics_initialized_at ?? null);
@@ -240,13 +240,21 @@ export async function GET(request: NextRequest) {
 
   const LIKES_OUTLIER = 2000;
   const REPOSTS_OUTLIER = 500;
-  type TweetRow = { tweet_id: string; tweeted_at: string; like_count: number; reply_count: number; repost_count: number };
-  const tweetsLast30 = (tweetsLast30Res.data ?? []) as TweetRow[];
+  type TweetRow = {
+    tweet_id: string;
+    tweeted_at: string;
+    like_count: number;
+    reply_count: number;
+    repost_count: number;
+    quote_count?: number | null;
+    impression_count?: number | null;
+  };
+  const tweetsLast90 = (tweetsLast30Res.data ?? []) as TweetRow[];
   const dayAgg = new Map<
     string,
     { likes: number; replies: number; reposts: number; tweets_count: number; max_like_tweet_id: string | null; max_like_count: number }
   >();
-  for (const t of tweetsLast30) {
+  for (const t of tweetsLast90) {
     const day = t.tweeted_at?.slice(0, 10) ?? "";
     if (!day) continue;
     const cur = dayAgg.get(day) ?? {
@@ -295,9 +303,9 @@ export async function GET(request: NextRequest) {
   };
 
   // Data status: tweet counts per window and rollup freshness (for "Data status" line and empty-state logic)
-  const tweetCount7d = tweetsLast30.filter((t) => (t.tweeted_at ?? "") >= sevenDaysAgoStr).length;
-  const tweetCount30d = tweetsLast30.filter((t) => (t.tweeted_at ?? "") >= thirtyDaysAgoStr).length;
-  const lastTweetAt30d = tweetsLast30.length > 0 ? tweetsLast30[tweetsLast30.length - 1]?.tweeted_at ?? null : null;
+  const tweetCount7d = tweetsLast90.filter((t) => (t.tweeted_at ?? "") >= sevenDaysAgoStr).length;
+  const tweetCount30d = tweetsLast90.filter((t) => (t.tweeted_at ?? "") >= thirtyDaysAgoStr).length;
+  const lastTweetAt30d = tweetsLast90.length > 0 ? tweetsLast90[tweetsLast90.length - 1]?.tweeted_at ?? null : null;
   const lastTweetAt = lastTweet90dAt ?? lastTweetAt30d ?? null;
   const rollupUpdatedAt =
     (windowRows.length > 0
@@ -315,26 +323,116 @@ export async function GET(request: NextRequest) {
     rollup_updated_at: rollupUpdatedAt,
   };
 
-  // Chart points: only real data, no zero-fill. Scoped to selected window.
+  // Chart points: only real data for follower/engagement; cadence is zero-filled. Scoped to selected window.
   const snapshotsInWindow = snapshots.filter((s) => s.snapshot_date >= windowStartStr).sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
-  const tweetsInWindow = tweetsLast30.filter((t) => (t.tweeted_at ?? "").slice(0, 10) >= windowStartStr);
-  const dayAggForWindow = new Map<string, { posts: number; likes: number; replies: number; reposts: number }>();
+  const tweetsInWindow = tweetsLast90.filter((t) => (t.tweeted_at ?? "").slice(0, 10) >= windowStartStr);
+  const dayAggForWindow = new Map<string, { posts: number; likes: number; replies: number; reposts: number; quotes: number; impressions: number }>();
   for (const t of tweetsInWindow) {
     const day = t.tweeted_at?.slice(0, 10) ?? "";
     if (!day) continue;
-    const cur = dayAggForWindow.get(day) ?? { posts: 0, likes: 0, replies: 0, reposts: 0 };
+    const cur = dayAggForWindow.get(day) ?? { posts: 0, likes: 0, replies: 0, reposts: 0, quotes: 0, impressions: 0 };
     cur.posts += 1;
     cur.likes += Number(t.like_count) || 0;
     cur.replies += Number(t.reply_count) || 0;
     cur.reposts += Number(t.repost_count) || 0;
+    cur.quotes += Number(t.quote_count) || 0;
+    cur.impressions += Number(t.impression_count) || 0;
     dayAggForWindow.set(day, cur);
   }
+
+  const followersTotal = profile?.followers_total != null && Number.isFinite(profile.followers_total) ? Number(profile.followers_total) : 0;
+
+  // Per-window metrics (7, 30, 90) computed from x_tweets: engagement rate = total_engagement / total_impressions (or fallback), potential reach = total impressions or estimated.
+  type WindowMetric = {
+    tweet_count: number;
+    total_engagement_window: number;
+    total_impressions_window: number;
+    engagement_rate_pct: number;
+    engagement_rate_is_estimated: boolean;
+    potential_reach_value: number;
+    potential_reach_label: string;
+    potential_reach_is_estimated: boolean;
+    posting_cadence: number;
+  };
+  const windowStarts: { days: 7 | 30 | 90; startStr: string }[] = [
+    { days: 7, startStr: sevenDaysAgoStr },
+    { days: 30, startStr: thirtyDaysAgoStr },
+    { days: 90, startStr: ninetyDaysAgoStr },
+  ];
+  const windowMetrics: Record<string, WindowMetric> = {};
+  for (const { days, startStr } of windowStarts) {
+    const inWindow = tweetsLast90.filter((t) => (t.tweeted_at ?? "").slice(0, 10) >= startStr);
+    const tweet_count = inWindow.length;
+    const total_engagement_window = inWindow.reduce(
+      (s, t) =>
+        s +
+        (Number(t.like_count) || 0) +
+        (Number(t.reply_count) || 0) +
+        (Number(t.repost_count) || 0) +
+        (Number(t.quote_count) || 0),
+      0
+    );
+    const total_impressions_window = inWindow.reduce((s, t) => s + (Number(t.impression_count) || 0), 0);
+    const hasImpressions = total_impressions_window > 0;
+    const engagement_rate_pct =
+      hasImpressions
+        ? (total_engagement_window / total_impressions_window) * 100
+        : followersTotal > 0 && tweet_count > 0
+          ? (total_engagement_window / (followersTotal * tweet_count)) * 100
+          : 0;
+    const engagement_rate_is_estimated = !hasImpressions;
+    const potential_reach_value = hasImpressions ? total_impressions_window : followersTotal * tweet_count;
+    const potential_reach_label = hasImpressions ? "Total Impressions" : "Estimated Max Exposure";
+    const potential_reach_is_estimated = !hasImpressions;
+    const posting_cadence = days > 0 ? tweet_count / days : 0;
+    windowMetrics[String(days)] = {
+      tweet_count,
+      total_engagement_window,
+      total_impressions_window,
+      engagement_rate_pct,
+      engagement_rate_is_estimated,
+      potential_reach_value,
+      potential_reach_label,
+      potential_reach_is_estimated,
+      posting_cadence,
+    };
+  }
+
+  // Override rollup engagement_rate and reach with window-aggregate values from x_tweets
+  const baseRollup = rollupFromWindows ?? legacyRollup;
+  const rollup =
+    baseRollup && typeof baseRollup === "object"
+      ? {
+          ...baseRollup,
+          engagement_rate_7d: windowMetrics["7"]?.engagement_rate_pct ?? num((baseRollup as Record<string, unknown>).engagement_rate_7d),
+          engagement_rate_30d: windowMetrics["30"]?.engagement_rate_pct ?? num((baseRollup as Record<string, unknown>).engagement_rate_30d),
+          engagement_rate_90d: windowMetrics["90"]?.engagement_rate_pct ?? num((baseRollup as Record<string, unknown>).engagement_rate_90d),
+          reach_proxy_7d: windowMetrics["7"]?.potential_reach_value ?? num((baseRollup as Record<string, unknown>).reach_proxy_7d),
+          reach_proxy_30d: windowMetrics["30"]?.potential_reach_value ?? num((baseRollup as Record<string, unknown>).reach_proxy_30d),
+          reach_proxy_90d: windowMetrics["90"]?.potential_reach_value ?? num((baseRollup as Record<string, unknown>).reach_proxy_90d),
+        }
+      : baseRollup;
 
   const follower_growth: Array<{ date: string; followers: number | null }> = snapshotsInWindow
     .filter((s) => s.followers_total != null)
     .map((s) => ({ date: s.snapshot_date, followers: s.followers_total ?? null }));
 
+  // Engagement rate chart: only real days with data; use impressions when available to avoid divide-by-zero / 100% spikes
   const engagement_rate: Array<{ date: string; engagement_pct: number | null; posts: number }> = (() => {
+    const fromTweets = Array.from(dayAggForWindow.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, agg]) => {
+        const totalEng = agg.likes + agg.replies + agg.reposts + agg.quotes;
+        const engagement_pct: number | null =
+          agg.impressions > 0
+            ? (totalEng / agg.impressions) * 100
+            : agg.posts > 0
+              ? null
+              : null;
+        return { date, engagement_pct, posts: agg.posts };
+      })
+      .filter((p) => p.posts > 0 || p.engagement_pct != null);
+    if (fromTweets.length > 0) return fromTweets;
     if (snapshotsInWindow.length > 0) {
       return snapshotsInWindow
         .filter((s) => (s.tweets_count ?? 0) > 0 || s.engagement_rate != null)
@@ -346,24 +444,21 @@ export async function GET(request: NextRequest) {
           return { date: s.snapshot_date, engagement_pct, posts };
         });
     }
-    return Array.from(dayAggForWindow.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([date, agg]) => {
-        const engagement_pct = agg.posts > 0 ? ((agg.likes + agg.replies + agg.reposts) / agg.posts) * 100 : null;
-        return { date, engagement_pct, posts: agg.posts };
-      });
+    return [];
   })();
 
-  const posting_cadence: Array<{ date: string; posts: number }> = (() => {
-    if (snapshotsInWindow.length > 0) {
-      return snapshotsInWindow
-        .filter((s) => (s.tweets_count ?? 0) > 0)
-        .map((s) => ({ date: s.snapshot_date, posts: s.tweets_count ?? 0 }));
-    }
-    return Array.from(dayAggForWindow.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([date, agg]) => ({ date, posts: agg.posts }));
-  })();
+  // Posting cadence chart: zero-filled so we always have exactly window_days (7, 30, or 90) points
+  const fullWindowDates: string[] = [];
+  for (let i = 0; i < windowDays; i++) {
+    const d = new Date(windowStart);
+    d.setDate(d.getDate() + i);
+    fullWindowDates.push(d.toISOString().slice(0, 10));
+  }
+  fullWindowDates.sort((a, b) => a.localeCompare(b));
+  const posting_cadence: Array<{ date: string; posts: number }> = fullWindowDates.map((date) => ({
+    date,
+    posts: dayAggForWindow.get(date)?.posts ?? 0,
+  }));
 
   const chart_points = {
     follower_growth,
@@ -371,7 +466,8 @@ export async function GET(request: NextRequest) {
     posting_cadence,
   };
 
-  return ok({
+  const currentWindowMetric = windowMetrics[String(windowDays)];
+  const payload: Record<string, unknown> = {
     profile: profile ?? {},
     rollup: rollup ?? null,
     topDrivers,
@@ -386,5 +482,27 @@ export async function GET(request: NextRequest) {
     data_status,
     chart_points,
     diagnostics,
-  });
+    window_metrics: windowMetrics,
+    window_days: windowDays,
+    tweet_count: currentWindowMetric?.tweet_count ?? data_status.tweet_count_7d ?? data_status.tweet_count_30d ?? data_status.tweet_count_90d,
+    engagement_rate_pct: currentWindowMetric?.engagement_rate_pct ?? null,
+    engagement_rate_is_estimated: currentWindowMetric?.engagement_rate_is_estimated ?? false,
+    posting_cadence: currentWindowMetric?.posting_cadence ?? null,
+    potential_reach_value: currentWindowMetric?.potential_reach_value ?? null,
+    potential_reach_label: currentWindowMetric?.potential_reach_label ?? "Total Impressions",
+    potential_reach_is_estimated: currentWindowMetric?.potential_reach_is_estimated ?? false,
+  };
+  if (debug && currentWindowMetric) {
+    payload.debug = {
+      window_days: windowDays,
+      tweet_count_window: currentWindowMetric.tweet_count,
+      total_engagement_window: currentWindowMetric.total_engagement_window,
+      total_impressions_window: currentWindowMetric.total_impressions_window,
+      engagement_rate_is_estimated: currentWindowMetric.engagement_rate_is_estimated,
+      potential_reach_label: currentWindowMetric.potential_reach_label,
+      potential_reach_is_estimated: currentWindowMetric.potential_reach_is_estimated,
+      cadence_points_count: posting_cadence.length,
+    };
+  }
+  return ok(payload);
 }

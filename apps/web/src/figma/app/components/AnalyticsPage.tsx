@@ -135,6 +135,19 @@ type XAnalyticsData = {
     engagement_rate: Array<{ date: string; engagement_pct: number | null; posts: number }>;
     posting_cadence: Array<{ date: string; posts: number }>;
   } | null;
+  potential_reach_label?: string;
+  potential_reach_is_estimated?: boolean;
+  engagement_rate_is_estimated?: boolean;
+  debug?: {
+    window_days?: number;
+    tweet_count_window?: number;
+    total_engagement_window?: number;
+    total_impressions_window?: number;
+    engagement_rate_is_estimated?: boolean;
+    potential_reach_label?: string;
+    potential_reach_is_estimated?: boolean;
+    cadence_points_count?: number;
+  };
   diagnostics?: {
     top_day_last30_from_x_tweets: {
       day: string;
@@ -190,9 +203,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
   const base = typeof window !== "undefined" ? window.location.origin : "";
 
   const swrOpts = { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS };
-  // Analytics X data: key includes window so 7D/30D/90D switch fetches the correct chart_points from API
+  // Analytics X data: key includes window so 7D/30D/90D switch fetches the correct chart_points from API; include debug=1 when ?debug=1
   const windowParam = timePeriod === "7D" ? "7d" : timePeriod === "30D" ? "30d" : "90d";
-  const analyticsXKey = `/api/analytics/x?window=${windowParam}`;
+  const analyticsXKey = `/api/analytics/x?window=${windowParam}${showDebugPanel ? "&debug=1" : ""}`;
   const analyticsSwrOpts = { revalidateOnFocus: true, dedupingInterval: 30_000, refreshInterval: 90_000 };
   const { data: initSwr, mutate: mutateInit } = useSWR<InitStatus>(
     "/api/analytics/init-status",
@@ -225,6 +238,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         freshness: xSwr.freshness as XAnalyticsData["freshness"],
         data_status: (xSwr.data_status as DataStatus) ?? null,
         chart_points: (xSwr.chart_points as XAnalyticsData["chart_points"]) ?? null,
+        potential_reach_label: typeof xSwr.potential_reach_label === "string" ? xSwr.potential_reach_label : undefined,
+        potential_reach_is_estimated: xSwr.potential_reach_is_estimated === true,
+        engagement_rate_is_estimated: xSwr.engagement_rate_is_estimated === true,
+        debug: xSwr.debug as XAnalyticsData["debug"],
         diagnostics: xSwr.diagnostics as XAnalyticsData["diagnostics"],
       });
     }
@@ -557,7 +574,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       delta30D: engagementDelta30 ?? 0,
       delta90D: engagementDelta90 ?? 0,
       signal: "good",
-      insight: rollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
+      insight: rollup
+        ? (xAnalyticsData?.engagement_rate_is_estimated
+            ? "Window aggregate (engagement/impressions). Estimated from followers×posts when impressions missing."
+            : "Window aggregate: total engagement ÷ total impressions for selected period.")
+        : "Sync from Integrations to see trends",
       sparklineData: undefined,
       sinceJoining: baseline && baselineEngagement > 0 ? pctSince(engagementRateByPeriod, baselineEngagement) : undefined,
     },
@@ -599,7 +620,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
     },
     {
       id: "reach",
-      label: "Potential Reach",
+      label: xAnalyticsData?.potential_reach_label ?? "Potential Reach",
       value: xAnalyticsData
         ? (reachProxyByPeriod >= 1e6 ? `${(reachProxyByPeriod / 1e6).toFixed(1)}M` : reachProxyByPeriod >= 1e3 ? `${(reachProxyByPeriod / 1e3).toFixed(1)}K` : String(Math.round(reachProxyByPeriod)))
         : "—",
@@ -607,7 +628,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
       delta30D: reachDelta30 ?? 0,
       delta90D: reachDelta90 ?? 0,
       signal: "good",
-      insight: rollup ? "Estimated unique accounts that could see your content; capped at follower count. From rollup for selected period. Updates after rebuild/backfill." : "Sync from Integrations to see trends",
+      insight: rollup
+        ? (xAnalyticsData?.potential_reach_is_estimated
+            ? "Estimated max exposure (followers × posts); connect X for Total Impressions when impressions data is available."
+            : "Sum of impressions for the selected window. From rollup for selected period.")
+        : "Sync from Integrations to see trends",
       sparklineData: undefined,
       sinceJoining: baseline && baselineReach30 > 0 ? pctSince(reachProxyByPeriod, baselineReach30) : undefined,
     },
@@ -1175,6 +1200,18 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                 <p><span className="font-semibold text-foreground">Last tweet:</span> {dataStatus?.last_tweet_at ? formatTimeAgo(dataStatus.last_tweet_at) : "none"}</p>
                 <p><span className="font-semibold text-foreground">Rollup updated:</span> {dataStatus?.rollup_updated_at ? formatTimeAgo(dataStatus.rollup_updated_at) : "unknown"}</p>
                 <p><span className="font-semibold text-foreground">Points:</span> growth {followerGrowthPoints.length}, engagement {engagementRatePoints.length}, cadence {postingCadencePoints.length}</p>
+                {xAnalyticsData?.debug != null && (
+                  <>
+                    <p><span className="font-semibold text-foreground">window_days:</span> {xAnalyticsData.debug.window_days ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">tweet_count_window:</span> {xAnalyticsData.debug.tweet_count_window ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">total_engagement_window:</span> {xAnalyticsData.debug.total_engagement_window ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">total_impressions_window:</span> {xAnalyticsData.debug.total_impressions_window ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">engagement_rate_is_estimated:</span> {String(xAnalyticsData.debug.engagement_rate_is_estimated ?? false)}</p>
+                    <p><span className="font-semibold text-foreground">potential_reach_label:</span> {xAnalyticsData.debug.potential_reach_label ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">potential_reach_is_estimated:</span> {String(xAnalyticsData.debug.potential_reach_is_estimated ?? false)}</p>
+                    <p><span className="font-semibold text-foreground">cadence_points_count:</span> {xAnalyticsData.debug.cadence_points_count ?? "—"} (should be 7/30/90)</p>
+                  </>
+                )}
               </div>
             )}
           </motion.div>

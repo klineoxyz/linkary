@@ -434,21 +434,37 @@ export async function GET(request: NextRequest) {
   }
   fullWindowDates.sort((a, b) => a.localeCompare(b));
 
-  // Follower snapshot map (include day before window for delta on first day)
-  const dailyFollowerMap = new Map<string, number | null>();
-  const dayBeforeWindow = (() => {
-    const d = new Date(windowStart);
-    d.setDate(d.getDate() - 1);
+  // Earliest snapshot date we have (dailyRows ordered by day desc, so last is earliest)
+  const earliestSnapshotDate =
+    dailyRows.length > 0
+      ? dailyRows.reduce((min, r) => (r.day < min ? r.day : min), dailyRows[0].day)
+      : null;
+  // Limit follower chart to available history: no fabricated data before first snapshot
+  const effectiveFollowerWindowStart =
+    earliestSnapshotDate && earliestSnapshotDate > windowStartStr ? earliestSnapshotDate : windowStartStr;
+
+  // Follower chart dates: only [effectiveFollowerWindowStart, windowEndStr] inclusive
+  const followerChartDates: string[] = [];
+  const effStart = new Date(effectiveFollowerWindowStart + "T12:00:00Z");
+  const windowEnd = new Date(windowEndStr + "T12:00:00Z");
+  for (let d = new Date(effStart); d <= windowEnd; d.setUTCDate(d.getUTCDate() + 1)) {
+    followerChartDates.push(d.toISOString().slice(0, 10));
+  }
+
+  const dayBeforeFollowerWindow = (() => {
+    const d = new Date(effectiveFollowerWindowStart + "T12:00:00Z");
+    d.setUTCDate(d.getUTCDate() - 1);
     return d.toISOString().slice(0, 10);
   })();
+  const dailyFollowerMap = new Map<string, number | null>();
   for (const r of dailyRows) {
     const day = r.day;
-    if (day >= dayBeforeWindow && day <= windowEndStr)
+    if (day >= dayBeforeFollowerWindow && day <= windowEndStr)
       dailyFollowerMap.set(day, r.followers != null ? Number(r.followers) : null);
   }
 
-  // Follower growth: follower_delta = today_followers - yesterday_followers; full window; exactly windowDays points
-  const follower_growth: Array<{ date: string; follower_delta: number | null }> = fullWindowDates.map((date) => {
+  // Follower growth: follower_delta = today_followers - yesterday_followers; only dates we have snapshot coverage for
+  const follower_growth: Array<{ date: string; follower_delta: number | null }> = followerChartDates.map((date) => {
     const todayVal = dailyFollowerMap.get(date);
     const prevDate = (() => {
       const d = new Date(date + "T12:00:00Z");
@@ -460,6 +476,12 @@ export async function GET(request: NextRequest) {
       return { date, follower_delta: null };
     return { date, follower_delta: todayVal - yesterdayVal };
   });
+
+  const follower_data_coverage_days = follower_growth.filter((p) => p.follower_delta !== null).length;
+  const follower_window_days = follower_growth.length;
+  const engagement_data_coverage_days = fullWindowDates.filter(
+    (d) => (dayAggForWindow.get(d)?.posts ?? 0) > 0
+  ).length;
 
   // Engagement rate chart: daily engagement_rate = daily_engagement_sum / daily_impressions_sum; 0 if impressions = 0; full window
   const engagement_rate: Array<{ date: string; engagement_pct: number; posts: number }> = fullWindowDates.map((date) => {
@@ -496,6 +518,7 @@ export async function GET(request: NextRequest) {
   const follower_last_synced_at = profile?.x_last_profile_sync_at ?? null;
 
   const currentWindowMetric = windowMetrics[String(windowDays)];
+  const tweet_count_window = currentWindowMetric?.tweet_count ?? data_status.tweet_count_7d ?? data_status.tweet_count_30d ?? data_status.tweet_count_90d ?? 0;
   const payload: Record<string, unknown> = {
     profile: profile ?? {},
     rollup: rollup ?? null,
@@ -519,7 +542,12 @@ export async function GET(request: NextRequest) {
     window_days: windowDays,
     window_start: windowStartStr,
     window_end: windowEndStr,
-    tweet_count: currentWindowMetric?.tweet_count ?? data_status.tweet_count_7d ?? data_status.tweet_count_30d ?? data_status.tweet_count_90d,
+    tweet_count: tweet_count_window,
+    tweet_count_window,
+    follower_data_coverage_days,
+    follower_earliest_snapshot_date: earliestSnapshotDate,
+    follower_window_days,
+    engagement_data_coverage_days,
     engagement_rate_pct: currentWindowMetric?.engagement_rate_pct ?? null,
     engagement_rate_is_estimated: currentWindowMetric?.engagement_rate_is_estimated ?? false,
     posting_cadence: currentWindowMetric?.posting_cadence ?? null,
@@ -534,6 +562,10 @@ export async function GET(request: NextRequest) {
       window_end: windowEndStr,
       latest_tweet_date: latestTweetDate,
       latest_follower_snapshot_date: latestFollowerSnapshotDate,
+      follower_data_coverage_days,
+      follower_earliest_snapshot_date: earliestSnapshotDate,
+      follower_window_days,
+      engagement_data_coverage_days,
       chart_points_count: {
         follower_growth: follower_growth.length,
         engagement_rate: engagement_rate.length,

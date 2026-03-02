@@ -142,6 +142,12 @@ type XAnalyticsData = {
   tweets_last_synced_at?: string | null;
   follower_last_synced_at?: string | null;
   follower_data_stale?: boolean;
+  tweet_count_window?: number;
+  follower_data_coverage_days?: number;
+  follower_earliest_snapshot_date?: string | null;
+  follower_window_days?: number;
+  engagement_data_coverage_days?: number;
+  window_days?: number;
   debug?: {
     window_days?: number;
     window_start?: string;
@@ -254,8 +260,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
         potential_reach_label: typeof xSwr.potential_reach_label === "string" ? xSwr.potential_reach_label : undefined,
         potential_reach_is_estimated: xSwr.potential_reach_is_estimated === true,
         engagement_rate_is_estimated: xSwr.engagement_rate_is_estimated === true,
+        tweet_count_window: typeof xSwr.tweet_count_window === "number" ? xSwr.tweet_count_window : undefined,
+        follower_data_coverage_days: typeof xSwr.follower_data_coverage_days === "number" ? xSwr.follower_data_coverage_days : undefined,
+        follower_earliest_snapshot_date: typeof xSwr.follower_earliest_snapshot_date === "string" ? xSwr.follower_earliest_snapshot_date : undefined,
+        follower_window_days: typeof xSwr.follower_window_days === "number" ? xSwr.follower_window_days : undefined,
+        engagement_data_coverage_days: typeof xSwr.engagement_data_coverage_days === "number" ? xSwr.engagement_data_coverage_days : undefined,
         debug: xSwr.debug as XAnalyticsData["debug"],
         diagnostics: xSwr.diagnostics as XAnalyticsData["diagnostics"],
+        ...(typeof (xSwr as Record<string, unknown>).window_days === "number" && { window_days: (xSwr as Record<string, unknown>).window_days as number }),
       });
     }
   }, [xSwr]);
@@ -1152,6 +1164,25 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
           })}
         </div>
 
+        {/* Freshness indicator: compact badge with status dot */}
+        {activePlatform === "x" && (() => {
+          const tweetsSync = xAnalyticsData?.tweets_last_synced_at ?? null;
+          const followerSync = xAnalyticsData?.follower_last_synced_at ?? null;
+          const syncDates = [tweetsSync, followerSync].filter(Boolean) as string[];
+          const latestSync = syncDates.length ? syncDates.reduce((a, b) => (new Date(a) > new Date(b) ? a : b)) : undefined;
+          const hoursAgo = latestSync ? (Date.now() - new Date(latestSync).getTime()) / 3600000 : null;
+          const dotClass = hoursAgo == null ? "bg-muted-foreground/50" : hoursAgo > 48 ? "bg-destructive" : hoursAgo > 24 ? "bg-amber-500" : "bg-primary/70";
+          return (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${dotClass}`} aria-hidden />
+              <span>
+                Data last synced:{" "}
+                {latestSync ? formatTimeAgo(latestSync) : "Not synced yet"}
+              </span>
+            </div>
+          );
+        })()}
+
         {/* Data freshness: tweets, snapshots, aggregates */}
         {activePlatform === "x" && (
           <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -1220,7 +1251,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                     <p><span className="font-semibold text-foreground">latest_tweet_date:</span> {xAnalyticsData.debug.latest_tweet_date ?? "—"}</p>
                     <p><span className="font-semibold text-foreground">latest_follower_snapshot_date:</span> {xAnalyticsData.debug.latest_follower_snapshot_date ?? "—"}</p>
                     <p><span className="font-semibold text-foreground">chart_points_count:</span> growth {xAnalyticsData.debug.chart_points_count?.follower_growth ?? "—"}, engagement {xAnalyticsData.debug.chart_points_count?.engagement_rate ?? "—"}, cadence {xAnalyticsData.debug.chart_points_count?.posting_cadence ?? xAnalyticsData.debug.cadence_points_count ?? "—"} (cadence should be 7/30/90)</p>
-                    <p><span className="font-semibold text-foreground">tweet_count_window:</span> {xAnalyticsData.debug.tweet_count_window ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">tweet_count_window:</span> {xAnalyticsData.debug.tweet_count_window ?? xAnalyticsData.tweet_count_window ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">follower_data_coverage_days / follower_window_days:</span> {xAnalyticsData.follower_data_coverage_days ?? "—"} / {xAnalyticsData.follower_window_days ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">follower_earliest_snapshot_date:</span> {xAnalyticsData.follower_earliest_snapshot_date ?? xAnalyticsData.debug?.follower_earliest_snapshot_date ?? "—"}</p>
+                    <p><span className="font-semibold text-foreground">engagement_data_coverage_days:</span> {xAnalyticsData.engagement_data_coverage_days ?? "—"}</p>
                     <p><span className="font-semibold text-foreground">total_engagement_window:</span> {xAnalyticsData.debug.total_engagement_window ?? "—"}</p>
                     <p><span className="font-semibold text-foreground">total_impressions_window:</span> {xAnalyticsData.debug.total_impressions_window ?? "—"}</p>
                     <p><span className="font-semibold text-foreground">engagement_rate_is_estimated:</span> {String(xAnalyticsData.debug.engagement_rate_is_estimated ?? false)}</p>
@@ -1497,6 +1531,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   <span>{followerGrowthPoints[0]?.date ?? ""}</span>
                   <span>{followerGrowthPoints[followerGrowthPoints.length - 1]?.date ?? ""}</span>
                 </div>
+                {typeof xAnalyticsData?.follower_data_coverage_days === "number" &&
+                  typeof xAnalyticsData?.window_days === "number" &&
+                  xAnalyticsData.follower_data_coverage_days < xAnalyticsData.window_days &&
+                  xAnalyticsData.follower_earliest_snapshot_date && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Historical follower data available since {xAnalyticsData.follower_earliest_snapshot_date}
+                  </p>
+                )}
               </div>
             </div>
             )}
@@ -1567,6 +1609,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   <span>{engagementRatePoints[0]?.date ?? ""}</span>
                   <span>{engagementRatePoints[engagementRatePoints.length - 1]?.date ?? ""}</span>
                 </div>
+                {typeof xAnalyticsData?.tweet_count_window === "number" && xAnalyticsData.tweet_count_window < 3 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Low posting activity during selected period
+                  </p>
+                )}
               </div>
             </div>
             )}
@@ -1624,6 +1671,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
                   <span>{postingCadencePoints[0]?.date ?? ""}</span>
                   <span>{postingCadencePoints[postingCadencePoints.length - 1]?.date ?? ""}</span>
                 </div>
+                {xAnalyticsData?.tweet_count_window === 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    No posts during selected period
+                  </p>
+                )}
               </div>
             </div>
             )}

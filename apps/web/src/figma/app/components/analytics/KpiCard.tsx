@@ -37,25 +37,25 @@ export function KpiCard({ data }: KpiCardProps) {
   const { label, value, delta, helper, badge, estimated } = data;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 md:p-5">
+    <div className="rounded-xl border border-border bg-card p-4" data-page="analytics">
       <div className="flex items-start justify-between gap-2 mb-1">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           {label}
           {estimated && (
-            <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-normal normal-case">
-              Estimated
+            <span className="ml-1 inline-block px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-normal normal-case">
+              Est.
             </span>
           )}
         </span>
-        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider shrink-0">
+        <span className="text-[10px] font-medium text-muted-foreground/80 uppercase tracking-wider shrink-0">
           {badge}
         </span>
       </div>
       <div className="flex items-baseline gap-2 flex-wrap">
-        <span className="text-2xl md:text-3xl font-bold text-foreground tabular-nums">{value}</span>
+        <span className="text-2xl font-bold text-foreground tabular-nums tracking-tight">{value}</span>
         <DeltaDisplay delta={delta} />
       </div>
-      <p className="text-xs text-muted-foreground mt-2 leading-snug">{helper}</p>
+      <p className="text-xs text-muted-foreground mt-1.5 leading-snug">{helper}</p>
     </div>
   );
 }

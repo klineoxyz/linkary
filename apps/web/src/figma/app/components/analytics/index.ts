@@ -7,6 +7,7 @@ export { EngagementChart } from "./EngagementChart";
 export { PostingCadenceChart } from "./PostingCadenceChart";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { TopDriversTable, type TopDriversTableProps } from "./TopDriversTable";
+export { ChartSkeleton } from "./ChartSkeleton";
 export { formatTimeAgo } from "./utils";
 export type {
   WindowPeriod,

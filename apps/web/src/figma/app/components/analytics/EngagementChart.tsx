@@ -4,6 +4,8 @@ import React, { useMemo } from "react";
 import { ChartCard } from "./ChartCard";
 import { EmptyState } from "./EmptyState";
 
+const CHART_H = 180;
+
 export interface EngagementChartProps {
   points: Array<{ date: string; engagement_pct: number; posts: number }>;
   coverageDays?: number;
@@ -34,7 +36,7 @@ export function EngagementChart({
     return { max: m, hasAnyData: true };
   }, [points]);
 
-  const coverage = coverageDays != null && windowDays != null ? `${coverageDays}/${windowDays} days` : undefined;
+  const coverage = coverageDays != null && windowDays != null ? `${coverageDays}/${windowDays}d` : undefined;
 
   if (noPostsInPeriod) {
     return (
@@ -47,7 +49,7 @@ export function EngagementChart({
   if (insufficientForTrend && summaryMessage) {
     return (
       <ChartCard title="Engagement Rate" coverage={coverage}>
-        <div className="py-6 px-3 text-center">
+        <div className="py-4 px-1">
           <p className="text-sm text-muted-foreground">{summaryMessage}</p>
           {tweetCountWindow != null && <p className="text-xs text-muted-foreground mt-1">Posts in window: {tweetCountWindow}</p>}
         </div>
@@ -65,17 +67,17 @@ export function EngagementChart({
 
   return (
     <ChartCard title="Engagement Rate" coverage={coverage}>
-      <div className="relative border-l border-b border-border" style={{ minHeight: 160 }}>
-        <div className="absolute left-0 top-0 text-[10px] text-muted-foreground -translate-y-0.5">{max.toFixed(1)}%</div>
-        <div className="absolute left-0 bottom-0 text-[10px] text-muted-foreground translate-y-0.5">0</div>
-        <div className="flex items-end gap-px pl-5 pb-4 pt-4" style={{ minHeight: 160 }}>
+      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1" style={{ minHeight: CHART_H }}>
+        <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{max.toFixed(1)}%</div>
+        <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>
+        <div className="flex items-end gap-0.5 pl-0" style={{ minHeight: CHART_H - 28 }}>
           {points.map((p, i) => {
             const val = p.engagement_pct;
-            const heightPct = Number.isFinite(val) ? Math.max(0.5, (val / max) * 100) : 0;
+            const heightPct = Number.isFinite(val) ? Math.max(1, (val / max) * 100) : 0;
             return (
               <div
                 key={`${p.date}-${i}`}
-                className="flex-1 min-w-[4px] rounded-t-sm bg-primary/70 border-t border-primary/50 transition-all"
+                className="flex-1 min-w-[6px] max-w-[12px] rounded-t border-t bg-primary/80 border-primary/50 transition-all"
                 style={{ height: `${heightPct}%` }}
                 title={`${p.date}: ${Number.isFinite(val) ? `${val.toFixed(1)}%` : "—"}`}
               />
@@ -83,7 +85,7 @@ export function EngagementChart({
           })}
         </div>
       </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground mt-2 px-1">
+      <div className="flex justify-between text-[10px] text-muted-foreground mt-2 px-0.5 tabular-nums">
         <span>{points[0]?.date ?? ""}</span>
         <span>{points[points.length - 1]?.date ?? ""}</span>
       </div>

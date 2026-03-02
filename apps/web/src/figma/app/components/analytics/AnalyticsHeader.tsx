@@ -41,12 +41,11 @@ export function AnalyticsHeader({
 }: AnalyticsHeaderProps) {
   return (
     <header
-      className="sticky top-0 z-40 rounded-2xl border border-border bg-card/95 backdrop-blur-sm py-3 px-4 md:px-5"
+      className="sticky top-0 z-40 rounded-xl border border-border bg-card shadow-sm py-2.5 px-4 md:px-5"
       data-page="analytics"
     >
-      <div className="flex flex-col gap-3 md:gap-0 md:flex-row md:items-center md:justify-between">
-        {/* Left: title + platform tabs + freshness */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+      <div className="flex flex-col gap-2 md:gap-0 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-4">
           {setRoute && (
             <a
               href="/dashboard"
@@ -60,25 +59,25 @@ export function AnalyticsHeader({
             </a>
           )}
           <div className="flex items-center gap-2">
-            <span className="text-lg font-semibold text-foreground">Analytics</span>
-            <div className="flex items-center gap-1.5">
+            <h1 className="text-base font-semibold text-foreground tracking-tight">Analytics</h1>
+            <div className="flex items-center gap-1">
               {PLATFORMS.map((p) => (
                 <span
                   key={p.id}
                   className={`
-                    inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium
+                    inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium
                     ${p.id === "x" ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground border border-border"}
-                    ${p.soon ? "opacity-70" : ""}
+                    ${p.soon ? "opacity-60" : ""}
                   `}
                 >
-                  {p.id === "x" ? <span aria-label="X">𝕏</span> : p.icon ? <p.icon className="w-3.5 h-3.5" /> : null}
+                  {p.id === "x" ? <span aria-label="X">𝕏</span> : p.icon ? <p.icon className="w-3 h-3" /> : null}
                   {p.label}
                   {p.soon && <span className="text-[10px] text-muted-foreground">Soon</span>}
                 </span>
               ))}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span
                 className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${tweetsSyncedAt ? "bg-primary/80" : "bg-muted-foreground/50"}`}

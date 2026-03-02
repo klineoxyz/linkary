@@ -28,9 +28,9 @@ export function TopDriversTable({ rows, emptyMessage = "No top drivers yet. Sync
         </p>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" data-page="analytics">
           <thead>
-            <tr className="border-b border-border bg-muted/30">
+            <tr className="border-b border-border bg-muted/40 sticky top-0 z-10 [&>th]:bg-muted/40">
               <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider py-3 px-4">Date</th>
               <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider py-3 px-4">Likes</th>
               <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider py-3 px-4">Replies</th>

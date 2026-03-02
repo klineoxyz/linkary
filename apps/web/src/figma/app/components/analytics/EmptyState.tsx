@@ -3,36 +3,35 @@
 import React from "react";
 
 export interface EmptyStateProps {
-  title?: string;
+  /** Single short message (no large blocks) */
   message: string;
-  /** Optional coverage text e.g. "3/30 days" */
+  /** Optional coverage e.g. "3/30 days" — shown inline or small */
   coverage?: string;
+  /** Optional subtle secondary refresh (header button is main CTA) */
   onRefresh?: () => void;
-  refreshLabel?: string;
   refreshDisabled?: boolean;
 }
 
 export function EmptyState({
-  title = "Building history",
   message,
   coverage,
   onRefresh,
-  refreshLabel = "Refresh",
   refreshDisabled,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-8 px-4 text-center min-h-[120px]">
-      <p className="text-sm font-medium text-foreground mb-1">{title}</p>
-      <p className="text-xs text-muted-foreground mb-2">{message}</p>
-      {coverage && <p className="text-xs text-muted-foreground mb-3">{coverage}</p>}
+    <div className="py-4 px-1">
+      <p className="text-sm text-muted-foreground">
+        {message}
+        {coverage && <span className="text-muted-foreground/90"> · {coverage}</span>}
+      </p>
       {onRefresh && (
         <button
           type="button"
           onClick={onRefresh}
           disabled={refreshDisabled}
-          className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+          className="mt-2 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 disabled:opacity-50"
         >
-          {refreshLabel}
+          Refresh
         </button>
       )}
     </div>

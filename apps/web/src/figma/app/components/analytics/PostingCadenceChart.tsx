@@ -4,6 +4,8 @@ import React, { useMemo } from "react";
 import { ChartCard } from "./ChartCard";
 import { EmptyState } from "./EmptyState";
 
+const CHART_H = 180;
+
 export interface PostingCadenceChartProps {
   points: Array<{ date: string; posts: number }>;
   tweetCountWindow?: number;
@@ -31,10 +33,11 @@ export function PostingCadenceChart({
   }, [points]);
 
   const hasAnyData = points.length > 0 && points.some((p) => (p.posts ?? 0) > 0);
+  const coverage = tweetCountWindow != null ? `${tweetCountWindow} posts` : undefined;
 
   if (noPostsInPeriod) {
     return (
-      <ChartCard title="Posting Cadence">
+      <ChartCard title="Posting Cadence" coverage={coverage}>
         <EmptyState message="No posts in the selected period." onRefresh={onRefresh} refreshDisabled={refreshDisabled} />
       </ChartCard>
     );
@@ -42,13 +45,11 @@ export function PostingCadenceChart({
 
   if (insufficientForTrend && summaryMessage) {
     return (
-      <ChartCard title="Posting Cadence">
-        <div className="py-6 px-3 text-center">
+      <ChartCard title="Posting Cadence" coverage={coverage}>
+        <div className="py-4 px-1">
           <p className="text-sm text-muted-foreground">{summaryMessage}</p>
           {tweetCountWindow != null && windowDays != null && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Posts in window: {tweetCountWindow} · {windowDays}d
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">{tweetCountWindow} posts · {windowDays}d</p>
           )}
         </div>
       </ChartCard>
@@ -57,25 +58,25 @@ export function PostingCadenceChart({
 
   if (!hasAnyData || points.length === 0) {
     return (
-      <ChartCard title="Posting Cadence">
+      <ChartCard title="Posting Cadence" coverage={coverage}>
         <EmptyState message="No data in this period." onRefresh={onRefresh} refreshDisabled={refreshDisabled} />
       </ChartCard>
     );
   }
 
   return (
-    <ChartCard title="Posting Cadence" coverage={tweetCountWindow != null ? `Posts in window: ${tweetCountWindow}` : undefined}>
-      <div className="relative border-l border-b border-border" style={{ minHeight: 160 }}>
-        <div className="absolute left-0 top-0 text-[10px] text-muted-foreground -translate-y-0.5">{maxPosts}</div>
-        <div className="absolute left-0 bottom-0 text-[10px] text-muted-foreground translate-y-0.5">0</div>
-        <div className="flex items-end gap-px pl-5 pb-4 pt-4" style={{ minHeight: 160 }}>
+    <ChartCard title="Posting Cadence" coverage={coverage}>
+      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1" style={{ minHeight: CHART_H }}>
+        <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{maxPosts}</div>
+        <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>
+        <div className="flex items-end gap-0.5 pl-0" style={{ minHeight: CHART_H - 28 }}>
           {points.map((p, i) => {
             const posts = p.posts ?? 0;
-            const heightPct = maxPosts > 0 ? Math.max(0.5, (posts / maxPosts) * 100) : 0;
+            const heightPct = maxPosts > 0 ? Math.max(1, (posts / maxPosts) * 100) : 0;
             return (
               <div
                 key={`${p.date}-${i}`}
-                className="flex-1 min-w-[4px] rounded-t-sm bg-primary/70 border-t border-primary/50 transition-all"
+                className="flex-1 min-w-[6px] max-w-[12px] rounded-t border-t bg-primary/80 border-primary/50 transition-all"
                 style={{ height: `${heightPct}%` }}
                 title={`${p.date}: ${posts} posts`}
               />
@@ -83,7 +84,7 @@ export function PostingCadenceChart({
           })}
         </div>
       </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground mt-2 px-1">
+      <div className="flex justify-between text-[10px] text-muted-foreground mt-2 px-0.5 tabular-nums">
         <span>{points[0]?.date ?? ""}</span>
         <span>{points[points.length - 1]?.date ?? ""}</span>
       </div>

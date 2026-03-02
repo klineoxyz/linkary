@@ -12,8 +12,8 @@ import {
   FollowerGrowthChart,
   EngagementChart,
   PostingCadenceChart,
-  EmptyState,
   TopDriversTable,
+  ChartSkeleton,
 } from "@/figma/app/components/analytics";
 import type {
   WindowPeriod,
@@ -555,6 +555,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         <KpiGrid cards={kpiCards} loading={xLoading} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {xLoading ? (
+            <>
+              <ChartSkeleton title="Follower Growth" />
+              <ChartSkeleton title="Engagement Rate" />
+            </>
+          ) : (
+          <>
           <FollowerGrowthChart
             points={followerGrowthPoints}
             coverageDays={xAnalyticsData?.follower_data_coverage_days}
@@ -584,8 +591,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             onRefresh={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)}
             refreshDisabled={rebuildLoading || rebuildJob?.status === "queued" || rebuildJob?.status === "running"}
           />
+          </>
+          )}
         </div>
 
+        {xLoading ? (
+          <ChartSkeleton title="Posting Cadence" />
+        ) : (
         <PostingCadenceChart
           points={postingCadencePoints}
           tweetCountWindow={xAnalyticsData?.tweet_count_window}
@@ -600,12 +612,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           onRefresh={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)}
           refreshDisabled={rebuildLoading || rebuildJob?.status === "queued" || rebuildJob?.status === "running"}
         />
+        )}
 
         {/* Signals: max 3, compact */}
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4" data-page="analytics">
           <h3 className="text-sm font-semibold text-foreground mb-2">Signals</h3>
           {signalsList.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Signals will appear as data builds.</p>
+            <p className="text-sm text-muted-foreground">Signals will appear as your data builds.</p>
           ) : (
             <ul className="space-y-2">
               {signalsList.slice(0, 3).map((s) => (

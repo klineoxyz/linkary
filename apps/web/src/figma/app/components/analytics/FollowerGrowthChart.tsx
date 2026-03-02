@@ -38,8 +38,8 @@ export function FollowerGrowthChart({
     return (
       <ChartCard title="Follower Growth" coverage={coverage}>
         <EmptyState
-          message="Follower history is still building. We need a few daily snapshots to show trends."
-          coverage={earliestDate ? `First snapshot: ${earliestDate}` : undefined}
+          message="Building history. A few daily snapshots needed for trends."
+          coverage={earliestDate ? `First: ${earliestDate}` : coverage}
           onRefresh={onRefresh}
           refreshDisabled={refreshDisabled}
         />
@@ -56,36 +56,34 @@ export function FollowerGrowthChart({
   }
 
   const zeroPct = min < 0 && max > 0 ? ((0 - min) / range) * 100 : min >= 0 ? 0 : 100;
+  const CHART_H = 180;
 
   return (
     <ChartCard title="Follower Growth" coverage={coverage}>
-      <div className="relative border-l border-b border-border" style={{ minHeight: 160 }}>
-        {/* Y-axis: 0 and max (and min if negative) */}
-        <div className="absolute left-0 top-0 text-[10px] text-muted-foreground -translate-y-0.5">{max}</div>
-        {min < 0 && <div className="absolute left-0 text-[10px] text-muted-foreground" style={{ bottom: `${zeroPct}%` }}>0</div>}
-        {min >= 0 && <div className="absolute left-0 bottom-0 text-[10px] text-muted-foreground translate-y-0.5">0</div>}
-        {/* Zero baseline line */}
+      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1" style={{ minHeight: CHART_H }}>
+        <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{max}</div>
+        <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>
         {min < 0 && max > 0 && (
           <div
-            className="absolute left-0 right-0 border-t border-dashed border-border/60 z-0"
-            style={{ bottom: `${zeroPct}%` }}
+            className="absolute left-0 right-0 border-t border-dashed border-border/70 z-0"
+            style={{ bottom: `calc(${zeroPct}% + 1.25rem)` }}
           />
         )}
-        <div className="flex items-end gap-px pl-5 pb-4 pt-4" style={{ minHeight: 160 }}>
+        <div className="flex items-end gap-0.5 pl-0" style={{ minHeight: CHART_H - 28 }}>
           {points.map((p, i) => {
             const val = p.follower_delta;
             const hasData = val !== null && val !== undefined && Number.isFinite(val);
-            const heightPct = hasData ? Math.max(0.5, (((val as number) - min) / range) * 100) : 0;
+            const heightPct = hasData ? Math.max(1, (((val as number) - min) / range) * 100) : 0;
             const isNegative = hasData && (val as number) < 0;
 
             if (!hasData) {
-              return <div key={p.date} className="flex-1 min-w-[4px]" title={`${p.date}: No snapshot`} />;
+              return <div key={p.date} className="flex-1 min-w-[6px]" title={`${p.date}: No snapshot`} />;
             }
             return (
               <div
                 key={`${p.date}-${i}`}
-                className={`flex-1 min-w-[4px] rounded-t-sm border-t transition-all ${
-                  isNegative ? "bg-amber-500/60 border-amber-500/50" : "bg-primary/70 border-primary/50"
+                className={`flex-1 min-w-[6px] max-w-[12px] rounded-t border-t transition-all ${
+                  isNegative ? "bg-amber-500/70 border-amber-500/50" : "bg-primary/80 border-primary/50"
                 }`}
                 style={{ height: `${heightPct}%` }}
                 title={`${p.date}: ${(val as number) >= 0 ? "+" : ""}${(val as number).toLocaleString()}`}
@@ -94,7 +92,7 @@ export function FollowerGrowthChart({
           })}
         </div>
       </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground mt-2 px-1">
+      <div className="flex justify-between text-[10px] text-muted-foreground mt-2 px-0.5 tabular-nums">
         <span>{points[0]?.date ?? ""}</span>
         <span>{points[points.length - 1]?.date ?? ""}</span>
       </div>

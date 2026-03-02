@@ -20,7 +20,15 @@ If the build completes but **Deploying outputs...** fails with *"We encountered 
 
 - If this repo is a **monorepo**, set **Root Directory** to `apps/web` in **Project → Settings → General** so the build and output paths are correct.
 
-## 5. Support
+## 5. “We encountered an internal error” during Deploying outputs
+
+If the build completes but **Deploying outputs...** then fails with *"We encountered an internal error. Please try again"*:
+
+- This is often a **Vercel-side** issue (transient or plan limit). The app has 170+ API routes (serverless functions). On **Hobby** you get only **12 functions** per deployment — upgrade to **Pro** or reduce function count.
+- **Retry** the deploy once or twice; clear **Build Cache** in Project → Settings → General, then redeploy.
+- Ensure **Root Directory** is `apps/web` for this monorepo.
+
+## 6. Support
 
 - [Vercel Status](https://status.vercel.com) for outages.
 - If it still fails, contact Vercel Support with the deployment URL and the log snippet where "Deploying outputs" fails.

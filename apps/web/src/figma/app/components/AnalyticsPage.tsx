@@ -131,8 +131,8 @@ type XAnalyticsData = {
   };
   data_status?: DataStatus | null;
   chart_points?: {
-    follower_growth: Array<{ date: string; followers: number | null }>;
-    engagement_rate: Array<{ date: string; engagement_pct: number | null; posts: number }>;
+    follower_growth: Array<{ date: string; follower_delta: number | null }>;
+    engagement_rate: Array<{ date: string; engagement_pct: number; posts: number }>;
     posting_cadence: Array<{ date: string; posts: number }>;
   } | null;
   potential_reach_label?: string;
@@ -1471,20 +1471,23 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: any) =>
               <div className="flex-1">
                 <div className="relative h-48 flex items-end gap-0.5 border-l border-b border-border">
                   {followerGrowthPoints.map((p, i) => {
-                    const val = Number(p.followers ?? 0);
-                    const max = Math.max(...followerGrowthPoints.map((x) => Number(x.followers ?? 0)), 1);
-                    const heightPct = (val / max) * 100;
+                    const val = p.follower_delta ?? 0;
+                    const max = Math.max(...followerGrowthPoints.map((x) => x.follower_delta ?? 0), 1);
+                    const min = Math.min(...followerGrowthPoints.map((x) => x.follower_delta ?? 0), 0);
+                    const range = max - min || 1;
+                    const heightPct = Math.max(0, ((val - min) / range) * 100);
+                    const isNegative = val < 0;
                     return (
                       <motion.div
                         key={p.date}
-                        className="flex-1 min-w-[4px] rounded-t-md bg-gradient-to-t from-chart-1/80 to-chart-1/40 border-t border-chart-1/50 relative group"
+                        className={`flex-1 min-w-[4px] rounded-t-md border-t relative group ${isNegative ? "bg-gradient-to-t from-destructive/60 to-destructive/30 border-destructive/50" : "bg-gradient-to-t from-chart-1/80 to-chart-1/40 border-chart-1/50"}`}
                         initial={{ height: 0 }}
                         animate={{ height: `${heightPct}%` }}
                         transition={{ duration: 0.3, delay: i * 0.02 }}
-                        title={`${p.date}: ${val.toLocaleString()}`}
+                        title={`${p.date}: ${val >= 0 ? "+" : ""}${val.toLocaleString()}`}
                       >
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-card border border-border rounded text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                          {p.date}: {val.toLocaleString()}
+                          {p.date}: {val >= 0 ? "+" : ""}{val.toLocaleString()}
                         </div>
                       </motion.div>
                     );

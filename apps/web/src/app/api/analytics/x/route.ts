@@ -425,7 +425,7 @@ export async function GET(request: NextRequest) {
         }
       : baseRollup;
 
-  // Full window dates: [windowStartStr, windowEndStr] inclusive = exactly windowDays points ending TODAY (no rollups)
+  // Full window dates: [windowStartStr, windowEndStr] inclusive = exactly windowDays points ending TODAY
   const fullWindowDates: string[] = [];
   for (let i = 0; i < windowDays; i++) {
     const d = new Date(windowStart);
@@ -434,31 +434,42 @@ export async function GET(request: NextRequest) {
   }
   fullWindowDates.sort((a, b) => a.localeCompare(b));
 
-  // Follower growth: ONLY from x_daily_snapshots; full window to today; missing days = null (gaps)
+  // Follower snapshot map (include day before window for delta on first day)
   const dailyFollowerMap = new Map<string, number | null>();
+  const dayBeforeWindow = (() => {
+    const d = new Date(windowStart);
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  })();
   for (const r of dailyRows) {
     const day = r.day;
-    if (day >= windowStartStr && day <= windowEndStr)
+    if (day >= dayBeforeWindow && day <= windowEndStr)
       dailyFollowerMap.set(day, r.followers != null ? Number(r.followers) : null);
   }
-  const follower_growth: Array<{ date: string; followers: number | null }> = fullWindowDates.map((date) => ({
-    date,
-    followers: dailyFollowerMap.get(date) ?? null,
-  }));
 
-  // Engagement rate chart: ONLY from x_tweets (raw tweets in window); sum engagement / sum impressions per day; no rollup/snapshot fallback
-  const engagement_rate: Array<{ date: string; engagement_pct: number | null; posts: number }> = Array.from(dayAggForWindow.entries())
-    .filter(([date]) => date >= windowStartStr && date <= windowEndStr)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([date, agg]) => {
-      const totalEng = agg.likes + agg.replies + agg.reposts + agg.quotes;
-      const engagement_pct: number | null =
-        agg.impressions > 0 ? (totalEng / agg.impressions) * 100 : agg.posts > 0 ? null : null;
-      return { date, engagement_pct, posts: agg.posts };
-    })
-    .filter((p) => p.posts > 0 || p.engagement_pct != null);
+  // Follower growth: follower_delta = today_followers - yesterday_followers; full window; exactly windowDays points
+  const follower_growth: Array<{ date: string; follower_delta: number | null }> = fullWindowDates.map((date) => {
+    const todayVal = dailyFollowerMap.get(date);
+    const prevDate = (() => {
+      const d = new Date(date + "T12:00:00Z");
+      d.setUTCDate(d.getUTCDate() - 1);
+      return d.toISOString().slice(0, 10);
+    })();
+    const yesterdayVal = dailyFollowerMap.get(prevDate);
+    if (todayVal == null || yesterdayVal == null || !Number.isFinite(todayVal) || !Number.isFinite(yesterdayVal))
+      return { date, follower_delta: null };
+    return { date, follower_delta: todayVal - yesterdayVal };
+  });
 
-  // Posting cadence: ONLY from x_tweets; zero-filled full window up to TODAY; exactly windowDays (7/30/90) points
+  // Engagement rate chart: daily engagement_rate = daily_engagement_sum / daily_impressions_sum; 0 if impressions = 0; full window
+  const engagement_rate: Array<{ date: string; engagement_pct: number; posts: number }> = fullWindowDates.map((date) => {
+    const agg = dayAggForWindow.get(date) ?? { likes: 0, replies: 0, reposts: 0, quotes: 0, impressions: 0, posts: 0 };
+    const totalEng = agg.likes + agg.replies + agg.reposts + agg.quotes;
+    const engagement_pct = agg.impressions > 0 ? (totalEng / agg.impressions) * 100 : 0;
+    return { date, engagement_pct, posts: agg.posts ?? 0 };
+  });
+
+  // Posting cadence: posts per day; zero-fill; exactly windowDays points
   const posting_cadence: Array<{ date: string; posts: number }> = fullWindowDates.map((date) => ({
     date,
     posts: dayAggForWindow.get(date)?.posts ?? 0,

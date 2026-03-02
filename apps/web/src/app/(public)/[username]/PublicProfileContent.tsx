@@ -614,7 +614,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 </div>
               </div>
             )}
-            <div className="mt-4"><CopyProfileLinkButton url={profileUrl} /></div>
           </header>
         );
         const heroVisible = visibleOrder.includes("hero") && (hasHeroImage || hasHeroVideo);
@@ -1064,7 +1063,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
       case "roles":
         if (!profile.roles?.length) return null;
         return (
-          <section className={rightSectionSpacing}>
+          <section className={sectionSpacing}>
             <div className={islandClass}>
               <SectionTitle>Roles</SectionTitle>
               <div className="flex flex-wrap gap-2">

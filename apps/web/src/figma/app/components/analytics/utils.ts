@@ -27,18 +27,19 @@ export function aggregateFollowerGrowthToWeekly(
     .map(([date, follower_delta]) => ({ date, follower_delta }));
 }
 
-/** Aggregate daily engagement_rate points into weekly (avg ER, sum posts). For 90D only. Pass-through is_estimated if any day in week was estimated. */
+/** Aggregate daily engagement_rate points into weekly (avg ER, sum posts). For 90D only. Pass-through is_estimated/is_capped if any day in week had it. */
 export function aggregateEngagementToWeekly(
-  points: Array<{ date: string; engagement_pct: number; posts: number; is_estimated?: boolean }>
-): Array<{ date: string; engagement_pct: number; posts: number; is_estimated?: boolean }> {
-  const byWeek = new Map<string, { totalPct: number; posts: number; count: number; anyEstimated: boolean }>();
+  points: Array<{ date: string; engagement_pct: number; posts: number; is_estimated?: boolean; is_capped?: boolean }>
+): Array<{ date: string; engagement_pct: number; posts: number; is_estimated?: boolean; is_capped?: boolean }> {
+  const byWeek = new Map<string, { totalPct: number; posts: number; count: number; anyEstimated: boolean; anyCapped: boolean }>();
   for (const p of points) {
     const week = getWeekKey(p.date);
-    const cur = byWeek.get(week) ?? { totalPct: 0, posts: 0, count: 0, anyEstimated: false };
+    const cur = byWeek.get(week) ?? { totalPct: 0, posts: 0, count: 0, anyEstimated: false, anyCapped: false };
     cur.totalPct += p.engagement_pct * (p.posts || 0);
     cur.posts += p.posts ?? 0;
     cur.count += 1;
     if (p.is_estimated) cur.anyEstimated = true;
+    if (p.is_capped) cur.anyCapped = true;
     byWeek.set(week, cur);
   }
   return Array.from(byWeek.entries())
@@ -48,6 +49,7 @@ export function aggregateEngagementToWeekly(
       engagement_pct: agg.posts > 0 ? agg.totalPct / agg.posts : 0,
       posts: agg.posts,
       is_estimated: agg.anyEstimated,
+      is_capped: agg.anyCapped,
     }));
 }
 

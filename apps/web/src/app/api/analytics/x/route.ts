@@ -499,15 +499,19 @@ export async function GET(request: NextRequest) {
   const min_snapshot_date = snapshotRowsInWindow.length > 0 ? snapshotRowsInWindow.reduce((a, r) => (r.day < a ? r.day : a), snapshotRowsInWindow[0].day) : null;
   const max_snapshot_date = snapshotRowsInWindow.length > 0 ? snapshotRowsInWindow.reduce((a, r) => (r.day > a ? r.day : a), snapshotRowsInWindow[0].day) : null;
 
-  // Engagement rate chart: daily ER = totalEng / impressions, or fallback totalEng / (followersTotal * posts) when impressions missing
-  const engagement_rate: Array<{ date: string; engagement_pct: number; posts: number; is_estimated?: boolean }> = fullWindowDates.map((date) => {
+  // Engagement rate chart: daily ER = totalEng / impressions (capped at 50% to avoid outlier days blowing scale), or fallback when impressions missing
+  const ER_CAP_PCT = 50;
+  const engagement_rate: Array<{ date: string; engagement_pct: number; posts: number; is_estimated?: boolean; is_capped?: boolean }> = fullWindowDates.map((date) => {
     const agg = dayAggForWindow.get(date) ?? { likes: 0, replies: 0, reposts: 0, quotes: 0, impressions: 0, posts: 0 };
     const totalEng = agg.likes + agg.replies + agg.reposts + agg.quotes;
     let engagement_pct: number;
     let is_estimated: boolean;
+    let is_capped: boolean = false;
     if (agg.impressions > 0) {
-      engagement_pct = (totalEng / agg.impressions) * 100;
+      const engagement_pct_raw = (totalEng / agg.impressions) * 100;
+      engagement_pct = Math.min(engagement_pct_raw, ER_CAP_PCT);
       is_estimated = false;
+      is_capped = engagement_pct_raw > ER_CAP_PCT;
     } else if (followersTotal > 0 && (agg.posts ?? 0) > 0) {
       engagement_pct = (totalEng / (followersTotal * (agg.posts ?? 0))) * 100;
       is_estimated = true;
@@ -515,8 +519,27 @@ export async function GET(request: NextRequest) {
       engagement_pct = 0;
       is_estimated = false;
     }
-    return { date, engagement_pct, posts: agg.posts ?? 0, is_estimated };
+    return { date, engagement_pct, posts: agg.posts ?? 0, is_estimated, ...(is_capped ? { is_capped: true } : {}) };
   });
+
+  // Debug: max raw/capped and outlier days (raw > cap)
+  let engagement_rate_max_raw: number | undefined;
+  let engagement_rate_max_capped: number | undefined;
+  let engagement_rate_outlier_days: Array<{ date: string; posts: number; totalEng: number; impressions: number; engagement_pct_raw: number }> = [];
+  if (debug) {
+    const withRaw = fullWindowDates.map((date) => {
+      const agg = dayAggForWindow.get(date) ?? { likes: 0, replies: 0, reposts: 0, quotes: 0, impressions: 0, posts: 0 };
+      const totalEng = agg.likes + agg.replies + agg.reposts + agg.quotes;
+      const raw = agg.impressions > 0 ? (totalEng / agg.impressions) * 100 : 0;
+      const capped = Math.min(raw, ER_CAP_PCT);
+      return { date, posts: agg.posts ?? 0, totalEng, impressions: agg.impressions, engagement_pct_raw: raw, engagement_pct_capped: capped };
+    });
+    const raws = withRaw.map((r) => r.engagement_pct_raw).filter(Number.isFinite);
+    engagement_rate_max_raw = raws.length > 0 ? Math.max(...raws) : undefined;
+    const cappedVals = engagement_rate.map((p) => p.engagement_pct).filter(Number.isFinite);
+    engagement_rate_max_capped = cappedVals.length > 0 ? Math.max(...cappedVals) : undefined;
+    engagement_rate_outlier_days = withRaw.filter((r) => r.engagement_pct_raw > ER_CAP_PCT).slice(0, 10).map((r) => ({ date: r.date, posts: r.posts, totalEng: r.totalEng, impressions: r.impressions, engagement_pct_raw: r.engagement_pct_raw }));
+  }
 
   const tweets_with_impressions = tweetsInWindow.filter((t) => (t.impression_count ?? 0) > 0).length;
   const tweets_missing_impressions = tweetsInWindow.length - tweets_with_impressions;
@@ -693,6 +716,9 @@ export async function GET(request: NextRequest) {
             potential_reach_is_estimated: currentWindowMetric.potential_reach_is_estimated,
           }
         : {}),
+      engagement_rate_max_raw: engagement_rate_max_raw,
+      engagement_rate_max_capped: engagement_rate_max_capped,
+      engagement_rate_outlier_days: engagement_rate_outlier_days,
     };
   }
   return ok(payload);

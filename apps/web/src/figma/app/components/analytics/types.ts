@@ -26,7 +26,7 @@ export type Baseline = {
 
 export type ChartPoints = {
   follower_growth: Array<{ date: string; follower_delta: number | null }>;
-  engagement_rate: Array<{ date: string; engagement_pct: number; posts: number; is_estimated?: boolean }>;
+  engagement_rate: Array<{ date: string; engagement_pct: number; posts: number; is_estimated?: boolean; is_capped?: boolean }>;
   posting_cadence: Array<{ date: string; posts: number }>;
 } | null;
 

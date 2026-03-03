@@ -473,6 +473,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     const raw = chartPoints?.posting_cadence ?? [];
     return useWeeklyForCharts ? aggregatePostingCadenceToWeekly(raw) : raw;
   }, [chartPoints?.posting_cadence, useWeeklyForCharts]);
+  const rawEngagementPoints = chartPoints?.engagement_rate ?? [];
+  const activeDaysEngagement = rawEngagementPoints.filter((p) => (p.posts ?? 0) > 0).length;
+  const noPostsInPeriodEngagement = activeDaysEngagement === 0;
+  const insufficientForTrendEngagement = activeDaysEngagement > 0 && activeDaysEngagement < 3;
+  const rawCadencePoints = chartPoints?.posting_cadence ?? [];
+  const activeDaysCadence = rawCadencePoints.filter((p) => (p.posts ?? 0) > 0).length;
+  const noPostsInPeriodCadence = activeDaysCadence === 0;
+  const insufficientForTrendCadence = activeDaysCadence > 0 && activeDaysCadence < 3;
   const followerCoverageDays = typeof xAnalyticsData?.follower_data_coverage_days === "number" ? xAnalyticsData.follower_data_coverage_days : 0;
   const followerInsufficient = followerGrowthPoints.length < 3;
 
@@ -691,8 +699,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             coverageDays={xAnalyticsData?.engagement_data_coverage_days}
             windowDays={xAnalyticsData?.window_days ?? periodDays}
             tweetCountWindow={xAnalyticsData?.tweet_count_window}
-            noPostsInPeriod={typeof xAnalyticsData?.tweet_count_window === "number" && xAnalyticsData.tweet_count_window === 0}
-            insufficientForTrend={engagementRatePoints.length < 3}
+            noPostsInPeriod={noPostsInPeriodEngagement}
+            insufficientForTrend={insufficientForTrendEngagement}
             summaryMessage={
               typeof xAnalyticsData?.engagement_data_coverage_days === "number" && xAnalyticsData.engagement_data_coverage_days <= 2
                 ? `Active days: ${xAnalyticsData.engagement_data_coverage_days} / ${xAnalyticsData.window_days ?? periodDays}. Not enough for trend chart yet.${typeof xAnalyticsData?.engagement_rate_pct === "number" ? ` Window ER: ${xAnalyticsData.engagement_rate_pct.toFixed(1)}%.` : ""}`
@@ -713,8 +721,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           points={postingCadencePoints}
           tweetCountWindow={xAnalyticsData?.tweet_count_window}
           windowDays={xAnalyticsData?.window_days ?? periodDays}
-          noPostsInPeriod={typeof xAnalyticsData?.tweet_count_window === "number" && xAnalyticsData.tweet_count_window === 0}
-          insufficientForTrend={postingCadencePoints.length < 3}
+          noPostsInPeriod={noPostsInPeriodCadence}
+          insufficientForTrend={insufficientForTrendCadence}
           summaryMessage={
             typeof xAnalyticsData?.tweet_count_window === "number" && xAnalyticsData.tweet_count_window <= 2
               ? `Posts in window: ${xAnalyticsData.tweet_count_window}. Cadence: ${(xAnalyticsData.tweet_count_window / (xAnalyticsData.window_days ?? periodDays)).toFixed(1)} posts/day. Not enough for trend chart yet.`

@@ -423,11 +423,11 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
   const leftOrderRaw = visibleOrder.filter((k) => LEFT_COLUMN_KEYS.includes(k));
   const rolesIdx = leftOrderRaw.indexOf("roles");
   const proofIdx = leftOrderRaw.indexOf("proof");
-  const leftOrder =
+  const leftOrder: SectionKey[] =
     rolesIdx !== -1 && proofIdx !== -1 && proofIdx < rolesIdx
-      ? [...leftOrderRaw.slice(0, proofIdx), "roles", "proof", ...leftOrderRaw.slice(proofIdx + 1, rolesIdx), ...leftOrderRaw.slice(rolesIdx + 1)]
+      ? ([...leftOrderRaw.slice(0, proofIdx), "roles", "proof", ...leftOrderRaw.slice(proofIdx + 1, rolesIdx), ...leftOrderRaw.slice(rolesIdx + 1)] as SectionKey[])
       : leftOrderRaw;
-  const rightOrder = visibleOrder.filter((k) => RIGHT_COLUMN_KEYS.includes(k));
+  const rightOrder: SectionKey[] = visibleOrder.filter((k) => RIGHT_COLUMN_KEYS.includes(k));
 
   const renderSection = (key: SectionKey): React.ReactNode => {
     switch (key) {

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
+import { createServerSupabase } from "@/lib/supabase/server";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -10,6 +11,8 @@ type WindowParam = "7d" | "30d" | "90d";
 /**
  * GET: X analytics for current user. Charts from x_tweets (engagement, cadence) and x_daily_snapshots (follower growth).
  * Identity: auth user id = profile id; API queries x_daily_snapshots by owner_type='profile', owner_id=user.id.
+ *
+ * Auth: prefers Authorization Bearer token (programmatic); if missing, uses cookie session (Next.js App Router).
  *
  * DB proof queries (run in Supabase SQL for the logged-in user's profile id = auth.uid()):
  *   -- Snapshot counts per window (replace :profile_id with the profile id from session)
@@ -22,9 +25,7 @@ type WindowParam = "7d" | "30d" | "90d";
  *   SELECT COUNT(*) FROM x_tweets WHERE profile_id = :profile_id AND tweeted_at >= (NOW() - INTERVAL '90 days');
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token || !supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabaseAnonKey) {
     return fail("UNAUTHORIZED", "Unauthorized", 401);
   }
 
@@ -34,12 +35,37 @@ export async function GET(request: NextRequest) {
   const windowDays = window === "7d" ? 7 : window === "30d" ? 30 : 90;
   const debug = searchParams.get("debug") === "1";
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !user?.id) {
-    return fail("INVALID_SESSION", "Invalid session", 401);
+  const authHeader = request.headers.get("authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  let supabase!: SupabaseClient;
+  let userId: string | undefined;
+  let auth_mode: "bearer" | "cookie" = "cookie";
+
+  if (bearerToken) {
+    const bearerClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${bearerToken}` } },
+    });
+    const { data: { user }, error: userError } = await bearerClient.auth.getUser(bearerToken);
+    if (!userError && user?.id) {
+      supabase = bearerClient;
+      userId = user.id;
+      auth_mode = "bearer";
+    }
+  }
+
+  if (userId === undefined) {
+    const serverSupabase = await createServerSupabase();
+    const { data: { session } } = await serverSupabase.auth.getSession();
+    if (session?.user?.id) {
+      supabase = serverSupabase as SupabaseClient;
+      userId = session.user.id;
+      auth_mode = "cookie";
+    }
+  }
+
+  if (!userId) {
+    return fail("UNAUTHORIZED", "Unauthorized", 401);
   }
 
   // Window filters: UTC date ranges so boundaries are stable regardless of server timezone
@@ -70,50 +96,50 @@ export async function GET(request: NextRequest) {
     supabase
       .from("profiles")
       .select("followers_total, avg_engagement_rate, x_last_profile_sync_at, x_last_tweets_sync_at, x_sync_status, twitter_username, analytics_initialized_at")
-      .eq("id", user.id)
+      .eq("id", userId)
       .maybeSingle(),
     supabase
       .from("x_top_drivers")
       .select("tweet_id, tweeted_at, like_count, reply_count, repost_count, engagement_score")
-      .eq("profile_id", user.id)
+      .eq("profile_id", userId)
       .eq("window_days", 30)
       .order("engagement_score", { ascending: false })
       .limit(10),
     supabase
       .from("profile_analytics_baseline")
       .select("baseline_at, baseline_date, followers_total, engagement_rate_proxy, posts_30d, avg_likes_30d, avg_replies_30d, reach_proxy_30d")
-      .eq("profile_id", user.id)
+      .eq("profile_id", userId)
       .eq("platform", "x")
       .maybeSingle(),
     supabase
       .from("x_daily_snapshots")
       .select("day, followers, tweets_count, likes_received, engagement_rate")
       .eq("owner_type", "profile")
-      .eq("owner_id", user.id)
+      .eq("owner_id", userId)
       .order("day", { ascending: false })
       .limit(90),
     supabase
       .from("x_window_aggregates")
       .select("*")
       .eq("owner_type", "profile")
-      .eq("owner_id", user.id)
+      .eq("owner_id", userId)
       .in("window_days", [7, 30, 90])
       .order("as_of", { ascending: false }),
     supabase
       .from("x_tweets")
       .select("tweet_id, tweeted_at, like_count, reply_count, repost_count, quote_count, impression_count")
-      .eq("profile_id", user.id)
+      .eq("profile_id", userId)
       .gte("tweeted_at", ninetyDaysAgoStr)
       .order("tweeted_at", { ascending: true }),
     supabase
       .from("x_tweets")
       .select("tweet_id", { count: "exact", head: true })
-      .eq("profile_id", user.id)
+      .eq("profile_id", userId)
       .gte("tweeted_at", ninetyDaysAgoStr),
     supabase
       .from("x_tweets")
       .select("tweeted_at")
-      .eq("profile_id", user.id)
+      .eq("profile_id", userId)
       .gte("tweeted_at", ninetyDaysAgoStr)
       .order("tweeted_at", { ascending: false })
       .limit(1)
@@ -564,7 +590,7 @@ export async function GET(request: NextRequest) {
       window: windowRaw,
       window_resolved: window,
       windowDays,
-      user_id: user.id,
+      user_id: userId,
       profile_twitter: profile?.twitter_username ?? null,
       snapshot_rows_returned: dailyRows.length,
       snapshot_day_min: dailyMinDay,
@@ -672,6 +698,7 @@ export async function GET(request: NextRequest) {
   }
   if (debug) {
     payload.debug = {
+      auth_mode: auth_mode,
       conclusion,
       window_days: windowDays,
       window_start: windowStartStr,

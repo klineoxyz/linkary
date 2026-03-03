@@ -79,8 +79,14 @@ export async function GET(request: NextRequest) {
     const windowStart = windowStartStr;
     const window_end = windowEndStr;
 
-    const tweetsFrom = new Date(todayUTC);
-    tweetsFrom.setUTCDate(tweetsFrom.getUTCDate() - (windowDays - 1));
+    const priorEndUTC = new Date(windowStartUTC);
+    priorEndUTC.setUTCDate(priorEndUTC.getUTCDate() - 1);
+    const priorStartUTC = new Date(priorEndUTC);
+    priorStartUTC.setUTCDate(priorStartUTC.getUTCDate() - (windowDays - 1));
+    const priorStartStr = utcDayStr(priorStartUTC);
+    const priorEndStr = utcDayStr(priorEndUTC);
+
+    const tweetsFrom = new Date(priorStartUTC);
     const tweetsFromStr = tweetsFrom.toISOString();
 
     const [dailySnapshotsRes, tweetsRes] = await Promise.all([
@@ -185,6 +191,11 @@ export async function GET(request: NextRequest) {
       const d = (t.tweeted_at ?? "").slice(0, 10);
       return d >= windowStartStr && d <= window_end;
     });
+    const tweetsInPriorWindow = tweets.filter((t) => {
+      const d = (t.tweeted_at ?? "").slice(0, 10);
+      return d >= priorStartStr && d <= priorEndStr;
+    });
+
     const posts_total = tweetsInWindow.length;
     const total_likes = tweetsInWindow.reduce((s, t) => s + (Number(t.like_count) || 0), 0);
     const total_replies = tweetsInWindow.reduce((s, t) => s + (Number(t.reply_count) || 0), 0);
@@ -211,6 +222,23 @@ export async function GET(request: NextRequest) {
         : null;
     const potential_reach = impressions_total;
 
+    const prior_posts = tweetsInPriorWindow.length;
+    const prior_engagements = tweetsInPriorWindow.reduce(
+      (s, t) =>
+        s +
+        (Number(t.like_count) || 0) +
+        (Number(t.reply_count) || 0) +
+        (Number(t.repost_count) || 0) +
+        (Number(t.quote_count) || 0),
+      0
+    );
+    const prior_impressions = tweetsInPriorWindow.reduce(
+      (s, t) => s + (Number(t.impression_count) || 0),
+      0
+    );
+    const prior_likes = tweetsInPriorWindow.reduce((s, t) => s + (Number(t.like_count) || 0), 0);
+    const prior_replies = tweetsInPriorWindow.reduce((s, t) => s + (Number(t.reply_count) || 0), 0);
+
     const chart_points = {
       engagement_rate,
       posting_cadence,
@@ -226,6 +254,11 @@ export async function GET(request: NextRequest) {
       avg_likes_per_post,
       avg_replies_per_post,
       potential_reach,
+      prior_potential_reach: prior_impressions,
+      prior_engagements_total: prior_engagements,
+      prior_posts_total: prior_posts,
+      prior_avg_likes_per_post: prior_posts > 0 ? prior_likes / prior_posts : 0,
+      prior_avg_replies_per_post: prior_posts > 0 ? prior_replies / prior_posts : 0,
     };
 
     const payload: Record<string, unknown> = {

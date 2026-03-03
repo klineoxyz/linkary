@@ -3,15 +3,13 @@
 import React, { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { Users, BarChart2, Eye, TrendingUp } from "lucide-react";
+import { Users, BarChart2, Eye, TrendingUp, Heart, ThumbsUp, MessageCircle } from "lucide-react";
 import {
-  KpiGrid,
   FollowerGrowthChart,
   EngagementChart,
   PostingCadenceChart,
   ChartSkeleton,
 } from "@/figma/app/components/analytics";
-import type { KpiCardData } from "@/figma/app/components/analytics";
 
 function formatIslandValue(n: number): string {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
@@ -46,6 +44,11 @@ type ApiSuccess = {
       avg_likes_per_post: number;
       avg_replies_per_post: number;
       potential_reach: number;
+      prior_potential_reach?: number;
+      prior_engagements_total?: number;
+      prior_posts_total?: number;
+      prior_avg_likes_per_post?: number;
+      prior_avg_replies_per_post?: number;
     };
     debug?: { auth_mode: string };
   };
@@ -158,46 +161,12 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
 
   const payload = res?.ok === true ? res.data : null;
 
-  const kpiCards: KpiCardData[] = useMemo(() => {
-    if (!payload) return [];
-    const { kpis } = payload;
-    const badge: "Building" | "Active" = kpis.posts_total > 0 ? "Active" : "Building";
-    const formatNum = (n: number) =>
-      n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(Math.round(n));
-    return [
-      {
-        id: "potential_reach",
-        label: "Potential Reach",
-        value: formatNum(kpis.potential_reach),
-        delta: null,
-        helper: "Total impressions",
-        badge,
-      },
-      {
-        id: "engagements",
-        label: "Engagements",
-        value: formatNum(kpis.engagements_total),
-        delta: null,
-        helper: "Likes + replies + reposts + quotes",
-        badge,
-      },
-      {
-        id: "avg_likes",
-        label: "Avg Likes/Post",
-        value: kpis.posts_total > 0 ? formatNum(kpis.avg_likes_per_post) : "—",
-        delta: null,
-        helper: "Likes per post in window",
-        badge,
-      },
-      {
-        id: "avg_replies",
-        label: "Avg Comments/Post",
-        value: kpis.posts_total > 0 ? formatNum(kpis.avg_replies_per_post) : "—",
-        delta: null,
-        helper: "Replies per post in window",
-        badge,
-      },
-    ];
+  const deltaPct = useMemo(() => {
+    if (!payload) return (_c: number, _p?: number) => null as number | null;
+    return (curr: number, prior: number | undefined): number | null => {
+      if (prior == null || prior === 0 || !Number.isFinite(curr)) return null;
+      return ((curr - prior) / prior) * 100;
+    };
   }, [payload]);
 
   const engagementPoints = payload?.chart_points?.engagement_rate ?? [];
@@ -371,9 +340,88 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           </div>
         </div>
 
+        {/* Second row — same island style as first: 4 islands in 1 row */}
+        {isLoading || !res ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-6 animate-pulse h-[140px]" />
+            ))}
+          </div>
+        ) : payload ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)" }}>
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-foreground/80 transition-all duration-500 group-hover:from-primary/95 group-hover:to-foreground/90" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-white">Potential Reach</p>
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <Eye className="h-4 w-4 text-white stroke-[1.75]" />
+                  </div>
+                </div>
+                <h2 className="text-4xl font-bold text-white mb-1">{formatIslandValue(payload.kpis.potential_reach)}</h2>
+                <span className="text-xs flex items-center gap-1 text-white">
+                  {deltaPct(payload.kpis.potential_reach, payload.kpis.prior_potential_reach) != null
+                    ? `${deltaPct(payload.kpis.potential_reach, payload.kpis.prior_potential_reach)! >= 0 ? "+" : ""}${deltaPct(payload.kpis.potential_reach, payload.kpis.prior_potential_reach)!.toFixed(1)}% vs prior`
+                    : "Total impressions"}
+                </span>
+              </div>
+            </div>
+            <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80)" }}>
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-white">Engagements</p>
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <Heart className="h-4 w-4 text-white stroke-[1.75]" />
+                  </div>
+                </div>
+                <h2 className="text-4xl font-bold text-white mb-1">{formatIslandValue(payload.kpis.engagements_total)}</h2>
+                <span className="text-xs flex items-center gap-1 text-white">
+                  {deltaPct(payload.kpis.engagements_total, payload.kpis.prior_engagements_total) != null
+                    ? `${deltaPct(payload.kpis.engagements_total, payload.kpis.prior_engagements_total)! >= 0 ? "+" : ""}${deltaPct(payload.kpis.engagements_total, payload.kpis.prior_engagements_total)!.toFixed(1)}% vs prior`
+                    : "Likes + replies + reposts + quotes"}
+                </span>
+              </div>
+            </div>
+            <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683311-eac922347aa1?w=800&q=80)" }}>
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-white">Avg Likes/Post</p>
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <ThumbsUp className="h-4 w-4 text-white stroke-[1.75]" />
+                  </div>
+                </div>
+                <h2 className="text-4xl font-bold text-white mb-1">{payload.kpis.posts_total > 0 ? formatIslandValue(payload.kpis.avg_likes_per_post) : "0"}</h2>
+                <span className="text-xs flex items-center gap-1 text-white">
+                  {payload.kpis.prior_posts_total && payload.kpis.prior_posts_total > 0 && deltaPct(payload.kpis.avg_likes_per_post, payload.kpis.prior_avg_likes_per_post) != null
+                    ? `${deltaPct(payload.kpis.avg_likes_per_post, payload.kpis.prior_avg_likes_per_post)! >= 0 ? "+" : ""}${deltaPct(payload.kpis.avg_likes_per_post, payload.kpis.prior_avg_likes_per_post)!.toFixed(1)}% vs prior`
+                    : "Likes per post in window"}
+                </span>
+              </div>
+            </div>
+            <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80)" }}>
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-white">Avg Comments/Post</p>
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <MessageCircle className="h-4 w-4 text-white stroke-[1.75]" />
+                  </div>
+                </div>
+                <h2 className="text-4xl font-bold text-white mb-1">{payload.kpis.posts_total > 0 ? formatIslandValue(payload.kpis.avg_replies_per_post) : "0"}</h2>
+                <span className="text-xs flex items-center gap-1 text-white">
+                  {payload.kpis.prior_posts_total && payload.kpis.prior_posts_total > 0 && deltaPct(payload.kpis.avg_replies_per_post, payload.kpis.prior_avg_replies_per_post) != null
+                    ? `${deltaPct(payload.kpis.avg_replies_per_post, payload.kpis.prior_avg_replies_per_post)! >= 0 ? "+" : ""}${deltaPct(payload.kpis.avg_replies_per_post, payload.kpis.prior_avg_replies_per_post)!.toFixed(1)}% vs prior`
+                    : "Replies per post in window"}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {isLoading || !res ? (
           <>
-            <KpiGrid cards={[]} loading />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <ChartSkeleton title="Engagement Rate" />
               <ChartSkeleton title="Posting Cadence" />
@@ -382,7 +430,6 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           </>
         ) : payload ? (
           <>
-            <KpiGrid cards={kpiCards} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <EngagementChart
                 points={engagementPoints}

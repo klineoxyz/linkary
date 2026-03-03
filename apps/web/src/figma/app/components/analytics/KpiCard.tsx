@@ -6,6 +6,9 @@ import type { KpiCardData, KpiDelta } from "./types";
 
 export interface KpiCardProps {
   data: KpiCardData;
+  compact?: boolean;
+  /** Light orange tint for analytics page */
+  lightOrangeBg?: boolean;
 }
 
 const DELTA_FONT = "text-xs font-medium tabular-nums leading-none";
@@ -28,8 +31,8 @@ function DeltaDisplay({
   const color = isZero
     ? "text-muted-foreground"
     : isPositive
-      ? "text-orange-700 dark:text-orange-600"
-      : "text-orange-400 dark:text-orange-500";
+      ? "text-primary"
+      : "text-orange-500 dark:text-orange-400";
   const Icon = !isZero && isPositive ? TrendingUp : !isZero && !isPositive ? TrendingDown : null;
 
   return (
@@ -40,11 +43,33 @@ function DeltaDisplay({
   );
 }
 
-export function KpiCard({ data }: KpiCardProps) {
+export function KpiCard({ data, compact, lightOrangeBg }: KpiCardProps) {
   const { label, value, delta, helper, badge, estimated } = data;
+  const cardBg = lightOrangeBg ? "bg-primary/5" : "bg-card";
+
+  if (compact) {
+    return (
+      <div
+        className={`rounded-xl border border-border ${cardBg} px-3 py-2.5 flex items-center justify-between gap-2 min-h-0`}
+        data-page="analytics"
+        title={helper}
+      >
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate shrink-0">
+          {label}
+          {estimated && (
+            <span className="ml-1 normal-case font-normal text-[10px] text-amber-700 dark:text-amber-300">Est.</span>
+          )}
+        </span>
+        <div className="flex items-baseline gap-1.5 flex-nowrap shrink-0 min-w-0">
+          <span className="text-lg font-bold text-foreground tabular-nums tracking-tight truncate">{value}</span>
+          <DeltaDisplay delta={delta} hideWhenNull={data.id === "followers"} />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4" data-page="analytics">
+    <div className={`rounded-xl border border-border ${cardBg} p-4`} data-page="analytics">
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">
           {label}

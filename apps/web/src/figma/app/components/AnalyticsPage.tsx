@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
+import { Users, BarChart2, Eye, TrendingUp } from "lucide-react";
 import {
   KpiGrid,
   FollowerGrowthChart,
@@ -11,6 +12,12 @@ import {
   ChartSkeleton,
 } from "@/figma/app/components/analytics";
 import type { KpiCardData } from "@/figma/app/components/analytics";
+
+function formatIslandValue(n: number): string {
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
+  return n.toLocaleString();
+}
 
 type ApiSuccess = {
   ok: true;
@@ -159,30 +166,6 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
       n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(Math.round(n));
     return [
       {
-        id: "followers",
-        label: "Followers",
-        value: kpis.followers_latest != null ? formatNum(kpis.followers_latest) : "—",
-        delta: null,
-        helper: "Latest in window",
-        badge: kpis.followers_latest != null ? "Active" : "Building",
-      },
-      {
-        id: "posts",
-        label: "Posts",
-        value: String(kpis.posts_total),
-        delta: null,
-        helper: "In selected window",
-        badge,
-      },
-      {
-        id: "impressions",
-        label: "Impressions",
-        value: formatNum(kpis.impressions_total),
-        delta: null,
-        helper: "Total in window",
-        badge,
-      },
-      {
         id: "potential_reach",
         label: "Potential Reach",
         value: formatNum(kpis.potential_reach),
@@ -196,14 +179,6 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         value: formatNum(kpis.engagements_total),
         delta: null,
         helper: "Likes + replies + reposts + quotes",
-        badge,
-      },
-      {
-        id: "engagement",
-        label: "Engagement Rate",
-        value: kpis.posts_total > 0 ? `${Number(kpis.engagement_pct_avg).toFixed(2)}%` : "—",
-        delta: null,
-        helper: "Avg in window",
         badge,
       },
       {
@@ -339,6 +314,62 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             </div>
           </div>
         </header>
+
+        {/* Stats islands — same style as Overview page */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)" }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-foreground/80 transition-all duration-500 group-hover:from-primary/95 group-hover:to-foreground/90" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-white">Followers</p>
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <Users className="h-4 w-4 text-white stroke-[1.75]" />
+                </div>
+              </div>
+              <h2 className="text-4xl font-bold text-white mb-1">{payload ? (payload.kpis.followers_latest != null ? formatIslandValue(payload.kpis.followers_latest) : "—") : "0"}</h2>
+              <span className="text-xs flex items-center gap-1 text-white">{payload?.kpis.followers_latest != null && payload.kpis.followers_latest > 0 ? "Latest in window" : "Beta"}</span>
+            </div>
+          </div>
+          <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80)" }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-white">Posts</p>
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <BarChart2 className="h-4 w-4 text-white stroke-[1.75]" />
+                </div>
+              </div>
+              <h2 className="text-4xl font-bold text-white mb-1">{payload ? payload.kpis.posts_total.toLocaleString() : "0"}</h2>
+              <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.posts_total ?? 0) > 0 ? "In window" : "Beta"}</span>
+            </div>
+          </div>
+          <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683311-eac922347aa1?w=800&q=80)" }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-white">Impressions</p>
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <Eye className="h-4 w-4 text-white stroke-[1.75]" />
+                </div>
+              </div>
+              <h2 className="text-4xl font-bold text-white mb-1">{payload ? formatIslandValue(payload.kpis.impressions_total) : "0"}</h2>
+              <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.impressions_total ?? 0) > 0 ? "Total in window" : "Beta"}</span>
+            </div>
+          </div>
+          <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80)" }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-white">Engagement Rate</p>
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <TrendingUp className="h-4 w-4 text-white stroke-[1.75]" />
+                </div>
+              </div>
+              <h2 className="text-4xl font-bold text-white mb-1">{payload && payload.kpis.posts_total > 0 ? `${Number(payload.kpis.engagement_pct_avg).toFixed(2)}%` : "0%"}</h2>
+              <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.posts_total ?? 0) > 0 ? "Avg in window" : "Beta"}</span>
+            </div>
+          </div>
+        </div>
 
         {isLoading || !res ? (
           <>

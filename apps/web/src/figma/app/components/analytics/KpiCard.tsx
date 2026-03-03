@@ -25,7 +25,11 @@ function DeltaDisplay({
   const isZero = delta === 0;
   const isPositive = delta > 0;
   const rounded = Number(delta.toFixed(1));
-  const color = isZero ? "text-muted-foreground" : isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400";
+  const color = isZero
+    ? "text-muted-foreground"
+    : isPositive
+      ? "text-orange-700 dark:text-orange-600"
+      : "text-orange-400 dark:text-orange-500";
   const Icon = !isZero && isPositive ? TrendingUp : !isZero && !isPositive ? TrendingDown : null;
 
   return (

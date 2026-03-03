@@ -31,13 +31,17 @@ export function EngagementChart({
   onRefresh,
   refreshDisabled,
 }: EngagementChartProps) {
-  const { max, min: minVal, hasAnyData, lowVariance } = useMemo(() => {
+  const { scaleMax, min: minVal, hasAnyData, lowVariance } = useMemo(() => {
     const vals = points.map((p) => p.engagement_pct).filter((v) => Number.isFinite(v));
-    if (vals.length === 0) return { max: 1, min: 0, hasAnyData: false, lowVariance: false };
-    const m = Math.max(0.01, ...vals);
+    if (vals.length === 0) return { scaleMax: 1, min: 0, hasAnyData: false, lowVariance: false };
+    const maxVal = Math.max(0, ...vals);
+    let scaleMax: number;
+    if (maxVal < 1) scaleMax = 1;
+    else if (maxVal < 2) scaleMax = 2;
+    else scaleMax = maxVal;
     const min = Math.min(...vals);
-    const range = m - min;
-    return { max: m, min, hasAnyData: true, lowVariance: range < 0.5 };
+    const range = scaleMax - min;
+    return { scaleMax, min, hasAnyData: true, lowVariance: range < 0.5 };
   }, [points]);
 
   const coverage = coverageDays != null && windowDays != null ? `${coverageDays}/${windowDays}d` : undefined;
@@ -109,12 +113,12 @@ export function EngagementChart({
   return (
     <ChartCard title="Engagement Rate" coverage={coverage} bucketLabel={bucketLabel} lowVariance={lowVariance}>
       <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 overflow-x-auto" style={{ minHeight: CHART_H }}>
-        <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{max.toFixed(1)}%</div>
+        <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{scaleMax.toFixed(1)}%</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>
         <div className="flex items-end gap-0.5 pl-0" style={{ minHeight: barAreaHeight, minWidth: barRowMinWidth }}>
           {points.map((p, i) => {
             const val = p.engagement_pct;
-            const heightPct = Number.isFinite(val) && val > 0 ? Math.max(minBarHeightPct, (val / max) * 100) : 0;
+            const heightPct = Number.isFinite(val) && val > 0 ? Math.max(minBarHeightPct, (val / scaleMax) * 100) : 0;
             const estSuffix = p.is_estimated ? " (est.)" : "";
             const cappedSuffix = p.is_capped ? " (capped)" : "";
             return (

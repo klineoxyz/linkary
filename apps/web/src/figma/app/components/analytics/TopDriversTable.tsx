@@ -6,14 +6,26 @@ import type { TopDriverRow } from "./types";
 
 export interface TopDriversTableProps {
   rows: TopDriverRow[];
+  postsInWindow?: number;
+  periodLabel?: string;
   emptyMessage?: string;
 }
 
-export function TopDriversTable({ rows, emptyMessage = "No top drivers yet. Sync from Integrations to populate." }: TopDriversTableProps) {
+export function TopDriversTable({
+  rows: rawRows,
+  postsInWindow,
+  periodLabel = "30D",
+  emptyMessage = "No top drivers yet. Sync from Integrations to populate.",
+}: TopDriversTableProps) {
+  const rows = React.useMemo(
+    () => [...rawRows].sort((a, b) => b.engagementRate - a.engagementRate),
+    [rawRows]
+  );
+
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-card p-4" data-page="analytics">
-        <h3 className="text-sm font-semibold text-foreground mb-2">Top Drivers (30D)</h3>
+        <h3 className="text-sm font-semibold text-foreground mb-2">Top Drivers ({periodLabel})</h3>
         <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       </div>
     );
@@ -22,9 +34,12 @@ export function TopDriversTable({ rows, emptyMessage = "No top drivers yet. Sync
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden" data-page="analytics">
       <div className="px-4 py-2.5 border-b border-border">
-        <h3 className="text-sm font-semibold text-foreground">Top Drivers (30D)</h3>
+        <h3 className="text-sm font-semibold text-foreground">Top Drivers ({periodLabel})</h3>
+        {typeof postsInWindow === "number" && (
+          <p className="text-xs text-muted-foreground mt-0.5">Posts in window: {postsInWindow}.</p>
+        )}
         <p className="text-xs text-muted-foreground mt-0.5">
-          Posts that drove the most engagement. ER = (likes + replies + reposts) / followers.
+          Posts that drove the most engagement. ER = (likes + replies + reposts) / followers. Sorted by ER.
         </p>
       </div>
       <div className="overflow-x-auto -mx-px">

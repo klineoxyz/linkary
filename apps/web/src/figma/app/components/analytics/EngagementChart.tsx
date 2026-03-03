@@ -14,6 +14,7 @@ export interface EngagementChartProps {
   noPostsInPeriod: boolean;
   insufficientForTrend: boolean;
   summaryMessage?: string;
+  bucketLabel?: "Daily" | "Weekly";
   onRefresh?: () => void;
   refreshDisabled?: boolean;
 }
@@ -26,6 +27,7 @@ export function EngagementChart({
   noPostsInPeriod,
   insufficientForTrend,
   summaryMessage,
+  bucketLabel,
   onRefresh,
   refreshDisabled,
 }: EngagementChartProps) {
@@ -43,7 +45,7 @@ export function EngagementChart({
 
   if (noPostsInPeriod) {
     return (
-      <ChartCard title="Engagement Rate" coverage={coverage}>
+      <ChartCard title="Engagement Rate" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
           message="No posts in this window."
           secondary="Post on X to unlock trends."
@@ -57,7 +59,7 @@ export function EngagementChart({
 
   if (insufficientForTrend) {
     return (
-      <ChartCard title="Engagement Rate" coverage={coverage}>
+      <ChartCard title="Engagement Rate" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
           message="Not enough data for trend yet."
           secondary={tweetCountWindow != null ? `${tweetCountWindow} posts in window. Need more days.` : "Need more posts to show trend."}
@@ -72,7 +74,7 @@ export function EngagementChart({
 
   if (!hasAnyData || points.length === 0) {
     return (
-      <ChartCard title="Engagement Rate" coverage={coverage}>
+      <ChartCard title="Engagement Rate" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
           message="No data in this period."
           secondary="Connect X in Integrations to sync."
@@ -87,7 +89,7 @@ export function EngagementChart({
   const MIN_POINTS_FOR_TREND = 3;
   if (points.length < MIN_POINTS_FOR_TREND) {
     return (
-      <ChartCard title="Engagement Rate" coverage={coverage}>
+      <ChartCard title="Engagement Rate" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
           message="Need at least 3 data points to show trend."
           secondary={coverage ? `Active days: ${coverage}` : "More posts in the window will fill the chart."}
@@ -105,7 +107,7 @@ export function EngagementChart({
   const barRowMinWidth = points.length * 6;
 
   return (
-    <ChartCard title="Engagement Rate" coverage={coverage} lowVariance={lowVariance}>
+    <ChartCard title="Engagement Rate" coverage={coverage} bucketLabel={bucketLabel} lowVariance={lowVariance}>
       <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 overflow-x-auto" style={{ minHeight: CHART_H }}>
         <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{max.toFixed(1)}%</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>

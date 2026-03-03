@@ -91,7 +91,7 @@ export function AnalyticsHeader({
                 key={p}
                 type="button"
                 onClick={() => onWindowChange(p)}
-                className={`min-w-[2.5rem] px-2.5 py-1.5 rounded text-xs font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
+                className={`w-11 flex items-center justify-center py-1.5 rounded text-xs font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
                   windowPeriod === p ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >

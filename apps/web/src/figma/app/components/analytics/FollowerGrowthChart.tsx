@@ -10,6 +10,7 @@ export interface FollowerGrowthChartProps {
   windowDays?: number;
   earliestDate?: string | null;
   insufficientData: boolean;
+  bucketLabel?: "Daily" | "Weekly";
   onRefresh?: () => void;
   refreshDisabled?: boolean;
 }
@@ -20,6 +21,7 @@ export function FollowerGrowthChart({
   windowDays,
   earliestDate,
   insufficientData,
+  bucketLabel,
   onRefresh,
   refreshDisabled,
 }: FollowerGrowthChartProps) {
@@ -39,7 +41,7 @@ export function FollowerGrowthChart({
 
   if (insufficientData) {
     return (
-      <ChartCard title="Follower Growth" coverage={coverage}>
+      <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
           message="Building history."
           secondary="Need more daily snapshots to show trend."
@@ -54,7 +56,7 @@ export function FollowerGrowthChart({
 
   if (!hasAnyData || points.length === 0) {
     return (
-      <ChartCard title="Follower Growth" coverage={coverage}>
+      <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
           message="No data in this period."
           secondary="Connect X in Integrations to sync."
@@ -69,7 +71,7 @@ export function FollowerGrowthChart({
   const MIN_POINTS_FOR_TREND = 3;
   if (points.length < MIN_POINTS_FOR_TREND) {
     return (
-      <ChartCard title="Follower Growth" coverage={coverage}>
+      <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
           message="Need at least 3 days to show trend."
           secondary={coverage ? `Active days: ${coverage}` : "More daily snapshots will fill the chart."}
@@ -89,7 +91,7 @@ export function FollowerGrowthChart({
   const barRowMinWidth = points.length * 6;
 
   return (
-    <ChartCard title="Follower Growth" coverage={coverage} lowVariance={lowVariance}>
+    <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel} lowVariance={lowVariance}>
       <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 overflow-x-auto" style={{ minHeight: CHART_H }}>
         <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{max}</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>

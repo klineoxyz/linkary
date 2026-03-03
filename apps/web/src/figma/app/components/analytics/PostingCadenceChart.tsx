@@ -13,6 +13,7 @@ export interface PostingCadenceChartProps {
   noPostsInPeriod: boolean;
   insufficientForTrend: boolean;
   summaryMessage?: string;
+  bucketLabel?: "Daily" | "Weekly";
   onRefresh?: () => void;
   refreshDisabled?: boolean;
 }
@@ -24,6 +25,7 @@ export function PostingCadenceChart({
   noPostsInPeriod,
   insufficientForTrend,
   summaryMessage,
+  bucketLabel,
   onRefresh,
   refreshDisabled,
 }: PostingCadenceChartProps) {
@@ -70,7 +72,7 @@ export function PostingCadenceChart({
 
   if (!hasAnyData || points.length === 0) {
     return (
-      <ChartCard title="Posting Cadence" coverage={coverage}>
+      <ChartCard title="Posting Cadence" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
           message="No data in this period."
           secondary="Connect X in Integrations to sync."
@@ -102,7 +104,7 @@ export function PostingCadenceChart({
   const barRowMinWidth = points.length * 6;
 
   return (
-    <ChartCard title="Posting Cadence" coverage={coverage} lowVariance={lowVariance}>
+    <ChartCard title="Posting Cadence" coverage={coverage} bucketLabel={bucketLabel} lowVariance={lowVariance}>
       <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 overflow-x-auto" style={{ minHeight: CHART_H }}>
         <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{maxPosts}</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>

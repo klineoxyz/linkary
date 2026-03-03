@@ -620,6 +620,18 @@ export async function GET(request: NextRequest) {
   const snapshot_count_7d = dailyRows.filter((r) => r.day >= sevenWindowStartStr && r.day <= todayStr).length;
   const snapshot_count_30d = dailyRows.filter((r) => r.day >= thirtyWindowStartStr && r.day <= todayStr).length;
   const snapshot_count_90d = dailyRows.filter((r) => r.day >= ninetyWindowStartStr && r.day <= todayStr).length;
+  const whyEmptyHints: string[] = [];
+  if (snapshot_count_90d === 0 && dailyRows.length === 0) {
+    whyEmptyHints.push("No x_daily_snapshots. Run x-analytics-daily cron (or Worker sync_x_profiles_daily) and ensure TWITTERAPI_API_KEY + social_accounts X connected.");
+  } else if (snapshot_count_90d === 0) {
+    whyEmptyHints.push("No snapshots in 90d window. Snapshots exist but outside window; ensure cron runs daily so today is written.");
+  }
+  if ((data_status.tweet_count_90d ?? 0) === 0) {
+    whyEmptyHints.push("No x_tweets in 90d. Run sync-x-tweets-weekly cron (or Worker sync_x_tweets_weekly), ensure profiles.is_indexed=true and profiles.twitter_username set.");
+  }
+  if (windowRows.length === 0 && whyEmptyHints.length > 0) {
+    whyEmptyHints.push("No x_window_aggregates. Worker run_analytics_jobs must drain analytics_jobs (enqueued by backfill-x-90d-batch cron or Retry on analytics page).");
+  }
   if (debug) {
     payload.debug = {
       window_days: windowDays,
@@ -648,6 +660,7 @@ export async function GET(request: NextRequest) {
         posting_cadence: posting_cadence.length,
       },
       min_max_dates: { window_start: windowStartStr, window_end: windowEndStr, snapshot_min: dailyMinDay, snapshot_max: dailyMaxDay },
+      ...(whyEmptyHints.length > 0 ? { why_empty_hint: whyEmptyHints } : {}),
       ...(currentWindowMetric
         ? {
             tweet_count_window: currentWindowMetric.tweet_count,

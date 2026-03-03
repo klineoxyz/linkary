@@ -387,7 +387,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         label: "Followers",
         value: xAnalyticsData ? followersTotal.toLocaleString() : "—",
         delta: followersDeltaForPeriod,
-        helper: followersDeltaForPeriod === null ? "Not enough data" : hasRealFollowerHistory ? "From X profile sync" : "Sync from Integrations to see trends",
+        helper: followersDeltaForPeriod === null ? "Need prior period." : hasRealFollowerHistory ? "From X profile sync" : "Sync from Integrations to see trends",
         badge: badge(followersDeltaForPeriod, !!(hasRealFollowerHistory || useWindowAggregates)),
       },
       {
@@ -418,7 +418,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
       {
         id: "posts",
         label: `Posts (${periodLabel})`,
-        value: noPostsInWindow || !xAnalyticsData ? "—" : String(postsByPeriod),
+        value: !xAnalyticsData ? "—" : String(postsByPeriod),
         delta: postsDeltaForPeriod,
         helper: noPostsInWindow ? helperNoPosts : (postsDeltaForPeriod === null ? helperDeltaNeedsPrior : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends"),
         badge: noPostsInWindow ? "Building" : badge(postsDeltaForPeriod, !!hasRollup),
@@ -496,8 +496,19 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     });
   }, [rawTop, followersTotal]);
 
+  const bucketLabel: "Daily" | "Weekly" = periodDays === 90 ? "Weekly" : "Daily";
+
   const signalsList = useMemo(() => {
     const list: Array<{ id: string; title: string; metric: string }> = [];
+    if (xAnalyticsData && postsByPeriod > 0 && periodDays > 0) {
+      const perDay = (postsByPeriod / periodDays).toFixed(1);
+      const perWeek = periodDays >= 7 ? (postsByPeriod / (periodDays / 7)).toFixed(1) : null;
+      list.push({
+        id: "cadence",
+        title: "Posts in window",
+        metric: `${postsByPeriod} posts · ${perDay}/day${perWeek ? ` · ${perWeek}/week` : ""}.`,
+      });
+    }
     if (xAnalyticsData && !noPostsInWindow && typeof engagementRateByPeriod === "number" && Number.isFinite(engagementRateByPeriod)) {
       list.push({
         id: "engagement",
@@ -505,12 +516,20 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         metric: `${Number(engagementRateByPeriod).toFixed(2)}% in ${periodLabel}${xAnalyticsData?.engagement_rate_is_estimated ? " (est.)" : ""}.`,
       });
     }
-    if (xAnalyticsData && postsByPeriod > 0 && periodDays > 0) {
-      const perDay = (postsByPeriod / periodDays).toFixed(1);
+    if (xAnalyticsData && !noPostsInWindow && engagementDeltaForPeriod !== null && Number.isFinite(engagementDeltaForPeriod)) {
+      const dir = engagementDeltaForPeriod >= 0 ? "up" : "down";
       list.push({
-        id: "cadence",
-        title: "Posting cadence",
-        metric: `${postsByPeriod} posts in ${periodLabel} · ${perDay}/day.`,
+        id: "er-trend",
+        title: "ER vs prior period",
+        metric: `${dir} ${Math.abs(engagementDeltaForPeriod).toFixed(0)}%.`,
+      });
+    }
+    const best = topDriversRows.length > 0 ? topDriversRows.reduce((a, b) => (b.engagementRate > a.engagementRate ? b : a), topDriversRows[0]) : null;
+    if (best && best.engagementRate > 0) {
+      list.push({
+        id: "best-er",
+        title: "Best post ER",
+        metric: best.engagementOver100 ? "100%+." : `${best.engagementRate}%.`,
       });
     }
     const snapDays = xAnalyticsData?.snapshot_days_in_window ?? xAnalyticsData?.follower_data_coverage_days;
@@ -518,18 +537,34 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     if (xAnalyticsData && typeof snapDays === "number" && snapDays > 0 && typeof windowDaysVal === "number") {
       list.push({
         id: "follower-growth",
-        title: "Follower growth",
-        metric: `${snapDays}/${windowDaysVal}d of snapshot data.`,
+        title: "Follower snapshot coverage",
+        metric: `${snapDays}/${windowDaysVal}d.`,
+      });
+    }
+    if (followersDeltaForPeriod !== null && Number.isFinite(followersDeltaForPeriod)) {
+      const dir = followersDeltaForPeriod >= 0 ? "up" : "down";
+      list.push({
+        id: "follower-delta",
+        title: "Follower trend",
+        metric: `${dir} ${Math.abs(followersDeltaForPeriod).toLocaleString()} in ${periodLabel}.`,
+      });
+    }
+    const activeDays = xAnalyticsData?.engagement_data_coverage_days ?? (postingCadencePoints.filter((p) => (p.posts ?? 0) > 0).length);
+    if (xAnalyticsData && typeof activeDays === "number" && periodDays > 0) {
+      list.push({
+        id: "consistency",
+        title: "Active days",
+        metric: `${activeDays}/${periodDays}d in window.`,
       });
     }
     if (topDriversRows.some((r) => r.engagementOver100)) {
       list.push({
         id: "top-er",
         title: "Top driver",
-        metric: "At least one post drove 100%+ engagement rate.",
+        metric: "At least one post drove 100%+ ER.",
       });
     }
-    return list.slice(0, 3);
+    return list.slice(0, 6);
   }, [
     xAnalyticsData,
     noPostsInWindow,
@@ -538,6 +573,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     postsByPeriod,
     periodDays,
     topDriversRows,
+    engagementDeltaForPeriod,
+    followersDeltaForPeriod,
+    postingCadencePoints,
   ]);
 
   const showRebuildRunning = rebuildJob?.status === "running";
@@ -606,6 +644,26 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           setRoute={setRoute}
         />
 
+        {/* Key Signals first (above KPIs) */}
+        <div className="rounded-xl border border-border bg-card p-4" data-page="analytics">
+          <h3 className="text-sm font-semibold text-foreground mb-2">Key Signals</h3>
+          {signalsList.length === 0 ? (
+            <div>
+              <p className="text-sm text-muted-foreground">Connect X in Integrations and post to see engagement and cadence signals here.</p>
+              <a href="/settings/integrations" className="mt-2 inline-block text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">Connect in Integrations</a>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {signalsList.map((s) => (
+                <li key={s.id} className="text-sm">
+                  <span className="font-medium text-foreground">{s.title}</span>
+                  <span className="text-muted-foreground"> · {s.metric}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <KpiGrid cards={kpiCards} loading={xLoading} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -622,6 +680,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             windowDays={xAnalyticsData?.follower_window_days}
             earliestDate={xAnalyticsData?.follower_earliest_snapshot_date}
             insufficientData={followerInsufficient}
+            bucketLabel={bucketLabel}
             onRefresh={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)}
             refreshDisabled={rebuildLoading || rebuildJob?.status === "queued" || rebuildJob?.status === "running"}
           />
@@ -642,6 +701,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                 ? `Active days: ${xAnalyticsData.engagement_data_coverage_days} / ${xAnalyticsData.window_days ?? periodDays}. Not enough for trend chart yet.${typeof xAnalyticsData?.engagement_rate_pct === "number" ? ` Window ER: ${xAnalyticsData.engagement_rate_pct.toFixed(1)}%.` : ""}`
                 : undefined
             }
+            bucketLabel={bucketLabel}
             onRefresh={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)}
             refreshDisabled={rebuildLoading || rebuildJob?.status === "queued" || rebuildJob?.status === "running"}
           />
@@ -663,49 +723,61 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               ? `Posts in window: ${xAnalyticsData.tweet_count_window}. Cadence: ${(xAnalyticsData.tweet_count_window / (xAnalyticsData.window_days ?? periodDays)).toFixed(1)} posts/day. Not enough for trend chart yet.`
               : undefined
           }
+          bucketLabel={bucketLabel}
           onRefresh={() => triggerRebuild(dataStatus?.rollup_updated_at ?? null)}
           refreshDisabled={rebuildLoading || rebuildJob?.status === "queued" || rebuildJob?.status === "running"}
         />
         )}
 
-        {/* Signals: real insights from window data (max 3) */}
-        <div className="rounded-xl border border-border bg-card p-4" data-page="analytics">
-          <h3 className="text-sm font-semibold text-foreground mb-2">Signals</h3>
-          {signalsList.length === 0 ? (
-            <div>
-              <p className="text-sm text-muted-foreground">Connect X in Integrations and post to see engagement and cadence signals here.</p>
-              <a href="/settings/integrations" className="mt-2 inline-block text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">Connect in Integrations</a>
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {signalsList.map((s) => (
-                <li key={s.id} className="text-sm">
-                  <span className="font-medium text-foreground">{s.title}</span>
-                  <span className="text-muted-foreground"> · {s.metric}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <TopDriversTable
+          rows={topDriversRows}
+          postsInWindow={postsByPeriod}
+          periodLabel={periodLabel}
+        />
 
-        <TopDriversTable rows={topDriversRows} />
-
-        {showDebugPanel && (
-          <details className="rounded-xl border border-border bg-card overflow-hidden" data-page="analytics">
-            <summary className="px-4 py-3 text-sm font-medium cursor-pointer">Debug (data truth)</summary>
-            <div className="px-4 pb-4 pt-2 border-t border-border text-xs text-muted-foreground space-y-2 font-mono">
-              <p>Window selected: {timePeriod}</p>
-              <p>Snapshots: 7d={String((xAnalyticsData?.debug as Record<string, unknown> | undefined)?.snapshot_count_7d ?? "—")}, 30d={String((xAnalyticsData?.debug as Record<string, unknown> | undefined)?.snapshot_count_30d ?? "—")}, 90d={String((xAnalyticsData?.debug as Record<string, unknown> | undefined)?.snapshot_count_90d ?? "—")}</p>
-              <p>Tweets: 7d={dataStatus?.tweet_count_7d ?? "—"}, 30d={dataStatus?.tweet_count_30d ?? "—"}, 90d={dataStatus?.tweet_count_90d ?? "—"}</p>
-              <p>Chart points: follower_growth={followerGrowthPoints.length}, engagement_rate={engagementRatePoints.length}, posting_cadence={postingCadencePoints.length}</p>
-              <p>Follower coverage days: {xAnalyticsData?.follower_data_coverage_days ?? "—"} · Window: {String((xAnalyticsData?.debug as Record<string, unknown> | undefined)?.window_start ?? "—")} to {String((xAnalyticsData?.debug as Record<string, unknown> | undefined)?.window_end ?? "—")}</p>
-              {(() => {
-                const mm = (xAnalyticsData?.debug as Record<string, unknown> | undefined)?.min_max_dates as Record<string, string> | undefined;
-                return mm ? <p>Snapshot range: {String(mm.snapshot_min ?? "—")} to {String(mm.snapshot_max ?? "—")}</p> : null;
-              })()}
-            </div>
-          </details>
-        )}
+        {showDebugPanel && (() => {
+          const rawFollower = chartPoints?.follower_growth ?? [];
+          const rawEngagement = chartPoints?.engagement_rate ?? [];
+          const rawCadence = chartPoints?.posting_cadence ?? [];
+          const nonZeroFollower = rawFollower.filter((p) => p.follower_delta != null && Number.isFinite(p.follower_delta)).length;
+          const nonZeroEngagement = rawEngagement.filter((p) => (p.engagement_pct > 0 || (p.posts ?? 0) > 0)).length;
+          const nonZeroCadence = rawCadence.filter((p) => (p.posts ?? 0) > 0).length;
+          const firstF = rawFollower[0]?.date ?? "—";
+          const lastF = rawFollower.length ? rawFollower[rawFollower.length - 1]?.date ?? "—" : "—";
+          const firstE = rawEngagement[0]?.date ?? "—";
+          const lastE = rawEngagement.length ? rawEngagement[rawEngagement.length - 1]?.date ?? "—" : "—";
+          const firstC = rawCadence[0]?.date ?? "—";
+          const lastC = rawCadence.length ? rawCadence[rawCadence.length - 1]?.date ?? "—" : "—";
+          const verdict = rawFollower.length >= 3 || rawEngagement.length >= 3 || rawCadence.length >= 3
+            ? "API returns enough points. UI shows them (or weekly buckets for 90D)."
+            : "API returned few points. Check backend/DB if 90D data expected.";
+          return (
+            <details className="rounded-xl border border-border bg-card overflow-hidden" data-page="analytics">
+              <summary className="px-4 py-3 text-sm font-medium cursor-pointer">Debug (data truth)</summary>
+              <div className="px-4 pb-4 pt-2 border-t border-border text-xs text-muted-foreground space-y-2 font-mono">
+                <p>Window: {timePeriod} ({windowParam})</p>
+                <p>Raw lengths: follower_growth={rawFollower.length}, engagement_rate={rawEngagement.length}, posting_cadence={rawCadence.length}</p>
+                <p>Rendered lengths (after 90D weekly agg): {followerGrowthPoints.length}, {engagementRatePoints.length}, {postingCadencePoints.length}</p>
+                <p>First / last: FG {firstF} to {lastF} · ER {firstE} to {lastE} · Cadence {firstC} to {lastC}</p>
+                <p>Non-zero points: FG {nonZeroFollower}, ER {nonZeroEngagement}, Cadence {nonZeroCadence}</p>
+                <p>Coverage: snapshot_days_in_window={xAnalyticsData?.snapshot_days_in_window ?? "—"}, follower_data_coverage_days={xAnalyticsData?.follower_data_coverage_days ?? "—"}, engagement_data_coverage_days={xAnalyticsData?.engagement_data_coverage_days ?? "—"}</p>
+                <p>KPI rollup: followers={followersTotal}, posts={postsByPeriod}, ER={Number(engagementRateByPeriod).toFixed(2)}%, reach={reachProxyByPeriod}, avgLikes={Math.round(avgLikesByPeriod)}, avgReplies={Math.round(avgRepliesByPeriod)}</p>
+                <p>Snapshots 7d/30d/90d: {String((xAnalyticsData?.debug as Record<string, unknown> | undefined)?.snapshot_count_7d ?? "—")} / {String((xAnalyticsData?.debug as Record<string, unknown> | undefined)?.snapshot_count_30d ?? "—")} / {String((xAnalyticsData?.debug as Record<string, unknown> | undefined)?.snapshot_count_90d ?? "—")}</p>
+                {Array.isArray((xAnalyticsData?.debug as Record<string, unknown> | undefined)?.why_empty_hint) && (
+                  <div className="pt-1">
+                    <span className="font-medium text-amber-600 dark:text-amber-400">Why empty:</span>
+                    <ul className="list-disc pl-4 mt-0.5">
+                      {((xAnalyticsData?.debug as Record<string, unknown>).why_empty_hint as string[]).map((h, i) => (
+                        <li key={i}>{h}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <p className="pt-2 border-t border-border font-semibold text-foreground">Verdict: {verdict}</p>
+              </div>
+            </details>
+          );
+        })()}
       </div>
     </div>
   );

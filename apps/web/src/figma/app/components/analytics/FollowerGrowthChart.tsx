@@ -40,11 +40,11 @@ export function FollowerGrowthChart({
   const integrationsHref = "/settings/integrations";
 
   if (insufficientData) {
-    const hasAnyFollowerDays = points.length > 0;
+    const hasAnyFollowerDays = (coverageDays ?? 0) > 0 || !!earliestDate;
     return (
       <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
-          message={hasAnyFollowerDays ? "Follower history starts on " + (earliestDate ?? "—") + "." : "No follower history yet."}
+          message={hasAnyFollowerDays && earliestDate ? "Follower history starts on " + earliestDate + "." : "No follower history yet."}
           secondary={hasAnyFollowerDays ? "Need a few more days of follower tracking to show a trend." : "Connect X and check back tomorrow."}
           coverage={earliestDate ? `First: ${earliestDate}` : coverage}
           onRefresh={onRefresh}

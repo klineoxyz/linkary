@@ -310,14 +310,15 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     const target = new Date();
     target.setDate(target.getDate() - daysAgo);
     const targetStr = target.toISOString().slice(0, 10);
-    const onOrBefore = snapshotsAsc.filter((s) => s.snapshot_date <= targetStr);
-    const point = onOrBefore.length ? onOrBefore[onOrBefore.length - 1] : null;
-    if (!point) return null;
-    const v = point.followers_total;
-    return v != null && Number.isFinite(v) ? Number(v) : null;
+    const candidates = snapshotsAsc.filter(
+      (s) => s.snapshot_date <= targetStr && s.followers_total != null && Number.isFinite(Number(s.followers_total))
+    );
+    const last = candidates.length ? candidates[candidates.length - 1] : null;
+    return last ? Number(last.followers_total) : null;
   };
-  const latestFollowerCount = snapshotsAsc.length
-    ? (snapshotsAsc[snapshotsAsc.length - 1].followers_total ?? followersTotal)
+  const snapshotsWithFollowers = snapshotsAsc.filter((s) => s.followers_total != null && Number.isFinite(Number(s.followers_total)));
+  const latestFollowerCount = snapshotsWithFollowers.length
+    ? Number(snapshotsWithFollowers[snapshotsWithFollowers.length - 1].followers_total)
     : followersTotal;
   const pctDelta = (current: number, past: number | null): number | null => {
     if (past == null || past === 0 || !Number.isFinite(current)) return null;
@@ -677,7 +678,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           <>
           <FollowerGrowthChart
             points={followerGrowthPoints}
-            coverageDays={xAnalyticsData?.snapshot_days_in_window ?? xAnalyticsData?.follower_data_coverage_days}
+            coverageDays={xAnalyticsData?.follower_data_coverage_days ?? xAnalyticsData?.snapshot_days_in_window}
             windowDays={xAnalyticsData?.follower_window_days}
             earliestDate={xAnalyticsData?.follower_earliest_snapshot_date}
             insufficientData={followerInsufficient}

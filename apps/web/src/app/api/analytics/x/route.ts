@@ -42,26 +42,29 @@ export async function GET(request: NextRequest) {
     return fail("INVALID_SESSION", "Invalid session", 401);
   }
 
-  // Window filters: UTC date ranges (tweeted_at gte), profile_id = user.id
+  // Window filters: UTC date ranges so boundaries are stable regardless of server timezone
+  const utcDayStr = (d: Date) => d.toISOString().slice(0, 10);
   const now = new Date();
-  const thirtyDaysAgo = new Date(now);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const windowStartUTC = new Date(todayUTC);
+  windowStartUTC.setUTCDate(windowStartUTC.getUTCDate() - (windowDays - 1));
+  const windowStartStr = utcDayStr(windowStartUTC);
+  const windowEndStr = utcDayStr(todayUTC);
+  const todayStr = windowEndStr;
+
+  const sevenWindowStartStr = (() => { const d = new Date(todayUTC); d.setUTCDate(d.getUTCDate() - 6); return utcDayStr(d); })();
+  const thirtyWindowStartStr = (() => { const d = new Date(todayUTC); d.setUTCDate(d.getUTCDate() - 29); return utcDayStr(d); })();
+  const ninetyWindowStartStr = (() => { const d = new Date(todayUTC); d.setUTCDate(d.getUTCDate() - 89); return utcDayStr(d); })();
+
+  const thirtyDaysAgo = new Date(todayUTC);
+  thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgo = new Date(todayUTC);
+  sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
   const sevenDaysAgoStr = sevenDaysAgo.toISOString();
-  const ninetyDaysAgo = new Date(now);
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  const ninetyDaysAgo = new Date(todayUTC);
+  ninetyDaysAgo.setUTCDate(ninetyDaysAgo.getUTCDate() - 90);
   const ninetyDaysAgoStr = ninetyDaysAgo.toISOString();
-  // Window: [today - (windowDays-1), today] inclusive so all charts end on TODAY and have exactly windowDays points
-  const todayStr = now.toISOString().slice(0, 10);
-  const windowStart = new Date(now);
-  windowStart.setDate(windowStart.getDate() - (windowDays - 1));
-  const windowStartStr = windowStart.toISOString().slice(0, 10);
-  const windowEndStr = todayStr;
-  const sevenWindowStartStr = (() => { const d = new Date(now); d.setDate(d.getDate() - 6); return d.toISOString().slice(0, 10); })();
-  const thirtyWindowStartStr = (() => { const d = new Date(now); d.setDate(d.getDate() - 29); return d.toISOString().slice(0, 10); })();
-  const ninetyWindowStartStr = (() => { const d = new Date(now); d.setDate(d.getDate() - 89); return d.toISOString().slice(0, 10); })();
 
   const [profileRes, driversRes, baselineRes, dailySnapshotsRes, windowAggsRes, tweetsLast30Res, tweetsCount90dRes, lastTweet90dRes] = await Promise.all([
     supabase
@@ -455,12 +458,12 @@ export async function GET(request: NextRequest) {
         }
       : baseRollup;
 
-  // Full window dates: [windowStartStr, windowEndStr] inclusive = exactly windowDays points ending TODAY
+  // Full window dates: [windowStartStr, windowEndStr] inclusive = exactly windowDays points ending TODAY (UTC)
   const fullWindowDates: string[] = [];
   for (let i = 0; i < windowDays; i++) {
-    const d = new Date(windowStart);
-    d.setDate(d.getDate() + i);
-    fullWindowDates.push(d.toISOString().slice(0, 10));
+    const d = new Date(windowStartUTC);
+    d.setUTCDate(d.getUTCDate() + i);
+    fullWindowDates.push(utcDayStr(d));
   }
   fullWindowDates.sort((a, b) => a.localeCompare(b));
 

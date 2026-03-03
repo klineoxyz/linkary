@@ -104,11 +104,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
   const title = typeof body.title === "string" ? body.title.trim() : "";
-  if (!title) return NextResponse.json({ error: "title required" }, { status: 400 });
-  const status = body.status === "planned" ? "planned" : "scheduled";
+  if (!title) return NextResponse.json({ ok: false, code: "TITLE_REQUIRED", message: "title required" }, { status: 400 });
+  if (title.length < 3) return NextResponse.json({ ok: false, code: "TITLE_TOO_SHORT", message: "Title must be at least 3 characters" }, { status: 400 });
+  if (title.length > 120) return NextResponse.json({ ok: false, code: "TITLE_TOO_LONG", message: "Title must be at most 120 characters" }, { status: 400 });
   let description = typeof body.description === "string" ? body.description.trim() || null : null;
+  if (description && description.length > 1000) return NextResponse.json({ ok: false, code: "DESCRIPTION_TOO_LONG", message: "Description must be at most 1000 characters" }, { status: 400 });
   if (typeof body.cohosts === "string" && body.cohosts.trim()) {
     description = description ? `${description}\nCohosts: ${body.cohosts.trim()}` : `Cohosts: ${body.cohosts.trim()}`;
+    if (description.length > 1000) return NextResponse.json({ ok: false, code: "DESCRIPTION_TOO_LONG", message: "Description (with cohosts) must be at most 1000 characters" }, { status: 400 });
+  }
+  const status = body.status === "planned" ? "planned" : "scheduled";
+  const scheduledAt = body.scheduled_at ? new Date(body.scheduled_at) : null;
+  if (scheduledAt && !isNaN(scheduledAt.getTime())) {
+    const graceMs = 5 * 60 * 1000;
+    if (scheduledAt.getTime() < Date.now() - graceMs) {
+      return NextResponse.json({ ok: false, code: "SCHEDULED_IN_PAST", message: "Scheduled time must be in the future (within 5 min grace)" }, { status: 400 });
+    }
   }
 
   const { data, error } = await supabase

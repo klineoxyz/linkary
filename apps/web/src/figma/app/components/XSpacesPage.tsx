@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { Calendar, List, Plus, Clock, AlertCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -49,7 +50,7 @@ function DiscoverTab({
     return () => { cancelled = true; };
   }, [loadDiscover]);
   if (loading) return <p className="text-zinc-500">Loading…</p>;
-  if (list.length === 0) return <p className="text-zinc-500">No upcoming spaces to discover yet.</p>;
+  if (list.length === 0) return <p className="text-zinc-500">No public spaces yet. Invite others.</p>;
   return (
     <div className="space-y-3">
       {list.map((s) => (
@@ -141,7 +142,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [addFromXSuccess, setAddFromXSuccess] = useState<{ participants_count: number; overlaps: AudienceOverlap[] } | null>(null);
   const [createCohosts, setCreateCohosts] = useState("");
   const [createXSpaceUrl, setCreateXSpaceUrl] = useState("");
+  const [overlapsLoading, setOverlapsLoading] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
+  const searchParams = useSearchParams();
+  const debug = searchParams?.get("debug") === "1";
   const base = typeof window !== "undefined" ? window.location.origin : "";
   const getToken = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -207,7 +212,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       const token = await getToken();
       if (!token) return;
       setOverlapsError(false);
+      setOverlapsLoading(true);
       const next: Record<string, AudienceOverlap[]> = {};
+      let hadError = false;
       for (const id of spaceIds) {
         try {
           const res = await fetch(`${base}/api/spaces/audience-overlaps?space_id=${encodeURIComponent(id)}`, {
@@ -215,12 +222,14 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
           });
           const data = await res.json().catch(() => ({}));
           next[id] = Array.isArray(data.overlaps) ? data.overlaps : [];
+          if (!res.ok) hadError = true;
         } catch {
-          setOverlapsError(true);
-          return;
+          hadError = true;
         }
       }
+      if (hadError) setOverlapsError(true);
       setAudienceOverlapsBySpaceId((prev) => ({ ...prev, ...next }));
+      setOverlapsLoading(false);
     },
     [base, getToken, me?.id]
   );
@@ -228,7 +237,18 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   useEffect(() => {
     const withX = spaces.filter((s) => s.x_space_id && me?.id && s.host_profile_id === me.id).map((s) => s.id);
     if (withX.length > 0) loadAudienceOverlaps(withX);
+    else setOverlapsLoading(false);
   }, [spaces, me?.id, loadAudienceOverlaps]);
+
+  const [overlapsSkeletonShown, setOverlapsSkeletonShown] = useState(false);
+  useEffect(() => {
+    if (!overlapsLoading) return;
+    const t = setTimeout(() => setOverlapsSkeletonShown(true), 1000);
+    return () => clearTimeout(t);
+  }, [overlapsLoading]);
+  useEffect(() => {
+    if (!overlapsLoading) setOverlapsSkeletonShown(false);
+  }, [overlapsLoading]);
 
   const checkOverlaps = useCallback(async (scheduledAt: string, durationMins: number, excludeSpaceId?: string) => {
     if (!scheduledAt) return;
@@ -279,10 +299,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       setCreateDurationMins(60);
       setCreateCohosts("");
       setCreateXSpaceUrl("");
+      setCreateError(null);
       if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
       else loadSpaces();
     } else {
-      console.error(data.error || "Create failed");
+      setCreateError(data.message || data.error || "Create failed");
     }
   };
 
@@ -348,10 +369,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   };
 
   function OverlapText({ o }: { o: AudienceOverlap }) {
-    const isRed = o.overlap_percent >= 5;
+    const pct = Number(o.overlap_percent);
+    const isRed = pct >= 5.0;
+    const pctDisplay = Number.isFinite(pct) ? pct.toFixed(1) : "0.0";
     return (
       <span className={isRed ? "text-red-600 dark:text-red-400 font-medium" : ""}>
-        Audience overlap: {o.overlap_percent}% ({o.overlap_count} users)
+        Audience overlap: {pctDisplay}% ({o.overlap_count} users)
       </span>
     );
   }
@@ -365,7 +388,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             <>
               <button
                 type="button"
-                onClick={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setShowCreate(true); }}
+                onClick={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setCreateError(null); setShowCreate(true); }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
               >
                 <Plus className="w-4 h-4" /> Create Space
@@ -413,6 +436,36 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         ))}
       </div>
 
+      {debug && (
+        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 text-sm">
+          <p className="font-medium text-amber-800 dark:text-amber-200 mb-2">Debug (/?debug=1)</p>
+          {mySpaces.map((s) => {
+            const overlaps = audienceOverlapsBySpaceId[s.id] ?? [];
+            return (
+              <div key={s.id} className="mb-3 pl-2 border-l-2 border-amber-300 dark:border-amber-700">
+                <p className="font-medium text-zinc-900 dark:text-zinc-100">{s.title}</p>
+                {!s.x_space_id ? (
+                  <p className="text-amber-700 dark:text-amber-300">Participants not synced</p>
+                ) : (
+                  <>
+                    <p className="text-zinc-600 dark:text-zinc-400">x_space_id: {s.x_space_id}</p>
+                    {overlaps.length > 0 && (
+                      <ul className="mt-1 text-zinc-600 dark:text-zinc-400">
+                        {overlaps.slice(0, 5).map((o) => (
+                          <li key={o.other_space_id}>
+                            overlap_count={o.overlap_count}, min_audience_size={o.min_audience_size}, %={Number(o.overlap_percent).toFixed(1)}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {addFromXSuccess && (
         <div className="p-4 rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200">
           <p className="font-medium mb-1">Space synced from X</p>
@@ -438,10 +491,17 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
           {overlapsError && (
             <p className="text-sm text-amber-700 dark:text-amber-300">Overlaps unavailable.</p>
           )}
-          {overlapAlertsList.length === 0 && !overlapsError && (
-            <p className="text-zinc-500">No overlap alerts (≥5%). When your spaces have audience overlap ≥5% with other registered hosts, they appear here.</p>
+          {!overlapsLoading && overlapAlertsList.length === 0 && !overlapsError && (
+            <p className="text-zinc-500">No overlap alerts. You are clear.</p>
           )}
-          {overlapAlertsList.map(({ space, overlap }) => (
+          {(overlapsLoading && !overlapsSkeletonShown) && (
+            <div className="animate-pulse space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 rounded-xl bg-zinc-200 dark:bg-zinc-700" />
+              ))}
+            </div>
+          )}
+          {!overlapsLoading && overlapAlertsList.map(({ space, overlap }) => (
             <div key={`${space.id}-${overlap.other_space_id}`} className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-900/50">
               <p className="font-medium text-zinc-900 dark:text-zinc-100">{space.title}</p>
               <p className="text-sm text-zinc-500 mb-2">
@@ -461,7 +521,27 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             <p className="text-sm text-amber-700 dark:text-amber-300">Overlaps unavailable.</p>
           )}
           {upcoming.length === 0 ? (
-            <p className="text-zinc-500">No upcoming spaces. Create one or add from X to get started.</p>
+            <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-600 p-8 text-center">
+              <p className="text-zinc-500 mb-4">No upcoming spaces yet.</p>
+              {me?.id && (
+                <div className="flex flex-wrap justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setCreateError(null); setShowCreate(true); }}
+                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+                  >
+                    Create Space
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAddFromXUrl(""); setAddFromXError(null); setShowAddFromX(true); }}
+                    className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 text-sm font-medium"
+                  >
+                    Add from X
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             upcoming.map((s) => {
               const audienceOverlaps = audienceOverlapsBySpaceId[s.id] ?? [];
@@ -563,14 +643,17 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
       {showCreate && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); }} aria-hidden />
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); }} aria-hidden />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 z-50 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Create X Space</h2>
-              <button type="button" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); }} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+              <button type="button" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); }} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 <X className="w-5 h-5" />
               </button>
             </div>
+            {createError && (
+              <p className="mb-3 text-sm text-red-600 dark:text-red-400">{createError}</p>
+            )}
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Title</label>
@@ -677,7 +760,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       // keep success panel with 0 overlaps
                     }
                   } else {
-                    setAddFromXError(data.error ?? "Failed to sync Space");
+                    setAddFromXError(data.message ?? data.error ?? "Failed to sync Space");
                   }
                 }}
               >

@@ -15,10 +15,13 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const TWITTERAPI_API_KEY = process.env.TWITTERAPI_API_KEY;
 
+/** Robust extract of X Space ID from URL. Returns null if format invalid. */
 function parseSpaceIdFromUrl(url: string): string | null {
   const trimmed = (url ?? "").trim();
-  const match = trimmed.match(/i\/spaces\/([A-Za-z0-9_-]+)/);
-  return match ? match[1]! : null;
+  if (!trimmed || trimmed.length > 500) return null;
+  const match = trimmed.match(/i\/spaces\/([A-Za-z0-9_-]{1,100})/);
+  const id = match ? match[1]!.trim() : null;
+  return id && id.length >= 1 ? id : null;
 }
 
 export async function POST(request: NextRequest) {
@@ -54,8 +57,13 @@ export async function POST(request: NextRequest) {
     spaceId = parseSpaceIdFromUrl(body.space_url);
   }
   if (!spaceId) {
+    const hasUrl = typeof body.space_url === "string" && body.space_url.trim().length > 0;
     return NextResponse.json(
-      { error: "space_id or space_url required" },
+      {
+        ok: false,
+        code: hasUrl ? "INVALID_SPACE_URL" : "MISSING_INPUT",
+        message: hasUrl ? "Invalid X Space URL. Use a link like https://x.com/i/spaces/..." : "space_id or space_url required",
+      },
       { status: 400 }
     );
   }
@@ -120,8 +128,12 @@ export async function POST(request: NextRequest) {
 
   if (existingRow && existingRow.host_profile_id !== user.id) {
     return NextResponse.json(
-      { error: "This X Space is linked to another account" },
-      { status: 403 }
+      {
+        ok: false,
+        code: "SPACE_OWNED_BY_OTHER",
+        message: "This Space is already claimed by another user.",
+      },
+      { status: 409 }
     );
   }
 
@@ -175,6 +187,8 @@ export async function POST(request: NextRequest) {
   }
 
   const participantIds = spaceParticipantIds(detail);
+  const snapshotAt = new Date().toISOString();
+  const source = "twitterapi.io";
   await supabase.from("space_participants").delete().eq("space_id", space.id);
   for (const xUserId of participantIds) {
     const role =
@@ -191,6 +205,8 @@ export async function POST(request: NextRequest) {
       space_id: space.id,
       x_user_id: xUserId,
       role,
+      snapshot_at: snapshotAt,
+      source,
     });
   }
 

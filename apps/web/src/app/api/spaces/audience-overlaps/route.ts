@@ -6,10 +6,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import {
-  audienceOverlapPercent,
-  audienceOverlapCount,
-} from "@/lib/x-analytics-server";
+import { audienceOverlapCount } from "@/lib/x-analytics-server";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -25,6 +22,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const spaceId = searchParams.get("space_id")?.trim();
+  const debug = searchParams.get("debug") === "1";
   if (!spaceId) {
     return NextResponse.json({ overlaps: [] });
   }
@@ -83,6 +81,7 @@ export async function GET(request: NextRequest) {
     overlap_percent: number;
     overlap_count: number;
     min_audience_size: number;
+    overlap_percent_raw?: number;
   }> = [];
 
   for (const other of others) {
@@ -95,8 +94,9 @@ export async function GET(request: NextRequest) {
     );
     if (otherIds.length === 0) continue;
     const overlapCount = audienceOverlapCount(myIds, otherIds);
-    const pct = audienceOverlapPercent(myIds, otherIds);
     const minSize = Math.min(myIds.length, otherIds.length);
+    const pctRaw = minSize === 0 ? 0 : (overlapCount / minSize) * 100;
+    const pct = Math.round(pctRaw * 10) / 10;
     const { data: profile } = await supabase
       .from("profiles")
       .select("username, twitter_username")
@@ -110,14 +110,16 @@ export async function GET(request: NextRequest) {
       profileRow?.username ??
       profileRow?.twitter_username ??
       null;
-    overlaps.push({
+    const item: (typeof overlaps)[number] = {
       other_space_id: other.id,
       other_space_title: other.title,
       other_host_username: display,
       overlap_percent: pct,
       overlap_count: overlapCount,
       min_audience_size: minSize,
-    });
+    };
+    if (debug) item.overlap_percent_raw = Math.round(pctRaw * 10000) / 10000;
+    overlaps.push(item);
   }
 
   overlaps.sort((a, b) => b.overlap_percent - a.overlap_percent);

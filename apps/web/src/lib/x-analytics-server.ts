@@ -327,11 +327,21 @@ export function audienceOverlapCount(idsA: string[], idsB: string[]): number {
   return idsA.filter((id) => setB.has(id)).length;
 }
 
-/** Overlap % = |A ∩ B| / min(|A|, |B|) * 100. Returns 0 if either set is empty. */
-export function audienceOverlapPercent(idsA: string[], idsB: string[]): number {
+/** Raw overlap % = (overlap_count / min_audience_size) * 100. Returns 0 if either set is empty. */
+export function audienceOverlapPercentRaw(idsA: string[], idsB: string[]): number {
   if (idsA.length === 0 || idsB.length === 0) return 0;
-  const setB = new Set(idsB);
-  const intersection = idsA.filter((id) => setB.has(id)).length;
+  const intersection = audienceOverlapCount(idsA, idsB);
   const minSize = Math.min(idsA.length, idsB.length);
-  return minSize === 0 ? 0 : Math.round((intersection / minSize) * 10000) / 100;
+  return minSize === 0 ? 0 : (intersection / minSize) * 100;
+}
+
+/** Overlap % rounded to 1 decimal (consistent across backend and display). */
+export function audienceOverlapPercentRounded(idsA: string[], idsB: string[]): number {
+  const raw = audienceOverlapPercentRaw(idsA, idsB);
+  return Math.round(raw * 10) / 10;
+}
+
+/** @deprecated Use audienceOverlapPercentRounded for display. */
+export function audienceOverlapPercent(idsA: string[], idsB: string[]): number {
+  return audienceOverlapPercentRounded(idsA, idsB);
 }

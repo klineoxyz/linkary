@@ -632,8 +632,30 @@ export async function GET(request: NextRequest) {
   if (windowRows.length === 0 && whyEmptyHints.length > 0) {
     whyEmptyHints.push("No x_window_aggregates. Worker run_analytics_jobs must drain analytics_jobs (enqueued by backfill-x-90d-batch cron or Retry on analytics page).");
   }
+  const tweetCount90dStatus = data_status.tweet_count_90d ?? 0;
+  const hasSnapshotsIn90d = snapshot_count_90d >= 1;
+  const hasTweetsIn90d = tweetCount90dStatus >= 1;
+  const chartPointsEnough =
+    follower_growth.length >= 3 || engagement_rate.length >= 3 || posting_cadence.length >= 3;
+  let conclusion: string;
+  if (!hasSnapshotsIn90d && !hasTweetsIn90d) {
+    conclusion =
+      "DB does not have 90D data for this profile (collector/backfill never ran or failed). Run: pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts --user <profile_id>. Then see docs/ANALYTICS_WHY_EMPTY.md and Phase 2 backfill plan.";
+  } else if (hasSnapshotsIn90d || hasTweetsIn90d) {
+    if (chartPointsEnough) {
+      conclusion =
+        "DB has 90D data and API returns it. If UI still shows 'not enough data', UI is hiding it (check empty state conditions: coverage vs points.length, bucket type).";
+    } else {
+      conclusion =
+        "DB has 90D data but API is not returning enough chart points (window filter or aggregation bug). Check window_start/end and dailyRows/tweetsInWindow.";
+    }
+  } else {
+    conclusion =
+      "API returned few points. Run audit script to confirm DB; if DB has data, API or window filter may be wrong.";
+  }
   if (debug) {
     payload.debug = {
+      conclusion,
       window_days: windowDays,
       window_start: windowStartStr,
       window_end: windowEndStr,

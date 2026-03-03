@@ -89,11 +89,10 @@ export function FollowerGrowthChart({
   const CHART_H = 180;
   const barAreaHeight = CHART_H - 28;
   const minBarHeightPct = (4 / barAreaHeight) * 100;
-  const barRowMinWidth = points.length * 6;
 
   return (
     <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel} lowVariance={lowVariance}>
-      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 overflow-x-auto" style={{ height: CHART_H }}>
+      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 w-full" style={{ height: CHART_H }}>
         <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{max}</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>
         {min < 0 && max > 0 && (
@@ -102,7 +101,7 @@ export function FollowerGrowthChart({
             style={{ bottom: `calc(${zeroPct}% + 1.25rem)` }}
           />
         )}
-        <div className="flex items-end gap-0.5 pl-0" style={{ height: barAreaHeight, minWidth: barRowMinWidth }}>
+        <div className="flex items-end gap-px pl-0 w-full" style={{ height: barAreaHeight }}>
           {points.map((p, i) => {
             const val = p.follower_delta;
             const hasData = val !== null && val !== undefined && Number.isFinite(val);
@@ -110,12 +109,12 @@ export function FollowerGrowthChart({
             const isNegative = hasData && (val as number) < 0;
 
             if (!hasData) {
-              return <div key={`${p.date}-${i}`} className="flex-1 min-w-[6px] shrink-0" title={`${p.date}: No snapshot`} />;
+              return <div key={`${p.date}-${i}`} className="flex-1 min-w-0" title={`${p.date}: No snapshot`} />;
             }
             return (
               <div
                 key={`${p.date}-${i}`}
-                className={`flex-1 min-w-[6px] max-w-[12px] rounded-t border-t transition-all shrink-0 ${
+                className={`flex-1 min-w-0 rounded-t border-t transition-all ${
                   isNegative ? "bg-amber-500/70 border-amber-500/50" : "bg-primary/80 border-primary/50"
                 }`}
                 style={{ height: `${heightPct}%` }}

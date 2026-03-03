@@ -186,6 +186,8 @@ export async function GET(request: NextRequest) {
       return d >= windowStartStr && d <= window_end;
     });
     const posts_total = tweetsInWindow.length;
+    const total_likes = tweetsInWindow.reduce((s, t) => s + (Number(t.like_count) || 0), 0);
+    const total_replies = tweetsInWindow.reduce((s, t) => s + (Number(t.reply_count) || 0), 0);
     const engagements_total = tweetsInWindow.reduce(
       (s, t) =>
         s +
@@ -201,6 +203,13 @@ export async function GET(request: NextRequest) {
     );
     const engagement_pct_avg =
       impressions_total > 0 ? (engagements_total / impressions_total) * 100 : 0;
+    const avg_likes_per_post = posts_total > 0 ? total_likes / posts_total : 0;
+    const avg_replies_per_post = posts_total > 0 ? total_replies / posts_total : 0;
+    const followers_latest =
+      followerSnapshots.length > 0
+        ? followerSnapshots[followerSnapshots.length - 1].followers
+        : null;
+    const potential_reach = impressions_total;
 
     const chart_points = {
       engagement_rate,
@@ -213,6 +222,10 @@ export async function GET(request: NextRequest) {
       impressions_total,
       engagements_total,
       engagement_pct_avg,
+      followers_latest,
+      avg_likes_per_post,
+      avg_replies_per_post,
+      potential_reach,
     };
 
     const payload: Record<string, unknown> = {

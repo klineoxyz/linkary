@@ -35,6 +35,10 @@ type ApiSuccess = {
       impressions_total: number;
       engagements_total: number;
       engagement_pct_avg: number;
+      followers_latest: number | null;
+      avg_likes_per_post: number;
+      avg_replies_per_post: number;
+      potential_reach: number;
     };
     debug?: { auth_mode: string };
   };
@@ -95,27 +99,45 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     if (!payload) return [];
     const { kpis } = payload;
     const badge: "Building" | "Active" = kpis.posts_total > 0 ? "Active" : "Building";
+    const formatNum = (n: number) =>
+      n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(Math.round(n));
     return [
+      {
+        id: "followers",
+        label: "Followers",
+        value: kpis.followers_latest != null ? formatNum(kpis.followers_latest) : "—",
+        delta: null,
+        helper: "Latest in window",
+        badge: kpis.followers_latest != null ? "Active" : "Building",
+      },
       {
         id: "posts",
         label: "Posts",
         value: String(kpis.posts_total),
         delta: null,
-        helper: `In selected window`,
+        helper: "In selected window",
         badge,
       },
       {
         id: "impressions",
         label: "Impressions",
-        value: kpis.impressions_total >= 1e6 ? `${(kpis.impressions_total / 1e6).toFixed(1)}M` : kpis.impressions_total >= 1e3 ? `${(kpis.impressions_total / 1e3).toFixed(1)}K` : String(kpis.impressions_total),
+        value: formatNum(kpis.impressions_total),
         delta: null,
         helper: "Total in window",
         badge,
       },
       {
+        id: "potential_reach",
+        label: "Potential Reach",
+        value: formatNum(kpis.potential_reach),
+        delta: null,
+        helper: "Total impressions",
+        badge,
+      },
+      {
         id: "engagements",
         label: "Engagements",
-        value: kpis.engagements_total >= 1e6 ? `${(kpis.engagements_total / 1e6).toFixed(1)}M` : kpis.engagements_total >= 1e3 ? `${(kpis.engagements_total / 1e3).toFixed(1)}K` : String(kpis.engagements_total),
+        value: formatNum(kpis.engagements_total),
         delta: null,
         helper: "Likes + replies + reposts + quotes",
         badge,
@@ -126,6 +148,22 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         value: kpis.posts_total > 0 ? `${Number(kpis.engagement_pct_avg).toFixed(2)}%` : "—",
         delta: null,
         helper: "Avg in window",
+        badge,
+      },
+      {
+        id: "avg_likes",
+        label: "Avg Likes/Post",
+        value: kpis.posts_total > 0 ? formatNum(kpis.avg_likes_per_post) : "—",
+        delta: null,
+        helper: "Likes per post in window",
+        badge,
+      },
+      {
+        id: "avg_replies",
+        label: "Avg Comments/Post",
+        value: kpis.posts_total > 0 ? formatNum(kpis.avg_replies_per_post) : "—",
+        delta: null,
+        helper: "Replies per post in window",
         badge,
       },
     ];

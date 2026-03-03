@@ -12,7 +12,7 @@
 
 - **1A) DB audit**  
   - Added `apps/web/scripts/auditAnalyticsData.ts`.  
-  - Run: `pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts --user <profile_id>` (or `PROFILE_ID=<uuid>`).  
+  - Run: `pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts --user YOUR_PROFILE_UUID` (replace with real UUID). On PowerShell: `$env:PROFILE_ID='YOUR_PROFILE_UUID'; pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts`.  
   - Prints: snapshot counts 7d/30d/90d, min/max snapshot day in 90d, tweet count 90d, window_aggregates existence.  
   - Includes SQL equivalents in output for Supabase (replace `:profile_id`).
 

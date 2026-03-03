@@ -20,7 +20,7 @@ Pick the real reason(s) for your case:
 Confirm by running:
 
 ```bash
-pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts --user <profile_id>
+pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts --user YOUR_PROFILE_UUID
 ```
 
 ---
@@ -33,7 +33,7 @@ pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts --user <profile_id>
 - Cron: `POST /api/cron/backfill-x-90d-batch` (with `CRON_SECRET`) enqueues jobs for X-connected profiles that lack 90d aggregate.
 
 **Option 2 – Manual script (one profile)**  
-- Add or use a script, e.g. `pnpm exec tsx scripts/backfillXHistory.ts --user <id> --days 90`.  
+- Add or use a script, e.g. `pnpm exec tsx scripts/backfillXHistory.ts --user YOUR_PROFILE_UUID --days 90`.  
 - It should: call twitterapi.io (user info + last tweets), write `x_daily_snapshots` (per day) and `x_window_aggregates` (7/30/90), with rate limit (e.g. 400ms between calls), idempotent upserts, and progress logs.  
 - Our architecture already has the worker job `xBackfill90d`; the script can enqueue one job for the given profile and rely on the worker, or reimplement the same logic in a one-off script.
 

@@ -1,12 +1,30 @@
 /**
  * Analytics DB audit: prove what data exists for a profile (x_daily_snapshots, x_tweets, x_window_aggregates).
- * Run from repo root: pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts --user <profile_id>
- * Or: PROFILE_ID=<uuid> pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts
- * Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (or SERVICE_ROLE_KEY).
+ * Run from repo root: pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts --user YOUR_PROFILE_UUID
+ * Or: $env:PROFILE_ID='uuid'; pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts
+ * Loads apps/web/.env.local if present. Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or SERVICE_ROLE_KEY.
  *
  * Output is used for Phase 1 conclusion: "DB has 90D data" vs "DB does not have 90D data".
  */
 import { createClient } from "@supabase/supabase-js";
+import { readFileSync, existsSync } from "fs";
+import { resolve } from "path";
+
+// Load .env.local (from repo root: apps/web/.env.local; from apps/web: .env.local)
+const envLocalPath = existsSync(resolve(process.cwd(), "apps/web/.env.local"))
+  ? resolve(process.cwd(), "apps/web/.env.local")
+  : resolve(process.cwd(), ".env.local");
+if (existsSync(envLocalPath)) {
+  const content = readFileSync(envLocalPath, "utf8");
+  for (const line of content.split("\n")) {
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (m) {
+      const key = m[1].trim();
+      const val = m[2].trim().replace(/^["']|["']$/g, "");
+      if (!process.env[key]) process.env[key] = val;
+    }
+  }
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
@@ -44,8 +62,9 @@ async function main() {
 
   const profileId = getProfileId();
   if (!profileId) {
-    console.error("Usage: pnpm exec tsx scripts/auditAnalyticsData.ts --user <profile_id>");
-    console.error("   or: PROFILE_ID=<uuid> pnpm exec tsx scripts/auditAnalyticsData.ts");
+    console.error("Usage: pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts --user YOUR_PROFILE_UUID");
+    console.error("   or: $env:PROFILE_ID='YOUR_PROFILE_UUID'; pnpm exec tsx apps/web/scripts/auditAnalyticsData.ts");
+    console.error("Replace YOUR_PROFILE_UUID with the actual profile id (e.g. from Supabase auth.users.id or profiles.id).");
     process.exit(1);
   }
 

@@ -1010,7 +1010,19 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="connections" icon={UserPlus} label="Connections" />
           <NavLink name="watchlist" icon={Bookmark} label="Watchlist" />
           <NavLink name="kolLists" icon={Star} label="KOL Lists" />
-          <NavLink name="xspaces" icon={CalendarDays} label="X Spaces" />
+          <Link
+            href="/xspaces"
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug",
+              route?.name === "xspaces"
+                ? "border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground backdrop-blur-xl"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
+            <span className="truncate">X Spaces</span>
+          </Link>
         </div>
 
         <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Analytics & Data</span>

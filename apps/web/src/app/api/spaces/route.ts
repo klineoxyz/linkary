@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, token ? { global: { headers: { Authorization: `Bearer ${token}` } } } : {});
 
-  const spaces: Array<{ id: string; host_profile_id: string; title: string; description: string | null; scheduled_at: string | null; duration_mins: number | null; status: string; created_at: string }> = [];
+  const spaceCols = "id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id";
+  const spaces: Array<{ id: string; host_profile_id: string; title: string; description: string | null; scheduled_at: string | null; duration_mins: number | null; status: string; created_at: string; x_space_id?: string | null }> = [];
 
   const useRange = fromParam && toParam && scope === "public";
   if (useRange) {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
     if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime()) && fromDate <= toDate) {
       const { data, error } = await supabase
         .from("spaces")
-        .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at")
+        .select(spaceCols)
         .in("status", ["scheduled", "live"])
         .gte("scheduled_at", fromDate.toISOString())
         .lte("scheduled_at", toDate.toISOString())
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
     if (user?.id) {
       const { data, error } = await supabase
         .from("spaces")
-        .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at")
+        .select(spaceCols)
         .eq("host_profile_id", user.id)
         .order("scheduled_at", { ascending: true })
         .limit(200);
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
   if (!useRange && !mine) {
     let q = supabase
       .from("spaces")
-      .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at")
+      .select(spaceCols)
       .in("status", ["scheduled", "live"])
       .order("scheduled_at", { ascending: true })
       .limit(100);

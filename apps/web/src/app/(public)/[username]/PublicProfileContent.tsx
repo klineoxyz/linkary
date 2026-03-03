@@ -420,7 +420,13 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
             ? { label: "Get verified reviews", href: "/profile/edit" }
             : null;
 
-  const leftOrder = visibleOrder.filter((k) => LEFT_COLUMN_KEYS.includes(k));
+  const leftOrderRaw = visibleOrder.filter((k) => LEFT_COLUMN_KEYS.includes(k));
+  const rolesIdx = leftOrderRaw.indexOf("roles");
+  const proofIdx = leftOrderRaw.indexOf("proof");
+  const leftOrder =
+    rolesIdx !== -1 && proofIdx !== -1 && proofIdx < rolesIdx
+      ? [...leftOrderRaw.slice(0, proofIdx), "roles", "proof", ...leftOrderRaw.slice(proofIdx + 1, rolesIdx), ...leftOrderRaw.slice(rolesIdx + 1)]
+      : leftOrderRaw;
   const rightOrder = visibleOrder.filter((k) => RIGHT_COLUMN_KEYS.includes(k));
 
   const renderSection = (key: SectionKey): React.ReactNode => {

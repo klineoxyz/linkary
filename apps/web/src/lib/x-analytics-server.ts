@@ -278,3 +278,53 @@ export async function computeAndUpsertRollups(
     );
   }
 }
+
+// --- X Spaces (twitterapi.io Get Space Detail); audience overlap for registered users only ---
+
+export type XSpaceParticipant = { id?: string; userName?: string };
+export type XSpaceDetail = {
+  id: string;
+  title?: string;
+  state?: string;
+  scheduled_start?: string;
+  creator?: { id?: string; userName?: string };
+  participants?: { admins?: XSpaceParticipant[]; speakers?: XSpaceParticipant[]; listeners?: XSpaceParticipant[] };
+};
+
+/** Fetch Space detail by ID from twitterapi.io. Returns null on error or missing data. */
+export async function fetchXSpaceDetail(spaceId: string, apiKey: string): Promise<XSpaceDetail | null> {
+  const id = String(spaceId ?? "").trim();
+  if (!id) return null;
+  const res = await fetch(`${TWITTERAPI_BASE}/twitter/spaces/detail?space_id=${encodeURIComponent(id)}`, {
+    headers: { "X-API-Key": apiKey },
+    next: { revalidate: 0 },
+  });
+  if (!res.ok) return null;
+  const json = await res.json();
+  const data = json?.data;
+  if (!data || json?.status === "error") return null;
+  return data as XSpaceDetail;
+}
+
+/** Collect unique X user IDs from Space participants (admins + speakers + listeners). Use id if present, else userName. */
+export function spaceParticipantIds(detail: XSpaceDetail): string[] {
+  const ids = new Set<string>();
+  const push = (p: XSpaceParticipant | undefined) => {
+    if (!p) return;
+    const v = (p.id ?? p.userName ?? "").toString().trim();
+    if (v) ids.add(v);
+  };
+  for (const a of detail.participants?.admins ?? []) push(a);
+  for (const s of detail.participants?.speakers ?? []) push(s);
+  for (const l of detail.participants?.listeners ?? []) push(l);
+  return Array.from(ids);
+}
+
+/** Overlap % = |A ∩ B| / min(|A|, |B|) * 100. Returns 0 if either set is empty. */
+export function audienceOverlapPercent(idsA: string[], idsB: string[]): number {
+  if (idsA.length === 0 || idsB.length === 0) return 0;
+  const setB = new Set(idsB);
+  const intersection = idsA.filter((id) => setB.has(id)).length;
+  const minSize = Math.min(idsA.length, idsB.length);
+  return minSize === 0 ? 0 : Math.round((intersection / minSize) * 10000) / 100;
+}

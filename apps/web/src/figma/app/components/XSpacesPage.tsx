@@ -13,9 +13,12 @@ type Space = {
   duration_mins: number | null;
   status: string;
   created_at: string;
+  x_space_id?: string | null;
 };
 
 type Overlap = { id: string; title: string; scheduled_at: string; host_profile_id: string; duration_mins: number | null };
+
+type AudienceOverlap = { space_id: string; host_username: string | null; title: string; scheduled_at: string | null; overlap_pct: number };
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MAX_EVENTS_PER_DAY = 3;
@@ -77,6 +80,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [editTitle, setEditTitle] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [speakerRequesting, setSpeakerRequesting] = useState(false);
+  const [showAddFromX, setShowAddFromX] = useState(false);
+  const [addFromXUrl, setAddFromXUrl] = useState("");
+  const [addFromXSaving, setAddFromXSaving] = useState(false);
+  const [addFromXError, setAddFromXError] = useState<string | null>(null);
+  const [audienceOverlapsBySpaceId, setAudienceOverlapsBySpaceId] = useState<Record<string, AudienceOverlap[]>>({});
 
   const base = typeof window !== "undefined" ? window.location.origin : "";
   const getToken = useCallback(async () => {
@@ -126,6 +134,29 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   useEffect(() => {
     if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
   }, [view, calendarYear, calendarMonth, loadSpacesForMonth]);
+
+  const loadAudienceOverlaps = useCallback(
+    async (spaceIds: string[]) => {
+      if (!me?.id || spaceIds.length === 0) return;
+      const token = await getToken();
+      if (!token) return;
+      const next: Record<string, AudienceOverlap[]> = {};
+      for (const id of spaceIds) {
+        const res = await fetch(`${base}/api/spaces/audience-overlaps?space_id=${encodeURIComponent(id)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        next[id] = data.overlaps ?? [];
+      }
+      setAudienceOverlapsBySpaceId((prev) => ({ ...prev, ...next }));
+    },
+    [base, getToken, me?.id]
+  );
+
+  useEffect(() => {
+    const withX = spaces.filter((s) => s.x_space_id && me?.id && s.host_profile_id === me.id).map((s) => s.id);
+    if (withX.length > 0) loadAudienceOverlaps(withX);
+  }, [spaces, me?.id, loadAudienceOverlaps]);
 
   const checkOverlaps = useCallback(async (scheduledAt: string, durationMins: number, excludeSpaceId?: string) => {
     if (!scheduledAt) return;
@@ -234,13 +265,22 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             {view === "list" ? "Month" : "List"}
           </button>
           {me?.id && (
-            <button
-              type="button"
-              onClick={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setShowCreate(true); }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
-            >
-              <Plus className="w-4 h-4" /> Create Space
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => { setAddFromXUrl(""); setAddFromXError(null); setShowAddFromX(true); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-sm font-medium"
+              >
+                Add from X
+              </button>
+              <button
+                type="button"
+                onClick={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setShowCreate(true); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+              >
+                <Plus className="w-4 h-4" /> Create Space
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -252,21 +292,34 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
           {upcoming.length === 0 ? (
             <p className="text-zinc-500">No upcoming spaces. Create one to get started.</p>
           ) : (
-            upcoming.map((s) => (
-              <div
-                key={s.id}
-                className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-900/50 flex items-center gap-4"
-              >
-                <Clock className="w-5 h-5 text-zinc-400" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{s.title}</p>
-                  <p className="text-sm text-zinc-500">
-                    {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} {s.duration_mins ? ` · ${s.duration_mins} min` : ""}
-                  </p>
+            upcoming.map((s) => {
+              const audienceOverlaps = audienceOverlapsBySpaceId[s.id] ?? [];
+              return (
+                <div
+                  key={s.id}
+                  className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-900/50 flex flex-col gap-2"
+                >
+                  <div className="flex items-center gap-4">
+                    <Clock className="w-5 h-5 text-zinc-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{s.title}</p>
+                      <p className="text-sm text-zinc-500">
+                        {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} {s.duration_mins ? ` · ${s.duration_mins} min` : ""}
+                      </p>
+                    </div>
+                    <span className="text-xs px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 shrink-0">{s.status}</span>
+                  </div>
+                  {audienceOverlaps.length > 0 && (
+                    <div className="flex items-center gap-2 pl-9 text-sm text-amber-700 dark:text-amber-300">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>
+                        Another planned: {audienceOverlaps.map((o) => `@${o.host_username ?? "user"} (${o.overlap_pct}% overlap)`).join(", ")}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <span className="text-xs px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">{s.status}</span>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       ) : (
@@ -381,6 +434,61 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         </>
       )}
 
+      {showAddFromX && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} aria-hidden />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 z-50 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Add Space from X</h2>
+              <button type="button" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">Paste an X (Twitter) Space link you host. We’ll pull the details and use it for audience overlap (when both hosts are registered).</p>
+            <input
+              type="url"
+              value={addFromXUrl}
+              onChange={(e) => { setAddFromXUrl(e.target.value); setAddFromXError(null); }}
+              placeholder="https://x.com/i/spaces/..."
+              className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-2"
+            />
+            {addFromXError && (
+              <p className="text-sm text-red-600 dark:text-red-400 mb-2">{addFromXError}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300">Cancel</button>
+              <button
+                type="button"
+                disabled={addFromXSaving || !addFromXUrl.trim()}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"
+                onClick={async () => {
+                  setAddFromXError(null);
+                  setAddFromXSaving(true);
+                  const token = await getToken();
+                  const res = await fetch(`${base}/api/spaces/sync-from-x`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ space_url: addFromXUrl.trim() }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  setAddFromXSaving(false);
+                  if (data.space) {
+                    setShowAddFromX(false);
+                    setAddFromXUrl("");
+                    if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
+                    else loadSpaces();
+                  } else {
+                    setAddFromXError(data.error ?? "Failed to sync Space");
+                  }
+                }}
+              >
+                {addFromXSaving ? "Syncing…" : "Add from X"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       {detailsSpace && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setDetailsSpace(null)} aria-hidden />
@@ -402,6 +510,14 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 {detailsSpace.duration_mins ? ` · ${detailsSpace.duration_mins} min` : ""}
               </p>
               {detailsSpace.description && <p className="text-sm text-zinc-600 dark:text-zinc-400">{detailsSpace.description}</p>}
+              {(audienceOverlapsBySpaceId[detailsSpace.id] ?? []).length > 0 && (
+                <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    Another planned: {(audienceOverlapsBySpaceId[detailsSpace.id] ?? []).map((o) => `@${o.host_username ?? "user"} has a Space with ${o.overlap_pct}% overlapping audience`).join(". ")}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               {isHost(detailsSpace) ? (

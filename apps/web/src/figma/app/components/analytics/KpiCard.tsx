@@ -8,9 +8,19 @@ export interface KpiCardProps {
   data: KpiCardData;
 }
 
-function DeltaDisplay({ delta }: { delta: KpiDelta }) {
+const DELTA_FONT = "text-xs font-medium tabular-nums leading-none";
+const DELTA_ICON_SIZE = "w-3 h-3 shrink-0";
+
+function DeltaDisplay({
+  delta,
+  hideWhenNull,
+}: {
+  delta: KpiDelta;
+  hideWhenNull?: boolean;
+}) {
   if (delta === null) {
-    return <span className="text-sm text-muted-foreground tabular-nums">—</span>;
+    if (hideWhenNull) return null;
+    return <span className={`${DELTA_FONT} text-muted-foreground`}>—</span>;
   }
   const isZero = delta === 0;
   const isPositive = delta > 0;
@@ -19,9 +29,9 @@ function DeltaDisplay({ delta }: { delta: KpiDelta }) {
   const Icon = !isZero && isPositive ? TrendingUp : !isZero && !isPositive ? TrendingDown : null;
 
   return (
-    <span className={`inline-flex items-center gap-1 text-sm font-medium tabular-nums ${color}`}>
-      {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
-      {isZero ? "0%" : `${rounded > 0 ? "+" : ""}${rounded}%`}
+    <span className={`inline-flex items-baseline gap-1 ${DELTA_FONT} ${color}`}>
+      {Icon && <Icon className={DELTA_ICON_SIZE} aria-hidden />}
+      <span className="tabular-nums">{isZero ? "0%" : `${rounded > 0 ? "+" : ""}${rounded}%`}</span>
     </span>
   );
 }
@@ -42,9 +52,9 @@ export function KpiCard({ data }: KpiCardProps) {
           {badge}
         </span>
       </div>
-      <div className="flex items-baseline gap-2 min-h-[1.75rem]">
-        <span className="text-2xl font-bold text-foreground tabular-nums tracking-tight">{value}</span>
-        <DeltaDisplay delta={delta} />
+      <div className="flex items-baseline gap-2.5 min-h-[2rem] flex-nowrap">
+        <span className="text-2xl font-bold text-foreground tabular-nums tracking-tight leading-tight">{value}</span>
+        <DeltaDisplay delta={delta} hideWhenNull={data.id === "followers"} />
       </div>
       <p className="text-xs text-muted-foreground mt-1.5 leading-snug">{helper}</p>
     </div>

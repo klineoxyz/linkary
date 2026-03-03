@@ -499,13 +499,27 @@ export async function GET(request: NextRequest) {
   const min_snapshot_date = snapshotRowsInWindow.length > 0 ? snapshotRowsInWindow.reduce((a, r) => (r.day < a ? r.day : a), snapshotRowsInWindow[0].day) : null;
   const max_snapshot_date = snapshotRowsInWindow.length > 0 ? snapshotRowsInWindow.reduce((a, r) => (r.day > a ? r.day : a), snapshotRowsInWindow[0].day) : null;
 
-  // Engagement rate chart: daily engagement_rate = daily_engagement_sum / daily_impressions_sum; 0 if impressions = 0; full window
-  const engagement_rate: Array<{ date: string; engagement_pct: number; posts: number }> = fullWindowDates.map((date) => {
+  // Engagement rate chart: daily ER = totalEng / impressions, or fallback totalEng / (followersTotal * posts) when impressions missing
+  const engagement_rate: Array<{ date: string; engagement_pct: number; posts: number; is_estimated?: boolean }> = fullWindowDates.map((date) => {
     const agg = dayAggForWindow.get(date) ?? { likes: 0, replies: 0, reposts: 0, quotes: 0, impressions: 0, posts: 0 };
     const totalEng = agg.likes + agg.replies + agg.reposts + agg.quotes;
-    const engagement_pct = agg.impressions > 0 ? (totalEng / agg.impressions) * 100 : 0;
-    return { date, engagement_pct, posts: agg.posts ?? 0 };
+    let engagement_pct: number;
+    let is_estimated: boolean;
+    if (agg.impressions > 0) {
+      engagement_pct = (totalEng / agg.impressions) * 100;
+      is_estimated = false;
+    } else if (followersTotal > 0 && (agg.posts ?? 0) > 0) {
+      engagement_pct = (totalEng / (followersTotal * (agg.posts ?? 0))) * 100;
+      is_estimated = true;
+    } else {
+      engagement_pct = 0;
+      is_estimated = false;
+    }
+    return { date, engagement_pct, posts: agg.posts ?? 0, is_estimated };
   });
+
+  const tweets_with_impressions = tweetsInWindow.filter((t) => (t.impression_count ?? 0) > 0).length;
+  const tweets_missing_impressions = tweetsInWindow.length - tweets_with_impressions;
 
   // Posting cadence: posts per day; zero-fill; exactly windowDays points
   const posting_cadence: Array<{ date: string; posts: number }> = fullWindowDates.map((date) => ({
@@ -664,6 +678,11 @@ export async function GET(request: NextRequest) {
       },
       min_max_dates: { window_start: windowStartStr, window_end: windowEndStr, snapshot_min: dailyMinDay, snapshot_max: dailyMaxDay },
       ...(whyEmptyHints.length > 0 ? { why_empty_hint: whyEmptyHints } : {}),
+      impression_coverage: {
+        tweet_count_window: tweetsInWindow.length,
+        tweets_with_impressions,
+        tweets_missing_impressions,
+      },
       ...(currentWindowMetric
         ? {
             tweet_count_window: currentWindowMetric.tweet_count,

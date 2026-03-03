@@ -7,7 +7,7 @@ import { EmptyState } from "./EmptyState";
 const CHART_H = 180;
 
 export interface EngagementChartProps {
-  points: Array<{ date: string; engagement_pct: number; posts: number }>;
+  points: Array<{ date: string; engagement_pct: number; posts: number; is_estimated?: boolean }>;
   coverageDays?: number;
   windowDays?: number;
   tweetCountWindow?: number;
@@ -115,12 +115,13 @@ export function EngagementChart({
           {points.map((p, i) => {
             const val = p.engagement_pct;
             const heightPct = Number.isFinite(val) && val > 0 ? Math.max(minBarHeightPct, (val / max) * 100) : 0;
+            const estSuffix = p.is_estimated ? " (est.)" : "";
             return (
               <div
                 key={`${p.date}-${i}`}
                 className="flex-1 min-w-[6px] max-w-[12px] rounded-t border-t bg-primary/80 border-primary/50 transition-all shrink-0"
                 style={{ height: `${heightPct}%` }}
-                title={`${p.date}: ${Number.isFinite(val) ? `${val.toFixed(1)}%` : "—"}`}
+                title={`${p.date}: ${Number.isFinite(val) ? `${val.toFixed(1)}%` : "—"}${estSuffix}`}
               />
             );
           })}

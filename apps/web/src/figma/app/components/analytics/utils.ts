@@ -27,17 +27,18 @@ export function aggregateFollowerGrowthToWeekly(
     .map(([date, follower_delta]) => ({ date, follower_delta }));
 }
 
-/** Aggregate daily engagement_rate points into weekly (avg ER, sum posts). For 90D only. */
+/** Aggregate daily engagement_rate points into weekly (avg ER, sum posts). For 90D only. Pass-through is_estimated if any day in week was estimated. */
 export function aggregateEngagementToWeekly(
-  points: Array<{ date: string; engagement_pct: number; posts: number }>
-): Array<{ date: string; engagement_pct: number; posts: number }> {
-  const byWeek = new Map<string, { totalPct: number; posts: number; count: number }>();
+  points: Array<{ date: string; engagement_pct: number; posts: number; is_estimated?: boolean }>
+): Array<{ date: string; engagement_pct: number; posts: number; is_estimated?: boolean }> {
+  const byWeek = new Map<string, { totalPct: number; posts: number; count: number; anyEstimated: boolean }>();
   for (const p of points) {
     const week = getWeekKey(p.date);
-    const cur = byWeek.get(week) ?? { totalPct: 0, posts: 0, count: 0 };
+    const cur = byWeek.get(week) ?? { totalPct: 0, posts: 0, count: 0, anyEstimated: false };
     cur.totalPct += p.engagement_pct * (p.posts || 0);
     cur.posts += p.posts ?? 0;
     cur.count += 1;
+    if (p.is_estimated) cur.anyEstimated = true;
     byWeek.set(week, cur);
   }
   return Array.from(byWeek.entries())
@@ -46,6 +47,7 @@ export function aggregateEngagementToWeekly(
       date,
       engagement_pct: agg.posts > 0 ? agg.totalPct / agg.posts : 0,
       posts: agg.posts,
+      is_estimated: agg.anyEstimated,
     }));
 }
 

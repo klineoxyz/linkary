@@ -40,11 +40,12 @@ export function FollowerGrowthChart({
   const integrationsHref = "/settings/integrations";
 
   if (insufficientData) {
+    const hasAnyFollowerDays = points.length > 0;
     return (
       <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
-          message="Building history."
-          secondary="Need more daily snapshots to show trend."
+          message={hasAnyFollowerDays ? "Follower history starts on " + (earliestDate ?? "—") + "." : "No follower history yet."}
+          secondary={hasAnyFollowerDays ? "Need a few more days of follower tracking to show a trend." : "Connect X and check back tomorrow."}
           coverage={earliestDate ? `First: ${earliestDate}` : coverage}
           onRefresh={onRefresh}
           refreshDisabled={refreshDisabled}
@@ -58,7 +59,7 @@ export function FollowerGrowthChart({
     return (
       <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
-          message="No data in this period."
+          message="No follower data in this period."
           secondary="Connect X in Integrations to sync."
           onRefresh={onRefresh}
           refreshDisabled={refreshDisabled}
@@ -73,9 +74,9 @@ export function FollowerGrowthChart({
     return (
       <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
-          message="Need at least 3 days to show trend."
-          secondary={coverage ? `Active days: ${coverage}` : "More daily snapshots will fill the chart."}
-          coverage={earliestDate ? `First: ${earliestDate}` : undefined}
+          message={earliestDate ? "Follower history starts on " + earliestDate + "." : "Need at least 3 days to show trend."}
+          secondary="Need a few more days of follower tracking to show a trend."
+          coverage={coverage ?? (earliestDate ? `First: ${earliestDate}` : undefined)}
           onRefresh={onRefresh}
           refreshDisabled={refreshDisabled}
           integrationsHref={integrationsHref}

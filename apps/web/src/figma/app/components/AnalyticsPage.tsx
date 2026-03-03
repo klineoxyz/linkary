@@ -106,6 +106,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         tweet_count_window: typeof xSwr.tweet_count_window === "number" ? xSwr.tweet_count_window : undefined,
         follower_data_coverage_days: typeof xSwr.follower_data_coverage_days === "number" ? xSwr.follower_data_coverage_days : undefined,
         follower_earliest_snapshot_date: typeof xSwr.follower_earliest_snapshot_date === "string" ? xSwr.follower_earliest_snapshot_date : undefined,
+        follower_first_day: typeof (xSwr as Record<string, unknown>).follower_first_day === "string" ? (xSwr as Record<string, unknown>).follower_first_day as string : undefined,
         follower_window_days: typeof xSwr.follower_window_days === "number" ? xSwr.follower_window_days : undefined,
         snapshot_days_in_window: typeof (xSwr as Record<string, unknown>).snapshot_days_in_window === "number" ? (xSwr as Record<string, unknown>).snapshot_days_in_window as number : undefined,
         engagement_data_coverage_days: typeof xSwr.engagement_data_coverage_days === "number" ? xSwr.engagement_data_coverage_days : undefined,
@@ -532,13 +533,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         metric: best.engagementOver100 ? "100%+." : `${best.engagementRate}%.`,
       });
     }
-    const snapDays = xAnalyticsData?.snapshot_days_in_window ?? xAnalyticsData?.follower_data_coverage_days;
+    const snapDays = xAnalyticsData?.follower_data_coverage_days ?? xAnalyticsData?.snapshot_days_in_window;
     const windowDaysVal = xAnalyticsData?.follower_window_days ?? periodDays;
     if (xAnalyticsData && typeof snapDays === "number" && snapDays > 0 && typeof windowDaysVal === "number") {
       list.push({
         id: "follower-growth",
         title: "Follower snapshot coverage",
-        metric: `${snapDays}/${windowDaysVal}d.`,
+        metric: `${snapDays}/${windowDaysVal}d (days with follower data).`,
       });
     }
     if (followersDeltaForPeriod !== null && Number.isFinite(followersDeltaForPeriod)) {

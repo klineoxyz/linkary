@@ -65,6 +65,8 @@ export interface XAnalyticsData {
   tweet_count_window?: number;
   follower_data_coverage_days?: number;
   follower_earliest_snapshot_date?: string | null;
+  /** First day with non-null followers in window (truthful follower history). */
+  follower_first_day?: string | null;
   follower_window_days?: number;
   snapshot_days_in_window?: number;
   engagement_data_coverage_days?: number;

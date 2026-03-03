@@ -71,6 +71,8 @@ export interface XAnalyticsData {
   snapshot_days_in_window?: number;
   engagement_data_coverage_days?: number;
   window_days?: number;
+  window_start?: string;
+  window_end?: string;
   engagement_rate_pct?: number | null;
   potential_reach_label?: string;
   potential_reach_is_estimated?: boolean;

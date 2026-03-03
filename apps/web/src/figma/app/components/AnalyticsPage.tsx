@@ -86,36 +86,69 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     if (initSwr) setInitStatus(initSwr);
   }, [initSwr]);
   useEffect(() => {
-    if (xSwr && typeof xSwr === "object") {
-      setXAnalyticsData({
-        profile: (xSwr.profile as XAnalyticsData["profile"]) ?? {},
-        rollup: (xSwr.rollup as XAnalyticsData["rollup"]) ?? null,
-        topDrivers: Array.isArray(xSwr.topDrivers) ? (xSwr.topDrivers as XAnalyticsData["topDrivers"]) : [],
-        baseline: (xSwr.baseline as XAnalyticsData["baseline"]) ?? null,
-        snapshots: Array.isArray(xSwr.snapshots) ? (xSwr.snapshots as SnapshotPoint[]) : [],
-        source: (xSwr.source as XAnalyticsData["source"]) ?? "fallback",
-        freshness: xSwr.freshness as XAnalyticsData["freshness"],
-        data_status: (xSwr.data_status as XAnalyticsData["data_status"]) ?? null,
-        chart_points: (xSwr.chart_points as XAnalyticsData["chart_points"]) ?? null,
-        tweets_last_synced_at: typeof xSwr.tweets_last_synced_at === "string" ? xSwr.tweets_last_synced_at : undefined,
-        follower_last_synced_at: typeof xSwr.follower_last_synced_at === "string" ? xSwr.follower_last_synced_at : undefined,
-        follower_data_stale: xSwr.follower_data_stale === true,
-        potential_reach_label: typeof xSwr.potential_reach_label === "string" ? xSwr.potential_reach_label : undefined,
-        potential_reach_is_estimated: xSwr.potential_reach_is_estimated === true,
-        engagement_rate_is_estimated: xSwr.engagement_rate_is_estimated === true,
-        tweet_count_window: typeof xSwr.tweet_count_window === "number" ? xSwr.tweet_count_window : undefined,
-        follower_data_coverage_days: typeof xSwr.follower_data_coverage_days === "number" ? xSwr.follower_data_coverage_days : undefined,
-        follower_earliest_snapshot_date: typeof xSwr.follower_earliest_snapshot_date === "string" ? xSwr.follower_earliest_snapshot_date : undefined,
-        follower_first_day: typeof (xSwr as Record<string, unknown>).follower_first_day === "string" ? (xSwr as Record<string, unknown>).follower_first_day as string : undefined,
-        follower_window_days: typeof xSwr.follower_window_days === "number" ? xSwr.follower_window_days : undefined,
-        snapshot_days_in_window: typeof (xSwr as Record<string, unknown>).snapshot_days_in_window === "number" ? (xSwr as Record<string, unknown>).snapshot_days_in_window as number : undefined,
-        engagement_data_coverage_days: typeof xSwr.engagement_data_coverage_days === "number" ? xSwr.engagement_data_coverage_days : undefined,
-        engagement_rate_pct: typeof (xSwr as Record<string, unknown>).engagement_rate_pct === "number" ? (xSwr as Record<string, unknown>).engagement_rate_pct as number : undefined,
-        window_days: typeof (xSwr as Record<string, unknown>).window_days === "number" ? (xSwr as Record<string, unknown>).window_days as number : undefined,
-        debug: xSwr.debug as XAnalyticsData["debug"],
-        diagnostics: xSwr.diagnostics as XAnalyticsData["diagnostics"],
-      });
+    if (xSwr && typeof xSwr !== "object") return;
+    const x = xSwr!;
+    /** Normalize API engagement point to always have engagement_pct (0-100). Backend sends engagement_pct; legacy/typos may send engagement_rate (0-1). */
+    const normalizeEngagementPoint = (p: Record<string, unknown>): { date: string; engagement_pct: number; posts: number; is_estimated?: boolean; is_capped?: boolean } => {
+      const date = typeof p.date === "string" ? p.date : "";
+      const posts = typeof p.posts === "number" && Number.isFinite(p.posts) ? p.posts : 0;
+      let engagement_pct: number;
+      if (typeof p.engagement_pct === "number" && Number.isFinite(p.engagement_pct)) {
+        engagement_pct = p.engagement_pct;
+      } else if (typeof p.engagement_rate === "number" && Number.isFinite(p.engagement_rate)) {
+        engagement_pct = p.engagement_rate <= 1 ? p.engagement_rate * 100 : p.engagement_rate;
+      } else {
+        engagement_pct = 0;
+      }
+      return {
+        date,
+        engagement_pct,
+        posts,
+        ...(p.is_estimated === true ? { is_estimated: true } : {}),
+        ...(p.is_capped === true ? { is_capped: true } : {}),
+      };
+    };
+    const rawChartPoints = x.chart_points as XAnalyticsData["chart_points"] | null | undefined;
+    let chart_points: XAnalyticsData["chart_points"] = rawChartPoints ?? null;
+    if (chart_points?.engagement_rate && Array.isArray(chart_points.engagement_rate)) {
+      chart_points = {
+        ...chart_points,
+        engagement_rate: chart_points.engagement_rate.map((p) => normalizeEngagementPoint(p as Record<string, unknown>)),
+      };
     }
+    if (typeof window !== "undefined") {
+      console.log("[analytics] GET /api/analytics/x parsed. chart_points.engagement_rate (first 5):", chart_points?.engagement_rate?.slice(0, 5));
+    }
+    setXAnalyticsData({
+      profile: (x.profile as XAnalyticsData["profile"]) ?? {},
+      rollup: (x.rollup as XAnalyticsData["rollup"]) ?? null,
+      topDrivers: Array.isArray(x.topDrivers) ? (x.topDrivers as XAnalyticsData["topDrivers"]) : [],
+      baseline: (x.baseline as XAnalyticsData["baseline"]) ?? null,
+      snapshots: Array.isArray(x.snapshots) ? (x.snapshots as SnapshotPoint[]) : [],
+      source: (x.source as XAnalyticsData["source"]) ?? "fallback",
+      freshness: x.freshness as XAnalyticsData["freshness"],
+      data_status: (x.data_status as XAnalyticsData["data_status"]) ?? null,
+      chart_points,
+      tweets_last_synced_at: typeof x.tweets_last_synced_at === "string" ? x.tweets_last_synced_at : undefined,
+      follower_last_synced_at: typeof x.follower_last_synced_at === "string" ? x.follower_last_synced_at : undefined,
+      follower_data_stale: x.follower_data_stale === true,
+      potential_reach_label: typeof x.potential_reach_label === "string" ? x.potential_reach_label : undefined,
+      potential_reach_is_estimated: x.potential_reach_is_estimated === true,
+      engagement_rate_is_estimated: x.engagement_rate_is_estimated === true,
+      tweet_count_window: typeof x.tweet_count_window === "number" ? x.tweet_count_window : undefined,
+      follower_data_coverage_days: typeof x.follower_data_coverage_days === "number" ? x.follower_data_coverage_days : undefined,
+      follower_earliest_snapshot_date: typeof x.follower_earliest_snapshot_date === "string" ? x.follower_earliest_snapshot_date : undefined,
+      follower_first_day: typeof (x as Record<string, unknown>).follower_first_day === "string" ? (x as Record<string, unknown>).follower_first_day as string : undefined,
+      follower_window_days: typeof x.follower_window_days === "number" ? x.follower_window_days : undefined,
+      snapshot_days_in_window: typeof (x as Record<string, unknown>).snapshot_days_in_window === "number" ? (x as Record<string, unknown>).snapshot_days_in_window as number : undefined,
+      engagement_data_coverage_days: typeof x.engagement_data_coverage_days === "number" ? x.engagement_data_coverage_days : undefined,
+      engagement_rate_pct: typeof (x as Record<string, unknown>).engagement_rate_pct === "number" ? (x as Record<string, unknown>).engagement_rate_pct as number : undefined,
+      window_days: typeof (x as Record<string, unknown>).window_days === "number" ? (x as Record<string, unknown>).window_days as number : undefined,
+      window_start: typeof (x as Record<string, unknown>).window_start === "string" ? (x as Record<string, unknown>).window_start as string : undefined,
+      window_end: typeof (x as Record<string, unknown>).window_end === "string" ? (x as Record<string, unknown>).window_end as string : undefined,
+      debug: x.debug as XAnalyticsData["debug"],
+      diagnostics: x.diagnostics as XAnalyticsData["diagnostics"],
+    });
   }, [xSwr]);
   useEffect(() => {
     if (summarySwr && typeof summarySwr === "object") {
@@ -467,7 +500,23 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   }, [chartPoints?.follower_growth, useWeeklyForCharts]);
   const engagementRatePoints = useMemo(() => {
     const raw = chartPoints?.engagement_rate ?? [];
-    return useWeeklyForCharts ? aggregateEngagementToWeekly(raw) : raw;
+    const normalized = raw.map((p) => {
+      const q = p as Record<string, unknown>;
+      const ep =
+        typeof p.engagement_pct === "number" && Number.isFinite(p.engagement_pct)
+          ? p.engagement_pct
+          : typeof q.engagement_rate === "number" && Number.isFinite(q.engagement_rate)
+            ? (q.engagement_rate as number) <= 1
+              ? (q.engagement_rate as number) * 100
+              : (q.engagement_rate as number)
+            : 0;
+      return { date: p.date, engagement_pct: ep, posts: p.posts ?? 0, is_estimated: p.is_estimated, is_capped: p.is_capped };
+    });
+    const out = useWeeklyForCharts ? aggregateEngagementToWeekly(normalized) : normalized;
+    if (typeof window !== "undefined" && out.length > 0) {
+      console.log("[analytics] Engagement chart points passed to EngagementChart (first 5):", JSON.stringify(out.slice(0, 5)));
+    }
+    return out;
   }, [chartPoints?.engagement_rate, useWeeklyForCharts]);
   const postingCadencePoints = useMemo(() => {
     const raw = chartPoints?.posting_cadence ?? [];
@@ -765,6 +814,15 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                 <p>Rendered lengths (after 90D weekly agg): {followerGrowthPoints.length}, {engagementRatePoints.length}, {postingCadencePoints.length}</p>
                 <p>First / last: FG {firstF} to {lastF} · ER {firstE} to {lastE} · Cadence {firstC} to {lastC}</p>
                 <p>Non-zero points: FG {nonZeroFollower}, ER {nonZeroEngagement}, Cadence {nonZeroCadence}</p>
+                <p className="pt-2 border-t border-border font-medium text-foreground">Engagement chart (temporary: remove after confirming chart shows spikes)</p>
+                <p>window_start: {xAnalyticsData?.window_start ?? "—"}, window_end: {xAnalyticsData?.window_end ?? "—"}</p>
+                {(() => {
+                  const erVals = rawEngagement.map((p) => typeof p.engagement_pct === "number" && Number.isFinite(p.engagement_pct) ? p.engagement_pct : (p as Record<string, unknown>).engagement_rate != null ? Number((p as Record<string, unknown>).engagement_rate) * 100 : NaN).filter((v) => Number.isFinite(v));
+                  const minEr = erVals.length ? Math.min(...erVals).toFixed(1) : "—";
+                  const maxEr = erVals.length ? Math.max(...erVals).toFixed(1) : "—";
+                  return <p>engagement_pct in window: min={minEr}%, max={maxEr}%</p>;
+                })()}
+                <pre className="text-[10px] overflow-auto max-h-24 bg-muted/50 p-2 rounded">First 5 points: {JSON.stringify((chartPoints?.engagement_rate ?? []).slice(0, 5), null, 0)}</pre>
                 <p>Coverage: snapshot_days_in_window={xAnalyticsData?.snapshot_days_in_window ?? "—"}, follower_data_coverage_days={xAnalyticsData?.follower_data_coverage_days ?? "—"}, engagement_data_coverage_days={xAnalyticsData?.engagement_data_coverage_days ?? "—"}</p>
                 <p>KPI rollup: followers={followersTotal}, posts={postsByPeriod}, ER={Number(engagementRateByPeriod).toFixed(2)}%, reach={reachProxyByPeriod}, avgLikes={Math.round(avgLikesByPeriod)}, avgReplies={Math.round(avgRepliesByPeriod)}</p>
                 <p>Snapshots 7d/30d/90d: {String((xAnalyticsData?.debug as Record<string, unknown> | undefined)?.snapshot_count_7d ?? "—")} / {String((xAnalyticsData?.debug as Record<string, unknown> | undefined)?.snapshot_count_30d ?? "—")} / {String((xAnalyticsData?.debug as Record<string, unknown> | undefined)?.snapshot_count_90d ?? "—")}</p>

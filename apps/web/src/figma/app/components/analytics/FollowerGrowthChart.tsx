@@ -93,7 +93,7 @@ export function FollowerGrowthChart({
 
   return (
     <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel} lowVariance={lowVariance}>
-      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 overflow-x-auto" style={{ minHeight: CHART_H }}>
+      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 overflow-x-auto" style={{ height: CHART_H }}>
         <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{max}</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>
         {min < 0 && max > 0 && (
@@ -102,7 +102,7 @@ export function FollowerGrowthChart({
             style={{ bottom: `calc(${zeroPct}% + 1.25rem)` }}
           />
         )}
-        <div className="flex items-end gap-0.5 pl-0" style={{ minHeight: barAreaHeight, minWidth: barRowMinWidth }}>
+        <div className="flex items-end gap-0.5 pl-0" style={{ height: barAreaHeight, minWidth: barRowMinWidth }}>
           {points.map((p, i) => {
             const val = p.follower_delta;
             const hasData = val !== null && val !== undefined && Number.isFinite(val);

@@ -105,10 +105,10 @@ export function PostingCadenceChart({
 
   return (
     <ChartCard title="Posting Cadence" coverage={coverage} bucketLabel={bucketLabel} lowVariance={lowVariance}>
-      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 overflow-x-auto" style={{ minHeight: CHART_H }}>
+      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 overflow-x-auto" style={{ height: CHART_H }}>
         <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{maxPosts}</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>
-        <div className="flex items-end gap-0.5 pl-0" style={{ minHeight: barAreaHeight, minWidth: barRowMinWidth }}>
+        <div className="flex items-end gap-0.5 pl-0" style={{ height: barAreaHeight, minWidth: barRowMinWidth }}>
           {points.map((p, i) => {
             const posts = p.posts ?? 0;
             const heightPct = maxPosts > 0 && posts > 0 ? Math.max(minBarHeightPct, (posts / maxPosts) * 100) : 0;

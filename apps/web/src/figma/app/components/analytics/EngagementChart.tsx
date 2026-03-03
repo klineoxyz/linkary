@@ -112,10 +112,10 @@ export function EngagementChart({
 
   return (
     <ChartCard title="Engagement Rate" coverage={coverage} bucketLabel={bucketLabel} lowVariance={lowVariance}>
-      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 overflow-x-auto" style={{ minHeight: CHART_H }}>
+      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 overflow-x-auto" style={{ height: CHART_H }}>
         <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{scaleMax.toFixed(1)}%</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>
-        <div className="flex items-end gap-0.5 pl-0" style={{ minHeight: barAreaHeight, minWidth: barRowMinWidth }}>
+        <div className="flex items-end gap-0.5 pl-0" style={{ height: barAreaHeight, minWidth: barRowMinWidth }}>
           {points.map((p, i) => {
             const val = p.engagement_pct;
             const heightPct = Number.isFinite(val) && val > 0 ? Math.max(minBarHeightPct, (val / scaleMax) * 100) : 0;

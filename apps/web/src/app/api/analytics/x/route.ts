@@ -7,7 +7,20 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 type WindowParam = "7d" | "30d" | "90d";
 
-/** GET: X analytics for current user. Charts computed only from x_tweets (engagement, cadence) and x_daily_snapshots (follower growth). Rollups from x_window_aggregates/legacy for KPIs only; not used for chart rendering. */
+/**
+ * GET: X analytics for current user. Charts from x_tweets (engagement, cadence) and x_daily_snapshots (follower growth).
+ * Identity: auth user id = profile id; API queries x_daily_snapshots by owner_type='profile', owner_id=user.id.
+ *
+ * DB proof queries (run in Supabase SQL for the logged-in user's profile id = auth.uid()):
+ *   -- Snapshot counts per window (replace :profile_id with the profile id from session)
+ *   SELECT COUNT(*) AS snapshot_count_7d  FROM x_daily_snapshots WHERE owner_type='profile' AND owner_id = :profile_id AND day >= (CURRENT_DATE - 6)::text  AND day <= CURRENT_DATE::text;
+ *   SELECT COUNT(*) AS snapshot_count_30d FROM x_daily_snapshots WHERE owner_type='profile' AND owner_id = :profile_id AND day >= (CURRENT_DATE - 29)::text AND day <= CURRENT_DATE::text;
+ *   SELECT COUNT(*) AS snapshot_count_90d FROM x_daily_snapshots WHERE owner_type='profile' AND owner_id = :profile_id AND day >= (CURRENT_DATE - 89)::text AND day <= CURRENT_DATE::text;
+ *   -- Sample 5 newest rows
+ *   SELECT day, followers, tweets_count FROM x_daily_snapshots WHERE owner_type='profile' AND owner_id = :profile_id ORDER BY day DESC LIMIT 5;
+ *   -- Tweet count in 90d
+ *   SELECT COUNT(*) FROM x_tweets WHERE profile_id = :profile_id AND tweeted_at >= (NOW() - INTERVAL '90 days');
+ */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
@@ -527,6 +540,30 @@ export async function GET(request: NextRequest) {
     posting_cadence,
   };
 
+  // Server-only diagnostic log (no response change): compare to DB proof queries to find root cause
+  const dailyMinDay = dailyRows.length > 0 ? dailyRows.reduce((a, r) => (r.day < a ? r.day : a), dailyRows[0].day) : null;
+  const dailyMaxDay = dailyRows.length > 0 ? dailyRows.reduce((a, r) => (r.day > a ? r.day : a), dailyRows[0].day) : null;
+  if (process.env.NODE_ENV !== "production" || debug) {
+    console.log("[analytics/x]", {
+      window: windowRaw,
+      window_resolved: window,
+      windowDays,
+      user_id: user.id,
+      profile_twitter: profile?.twitter_username ?? null,
+      snapshot_rows_returned: dailyRows.length,
+      snapshot_day_min: dailyMinDay,
+      snapshot_day_max: dailyMaxDay,
+      window_start: windowStartStr,
+      window_end: windowEndStr,
+      snapshot_rows_in_window: snapshot_rows_count_in_window,
+      follower_growth_points: follower_growth.length,
+      follower_data_coverage_days,
+      tweets_in_window: tweetsInWindow.length,
+      engagement_points: engagement_rate.length,
+      cadence_points: posting_cadence.length,
+    });
+  }
+
   // Freshness: deterministic from x_tweets and x_daily_snapshots
   const latestTweetDate = lastTweet90dAt ? lastTweet90dAt.slice(0, 10) : null;
   const latestFollowerSnapshotDate = snapshotMaxDay;
@@ -571,6 +608,7 @@ export async function GET(request: NextRequest) {
     follower_data_coverage_days,
     follower_earliest_snapshot_date: earliestSnapshotDate,
     follower_window_days,
+    snapshot_days_in_window: snapshot_rows_count_in_window,
     engagement_data_coverage_days,
     engagement_rate_pct: currentWindowMetric?.engagement_rate_pct ?? null,
     engagement_rate_is_estimated: currentWindowMetric?.engagement_rate_is_estimated ?? false,
@@ -579,14 +617,24 @@ export async function GET(request: NextRequest) {
     potential_reach_label: currentWindowMetric?.potential_reach_label ?? "Total Impressions",
     potential_reach_is_estimated: currentWindowMetric?.potential_reach_is_estimated ?? false,
   };
+  const snapshot_count_7d = dailyRows.filter((r) => r.day >= sevenWindowStartStr && r.day <= todayStr).length;
+  const snapshot_count_30d = dailyRows.filter((r) => r.day >= thirtyWindowStartStr && r.day <= todayStr).length;
+  const snapshot_count_90d = dailyRows.filter((r) => r.day >= ninetyWindowStartStr && r.day <= todayStr).length;
   if (debug) {
     payload.debug = {
       window_days: windowDays,
       window_start: windowStartStr,
       window_end: windowEndStr,
+      window_selected: window,
       latest_tweet_date: latestTweetDate,
       latest_follower_snapshot_date: latestFollowerSnapshotDate,
       snapshot_rows_count_in_window,
+      snapshot_count_7d,
+      snapshot_count_30d,
+      snapshot_count_90d,
+      tweet_count_7d: data_status.tweet_count_7d,
+      tweet_count_30d: data_status.tweet_count_30d,
+      tweet_count_90d: data_status.tweet_count_90d,
       distinct_snapshot_dates_in_window,
       min_snapshot_date,
       max_snapshot_date,
@@ -599,6 +647,7 @@ export async function GET(request: NextRequest) {
         engagement_rate: engagement_rate.length,
         posting_cadence: posting_cadence.length,
       },
+      min_max_dates: { window_start: windowStartStr, window_end: windowEndStr, snapshot_min: dailyMinDay, snapshot_max: dailyMaxDay },
       ...(currentWindowMetric
         ? {
             tweet_count_window: currentWindowMetric.tweet_count,

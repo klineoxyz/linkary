@@ -66,6 +66,7 @@ export interface XAnalyticsData {
   follower_data_coverage_days?: number;
   follower_earliest_snapshot_date?: string | null;
   follower_window_days?: number;
+  snapshot_days_in_window?: number;
   engagement_data_coverage_days?: number;
   window_days?: number;
   engagement_rate_pct?: number | null;

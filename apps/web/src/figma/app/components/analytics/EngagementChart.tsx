@@ -100,19 +100,23 @@ export function EngagementChart({
     );
   }
 
+  const barAreaHeight = CHART_H - 28;
+  const minBarHeightPct = (4 / barAreaHeight) * 100;
+  const barRowMinWidth = points.length * 6;
+
   return (
     <ChartCard title="Engagement Rate" coverage={coverage} lowVariance={lowVariance}>
-      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1" style={{ minHeight: CHART_H }}>
+      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 overflow-x-auto" style={{ minHeight: CHART_H }}>
         <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{max.toFixed(1)}%</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>
-        <div className="flex items-end gap-0.5 pl-0" style={{ minHeight: CHART_H - 28 }}>
+        <div className="flex items-end gap-0.5 pl-0" style={{ minHeight: barAreaHeight, minWidth: barRowMinWidth }}>
           {points.map((p, i) => {
             const val = p.engagement_pct;
-            const heightPct = Number.isFinite(val) ? Math.max(1, (val / max) * 100) : 0;
+            const heightPct = Number.isFinite(val) && val > 0 ? Math.max(minBarHeightPct, (val / max) * 100) : 0;
             return (
               <div
                 key={`${p.date}-${i}`}
-                className="flex-1 min-w-[6px] max-w-[12px] rounded-t border-t bg-primary/80 border-primary/50 transition-all"
+                className="flex-1 min-w-[6px] max-w-[12px] rounded-t border-t bg-primary/80 border-primary/50 transition-all shrink-0"
                 style={{ height: `${heightPct}%` }}
                 title={`${p.date}: ${Number.isFinite(val) ? `${val.toFixed(1)}%` : "—"}`}
               />

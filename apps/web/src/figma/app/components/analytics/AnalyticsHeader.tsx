@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Youtube, Video } from "lucide-react";
+import { Youtube, Video, Loader2 } from "lucide-react";
 import { formatTimeAgo } from "./utils";
 import type { WindowPeriod } from "./types";
 
@@ -84,14 +84,14 @@ export function AnalyticsHeader({
             {followerDataStale && <span className="text-amber-600 dark:text-amber-400">(stale)</span>}
           </span>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
+        <div className="flex items-center gap-2 flex-shrink-0 items-baseline">
+          <div className="inline-flex items-stretch rounded-md border border-border bg-muted/30 p-0.5" role="group" aria-label="Time window">
             {(["7D", "30D", "90D"] as const).map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => onWindowChange(p)}
-                className={`px-2.5 py-1 rounded text-xs font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
+                className={`min-w-[2.5rem] px-2.5 py-1.5 rounded text-xs font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
                   windowPeriod === p ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -103,9 +103,10 @@ export function AnalyticsHeader({
             type="button"
             onClick={onRefresh}
             disabled={refreshLoading || refreshDisabled}
-            className="px-2.5 py-1 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+            className="min-w-[7rem] inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
           >
-            {refreshLoading || refreshDisabled ? "Refreshing…" : "Refresh data"}
+            {(refreshLoading || refreshDisabled) && <Loader2 className="w-3 h-3 shrink-0 animate-spin" aria-hidden />}
+            <span>{refreshLoading || refreshDisabled ? "Refreshing…" : "Refresh data"}</span>
           </button>
         </div>
       </div>

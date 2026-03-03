@@ -45,8 +45,8 @@ export function EngagementChart({
     return (
       <ChartCard title="Engagement Rate" coverage={coverage}>
         <EmptyState
-          message="No posts in the selected period."
-          secondary="Post to see engagement trend."
+          message="No posts in this window."
+          secondary="Post on X to unlock trends."
           onRefresh={onRefresh}
           refreshDisabled={refreshDisabled}
           integrationsHref={integrationsHref}

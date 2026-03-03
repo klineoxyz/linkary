@@ -372,8 +372,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const reachDeltaForPeriod: KpiDelta = timePeriod === "7D" ? reachDelta7 : timePeriod === "30D" ? reachDelta30 : reachDelta90;
 
   const hasRollup = !!rollup;
+  const noPostsInWindow = postsByPeriod === 0;
   const kpiCards: KpiCardData[] = useMemo(() => {
     const badge = (delta: KpiDelta, hasData: boolean) => (delta !== null && hasData ? "Active" : "Building");
+    const helperDeltaNeedsPrior = "Delta needs prior period.";
+    const helperNoPosts = "No posts in this window.";
     return [
       {
         id: "followers",
@@ -386,50 +389,51 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
       {
         id: "engagement",
         label: "Engagement Rate",
-        value: xAnalyticsData ? `${Number(engagementRateByPeriod).toFixed(2)}%` : "—",
+        value: noPostsInWindow || !xAnalyticsData ? "—" : `${Number(engagementRateByPeriod).toFixed(2)}%`,
         delta: engagementDeltaForPeriod,
-        helper: engagementDeltaForPeriod === null ? "Not enough data" : hasRollup ? "Window aggregate for selected period" : "Sync from Integrations to see trends",
-        badge: badge(engagementDeltaForPeriod, !!hasRollup),
-        estimated: xAnalyticsData?.engagement_rate_is_estimated === true,
+        helper: noPostsInWindow ? helperNoPosts : (engagementDeltaForPeriod === null ? helperDeltaNeedsPrior : hasRollup ? "Window aggregate for selected period" : "Sync from Integrations to see trends"),
+        badge: noPostsInWindow ? "Building" : badge(engagementDeltaForPeriod, !!hasRollup),
+        estimated: !noPostsInWindow && xAnalyticsData?.engagement_rate_is_estimated === true,
       },
       {
         id: "likes",
         label: "Avg Likes/Post",
-        value: xAnalyticsData ? String(Math.round(avgLikesByPeriod)) : "—",
+        value: noPostsInWindow || !xAnalyticsData ? "—" : String(Math.round(avgLikesByPeriod)),
         delta: likesDeltaForPeriod,
-        helper: likesDeltaForPeriod === null ? "Not enough data" : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
-        badge: badge(likesDeltaForPeriod, !!hasRollup),
+        helper: noPostsInWindow ? helperNoPosts : (likesDeltaForPeriod === null ? helperDeltaNeedsPrior : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends"),
+        badge: noPostsInWindow ? "Building" : badge(likesDeltaForPeriod, !!hasRollup),
       },
       {
         id: "replies",
         label: "Avg Replies/Post",
-        value: xAnalyticsData ? String(Math.round(avgRepliesByPeriod)) : "—",
+        value: noPostsInWindow || !xAnalyticsData ? "—" : String(Math.round(avgRepliesByPeriod)),
         delta: repliesDeltaForPeriod,
-        helper: repliesDeltaForPeriod === null ? "Not enough data" : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
-        badge: badge(repliesDeltaForPeriod, !!hasRollup),
+        helper: noPostsInWindow ? helperNoPosts : (repliesDeltaForPeriod === null ? helperDeltaNeedsPrior : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends"),
+        badge: noPostsInWindow ? "Building" : badge(repliesDeltaForPeriod, !!hasRollup),
       },
       {
         id: "posts",
         label: `Posts (${periodLabel})`,
-        value: xAnalyticsData ? String(postsByPeriod) : "—",
+        value: noPostsInWindow || !xAnalyticsData ? "—" : String(postsByPeriod),
         delta: postsDeltaForPeriod,
-        helper: postsDeltaForPeriod === null ? "Not enough data" : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends",
-        badge: badge(postsDeltaForPeriod, !!hasRollup),
+        helper: noPostsInWindow ? helperNoPosts : (postsDeltaForPeriod === null ? helperDeltaNeedsPrior : hasRollup ? "From rollup for selected period" : "Sync from Integrations to see trends"),
+        badge: noPostsInWindow ? "Building" : badge(postsDeltaForPeriod, !!hasRollup),
       },
       {
         id: "reach",
         label: "Potential Reach",
-        value: xAnalyticsData
-          ? (reachProxyByPeriod >= 1e6 ? `${(reachProxyByPeriod / 1e6).toFixed(1)}M` : reachProxyByPeriod >= 1e3 ? `${(reachProxyByPeriod / 1e3).toFixed(1)}K` : String(Math.round(reachProxyByPeriod)))
-          : "—",
+        value: noPostsInWindow || !xAnalyticsData
+          ? "—"
+          : (reachProxyByPeriod >= 1e6 ? `${(reachProxyByPeriod / 1e6).toFixed(1)}M` : reachProxyByPeriod >= 1e3 ? `${(reachProxyByPeriod / 1e3).toFixed(1)}K` : String(Math.round(reachProxyByPeriod))),
         delta: reachDeltaForPeriod,
-        helper: reachDeltaForPeriod === null ? "Not enough data" : hasRollup ? "Impressions or estimated for window" : "Sync from Integrations to see trends",
-        badge: badge(reachDeltaForPeriod, !!hasRollup),
-        estimated: xAnalyticsData?.potential_reach_is_estimated === true,
+        helper: noPostsInWindow ? helperNoPosts : (reachDeltaForPeriod === null ? helperDeltaNeedsPrior : hasRollup ? "Impressions or estimated for window" : "Sync from Integrations to see trends"),
+        badge: noPostsInWindow ? "Building" : badge(reachDeltaForPeriod, !!hasRollup),
+        estimated: !noPostsInWindow && xAnalyticsData?.potential_reach_is_estimated === true,
       },
     ];
   }, [
     xAnalyticsData,
+    noPostsInWindow,
     followersTotal,
     followersDeltaForPeriod,
     hasRealFollowerHistory,

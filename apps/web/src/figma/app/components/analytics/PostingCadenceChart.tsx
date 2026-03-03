@@ -43,8 +43,8 @@ export function PostingCadenceChart({
     return (
       <ChartCard title="Posting Cadence" coverage={coverage}>
         <EmptyState
-          message="No posts in the selected period."
-          secondary="Post to see cadence."
+          message="No posts in this window."
+          secondary="Post on X to unlock trends."
           onRefresh={onRefresh}
           refreshDisabled={refreshDisabled}
           integrationsHref={integrationsHref}

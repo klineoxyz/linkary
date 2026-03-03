@@ -148,6 +148,18 @@ export async function ingestXTweets(
     console.log("[X_TWEETS] fetched_total=" + fetched_total + " skipped_retweets=" + skipped_retweets + " skipped_outliers=" + skipped_outliers);
   }
 
+  // Dedupe by (profile_id, tweet_id) so ON CONFLICT DO UPDATE does not see the same row twice
+  const seen = new Set<string>();
+  const deduped = rows.filter((r) => {
+    const key = String(r.profile_id) + ":" + String(r.tweet_id);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (deduped.length < rows.length) {
+    console.log("[X_TWEETS] deduped " + rows.length + " -> " + deduped.length + " rows (duplicate tweet_id in batch)");
+  }
+
   const { count: countBefore } = await supabase
     .from("x_tweets")
     .select("*", { count: "exact", head: true })
@@ -176,9 +188,9 @@ export async function ingestXTweets(
     .from("x_tweets")
     .select("*", { count: "exact", head: true })
     .eq("profile_id", profile_id);
-  const after = countAfter ?? before + rows.length;
+  const after = countAfter ?? before + deduped.length;
   const inserted = Math.max(0, after - before);
-  const upserted = rows.length;
+  const upserted = deduped.length;
   console.log("[X_TWEETS] fetched_total=" + fetched_total + " skipped_retweets=" + skipped_retweets + " upserted=" + upserted);
 
   if (fetched_total > 0 && upserted === 0) {
@@ -186,7 +198,7 @@ export async function ingestXTweets(
       "[X_TWEETS] fetched>0 but upserted=0. conflict_target=" +
       X_TWEETS_CONFLICT +
       " payload_keys=" +
-      Object.keys(rows[0] ?? {}).join(",") +
+      Object.keys(deduped[0] ?? {}).join(",") +
       " table_columns=" +
       X_TWEETS_COLUMNS.join(",");
     console.error(msg);

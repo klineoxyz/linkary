@@ -320,6 +320,13 @@ export function spaceParticipantIds(detail: XSpaceDetail): string[] {
   return Array.from(ids);
 }
 
+/** |A ∩ B|. */
+export function audienceOverlapCount(idsA: string[], idsB: string[]): number {
+  if (idsA.length === 0 || idsB.length === 0) return 0;
+  const setB = new Set(idsB);
+  return idsA.filter((id) => setB.has(id)).length;
+}
+
 /** Overlap % = |A ∩ B| / min(|A|, |B|) * 100. Returns 0 if either set is empty. */
 export function audienceOverlapPercent(idsA: string[], idsB: string[]): number {
   if (idsA.length === 0 || idsB.length === 0) return 0;

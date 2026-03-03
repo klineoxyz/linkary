@@ -1,7 +1,6 @@
-"use client";
+import { permanentRedirect } from "next/navigation";
 
-import AppWithProviders from "../AppWithProviders";
-
-export default function CalendarPage() {
-  return <AppWithProviders />;
+/** Permanent redirect (308): /calendar → /xspaces */
+export default function CalendarRedirect() {
+  permanentRedirect("/xspaces");
 }

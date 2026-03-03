@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabase
         .from("spaces")
         .select(spaceCols)
-        .in("status", ["scheduled", "live"])
+        .in("status", ["planned", "scheduled", "live"])
         .gte("scheduled_at", fromDate.toISOString())
         .lte("scheduled_at", toDate.toISOString())
         .order("scheduled_at", { ascending: true })
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  let body: { title?: string; description?: string; scheduled_at?: string; duration_mins?: number } = {};
+  let body: { title?: string; description?: string; scheduled_at?: string; duration_mins?: number; status?: string; cohosts?: string; x_space_url?: string } = {};
   try {
     body = await request.json();
   } catch {
@@ -105,19 +105,24 @@ export async function POST(request: NextRequest) {
   }
   const title = typeof body.title === "string" ? body.title.trim() : "";
   if (!title) return NextResponse.json({ error: "title required" }, { status: 400 });
+  const status = body.status === "planned" ? "planned" : "scheduled";
+  let description = typeof body.description === "string" ? body.description.trim() || null : null;
+  if (typeof body.cohosts === "string" && body.cohosts.trim()) {
+    description = description ? `${description}\nCohosts: ${body.cohosts.trim()}` : `Cohosts: ${body.cohosts.trim()}`;
+  }
 
   const { data, error } = await supabase
     .from("spaces")
     .insert({
       host_profile_id: user.id,
       title,
-      description: typeof body.description === "string" ? body.description.trim() || null : null,
+      description,
       scheduled_at: body.scheduled_at || null,
       duration_mins: typeof body.duration_mins === "number" ? body.duration_mins : null,
-      status: "scheduled",
+      status,
       updated_at: new Date().toISOString(),
     })
-    .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at")
+    .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

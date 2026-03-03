@@ -1,15 +1,20 @@
 /**
  * GET /api/spaces/audience-overlaps?space_id=<uuid>
- * Returns other Spaces (only from registered users) with ≥30% audience overlap.
- * Both hosts must be registered (our space host = current user; other space host = any profile in DB).
+ * Returns other Spaces (from registered users) with audience overlap.
+ * No minimum % filter. Top 10 sorted by overlap_percent desc.
+ * Response: overlap_percent, overlap_count, min_audience_size.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { audienceOverlapPercent } from "@/lib/x-analytics-server";
+import {
+  audienceOverlapPercent,
+  audienceOverlapCount,
+} from "@/lib/x-analytics-server";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const MIN_OVERLAP_PCT = 30;
+const TOP_N = 10;
+const CACHE_SECONDS = 60;
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -53,7 +58,9 @@ export async function GET(request: NextRequest) {
     (r: { x_user_id: string }) => r.x_user_id
   );
   if (myIds.length === 0) {
-    return NextResponse.json({ overlaps: [] });
+    const res = NextResponse.json({ overlaps: [] });
+    res.headers.set("Cache-Control", `public, s-maxage=${CACHE_SECONDS}, stale-while-revalidate`);
+    return res;
   }
 
   const { data: otherSpaces } = await supabase
@@ -70,12 +77,12 @@ export async function GET(request: NextRequest) {
   }>;
 
   const overlaps: Array<{
-    space_id: string;
-    host_profile_id: string;
-    host_username: string | null;
-    title: string;
-    scheduled_at: string | null;
-    overlap_pct: number;
+    other_space_id: string;
+    other_space_title: string;
+    other_host_username: string | null;
+    overlap_percent: number;
+    overlap_count: number;
+    min_audience_size: number;
   }> = [];
 
   for (const other of others) {
@@ -87,8 +94,9 @@ export async function GET(request: NextRequest) {
       (r: { x_user_id: string }) => r.x_user_id
     );
     if (otherIds.length === 0) continue;
+    const overlapCount = audienceOverlapCount(myIds, otherIds);
     const pct = audienceOverlapPercent(myIds, otherIds);
-    if (pct < MIN_OVERLAP_PCT) continue;
+    const minSize = Math.min(myIds.length, otherIds.length);
     const { data: profile } = await supabase
       .from("profiles")
       .select("username, twitter_username")
@@ -103,14 +111,19 @@ export async function GET(request: NextRequest) {
       profileRow?.twitter_username ??
       null;
     overlaps.push({
-      space_id: other.id,
-      host_profile_id: other.host_profile_id,
-      host_username: display,
-      title: other.title,
-      scheduled_at: other.scheduled_at,
-      overlap_pct: pct,
+      other_space_id: other.id,
+      other_space_title: other.title,
+      other_host_username: display,
+      overlap_percent: pct,
+      overlap_count: overlapCount,
+      min_audience_size: minSize,
     });
   }
 
-  return NextResponse.json({ overlaps });
+  overlaps.sort((a, b) => b.overlap_percent - a.overlap_percent);
+  const top = overlaps.slice(0, TOP_N);
+
+  const res = NextResponse.json({ overlaps: top });
+  res.headers.set("Cache-Control", `public, s-maxage=${CACHE_SECONDS}, stale-while-revalidate`);
+  return res;
 }

@@ -735,7 +735,7 @@ const RESERVED_PATHS = new Set([
   "dashboard", "explore", "terms", "privacy-policy", "privacy", "login", "onboarding",
   "profile", "overview", "market", "messages", "circles", "analytics", "verification",
   "pricing", "billing", "plans", "app", "api", "settings", "test-supabase", "home",
-  "leaderboards", "creator", "brand", "agency", "calendar", "host", "availability",
+  "leaderboards", "creator", "brand", "agency", "calendar", "xspaces", "host", "availability",
   "monetization", "monetization-flow", "kol-lists", "capital-partners", "connections",
   "preferences", "support", "notifications", "verification-inbox", "showcase",   "integrations", "roles-skills", "profile",
   "watchlist",
@@ -782,8 +782,9 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     brandProfile: "/brand",
     agencyProfile: "/agency",
     calendar: "/calendar",
-    calendarRefined: "/calendar",
-    enhancedCalendar: "/calendar",
+    calendarRefined: "/xspaces",
+    enhancedCalendar: "/xspaces",
+    xspaces: "/xspaces",
     hostDashboard: "/host",
     availability: "/availability",
     monetizationShowcase: "/monetization",
@@ -868,7 +869,7 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
       plans: "plansBilling", billing: "billing", pricing: "pricing",
       home: "landing",
       leaderboards: "leaderboards", creator: "creatorProfile", brand: "brandProfile",
-      agency: "agencyProfile", calendar: "calendar", host: "hostDashboard",
+      agency: "agencyProfile", calendar: "calendar", xspaces: "xspaces", host: "hostDashboard",
       availability: "availability", monetization: "monetizationShowcase",
       "monetization-flow": "monetizationFlowShowcase",       "kol-lists": "kolLists",
       "capital-partners": "capitalPartners", connections: "connections", preferences: "preferences",
@@ -1009,7 +1010,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="connections" icon={UserPlus} label="Connections" />
           <NavLink name="watchlist" icon={Bookmark} label="Watchlist" />
           <NavLink name="kolLists" icon={Star} label="KOL Lists" />
-          <NavLink name="calendar" icon={CalendarDays} label="XSpaces &amp; Calendar" />
+          <NavLink name="xspaces" icon={CalendarDays} label="X Spaces" />
         </div>
 
         <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Analytics & Data</span>
@@ -1171,7 +1172,7 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
     if (n.entity_type === "deal" && n.entity_id) return `/deal/${n.entity_id}`;
     if (n.type === "ambassador_invite" || n.type === "ambassador_invite_accepted" || n.type === "ambassador_removed") return (n.payload?.org_id ?? n.entity_id) ? `/org/${n.payload?.org_id ?? n.entity_id}?tab=ambassadors` : null;
     if (n.type === "affiliate_invite" || n.type === "affiliate_invite_accepted" || n.type === "affiliate_removed") return (n.payload?.org_id ?? n.entity_id) ? `/org/${n.payload?.org_id ?? n.entity_id}?tab=affiliates` : null;
-    if (n.type === "speaker_request_created" || n.type === "speaker_request_approved" || n.type === "speaker_request_rejected") return "/calendar";
+    if (n.type === "speaker_request_created" || n.type === "speaker_request_approved" || n.type === "speaker_request_rejected") return "/xspaces";
     return null;
   };
   return (
@@ -4565,7 +4566,7 @@ function LinkaryAppInner() {
                 {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "dealDetail" && <DealDetailPage setRoute={setRoute} dealId={route.data?.dealId} />}
                 {route.name === "analytics" && <AnalyticsPage setRoute={setRoute} />}
-                {route.name === "calendar" && <XSpacesPage setRoute={setRoute} me={me} />}
+                {(route.name === "calendar" || route.name === "xspaces") && <XSpacesPage setRoute={setRoute} me={me} />}
                 {route.name === "circles" && <CirclesOverviewPage setRoute={setRoute} me={me} />}
                 {route.name === "circleDetail" && <CircleDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "kolLists" && <KOLListsPage setRoute={setRoute} />}

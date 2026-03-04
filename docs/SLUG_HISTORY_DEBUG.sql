@@ -55,6 +55,29 @@ FROM public.profile_slug_history
 WHERE old_slug IS NULL OR btrim(old_slug) = '';
 
 -- -----------------------------------------------------------------------------
+-- E) Identity invariant checks (one-time; all should return 0 rows)
+-- -----------------------------------------------------------------------------
+-- 1) Any duplicate twitter_user_id in profiles (violates profiles_twitter_user_id_unique).
+SELECT twitter_user_id, count(*)
+FROM public.profiles
+WHERE twitter_user_id IS NOT NULL AND btrim(twitter_user_id) <> ''
+GROUP BY twitter_user_id
+HAVING count(*) > 1;
+
+-- 2) Any duplicate (provider, provider_user_id) in social_accounts (violates social_accounts_provider_identity_unique).
+SELECT provider, provider_user_id, count(*)
+FROM public.social_accounts
+WHERE provider_user_id IS NOT NULL AND btrim(provider_user_id) <> ''
+GROUP BY provider, provider_user_id
+HAVING count(*) > 1;
+
+-- 3) Any multiple rows per (user_id, provider) (violates social_accounts_user_provider_unique).
+SELECT user_id, provider, count(*)
+FROM public.social_accounts
+GROUP BY user_id, provider
+HAVING count(*) > 1;
+
+-- -----------------------------------------------------------------------------
 -- Identity invariants (documentation)
 -- -----------------------------------------------------------------------------
 -- 1. User identity = twitter_user_id (or social_accounts.provider_user_id for provider='twitter').

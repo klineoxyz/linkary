@@ -256,6 +256,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           );
         }
         // Slug history lookup only for non-empty normalized segment (never empty string).
+        // old_slug stored normalized (lower+trim); use eq to hit btree index (idx_profile_slug_history_old_slug_btree).
         const segmentNorm = segmentLower.trim().toLowerCase();
         let hist: { profile_id: string } | null = null;
         if (segmentNorm !== "") {

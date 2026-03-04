@@ -57,6 +57,9 @@ WHERE old_slug IS NULL OR btrim(old_slug) = '';
 -- -----------------------------------------------------------------------------
 -- E) Identity invariant checks (one-time; all should return 0 rows)
 -- -----------------------------------------------------------------------------
+-- X identity is stored in TWO places and must match: profiles.twitter_user_id and
+-- social_accounts.provider_user_id (provider in ('twitter','x')). Query 4 verifies they match.
+--
 -- 1) Any duplicate twitter_user_id in profiles (violates profiles_twitter_user_id_unique).
 SELECT twitter_user_id, count(*)
 FROM public.profiles
@@ -77,7 +80,16 @@ FROM public.social_accounts
 GROUP BY user_id, provider
 HAVING count(*) > 1;
 
--- Record results (one-time verification): all three queries above should return 0 rows.
+-- 4) Cross-table identity match: profiles.twitter_user_id MUST equal social_accounts.provider_user_id
+--    for provider in ('twitter','x') when both are non-empty. Mismatches = 0 rows.
+SELECT p.id AS profile_id, p.twitter_user_id AS profiles_twitter_user_id, s.provider_user_id AS social_accounts_provider_user_id
+FROM public.profiles p
+JOIN public.social_accounts s ON s.user_id = p.id AND s.provider IN ('twitter', 'x')
+WHERE p.twitter_user_id IS NOT NULL AND btrim(p.twitter_user_id) <> ''
+  AND s.provider_user_id IS NOT NULL AND btrim(s.provider_user_id) <> ''
+  AND btrim(p.twitter_user_id) <> btrim(s.provider_user_id);
+
+-- Record results (one-time verification): queries 1–4 above should all return 0 rows.
 -- If any return rows, fix data before relying on identity uniqueness.
 
 -- -----------------------------------------------------------------------------

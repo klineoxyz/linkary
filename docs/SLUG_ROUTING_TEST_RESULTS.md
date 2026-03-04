@@ -35,7 +35,7 @@
 | Check | Result | Notes |
 |-------|--------|--------|
 | Redirect only when profile exists, twitter_username matches, username differs | **PASS** (code) | Condition: `matchedBy === "twitter_username" && canonicalUsername && segmentLower !== canonicalUsername`. |
-| Permanent redirect (301/308) | **PASS** (code) | `permanentRedirect()` used (Next.js sends **308**; SEO equivalent to 301 for GET). |
+| Permanent redirect (308) | **PASS** (code) | `permanentRedirect()` used (Next.js sends **308**; no 302 for alias/old-slug). |
 | No redirect when profile not found | **PASS** (code) | Redirect runs only after minimalRow and profileRow exist. |
 
 **Manual:** For a profile with twitter_username ≠ username, visit `/<twitter_username>` — one 308 redirect to `/<profiles.username>`.
@@ -48,7 +48,7 @@
 |------|--------|--------|
 | 4a – Change slug once via claim | **MANUAL** | Use Settings → claim/onboarding or `claim_username_for_profile` RPC for one test profile. |
 | 4b – `profile_slug_history` has row | **PASS** (code) | Trigger `trg_profile_slug_history` in `20260304000000_profile_slug_history.sql` fires on `UPDATE OF username`; inserts (profile_id, old_slug, new_slug). |
-| 4c – `/<old_slug>` 301/308 to current | **PASS** (code) | When !minimalRow, we query profile_slug_history by old_slug; if found, `permanentRedirect("/" + currentUsername)`. |
+| 4c – `/<old_slug>` 308 to current | **PASS** (code) | When !minimalRow, we query profile_slug_history by old_slug; if found, `permanentRedirect("/" + currentUsername)` (308). |
 
 **Manual:** (1) Change one profile’s slug via app or RPC. (2) `SELECT * FROM profile_slug_history ORDER BY changed_at DESC LIMIT 1;` — one row. (3) Visit `/<old_slug>` — single 308 to `/<profiles.username>`.
 
@@ -194,3 +194,33 @@ BASE_URL=... OLD_SLUG=<old> NEW_SLUG=<new> pnpm exec tsx scripts/verifySlugRouti
 - **Alias redirect:** Code path correct (308 when matchedBy=twitter_username and segment ≠ canonical). Live fixture returned 200 (no redirect); acceptable if that profile’s canonical slug equals the requested path.
 
 **Live data verification:** Reserved unowned + no redirect loops confirmed on production URL. Slug history and org root require manual run with real data (see How to run above).
+
+---
+
+## Identity invariant results (one-time)
+
+Section E in `docs/SLUG_HISTORY_DEBUG.sql` (plus cross-table check 4). Run in production; all must return **0 rows**. Record in `docs/IDENTITY_INVARIANT_RESULTS.md`.
+
+| Check | Result |
+|-------|--------|
+| A) Duplicate twitter_user_id in profiles (non-empty) | 0 rows |
+| B) Duplicate (provider, provider_user_id) in social_accounts (non-empty) | 0 rows |
+| C) Multiple rows per (user_id, provider) in social_accounts | 0 rows |
+| D) profiles.twitter_user_id ≠ social_accounts.provider_user_id for X provider | 0 rows |
+
+**Slug history /muazxinthi:** `SELECT * FROM profile_slug_history WHERE old_slug='muazxinthi'` → **0 rows** (no redirect from /muazxinthi to any other slug). Confirmed in production.
+
+---
+
+## Slug history lookup: index usage (perf proof)
+
+Run `docs/SLUG_HISTORY_PERF.sql` with a real existing `old_slug` value. Expect plan to show **Index Scan using idx_profile_slug_history_old_slug_btree**.
+
+```text
+-- Example (replace <real_old_slug> with an actual value, then run EXPLAIN (ANALYZE, BUFFERS) ...):
+-- Limit  (cost=0.xx..8.xx rows=1 width=xx)
+--   ->  Index Scan using idx_profile_slug_history_old_slug_btree on profile_slug_history
+--         Index Cond: (old_slug = '<real_old_slug>'::text)
+```
+
+After confirming, optional: apply `supabase/migrations/20260304100005_drop_profile_slug_history_expression_index.sql` to drop redundant expression index (no app code uses `LOWER(TRIM(old_slug))` on this table; routing uses `.eq("old_slug", segmentNorm)`).

@@ -21,9 +21,9 @@ Run these checks after any change to `(public)/[username]/page.tsx`, `reservedPa
 
 | URL | Expect |
 |-----|--------|
-| `/<profiles.twitter_username>` when ≠ username | **301** to `/<profiles.username>`; only when profile exists and twitter_username matches and username differs |
+| `/<profiles.twitter_username>` when ≠ username | **308 permanent** (permanentRedirect) to `/<profiles.username>`; only when profile exists and twitter_username matches and username differs |
 
-Do **not** redirect when profile not found or when segment already equals username.
+Do **not** redirect when profile not found or when segment already equals username. Must be permanent (no 302).
 
 ## 4. Old slug redirect (profile_slug_history)
 
@@ -31,7 +31,7 @@ Do **not** redirect when profile not found or when segment already equals userna
 |------|--------|
 | 4a | Pick one profile; change slug once (claim flow or RPC) |
 | 4b | Confirm `profile_slug_history` has one row (old_slug, new_slug) |
-| 4c | Visit `/<old_slug>` | **301** to `/<profiles.username>` |
+| 4c | Visit `/<old_slug>` | **308 permanent** (permanentRedirect) to `/<profiles.username>` |
 
 ## 5. Org root URL
 
@@ -60,7 +60,7 @@ Example: if a profile has `username = 'auth'`, then `/auth` must show that profi
 |-------|--------|
 | Profile page canonical | Always `https://linkary.xyz/<profiles.username>` (or org slug for orgs) |
 | Reserved app shell | `robots: noindex, nofollow` when segment is reserved and unclaimed |
-| Redirects | 301/308 for alias and old-slug; no 302 for these |
+| Redirects | 308 permanent (permanentRedirect) for alias and old-slug; no 302 for these |
 
 ## 9. Debug (optional)
 
@@ -89,6 +89,6 @@ Alias redirect must only happen when matchedBy=twitter_username and segment ≠ 
 
 1. Open `/dashboard`, `/xspaces`, `/analytics` — all load.
 2. Open `/<your_username>` — profile loads; canonical in `<link rel="canonical">` is correct.
-3. If you have twitter_username ≠ username, open `/<twitter_username>` — 301 to `/<username>`.
+3. If you have twitter_username ≠ username, open `/<twitter_username>` — 308 to `/<username>` (permanentRedirect).
 4. Open `/<nonexistent>` — claim/404.
 5. Open `/<reserved_word>` (e.g. `/auth`) with no owner — app shell; if a profile owns `auth`, `/auth` shows that profile.

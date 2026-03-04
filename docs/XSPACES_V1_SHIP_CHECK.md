@@ -110,6 +110,15 @@ LIMIT 100;
 
 ---
 
+## Common SQL mistakes (Supabase)
+
+- **WHERE-only updates:** Always include a filter (e.g. `WHERE space_id = '...'`). Avoid running an update without `WHERE` or you’ll change every row.
+- **Placeholder UUID:** Replace `'<PROFILE_UUID>'` with the real profile id (e.g. from `auth.uid()` or your profile row). Do not run queries with the literal placeholder.
+- **Missing quotes for UUID:** In raw SQL, UUIDs must be quoted: `WHERE profile_id = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'`. Unquoted or wrong type can cause errors or no rows.
+- **PostgREST filters:** In code, use proper quoting for timestamps in `.or()` (e.g. `scheduled_at.gte."2025-03-04T12:00:00.000Z"`). Unquoted ISO strings can break the filter.
+
+---
+
 ## Quick checklist
 
 | # | Step                    | Pass |

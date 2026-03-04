@@ -15,6 +15,7 @@ type Space = {
   status: string;
   created_at: string;
   x_space_id?: string | null;
+  x_space_url?: string | null;
 };
 
 type Overlap = { id: string; title: string; scheduled_at: string; host_profile_id: string; duration_mins: number | null };
@@ -56,7 +57,7 @@ function DiscoverTab({
       {list.map((s) => (
         <div
           key={s.id}
-          className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-900/50 flex items-center gap-4 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          className="p-4 rounded-xl border border-border bg-card flex items-center gap-4 cursor-pointer hover:border-primary/20 transition-all"
           onClick={() => onSpaceClick(s)}
           onKeyDown={(e) => e.key === "Enter" && onSpaceClick(s)}
           role="button"
@@ -149,6 +150,17 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [pastStatsBySpaceId, setPastStatsBySpaceId] = useState<Record<string, { listeners_total?: number; peak_listeners?: number; duration_seconds?: number }>>({});
   const [pastLoading, setPastLoading] = useState(false);
   const [rsvpStatus, setRsvpStatus] = useState<Record<string, "interested" | "going">>({});
+  const [createOnX, setCreateOnX] = useState(true);
+  const [createJustDoneSpaceId, setCreateJustDoneSpaceId] = useState<string | null>(null);
+  const [detectingSpace, setDetectingSpace] = useState(false);
+  const [detectError, setDetectError] = useState<string | null>(null);
+  const [xConnected, setXConnected] = useState<boolean | null>(null);
+  const [spaceRsvps, setSpaceRsvps] = useState<{ total: number; going_count: number; interested_count: number; attendees: Array<{ profile_id: string; status: string; username?: string | null }> } | null>(null);
+  const [spaceSpeakerRequests, setSpaceSpeakerRequests] = useState<Array<{ id: string; requester_profile_id: string; status: string; message: string | null; created_at: string; updated_at: string | null; username: string | null }>>([]);
+  const [resolvingRequestId, setResolvingRequestId] = useState<string | null>(null);
+  const [linkXSpaceUrl, setLinkXSpaceUrl] = useState("");
+  const [linkXSpaceSaving, setLinkXSpaceSaving] = useState(false);
+  const [showLinkXSpace, setShowLinkXSpace] = useState(false);
 
   const searchParams = useSearchParams();
   const debug = searchParams?.get("debug") === "1";
@@ -223,6 +235,44 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   useEffect(() => {
     if (activeTab === "past") loadPast();
   }, [activeTab, loadPast]);
+
+  useEffect(() => {
+    if (!me?.id || !base) return;
+    let cancelled = false;
+    const token = getToken();
+    token.then((t) => {
+      if (!t || cancelled) return;
+      fetch(`${base}/api/x/me`, { headers: { Authorization: `Bearer ${t}` } })
+        .then((r) => r.json())
+        .then((d) => { if (!cancelled) setXConnected(d?.connected === true); })
+        .catch(() => { if (!cancelled) setXConnected(false); });
+    });
+    return () => { cancelled = true; };
+  }, [me?.id, base, getToken]);
+
+  const loadDetailRsvps = useCallback(async (spaceId: string) => {
+    const res = await fetch(`${base}/api/xspaces/${spaceId}/rsvps`);
+    const data = await res.json().catch(() => ({}));
+    setSpaceRsvps(data?.total != null ? { total: data.total, going_count: data.going_count ?? 0, interested_count: data.interested_count ?? 0, attendees: data.attendees ?? [] } : null);
+  }, [base]);
+
+  const loadDetailSpeakerRequests = useCallback(async (spaceId: string) => {
+    const token = await getToken();
+    const res = await fetch(`${base}/api/xspaces/${spaceId}/speaker-requests`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const data = await res.json().catch(() => ({}));
+    setSpaceSpeakerRequests(Array.isArray(data?.requests) ? data.requests : []);
+  }, [base, getToken]);
+
+  useEffect(() => {
+    if (!detailsSpace) {
+      setSpaceRsvps(null);
+      setSpaceSpeakerRequests([]);
+      setShowLinkXSpace(false);
+      return;
+    }
+    loadDetailRsvps(detailsSpace.id);
+    if (me?.id && detailsSpace.host_profile_id === me.id) loadDetailSpeakerRequests(detailsSpace.id);
+  }, [detailsSpace?.id, detailsSpace?.host_profile_id, me?.id, loadDetailRsvps, loadDetailSpeakerRequests]);
 
   const loadAudienceOverlaps = useCallback(
     async (spaceIds: string[]) => {
@@ -309,15 +359,20 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     const data = await res.json().catch(() => ({}));
     setSaving(false);
     if (data.id) {
-      setShowCreate(false);
-      setCreateTitle("");
-      setCreateDescription("");
-      setCreateScheduledAt("");
-      setCreatePrefilledDate(null);
-      setCreateDurationMins(60);
-      setCreateCohosts("");
-      setCreateXSpaceUrl("");
-      setCreateError(null);
+      if (createOnX) {
+        setCreateJustDoneSpaceId(data.id);
+        setDetectError(null);
+      } else {
+        setShowCreate(false);
+        setCreateTitle("");
+        setCreateDescription("");
+        setCreateScheduledAt("");
+        setCreatePrefilledDate(null);
+        setCreateDurationMins(60);
+        setCreateCohosts("");
+        setCreateXSpaceUrl("");
+        setCreateError(null);
+      }
       if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
       else loadSpaces();
     } else {
@@ -377,6 +432,37 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       else loadSpaces();
     }
   };
+  const handleDetectMySpace = useCallback(async () => {
+    const spaceId = createJustDoneSpaceId;
+    if (!spaceId) return;
+    setDetectingSpace(true);
+    setDetectError(null);
+    const token = await getToken();
+    const res = await fetch(`${base}/api/xspaces/detect-my-space`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ space_id: spaceId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setDetectingSpace(false);
+    if (data.found) {
+      setCreateJustDoneSpaceId(null);
+      setShowCreate(false);
+      setCreateTitle("");
+      setCreateDescription("");
+      setCreateScheduledAt("");
+      setCreatePrefilledDate(null);
+      setCreateDurationMins(60);
+      setCreateCohosts("");
+      setCreateXSpaceUrl("");
+      setCreateError(null);
+      if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
+      else loadSpaces();
+    } else {
+      setDetectError(data.message ?? data.error ?? "Not found. Paste the X Space link below.");
+    }
+  }, [base, createJustDoneSpaceId, getToken, view, calendarYear, calendarMonth, loadSpaces, loadSpacesForMonth]);
+
   const handleRequestSpeaker = async () => {
     if (!detailsSpace || !me?.id || isHost(detailsSpace)) return;
     setSpeakerRequesting(true);
@@ -406,23 +492,42 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">X Spaces</h1>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">X Spaces</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Create and manage your X Spaces. Link to X to auto-detect new Spaces.</p>
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           {me?.id && (
             <>
+              {xConnected === false && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const token = await getToken();
+                    const res = await fetch(`${base}/api/x/connect`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, redirect: "manual" });
+                    if (res.status === 302) {
+                      const url = res.headers.get("Location");
+                      if (url) window.location.href = url;
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent"
+                >
+                  Connect X
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setCreateError(null); setShowCreate(true); }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+                onClick={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setCreateError(null); setCreateJustDoneSpaceId(null); setShowCreate(true); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
               >
                 <Plus className="w-4 h-4" /> Create Space
               </button>
               <button
                 type="button"
                 onClick={() => { setAddFromXUrl(""); setAddFromXError(null); setAddFromXSuccess(null); setShowAddFromX(true); }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent"
               >
                 Add from X
               </button>
@@ -522,8 +627,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             pastSpaces.map((s) => {
               const stats = pastStatsBySpaceId[s.id];
               return (
-                <div key={s.id} className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-900/50">
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{s.title}</p>
+                <div key={s.id} className="p-4 rounded-xl border border-border bg-card">
+                  <p className="font-medium text-foreground">{s.title}</p>
                   <p className="text-sm text-zinc-500">
                     {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} · ended
                   </p>
@@ -601,7 +706,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               return (
                 <div
                   key={s.id}
-                  className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-900/50 flex flex-col gap-2"
+                  className="p-4 rounded-xl border border-border bg-card flex flex-col gap-2"
                 >
                   <div className="flex items-center gap-4">
                     <Clock className="w-5 h-5 text-zinc-400 shrink-0" />
@@ -696,42 +801,82 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
       {showCreate && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); }} aria-hidden />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 z-50 shadow-xl">
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); }} aria-hidden />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card backdrop-blur-xl p-6 z-50 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Create X Space</h2>
-              <button type="button" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); }} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+              <h2 className="text-lg font-semibold text-foreground">Create X Space</h2>
+              <button type="button" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); }} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 <X className="w-5 h-5" />
               </button>
             </div>
             {createError && (
               <p className="mb-3 text-sm text-red-600 dark:text-red-400">{createError}</p>
             )}
+            {createJustDoneSpaceId ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">Space created on Linkary. Now link it to X:</p>
+                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                  <p className="font-medium text-foreground">Step 1: Create your Space on X</p>
+                  <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+                    Open X Spaces
+                  </a>
+                  <p className="text-xs text-muted-foreground">Create a new Space on X, then return here.</p>
+                  <p className="font-medium text-foreground pt-2">Step 2: Detect my Space</p>
+                  <button type="button" onClick={handleDetectMySpace} disabled={detectingSpace} className="px-4 py-2 rounded-lg border border-border bg-secondary hover:bg-accent text-foreground text-sm font-medium disabled:opacity-50">
+                    {detectingSpace ? "Detecting…" : "Detect my Space"}
+                  </button>
+                  {detectError && <p className="text-sm text-amber-600 dark:text-amber-400">{detectError}</p>}
+                  <p className="text-xs text-muted-foreground">Or paste the X Space link below (fallback):</p>
+                  <input type="url" value={createXSpaceUrl} onChange={(e) => setCreateXSpaceUrl(e.target.value)} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                  {createXSpaceUrl.trim() && (
+                    <button type="button" onClick={async () => {
+                      setDetectError(null);
+                      const token = await getToken();
+                      const res = await fetch(`${base}/api/spaces/sync-from-x`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ space_url: createXSpaceUrl.trim() }) });
+                      const data = await res.json().catch(() => ({}));
+                      if (data.space) {
+                        setCreateJustDoneSpaceId(null); setShowCreate(false); setCreateTitle(""); setCreateDescription(""); setCreateScheduledAt(""); setCreatePrefilledDate(null); setCreateDurationMins(60); setCreateCohosts(""); setCreateXSpaceUrl(""); setCreateError(null);
+                        if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces();
+                      } else setDetectError(data.message ?? data.error ?? "Failed to link.");
+                    }} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">Link pasted URL</button>
+                  )}
+                </div>
+              </div>
+            ) : (
             <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={createOnX} onChange={(e) => setCreateOnX(e.target.checked)} className="rounded border-border" />
+                <span className="text-sm font-medium text-foreground">Create on X (recommended)</span>
+              </label>
+              {createOnX && xConnected === false && (
+                <p className="text-sm text-amber-600 dark:text-amber-400">Connect X first (Settings → Integrations or use Connect X below) to auto-detect your Space.</p>
+              )}
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Title</label>
-                <input type="text" value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} placeholder="Space title" className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" />
+                <input type="text" value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} placeholder="Space title" className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description (optional)</label>
-                <textarea value={createDescription} onChange={(e) => setCreateDescription(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" />
+                <textarea value={createDescription} onChange={(e) => setCreateDescription(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Scheduled at (required, local time)</label>
-                <input type="datetime-local" value={createScheduledAt} onChange={(e) => setCreateScheduledAt(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" />
+                <input type="datetime-local" value={createScheduledAt} onChange={(e) => setCreateScheduledAt(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Duration (mins)</label>
-                <input type="number" min={1} value={createDurationMins} onChange={(e) => setCreateDurationMins(parseInt(e.target.value, 10) || 60)} className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" />
+                <input type="number" min={1} value={createDurationMins} onChange={(e) => setCreateDurationMins(parseInt(e.target.value, 10) || 60)} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Cohosts (optional)</label>
-                <input type="text" value={createCohosts} onChange={(e) => setCreateCohosts(e.target.value)} placeholder="@user1 @user2" className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" />
+                <input type="text" value={createCohosts} onChange={(e) => setCreateCohosts(e.target.value)} placeholder="@user1 @user2" className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               </div>
+              {!createOnX && (
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">X Space URL (optional)</label>
-                <input type="url" value={createXSpaceUrl} onChange={(e) => setCreateXSpaceUrl(e.target.value)} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" />
+                <input type="url" value={createXSpaceUrl} onChange={(e) => setCreateXSpaceUrl(e.target.value)} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               </div>
+              )}
               {overlapLabel && (
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -747,11 +892,16 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               )}
               <p className="text-xs text-zinc-500">Overlap: {overlaps.length ? "conflicts detected (±60 min)" : "unavailable (MVP)"}</p>
             </div>
+            )}
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); }} className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300">Cancel</button>
-              <button type="button" onClick={handleCreate} disabled={saving || !createTitle.trim() || !createScheduledAt.trim()} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
-                {saving ? "Creating…" : "Create"}
-              </button>
+              {!createJustDoneSpaceId && (
+                <>
+                  <button type="button" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateJustDoneSpaceId(null); }} className="px-4 py-2 rounded-lg border border-border text-foreground">Cancel</button>
+                  <button type="button" onClick={handleCreate} disabled={saving || !createTitle.trim() || !createScheduledAt.trim()} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
+                    {saving ? "Creating…" : "Create"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </>
@@ -857,8 +1007,83 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   </div>
                 </div>
               )}
+              {spaceRsvps && (
+                <div className="rounded-xl border border-border bg-card p-3 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Linkary RSVPs</p>
+                  <p className="text-sm text-foreground">{spaceRsvps.going_count} going · {spaceRsvps.interested_count} interested</p>
+                  {spaceRsvps.attendees.length > 0 && (
+                    <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                      {spaceRsvps.attendees.slice(0, 10).map((a) => (
+                        <li key={a.profile_id}>@{a.username ?? "user"} — {a.status}</li>
+                      ))}
+                      {spaceRsvps.attendees.length > 10 && <li>+{spaceRsvps.attendees.length - 10} more</li>}
+                    </ul>
+                  )}
+                </div>
+              )}
+              <div className="rounded-xl border border-border bg-card p-3">
+                <p className="text-xs font-medium text-muted-foreground">X reminders</p>
+                <p className="text-sm text-muted-foreground">Not available yet</p>
+              </div>
+              {isHost(detailsSpace) && (
+                <>
+                  {detailsSpace.status !== "ended" && detailsSpace.status !== "cancelled" && (
+                    <button type="button" onClick={async () => {
+                      setEditSaving(true);
+                      const token = await getToken();
+                      const res = await fetch(`${base}/api/spaces/${detailsSpace.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: "ended" }) });
+                      setEditSaving(false);
+                      if (res.ok) { setDetailsSpace({ ...detailsSpace, status: "ended" }); if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces(); }
+                    }} disabled={editSaving} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent disabled:opacity-50">Mark as ended</button>
+                  )}
+                  <button type="button" onClick={() => setShowLinkXSpace(!showLinkXSpace)} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent">Link X Space</button>
+                  {showLinkXSpace && (
+                    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+                      <input type="url" value={linkXSpaceUrl} onChange={(e) => setLinkXSpaceUrl(e.target.value)} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                      <button type="button" disabled={linkXSpaceSaving} onClick={async () => {
+                        if (!linkXSpaceUrl.trim()) return;
+                        setLinkXSpaceSaving(true);
+                        const token = await getToken();
+                        const res = await fetch(`${base}/api/spaces/sync-from-x`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ space_url: linkXSpaceUrl.trim() }) });
+                        const data = await res.json().catch(() => ({}));
+                        setLinkXSpaceSaving(false);
+                        if (data.space) { setDetailsSpace({ ...detailsSpace, x_space_id: data.space.x_space_id ?? detailsSpace.x_space_id, x_space_url: data.space.x_space_url ?? detailsSpace.x_space_url }); setLinkXSpaceUrl(""); setShowLinkXSpace(false); }
+                      }} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">Save link</button>
+                    </div>
+                  )}
+                  {spaceSpeakerRequests.length > 0 && (
+                    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Speaker requests</p>
+                      {spaceSpeakerRequests.map((sr) => (
+                        <div key={sr.id} className="flex items-center justify-between gap-2 text-sm">
+                          <span className="text-foreground">@{sr.username ?? "user"}{sr.message ? `: ${sr.message.slice(0, 50)}${sr.message.length > 50 ? "…" : ""}` : ""}</span>
+                          <span className="text-muted-foreground">{sr.status}</span>
+                          {sr.status === "pending" && (
+                            <div className="flex gap-1">
+                              <button type="button" disabled={resolvingRequestId === sr.id} onClick={async () => {
+                                setResolvingRequestId(sr.id);
+                                const token = await getToken();
+                                await fetch(`${base}/api/xspaces/speaker-request/resolve`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ request_id: sr.id, status: "approved" }) });
+                                setResolvingRequestId(null);
+                                loadDetailSpeakerRequests(detailsSpace.id);
+                              }} className="px-2 py-1 rounded bg-green-600 text-white text-xs disabled:opacity-50">Approve</button>
+                              <button type="button" disabled={resolvingRequestId === sr.id} onClick={async () => {
+                                setResolvingRequestId(sr.id);
+                                const token = await getToken();
+                                await fetch(`${base}/api/xspaces/speaker-request/resolve`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ request_id: sr.id, status: "rejected" }) });
+                                setResolvingRequestId(null);
+                                loadDetailSpeakerRequests(detailsSpace.id);
+                              }} className="px-2 py-1 rounded bg-red-600 text-white text-xs disabled:opacity-50">Reject</button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 flex-wrap">
               {isHost(detailsSpace) ? (
                 <>
                   <button type="button" onClick={handleCancelSpace} disabled={editSaving} className="px-4 py-2 rounded-lg border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50">
@@ -875,7 +1100,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     <textarea
                       value={speakerRequestMessage}
                       onChange={(e) => setSpeakerRequestMessage(e.target.value)}
-                      placeholder="Why you’d like to speak…"
+                      placeholder="Why you'd like to speak…"
                       rows={2}
                       className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
                     />
@@ -913,8 +1138,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     Going
                   </button>
                   <button type="button" onClick={handleRequestSpeaker} disabled={speakerRequesting} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
-                  {speakerRequesting ? "…" : "Request speaker"}
-                </button>
+                    {speakerRequesting ? "…" : "Request speaker"}
+                  </button>
                 </>
               ) : null}
             </div>

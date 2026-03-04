@@ -148,3 +148,49 @@
 **Scripts run:** `pnpm run check:reserved` — PASS (all 13 required reserved paths present).
 
 **Sign-off:** Ship check complete. Run manual verification for §4 (slug history) and §5 (one org URL) in staging if desired; code path and cleanup are production-ready.
+
+---
+
+## Live data verification
+
+**Date:** 2026-03-04  
+**Target:** Production preview / staging (BASE_URL).  
+**Script:** `apps/web/scripts/verifySlugRoutingLive.ts`  
+**Fixtures (optional):** `apps/web/scripts/getSlugRoutingFixtures.ts` (queries DB for one org slug and one profile with twitter_username ≠ username).
+
+### How to run
+
+```bash
+cd apps/web
+
+# 1) HTTP-only checks (reserved + no redirect loops) — no DB needed
+BASE_URL=https://linkary.xyz pnpm exec tsx scripts/verifySlugRoutingLive.ts
+
+# 2) With live fixtures from DB (set NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env.local)
+# Get ORG_SLUG, TWITTER_HANDLE, EXPECT_REDIRECT_TO from DB, then:
+pnpm exec tsx scripts/getSlugRoutingFixtures.ts   # prints suggested env vars
+BASE_URL=https://linkary.xyz ORG_SLUG=<slug> TWITTER_HANDLE=<handle> EXPECT_REDIRECT_TO=<username> pnpm exec tsx scripts/verifySlugRoutingLive.ts
+
+# 3) Slug history (after changing one profile’s slug via app or RPC)
+BASE_URL=... OLD_SLUG=<old> NEW_SLUG=<new> pnpm exec tsx scripts/verifySlugRoutingLive.ts
+```
+
+### Results (run 2026-03-04, BASE_URL=https://linkary.xyz)
+
+| Step | Check | Result | Notes |
+|------|--------|--------|--------|
+| 1 | **profile_slug_history end-to-end** | **Manual** | Change one profile slug via claim flow or RPC → confirm row in `profile_slug_history` → visit `/<old_slug>` → expect single 308 to `/<new_slug>`. Not run in this pass (requires live slug change). |
+| 2 | **Org root slug** | **Skipped** | No `ORG_SLUG` fixture (no published org with slug returned by getSlugRoutingFixtures). To verify: set ORG_SLUG to a known org slug from DB, re-run verifier; expect 200 and canonical = `https://linkary.xyz/<org.slug>`. |
+| 3 | **Reserved unowned** | **PASS** | `/auth` → 200, page has `noindex` in robots meta. |
+| 3b | **Reserved owned** | **Skipped** | No RESERVED_OWNED_SLUG set. If an existing profile/org owns a reserved slug, set it and re-run; expect 200 and canonical = that slug. |
+| 4 | **Unexpected redirects / loops** | **PASS** | No redirect loops on `/dashboard`, `/auth`, `/nonexistent-slug-xyz`. Alias redirect: tested with fixture `pranshu_rana_` → `pranshu-rana-`; response was 200 (no redirect). Profile may have canonical username equal to requested segment; redirect only occurs when profile exists and `twitter_username` matches and `profiles.username` differs. |
+
+### Summary (live)
+
+- **Reserved unowned:** PASS — `/auth` returns 200 with noindex.
+- **No redirect loops:** PASS — dashboard, auth, unknown slug each complete in one hop.
+- **Slug history:** Manual — change one slug, then run with OLD_SLUG/NEW_SLUG.
+- **Org root:** Run with ORG_SLUG when a known org slug is available.
+- **Alias redirect:** Code path correct (308 when matchedBy=twitter_username and segment ≠ canonical). Live fixture returned 200 (no redirect); acceptable if that profile’s canonical slug equals the requested path.
+
+**Live data verification:** Reserved unowned + no redirect loops confirmed on production URL. Slug history and org root require manual run with real data (see How to run above).

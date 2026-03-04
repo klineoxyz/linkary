@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
 import { rateLimit } from "@/lib/rate-limit";
+import { claimSafeSlug } from "@/lib/slug/safeSlug";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -53,6 +54,8 @@ export async function POST(request: Request) {
     return fail("NO_X_CONNECTION", "No active X connection. Connect X first.", 400);
   }
 
+  const normalizedHandle = handle.toLowerCase().replace(/^@/, "").replace(/\s+/g, "-");
+
   const { error: updateErr } = await supabase
     .from("profiles")
     .update({
@@ -66,5 +69,22 @@ export async function POST(request: Request) {
     return fail("UPDATE_FAILED", updateErr.message, 500);
   }
 
-  return ok({ twitter_username: handle });
+  // Align slug with handle when possible; on TAKEN don't fail the sync.
+  let slugClaimed = true;
+  let slugReason: string | undefined;
+  if (normalizedHandle && normalizedHandle.length >= 2) {
+    const result = await claimSafeSlug(normalizedHandle, user.id, async (slug) => {
+      const { error: rpcError } = await supabase.rpc("claim_username_for_profile", { desired_username: slug });
+      return { error: rpcError?.message ?? null };
+    });
+    if (result.error) {
+      slugClaimed = false;
+      slugReason = result.error.includes("USERNAME_TAKEN_VERIFIED") ? "USERNAME_TAKEN_VERIFIED" : result.error;
+    }
+  }
+
+  return ok({
+    twitter_username: handle,
+    ...(slugClaimed === false && { synced: true, slug_claimed: false, reason: slugReason }),
+  });
 }

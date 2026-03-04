@@ -3,6 +3,7 @@
  * Do not overwrite non-empty profiles.twitter_username in updates.
  */
 import { supabase } from "./supabase";
+import { claimSafeSlug } from "./slug/safeSlug";
 
 export type Profile = {
   id: string;
@@ -263,6 +264,7 @@ export async function updateMyProfile(
 
 /**
  * Claim username via RPC (proof-based; unverified placeholders are reassigned).
+ * Caller should pass a slug already validated by safeSlug/claimSafeSlug (reserved + uniqueness).
  * Returns error code USERNAME_TAKEN_VERIFIED or message.
  */
 export async function claimUsernameForProfile(desiredUsername: string): Promise<{ error: string | null }> {
@@ -312,8 +314,8 @@ export async function saveTwitterIdentityFromOAuth(
   if (updateError) return { error: updateError.message };
 
   if (normalizedHandle) {
-    const claim = await claimUsernameForProfile(normalizedHandle);
-    if (claim.error) return claim;
+    const { error } = await claimSafeSlug(normalizedHandle, userId, (slug) => claimUsernameForProfile(slug));
+    if (error) return { error };
   }
   return { error: null };
 }

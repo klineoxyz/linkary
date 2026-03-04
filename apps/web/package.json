@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "check:storage-url": "pnpm exec tsx src/lib/isPrivateStorageUrl.checks.ts",
+    "check:reserved": "pnpm exec tsx scripts/assertReservedPaths.ts",
+    "check:reserved-collisions": "pnpm exec tsx scripts/checkReservedCollisions.ts",
     "launch:check": "tsx scripts/launchCheck.ts",
     "verify:rls": "tsx scripts/verifyRlsSafety.ts"
   },

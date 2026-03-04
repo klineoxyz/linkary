@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { extractTwitterIdentity } from "@/lib/auth-x-identity";
+import { claimSafeSlug } from "@/lib/slug/safeSlug";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -83,7 +84,10 @@ export async function POST(request: Request) {
   }
 
   if (normalizedHandle && !twitterUsernameConflict) {
-    await supabase.rpc("claim_username_for_profile", { desired_username: normalizedHandle });
+    await claimSafeSlug(normalizedHandle, user.id, async (slug) => {
+      const { error } = await supabase.rpc("claim_username_for_profile", { desired_username: slug });
+      return { error: error?.message ?? null };
+    });
   }
 
   const now = new Date().toISOString();

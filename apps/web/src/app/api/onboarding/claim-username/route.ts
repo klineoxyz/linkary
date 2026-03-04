@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { claimSafeSlug } from "@/lib/slug/safeSlug";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -40,17 +41,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Username can only contain letters, numbers, and hyphens" }, { status: 400 });
   }
 
-  const { error } = await supabase.rpc("claim_username_for_profile", {
-    desired_username: slug,
+  const { slug: safeSlug, error } = await claimSafeSlug(slug, user.id, async (s) => {
+    const { error: rpcError } = await supabase.rpc("claim_username_for_profile", { desired_username: s });
+    return { error: rpcError?.message ?? null };
   });
   if (error) {
-    if (error.message?.includes("USERNAME_TAKEN_VERIFIED")) {
+    if (error.includes("USERNAME_TAKEN_VERIFIED")) {
       return NextResponse.json({ error: "USERNAME_TAKEN_VERIFIED", message: "That handle is already taken." }, { status: 409 });
     }
-    if (error.message?.includes("Invalid username")) {
+    if (error.includes("Invalid username")) {
       return NextResponse.json({ error: "Invalid username" }, { status: 400 });
     }
-    return NextResponse.json({ error: error.message ?? "Claim failed" }, { status: 500 });
+    return NextResponse.json({ error: error ?? "Claim failed" }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, username: slug });
+  return NextResponse.json({ ok: true, username: safeSlug });
 }

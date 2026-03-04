@@ -172,6 +172,7 @@ import PublicStandalonePage from "./components/PublicStandalonePage";
 import { ProfileAvatar } from "./components/SharedComponents";
 import { MediaHeader } from "@/components/public/MediaHeader";
 import { CaseStudyCard } from "@/components/public/CaseStudyCard";
+import { RESERVED_PATHS } from "@/lib/reservedPaths";
 import type { CaseStudyRow } from "@/lib/caseStudyCardProps";
 import { toCaseStudyCardProps } from "@/lib/caseStudyCardProps";
 
@@ -730,17 +731,7 @@ function SectionTitle({ title, subtitle, right, background = "dark" }) {
   );
 }
 
-// URL ↔ route sync: pathnames that are app pages (not usernames)
-const RESERVED_PATHS = new Set([
-  "dashboard", "explore", "terms", "privacy-policy", "privacy", "login", "onboarding",
-  "profile", "overview", "market", "messages", "circles", "analytics", "verification",
-  "pricing", "billing", "plans", "app", "api", "settings", "test-supabase", "home",
-  "leaderboards", "creator", "brand", "agency", "calendar", "xspaces", "host", "availability",
-  "monetization", "monetization-flow", "kol-lists", "capital-partners", "connections",
-  "preferences", "support", "notifications", "verification-inbox", "showcase",   "integrations", "roles-skills", "profile",
-  "watchlist",
-]);
-
+// URL ↔ route sync: pathnames that are app pages (not usernames). RESERVED_PATHS from @/lib/reservedPaths (single source of truth).
 function pathFromRoute(route: { name: string; data?: any; handle?: string }): string {
   if (!route?.name) return "/";
   if (route.name === "userProfile" && (route.handle ?? route.data?.username)) {

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
 import { rateLimit } from "@/lib/rate-limit";
+import { claimSafeSlug } from "@/lib/slug/safeSlug";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -150,12 +151,12 @@ async function handleSync(request: NextRequest) {
   }
 
   if (normalizedUsername && normalizedUsername.length >= 2) {
-    const { error: claimError } = await supabase.rpc("claim_username_for_profile", {
-      desired_username: normalizedUsername,
+    const { error: claimError } = await claimSafeSlug(normalizedUsername, user.id, async (slug) => {
+      const { error } = await supabase.rpc("claim_username_for_profile", { desired_username: slug });
+      return { error: error?.message ?? null };
     });
     if (claimError) {
-      const msg = claimError.message ?? "";
-      return fail("CONFLICT", msg.includes("USERNAME_TAKEN") ? "USERNAME_TAKEN_VERIFIED" : msg, 409);
+      return fail("CONFLICT", claimError.includes("USERNAME_TAKEN") ? "USERNAME_TAKEN_VERIFIED" : claimError, 409);
     }
   }
 

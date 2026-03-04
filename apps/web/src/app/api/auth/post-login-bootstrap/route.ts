@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { claimSafeSlug } from "@/lib/slug/safeSlug";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -119,10 +120,14 @@ export async function POST(request: Request) {
   }
   await supabase.from("profiles").update(updates).eq("id", user.id);
 
-  // Claim username from X handle so linkary.xyz/@handle resolves to this user's page (published or unpublished).
+  // Claim username from X handle (safe slug: reserved -> fallback with suffix; retry on TAKEN).
   const normalizedHandle = handle?.trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "-") ?? null;
   if (normalizedHandle && normalizedHandle.length >= 2) {
-    await supabase.rpc("claim_username_for_profile", { desired_username: normalizedHandle });
+    const { error: _claimErr } = await claimSafeSlug(normalizedHandle, user.id, async (slug) => {
+      const { error } = await supabase.rpc("claim_username_for_profile", { desired_username: slug });
+      return { error: error?.message ?? null };
+    });
+    // Don't fail login if claim fails (e.g. TAKEN); profile and handle are already set.
   }
 
   return NextResponse.json({ ok: true, userId: user.id, username: handle });

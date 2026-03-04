@@ -199,7 +199,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       serviceSupabase = createServiceSupabase();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      if (isDebug) {
+      if (process.env.NODE_ENV !== "production" && isDebug) {
         return (
           <div className="min-h-screen bg-background p-6">
             <p className="text-destructive">Something went wrong loading this profile.</p>
@@ -470,7 +470,9 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
 
       let reputationIndex: number;
       try {
-        reputationIndex = await computeReputationIndex(profileId, serviceSupabase, { debug: isDebug });
+        reputationIndex = await computeReputationIndex(profileId, serviceSupabase, {
+          debug: process.env.NODE_ENV !== "production" && isDebug,
+        });
       } catch {
         reputationIndex = 0;
       }
@@ -737,7 +739,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
             </div>
           )}
           <PublicProfileContent data={payload} username={displayUsername} profileUrl={profileUrl} />
-          {isDebug && (
+          {process.env.NODE_ENV !== "production" && isDebug && (
             <pre className="mx-auto max-w-xl px-4 py-6 text-xs text-muted-foreground overflow-auto rounded bg-muted p-4 mt-4">
               {JSON.stringify(
                 {
@@ -758,7 +760,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      if (isDebug) {
+      if (process.env.NODE_ENV !== "production" && isDebug) {
         return (
           <div className="min-h-screen bg-background p-6">
             <p className="text-destructive">Something went wrong loading this profile.</p>

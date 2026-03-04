@@ -6,7 +6,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const SPACE_COLS = "id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url";
 
-/** GET /api/xspaces/upcoming — upcoming spaces (planned/scheduled/live, scheduled_at >= now) */
+/** GET /api/xspaces/upcoming — upcoming + live spaces.
+ * Include: status in (planned, scheduled, live) AND (scheduled_at >= now OR status = 'live') so live spaces are not hidden.
+ */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
@@ -15,11 +17,12 @@ export async function GET(request: NextRequest) {
   }
   const supabase = createClient(supabaseUrl, supabaseAnonKey, token ? { global: { headers: { Authorization: `Bearer ${token}` } } } : {});
 
+  const now = new Date().toISOString();
   const { data, error } = await supabase
     .from("spaces")
     .select(SPACE_COLS)
     .in("status", ["planned", "scheduled", "live"])
-    .gte("scheduled_at", new Date().toISOString())
+    .or(`scheduled_at.gte."${now}",status.eq.live`)
     .order("scheduled_at", { ascending: true })
     .limit(200);
 

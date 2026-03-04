@@ -68,6 +68,20 @@ export async function POST(request: NextRequest) {
   }
 
   const xSpaceUrl = `https://x.com/i/spaces/${xSpaceId}`;
+
+  const { data: existing } = await supabase
+    .from("spaces")
+    .select("id")
+    .eq("x_space_id", xSpaceId)
+    .neq("id", spaceId)
+    .maybeSingle();
+  if (existing) {
+    return NextResponse.json(
+      { error: "This X Space is already linked to another Linkary space.", code: "X_SPACE_ALREADY_CLAIMED" },
+      { status: 409 }
+    );
+  }
+
   const { error: updateError } = await supabase
     .from("spaces")
     .update({
@@ -78,6 +92,13 @@ export async function POST(request: NextRequest) {
     .eq("id", spaceId);
 
   if (updateError) {
+    const code = (updateError as { code?: string }).code;
+    if (code === "23505") {
+      return NextResponse.json(
+        { error: "This X Space is already linked to another Linkary space.", code: "X_SPACE_ALREADY_CLAIMED" },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 

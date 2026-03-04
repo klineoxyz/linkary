@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Calendar, List, Plus, Clock, AlertCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { parseXSpaceId } from "@/lib/parseXSpaceId";
 import { supabase } from "@/lib/supabase";
 
 type Space = {
@@ -165,6 +166,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [showLinkXSpace, setShowLinkXSpace] = useState(false);
   const [showReplaceLinkConfirm, setShowReplaceLinkConfirm] = useState(false);
   const [replaceLinkMode, setReplaceLinkMode] = useState(false);
+  const [replaceLinkSpaceId, setReplaceLinkSpaceId] = useState<string | null>(null);
   const [linkXSpaceError, setLinkXSpaceError] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
@@ -276,12 +278,14 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       setShowLinkXSpace(false);
       setShowReplaceLinkConfirm(false);
       setReplaceLinkMode(false);
+      setReplaceLinkSpaceId(null);
       setLinkXSpaceError(null);
       return;
     }
     setShowLinkXSpace(false);
     setShowReplaceLinkConfirm(false);
     setReplaceLinkMode(false);
+    setReplaceLinkSpaceId(null);
     setLinkXSpaceError(null);
     loadDetailRsvps(detailsSpace.id);
     if (me?.id && detailsSpace.host_profile_id === me.id) loadDetailSpeakerRequests(detailsSpace.id);
@@ -574,11 +578,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     const res = await fetch(`${base}/api/xspaces/link-space`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ space_id: spaceId, x_space_id: xSpaceId }),
+      body: JSON.stringify({ space_id: spaceId, x_space_id: xSpaceId, force: replaceLinkSpaceId === spaceId }),
     });
     const data = await res.json().catch(() => ({}));
     setDetectingSpace(false);
     if (res.ok && data.x_space_id) {
+      setReplaceLinkSpaceId(null);
       setDetectCandidates([]);
       updateSpaceLinkState(spaceId, data.x_space_id, data.x_space_url ?? `https://x.com/i/spaces/${data.x_space_id}`);
       clearCreateAndRefresh();
@@ -587,7 +592,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     } else {
       setDetectError(data.error ?? "Failed to link. Try paste fallback.");
     }
-  }, [base, createJustDoneSpaceId, getToken, clearCreateAndRefresh, updateSpaceLinkState]);
+  }, [base, createJustDoneSpaceId, getToken, clearCreateAndRefresh, updateSpaceLinkState, replaceLinkSpaceId]);
 
   const handleRequestSpeaker = async () => {
     if (!detailsSpace || !me?.id || isHost(detailsSpace)) return;
@@ -992,6 +997,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   <input type="url" value={createXSpaceUrl} onChange={(e) => setCreateXSpaceUrl(e.target.value)} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
                   {createXSpaceUrl.trim() && (
                     <button type="button" onClick={async () => {
+                      if (!parseXSpaceId(createXSpaceUrl.trim())) { setDetectError("Invalid X Space link."); return; }
                       setDetectError(null);
                       const token = await getToken();
                       const res = await fetch(`${base}/api/spaces/sync-from-x`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ space_url: createXSpaceUrl.trim() }) });
@@ -1098,6 +1104,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 disabled={addFromXSaving || !addFromXUrl.trim()}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"
                 onClick={async () => {
+                  if (!parseXSpaceId(addFromXUrl.trim())) { setAddFromXError("Invalid X Space link."); return; }
                   setAddFromXError(null);
                   setAddFromXSaving(true);
                   const token = await getToken();
@@ -1139,7 +1146,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
       {detailsSpace && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setDetailsSpace(null); setShowReplaceLinkConfirm(false); setReplaceLinkMode(false); setLinkXSpaceError(null); }} aria-hidden />
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setDetailsSpace(null); setShowReplaceLinkConfirm(false); setReplaceLinkMode(false); setReplaceLinkSpaceId(null); setLinkXSpaceError(null); }} aria-hidden />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl border border-border bg-card p-6 z-50 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Space details</h2>
@@ -1227,19 +1234,49 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       <p className="text-sm text-muted-foreground">Replace linked X Space? This will disconnect the current X Space from this Linkary Space.</p>
                       <div className="flex gap-2">
                         <button type="button" onClick={() => { setShowReplaceLinkConfirm(false); }} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent">Cancel</button>
-                        <button type="button" onClick={() => { setShowReplaceLinkConfirm(false); setReplaceLinkMode(true); setShowLinkXSpace(true); setLinkXSpaceUrl(""); }} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm">Replace</button>
+                        <button type="button" onClick={() => { setShowReplaceLinkConfirm(false); setReplaceLinkMode(true); setReplaceLinkSpaceId(detailsSpace.id); setShowLinkXSpace(true); setLinkXSpaceUrl(""); setLinkXSpaceError(null); }} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm">Replace</button>
                       </div>
                     </div>
                   )}
                   {showLinkXSpace && (
                     <div className="rounded-xl border border-border bg-card p-3 space-y-2">
                       {linkXSpaceError && <p className="text-sm text-amber-600 dark:text-amber-400">{linkXSpaceError}</p>}
+                      {replaceLinkMode && (
+                        <>
+                          <p className="text-xs font-medium text-muted-foreground">Paste replacement URL</p>
+                          <input type="url" value={linkXSpaceUrl} onChange={(e) => { setLinkXSpaceUrl(e.target.value); setLinkXSpaceError(null); }} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                          <button type="button" disabled={linkXSpaceSaving} onClick={async () => {
+                            if (!linkXSpaceUrl.trim() || !detailsSpace) return;
+                            const xSpaceId = parseXSpaceId(linkXSpaceUrl.trim());
+                            if (!xSpaceId) { setLinkXSpaceError("Invalid X Space link."); return; }
+                            setLinkXSpaceSaving(true);
+                            setLinkXSpaceError(null);
+                            const token = await getToken();
+                            const res = await fetch(`${base}/api/xspaces/link-space`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ space_id: detailsSpace.id, x_space_id: xSpaceId, force: true }) });
+                            const data = await res.json().catch(() => ({}));
+                            setLinkXSpaceSaving(false);
+                            if (res.ok && data.x_space_id) {
+                              const url = data.x_space_url ?? `https://x.com/i/spaces/${data.x_space_id}`;
+                              updateSpaceLinkState(detailsSpace.id, data.x_space_id, url);
+                              setDetailsSpace({ ...detailsSpace, x_space_id: data.x_space_id, x_space_url: url });
+                              setLinkXSpaceUrl(""); setShowLinkXSpace(false); setReplaceLinkMode(false); setReplaceLinkSpaceId(null);
+                            } else if (res.status === 409) {
+                              setLinkXSpaceError(data.error ?? "This X Space is already linked to another space.");
+                            } else {
+                              setLinkXSpaceError(data.error ?? "Failed to link.");
+                            }
+                          }} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">Save link</button>
+                          <p className="text-xs font-medium text-muted-foreground pt-2 border-t border-border">Or detect replacement</p>
+                          <button type="button" onClick={() => { setDetailsSpace(null); setCreateJustDoneSpaceId(detailsSpace.id); setReplaceLinkSpaceId(detailsSpace.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent disabled:opacity-50">Detect my Space</button>
+                        </>
+                      )}
+                      {!replaceLinkMode && (
+                        <>
                       <input type="url" value={linkXSpaceUrl} onChange={(e) => { setLinkXSpaceUrl(e.target.value); setLinkXSpaceError(null); }} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
                       <button type="button" disabled={linkXSpaceSaving} onClick={async () => {
                         if (!linkXSpaceUrl.trim() || !detailsSpace) return;
-                        const match = linkXSpaceUrl.trim().match(/i\/spaces\/([A-Za-z0-9_-]+)/);
-                        const xSpaceId = match ? match[1] : null;
-                        if (!xSpaceId) { setLinkXSpaceError("Invalid X Space URL. Use a link like https://x.com/i/spaces/..."); return; }
+                        const xSpaceId = parseXSpaceId(linkXSpaceUrl.trim());
+                        if (!xSpaceId) { setLinkXSpaceError("Invalid X Space link."); return; }
                         setLinkXSpaceSaving(true);
                         setLinkXSpaceError(null);
                         const token = await getToken();
@@ -1257,6 +1294,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                           setLinkXSpaceError(data.error ?? "Failed to link.");
                         }
                       }} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">Save link</button>
+                        </>
+                      )}
                     </div>
                   )}
                   {spaceSpeakerRequests.length > 0 && (

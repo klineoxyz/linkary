@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { parseXSpaceId } from "@/lib/parseXSpaceId";
 import {
   fetchXSpaceDetail,
   spaceParticipantIds,
@@ -14,15 +15,6 @@ import {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const TWITTERAPI_API_KEY = process.env.TWITTERAPI_API_KEY;
-
-/** Robust extract of X Space ID from URL. Returns null if format invalid. */
-function parseSpaceIdFromUrl(url: string): string | null {
-  const trimmed = (url ?? "").trim();
-  if (!trimmed || trimmed.length > 500) return null;
-  const match = trimmed.match(/i\/spaces\/([A-Za-z0-9_-]{1,100})/);
-  const id = match ? match[1]!.trim() : null;
-  return id && id.length >= 1 ? id : null;
-}
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -54,7 +46,7 @@ export async function POST(request: NextRequest) {
   let spaceId =
     typeof body.space_id === "string" ? body.space_id.trim() : null;
   if (!spaceId && typeof body.space_url === "string") {
-    spaceId = parseSpaceIdFromUrl(body.space_url);
+    spaceId = parseXSpaceId(body.space_url);
   }
   if (!spaceId) {
     const hasUrl = typeof body.space_url === "string" && body.space_url.trim().length > 0;

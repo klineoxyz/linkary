@@ -1,7 +1,7 @@
 /**
  * GET /api/xspaces/[id]/link-status — link state for a space.
  * Response: { linked: boolean, x_space_id: string|null, x_space_url: string|null }.
- * Public; no tokens returned.
+ * Public by default; no tokens returned. Set REQUIRE_AUTH_LINK_STATUS=1 to restrict to authenticated users (one-line guard).
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -16,6 +16,13 @@ export async function GET(
   const spaceId = (await params).id;
   if (!spaceId || !supabaseUrl || !supabaseAnonKey) {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  }
+  if (process.env.REQUIRE_AUTH_LINK_STATUS === "1") {
+    const token = request.headers.get("authorization")?.startsWith("Bearer ") ? request.headers.get("authorization")!.slice(7) : null;
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: `Bearer ${token}` } } });
+    const { data: { user }, error: authErr } = await supabaseAuth.auth.getUser(token);
+    if (authErr || !user?.id) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey);

@@ -77,6 +77,9 @@ FROM public.social_accounts
 GROUP BY user_id, provider
 HAVING count(*) > 1;
 
+-- Record results (one-time verification): all three queries above should return 0 rows.
+-- If any return rows, fix data before relying on identity uniqueness.
+
 -- -----------------------------------------------------------------------------
 -- Identity invariants (documentation)
 -- -----------------------------------------------------------------------------

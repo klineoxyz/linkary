@@ -155,21 +155,30 @@ async function runChecks(): Promise<CheckResult[]> {
     results.push({ name: "reserved_owned_profile", pass: true, detail: "skipped (set RESERVED_OWNED_SLUG if you have an owner)" });
   }
 
-  // 5) Twitter handle redirect: /twitter_handle -> 308 -> /profiles.username (only when profile exists)
+  // 5) Alias redirect: /twitter_handle -> 308 -> /canonical (only when matchedBy=twitter_username and segment != canonical)
   if (TWITTER_HANDLE && EXPECT_REDIRECT_TO) {
     const url = `${BASE_URL}/${encodeURIComponent(TWITTER_HANDLE)}`;
     const { status, headers } = await fetchNoFollow(url);
     const loc = getLocation(headers);
     const is308 = status === 308;
     const redirectsToExpected = loc != null && (loc.endsWith(`/${encodeURIComponent(EXPECT_REDIRECT_TO)}`) || new URL(loc).pathname === `/${EXPECT_REDIRECT_TO}`);
-    const pass = is308 && redirectsToExpected;
     results.push({
       name: "alias_redirect_308",
-      pass,
-      detail: pass ? `308 to ${loc}` : `status=${status} location=${loc ?? "missing"} (expected 308 to /${EXPECT_REDIRECT_TO})`,
+      pass: is308 && redirectsToExpected,
+      detail: is308 && redirectsToExpected ? `308 to ${loc}` : `status=${status} location=${loc ?? "missing"} (expected 308 to /${EXPECT_REDIRECT_TO})`,
+    });
+    // 5b) Canonical slug must NOT redirect (alias redirect only when segment != canonical username)
+    const canonicalUrl = `${BASE_URL}/${encodeURIComponent(EXPECT_REDIRECT_TO)}`;
+    const { status: canonicalStatus } = await fetchNoFollow(canonicalUrl);
+    const canonicalNoRedirect = canonicalStatus === 200;
+    results.push({
+      name: "canonical_slug_no_redirect",
+      pass: canonicalNoRedirect,
+      detail: canonicalNoRedirect ? `200 on /${EXPECT_REDIRECT_TO} (no redirect)` : `status=${canonicalStatus} (canonical must return 200, not redirect)`,
     });
   } else {
     results.push({ name: "alias_redirect_308", pass: true, detail: "skipped (set TWITTER_HANDLE and EXPECT_REDIRECT_TO to run)" });
+    results.push({ name: "canonical_slug_no_redirect", pass: true, detail: "skipped (set TWITTER_HANDLE and EXPECT_REDIRECT_TO to run)" });
   }
 
   // 6) No redirect loop on a few key URLs

@@ -1,15 +1,13 @@
 -- =============================================================================
--- Slug history lookup: confirm index is used (one-time check).
--- Replace <some_old_slug> with a real old_slug value that exists in the table.
+-- Slug history lookup: confirm index is used (one-time perf proof).
+-- Replace <real_old_slug> with an actual old_slug value that exists in the table.
+-- Run in production/staging; expect: Index Scan using idx_profile_slug_history_old_slug_btree.
 -- =============================================================================
--- Expected: Index Scan using idx_profile_slug_history_old_slug_btree on profile_slug_history.
--- The app selects profile_id and orders by changed_at desc limit 1; this snippet uses
--- new_slug for a minimal check. Same index applies.
 
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT new_slug
 FROM public.profile_slug_history
-WHERE old_slug = '<some_old_slug>'
+WHERE old_slug = '<real_old_slug>'
 LIMIT 1;
 
 -- -----------------------------------------------------------------------------

@@ -1,5 +1,7 @@
 -- Schema tidy: drop redundant expression index on profile_slug_history.
--- Lookup uses .eq("old_slug", segmentNorm) and hits idx_profile_slug_history_old_slug_btree.
--- idx_profile_slug_history_old_slug was on LOWER(TRIM(old_slug)) and is no longer used.
+-- Apply ONLY after confirming:
+--   - Routing uses .eq("old_slug", segmentNorm) (apps/web (public)/[username]/page.tsx).
+--   - No other code queries profile_slug_history by LOWER(TRIM(old_slug)).
+-- Lookup uses idx_profile_slug_history_old_slug_btree on (old_slug).
 
 DROP INDEX IF EXISTS public.idx_profile_slug_history_old_slug;

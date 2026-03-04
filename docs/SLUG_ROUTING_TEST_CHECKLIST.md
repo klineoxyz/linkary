@@ -71,6 +71,20 @@ With `?debug=1` in development, server logs should include:
 - `resolver=org_or_published_profile` when entity from getPublicEntityByUsername
 - `redirect=slug_history` or `redirect=alias` with from/to when redirect fires
 
+## Final safety smoke tests (script)
+
+Run: `BASE_URL=<url> [OLD_SLUG=... NEW_SLUG=...] [TWITTER_HANDLE=... EXPECT_REDIRECT_TO=...] pnpm run verify:slug-routing-live`
+
+| Check | Env | Expect |
+|-------|-----|--------|
+| Slug history redirect | OLD_SLUG, NEW_SLUG | 308 from /old_slug to /new_slug |
+| Reserved unowned noindex | (default: /auth) | 200 + robots noindex |
+| No redirect loops | — | /dashboard, /auth, /nonexistent-slug-xyz each resolve in ≤5 hops, no loop |
+| Alias redirect | TWITTER_HANDLE, EXPECT_REDIRECT_TO | /twitter_handle → 308 → /canonical |
+| Canonical slug no redirect | (same) | /canonical returns 200 (alias only when segment ≠ canonical) |
+
+Alias redirect must only happen when matchedBy=twitter_username and segment ≠ canonical username; the script verifies both /twitter_handle → 308 and /canonical → 200.
+
 ## Quick run (manual)
 
 1. Open `/dashboard`, `/xspaces`, `/analytics` — all load.

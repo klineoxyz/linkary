@@ -119,6 +119,21 @@ LIMIT 100;
 
 ---
 
+## Detect flow
+
+- **Single match (confident):** One X Space in the last 15 minutes passes the score threshold (title similarity + scheduled time within 2h). Backend auto-links; UI closes the create modal and refreshes. Space shows `x_space_id` and `x_space_url`; detail drawer shows **Open on X**.
+- **Multiple matches (ambiguous):** More than one candidate above threshold. Backend returns `require_selection` and `candidates`; UI shows a **picker**. User selects one → client calls **POST /api/xspaces/link-space** with `space_id` and `x_space_id` → space is updated; UI resets candidates and refreshes.
+- **No match:** No X Space in window or none pass the threshold. Backend returns `found: false`; UI shows **paste fallback** so the user can paste the X Space URL.
+
+---
+
+## Cron security check
+
+- **Action:** Call `GET /api/cron/xspaces-stats` or `POST /api/cron/xspaces-stats` without the `Authorization: Bearer <CRON_SECRET>` header (or with a wrong secret).
+- **Pass:** 401 Unauthorized (or 503 if `CRON_SECRET` is not set in env). Cron must never run without the correct `CRON_SECRET` header.
+
+---
+
 ## Detection QA
 
 - **Two spaces in 15 min:** Create two X Spaces within 15 minutes (different titles/times). In Linkary create a space with “Create on X” and click **Detect my Space**. **Pass:** Picker shows multiple candidates; do not auto-link. User selects the correct one and link succeeds.
@@ -139,3 +154,24 @@ LIMIT 100;
 | 6 | Host resolve            | ☐    |
 | 7 | Past tab loads          | ☐    |
 | 8 | No prod debug logs      | ☐    |
+| 9 | Detect flow (single/multi/none) | ☐ |
+| 10 | Cron requires CRON_SECRET | ☐   |
+
+---
+
+## Final QA checklist (1-page)
+
+| Area | Check | Pass |
+|------|--------|------|
+| **Route** | /xspaces loads; no redirect to overview | ☐ |
+| **Create** | Create Space; optional X URL or Create on X flow | ☐ |
+| **Create on X** | Connect X → Open X → Detect; single match auto-links; multiple → picker → link-space; none → paste fallback | ☐ |
+| **After link** | Space has x_space_id + x_space_url; detail shows “Open on X” | ☐ |
+| **RSVP** | Interested/Going toggles one row; counts + attendee list by role (host full, non-host limited, anon count only) | ☐ |
+| **Speaker** | Request with message; host approve/reject; updated_at set | ☐ |
+| **Past** | Ended spaces load; stats when present; no crash when absent | ☐ |
+| **Upcoming** | Live spaces visible even if scheduled_at in past | ☐ |
+| **Security** | No API returns access_token/refresh_token; cron returns 401 without CRON_SECRET | ☐ |
+| **Detect safety** | Mismatched title or time >2h → no link; multiple candidates → picker only | ☐ |
+| **UI** | Cards/buttons use border-border, bg-card, text-foreground; no one-off zinc-only styles | ☐ |
+| **Production** | No debug logs in prod build | ☐ |

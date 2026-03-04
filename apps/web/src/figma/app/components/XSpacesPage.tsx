@@ -475,6 +475,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       return;
     }
     if (data.found && data.linked) {
+      setDetectCandidates([]);
       clearCreateAndRefresh();
       return;
     }
@@ -489,14 +490,15 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setDetectingSpace(true);
     setDetectError(null);
     const token = await getToken();
-    const res = await fetch(`${base}/api/xspaces/detect-my-space`, {
+    const res = await fetch(`${base}/api/xspaces/link-space`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ space_id: spaceId, selected_x_space_id: xSpaceId }),
+      body: JSON.stringify({ space_id: spaceId, x_space_id: xSpaceId }),
     });
     const data = await res.json().catch(() => ({}));
     setDetectingSpace(false);
-    if (data.found && data.linked) {
+    if (res.ok && data.x_space_id) {
+      setDetectCandidates([]);
       clearCreateAndRefresh();
     } else {
       setDetectError(data.error ?? "Failed to link. Try paste fallback.");
@@ -695,12 +697,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
           {(overlapsLoading && !overlapsSkeletonShown) && (
             <div className="animate-pulse space-y-2">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 rounded-xl bg-zinc-200 dark:bg-zinc-700" />
+                <div key={i} className="h-16 rounded-xl bg-muted" />
               ))}
             </div>
           )}
           {!overlapsLoading && overlapAlertsList.map(({ space, overlap }) => (
-            <div key={`${space.id}-${overlap.other_space_id}`} className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-900/50">
+            <div key={`${space.id}-${overlap.other_space_id}`} className="p-4 rounded-xl border border-border bg-card">
               <p className="font-medium text-zinc-900 dark:text-zinc-100">{space.title}</p>
               <p className="text-sm text-zinc-500 mb-2">
                 Your space {space.scheduled_at ? new Date(space.scheduled_at).toLocaleString() : ""}
@@ -719,8 +721,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             <p className="text-sm text-amber-700 dark:text-amber-300">Overlaps unavailable.</p>
           )}
           {upcoming.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-600 p-8 text-center">
-              <p className="text-zinc-500 mb-4">No upcoming spaces yet.</p>
+            <div className="rounded-xl border border-dashed border-border p-8 text-center">
+              <p className="text-muted-foreground mb-4">No upcoming spaces yet.</p>
               {me?.id && (
                 <div className="flex flex-wrap justify-center gap-3">
                   <button
@@ -963,26 +965,26 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       {showAddFromX && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} aria-hidden />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 z-50 shadow-xl">
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl border border-border bg-card p-6 z-50 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Add Space from X</h2>
-              <button type="button" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+              <h2 className="text-lg font-semibold text-foreground">Add Space from X</h2>
+              <button type="button" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="p-1 rounded-lg hover:bg-accent">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">Paste an X (Twitter) Space link you host. We’ll pull the details and use it for audience overlap (when both hosts are registered).</p>
+            <p className="text-sm text-muted-foreground mb-3">Paste an X (Twitter) Space link you host. We’ll pull the details and use it for audience overlap (when both hosts are registered).</p>
             <input
               type="url"
               value={addFromXUrl}
               onChange={(e) => { setAddFromXUrl(e.target.value); setAddFromXError(null); }}
               placeholder="https://x.com/i/spaces/..."
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-2"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground mb-2"
             />
             {addFromXError && (
-              <p className="text-sm text-red-600 dark:text-red-400 mb-2">{addFromXError}</p>
+              <p className="text-sm text-destructive mb-2">{addFromXError}</p>
             )}
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300">Cancel</button>
+              <button type="button" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="px-4 py-2 rounded-lg border border-border text-foreground">Cancel</button>
               <button
                 type="button"
                 disabled={addFromXSaving || !addFromXUrl.trim()}
@@ -1030,26 +1032,31 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       {detailsSpace && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setDetailsSpace(null)} aria-hidden />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 z-50 shadow-xl">
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl border border-border bg-card p-6 z-50 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Space details</h2>
-              <button type="button" onClick={() => setDetailsSpace(null)} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+              <h2 className="text-lg font-semibold text-foreground">Space details</h2>
+              <button type="button" onClick={() => setDetailsSpace(null)} className="p-1 rounded-lg hover:bg-accent">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-2 mb-4">
               {isHost(detailsSpace) ? (
-                <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" />
+                <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               ) : (
-                <p className="font-medium text-zinc-900 dark:text-zinc-100">{detailsSpace.title}</p>
+                <p className="font-medium text-foreground">{detailsSpace.title}</p>
               )}
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-muted-foreground">
                 {detailsSpace.scheduled_at ? new Date(detailsSpace.scheduled_at).toLocaleString() : "—"}
                 {detailsSpace.duration_mins ? ` · ${detailsSpace.duration_mins} min` : ""}
               </p>
-              {detailsSpace.description && <p className="text-sm text-zinc-600 dark:text-zinc-400">{detailsSpace.description}</p>}
+              {detailsSpace.description && <p className="text-sm text-muted-foreground">{detailsSpace.description}</p>}
+              {detailsSpace.x_space_url && (
+                <a href={detailsSpace.x_space_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">
+                  Open on X
+                </a>
+              )}
               {(audienceOverlapsBySpaceId[detailsSpace.id] ?? []).length > 0 && (
-                <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-sm">
+                <div className="flex items-start gap-2 p-2 rounded-lg border border-border bg-card text-sm text-foreground">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <div className="space-y-1">
                     {(audienceOverlapsBySpaceId[detailsSpace.id] ?? []).map((o) => (

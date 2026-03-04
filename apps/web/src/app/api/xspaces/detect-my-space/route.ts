@@ -48,15 +48,21 @@ function scoreCandidate(
 ): number {
   const created = xSpace.created_at ? new Date(xSpace.created_at).getTime() : 0;
   if (Date.now() - created > WINDOW_MS) return 0;
-  let score = 0.4;
   const titleSim = titleSimilarity(xSpace.title ?? "", linkaryTitle ?? "");
   if (titleSim < MIN_TITLE_SIMILARITY) return 0;
+  if (linkaryScheduledAt && xSpace.scheduled_start) {
+    const linkaryTime = new Date(linkaryScheduledAt).getTime();
+    const xTime = new Date(xSpace.scheduled_start).getTime();
+    const diff = Math.abs(linkaryTime - xTime);
+    if (diff > SCHEDULED_PROXIMITY_MS) return 0;
+  }
+  let score = 0.4;
   score += 0.3 * titleSim;
   if (linkaryScheduledAt && xSpace.scheduled_start) {
     const linkaryTime = new Date(linkaryScheduledAt).getTime();
     const xTime = new Date(xSpace.scheduled_start).getTime();
     const diff = Math.abs(linkaryTime - xTime);
-    if (diff <= SCHEDULED_PROXIMITY_MS) score += 0.3 * (1 - diff / SCHEDULED_PROXIMITY_MS);
+    score += 0.3 * (1 - diff / SCHEDULED_PROXIMITY_MS);
   } else {
     score += 0.15;
   }

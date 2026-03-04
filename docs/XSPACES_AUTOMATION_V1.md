@@ -6,7 +6,7 @@ What is automated, what is fallback, and how detection works.
 
 ## What is automated
 
-- **Create on X (recommended):** After creating a Space on Linkary, you can open X (deep link to X Spaces), create your Space on X, then use **Detect my Space** in Linkary. The app polls the X API for Spaces created by you in the last 15 minutes and links the first match to your Linkary space (`x_space_id`, `x_space_url`).
+- **Create on X (recommended):** After creating a Space on Linkary, you open X (deep link), create your Space there, then use **Detect my Space**. The backend scores X Spaces (time window + title similarity + scheduled time proximity). It **auto-links only when confident** (single candidate above threshold). If **ambiguous** (multiple candidates), the UI shows a **picker** and the user selects the correct one. If **no match**, the UI shows the **paste fallback**.
 - **Connect X:** OAuth 2.0 (PKCE) flow stores tokens in `x_oauth_tokens` so the backend can call the X API on your behalf (e.g. list Spaces by creator for detection).
 - **Past stats:** Placeholder cron `/api/cron/xspaces-stats` is in place. When a provider can supply stats for ended Spaces, the job can be extended to fetch and insert `space_stats` rows. Until then, “No stats yet” is shown and the system remains stable.
 - **Linkary RSVPs:** Counts and attendee list come from `space_rsvps` and are shown in the Space detail drawer. No X API needed.
@@ -15,7 +15,7 @@ What is automated, what is fallback, and how detection works.
 
 ## What is fallback
 
-- **Manual X Space URL:** If auto-detect fails (no Space found in 15 minutes, or X not connected), you can paste an X Space URL. Linkary will sync that Space (via existing sync-from-X or sync-from-URL flow) and attach it to the space.
+- **Manual X Space URL:** If detection finds no match (no Space in 15 minutes, or none pass the score threshold), or the user prefers not to use detection, they can paste an X Space URL. Linkary syncs that Space (via existing sync-from-X flow) and attaches it to the space.
 - **X reminders:** UI shows “Not available yet.” X API does not expose reminder counts in the same way; when/if we have a reliable source, we can wire it up.
 
 ---
@@ -38,10 +38,15 @@ What is automated, what is fallback, and how detection works.
 ## How detection works
 
 1. User creates a Space on Linkary (title, time, etc.) with **Create on X** enabled.
-2. Linkary creates the space row; user is shown **Step 1: Open X Spaces** (deep link) and **Step 2: Detect my Space**.
+2. Linkary creates the space row; user is shown **Connect X** (if needed), **Open X Spaces** (deep link), then **Detect my Space**.
 3. User opens X, creates a Space there, then returns to Linkary and clicks **Detect my Space**.
-4. Backend loads the user’s token from `x_oauth_tokens`, calls X API `GET /2/spaces/by/creator_ids?user_ids=<x_user_id>`, and filters Spaces created in the last 15 minutes.
-5. The most recent such Space is chosen; its ID and URL are written to the Linkary space (`x_space_id`, `x_space_url`). If no Space is found, the UI shows the fallback prompt to paste the X Space URL.
+4. Backend loads the user’s token from `x_oauth_tokens`, calls X API `GET /2/spaces/by/creator_ids`, and **scores** each Space created in the last 15 minutes:
+   - **Time window:** Must be created within 15 minutes.
+   - **Title similarity:** Token-based similarity to the Linkary space title; below threshold → never link.
+   - **Scheduled time proximity:** If both have scheduled times, they must be within 2 hours; otherwise the candidate is rejected.
+5. **Single candidate above threshold (e.g. score ≥ 0.5):** Backend auto-links and returns `linked: true`; UI closes the modal and refreshes. The space row has `x_space_id` and `x_space_url`; user can open “Open on X” from the detail drawer.
+6. **Multiple candidates above threshold:** Backend returns `require_selection: true` and `candidates`; UI shows a **picker**. User selects one → client calls **POST /api/xspaces/link-space** with `space_id` and `x_space_id` → space is updated; UI resets and refreshes.
+7. **No candidates above threshold:** Backend returns `found: false`; UI shows the **paste fallback** so the user can paste the X Space URL.
 
 ---
 

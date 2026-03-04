@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   const errorParam = searchParams.get("error");
 
   const origin = request.nextUrl.origin;
-  const redirectTo = `${origin}/xspaces`;
+  const redirectTo = `${origin}/xspaces?x_connected=1`;
   const redirectError = (msg: string) =>
     NextResponse.redirect(`${origin}/xspaces?x_oauth_error=${encodeURIComponent(msg)}`, 302);
 

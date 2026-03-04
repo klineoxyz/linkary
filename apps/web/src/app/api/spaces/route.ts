@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
   const supabase = createClient(supabaseUrl, supabaseAnonKey, token ? { global: { headers: { Authorization: `Bearer ${token}` } } } : {});
 
   const spaceCols = "id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url, expect_x_link";
-  const spaces: Array<{ id: string; host_profile_id: string; title: string; description: string | null; scheduled_at: string | null; duration_mins: number | null; status: string; created_at: string; x_space_id?: string | null; x_space_url?: string | null; expect_x_link?: boolean }> = [];
+  type SpaceRow = { id: string; host_profile_id: string; title: string; description: string | null; scheduled_at: string | null; duration_mins: number | null; status: string; created_at: string; x_space_id?: string | null; x_space_url?: string | null; expect_x_link?: boolean };
+  const spaces: Array<SpaceRow & { host?: { id: string; display_name: string | null; twitter_username: string | null; profile_image_url: string | null } }> = [];
 
   const useRange = fromParam && toParam && scope === "public";
   if (useRange) {
@@ -81,6 +82,18 @@ export async function GET(request: NextRequest) {
   }
 
   spaces.sort((a, b) => (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? ""));
+  const hostIds = [...new Set(spaces.map((s) => s.host_profile_id).filter(Boolean))];
+  if (hostIds.length > 0) {
+    const { data: profiles } = await supabase.from("profiles").select("id, display_name, twitter_username, avatar_url").in("id", hostIds);
+    const hostById = new Map((profiles ?? []).map((p: { id: string; display_name: string | null; twitter_username: string | null; avatar_url: string | null }) => [
+      p.id,
+      { id: p.id, display_name: p.display_name ?? null, twitter_username: p.twitter_username ?? null, profile_image_url: p.avatar_url ?? null },
+    ]));
+    for (const s of spaces) {
+      const h = hostById.get(s.host_profile_id);
+      if (h) (s as SpaceRow & { host?: unknown }).host = h;
+    }
+  }
   return NextResponse.json({ spaces });
 }
 

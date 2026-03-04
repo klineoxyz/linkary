@@ -22,7 +22,21 @@ export async function GET() {
 
   if (spacesError) return NextResponse.json({ spaces: [], statsBySpaceId: {}, error: spacesError.message }, { status: 500 });
 
-  const ids = (spaces ?? []).map((s) => s.id);
+  const spaceList = spaces ?? [];
+  const hostIds = [...new Set(spaceList.map((s: { host_profile_id: string }) => s.host_profile_id).filter(Boolean))];
+  if (hostIds.length > 0) {
+    const { data: profiles } = await supabase.from("profiles").select("id, display_name, twitter_username, avatar_url").in("id", hostIds);
+    const hostById = new Map((profiles ?? []).map((p: { id: string; display_name: string | null; twitter_username: string | null; avatar_url: string | null }) => [
+      p.id,
+      { id: p.id, display_name: p.display_name ?? null, twitter_username: p.twitter_username ?? null, profile_image_url: p.avatar_url ?? null },
+    ]));
+    for (const s of spaceList) {
+      const h = hostById.get(s.host_profile_id);
+      if (h) (s as typeof s & { host?: unknown }).host = h;
+    }
+  }
+
+  const ids = spaceList.map((s) => s.id);
   const statsBySpaceId: Record<string, { listeners_total?: number; peak_listeners?: number; duration_seconds?: number }> = {};
   if (ids.length > 0) {
     const { data: stats } = await supabase
@@ -39,5 +53,5 @@ export async function GET() {
       if (cur.duration_seconds == null) cur.duration_seconds = (row as { duration_seconds?: number }).duration_seconds ?? null;
     }
   }
-  return NextResponse.json({ spaces: spaces ?? [], statsBySpaceId });
+  return NextResponse.json({ spaces: spaceList, statsBySpaceId });
 }

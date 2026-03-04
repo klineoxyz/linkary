@@ -6,6 +6,8 @@ import { Calendar, List, Plus, Clock, AlertCircle, X, ChevronLeft, ChevronRight 
 import { parseXSpaceId } from "@/lib/parseXSpaceId";
 import { supabase } from "@/lib/supabase";
 
+type HostProfile = { id: string; display_name: string | null; twitter_username: string | null; profile_image_url: string | null };
+
 type Space = {
   id: string;
   host_profile_id: string;
@@ -18,6 +20,7 @@ type Space = {
   x_space_id?: string | null;
   x_space_url?: string | null;
   expect_x_link?: boolean;
+  host?: HostProfile | null;
 };
 
 type Overlap = { id: string; title: string; scheduled_at: string; host_profile_id: string; duration_mins: number | null };
@@ -37,9 +40,11 @@ const MAX_EVENTS_PER_DAY = 3;
 function DiscoverTab({
   loadDiscover,
   onSpaceClick,
+  hostRow,
 }: {
   loadDiscover: () => Promise<Space[]>;
   onSpaceClick: (s: Space) => void;
+  hostRow: (host: HostProfile) => React.ReactNode;
 }) {
   const [list, setList] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,19 +64,22 @@ function DiscoverTab({
       {list.map((s) => (
         <div
           key={s.id}
-          className="p-4 rounded-xl border border-border bg-card flex items-center gap-4 cursor-pointer hover:border-primary/20 transition-all"
+          className="p-4 rounded-xl border border-border bg-card flex flex-col gap-2 cursor-pointer hover:border-primary/20 transition-all"
           onClick={() => onSpaceClick(s)}
           onKeyDown={(e) => e.key === "Enter" && onSpaceClick(s)}
           role="button"
           tabIndex={0}
         >
-          <Clock className="w-5 h-5 text-zinc-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{s.title}</p>
-            <p className="text-sm text-zinc-500">
-              {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} · {s.status}
-            </p>
+          <div className="flex items-center gap-4">
+            <Clock className="w-5 h-5 text-zinc-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{s.title}</p>
+              <p className="text-sm text-zinc-500">
+                {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} · {s.status}
+              </p>
+            </div>
           </div>
+          {s.host && <div className="pl-9">{hostRow(s.host)}</div>}
         </div>
       ))}
     </div>
@@ -168,6 +176,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [replaceLinkMode, setReplaceLinkMode] = useState(false);
   const [replaceLinkSpaceId, setReplaceLinkSpaceId] = useState<string | null>(null);
   const [linkXSpaceError, setLinkXSpaceError] = useState<string | null>(null);
+  const [hostAndSpeakers, setHostAndSpeakers] = useState<{ host: HostProfile; speakers: HostProfile[] } | null>(null);
 
   const searchParams = useSearchParams();
   const debug = searchParams?.get("debug") === "1";
@@ -243,19 +252,28 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     if (activeTab === "past") loadPast();
   }, [activeTab, loadPast]);
 
-  useEffect(() => {
+  const fetchXMe = useCallback(async () => {
     if (!me?.id || !base) return;
-    let cancelled = false;
-    const token = getToken();
-    token.then((t) => {
-      if (!t || cancelled) return;
-      fetch(`${base}/api/x/me`, { headers: { Authorization: `Bearer ${t}` } })
-        .then((r) => r.json())
-        .then((d) => { if (!cancelled) setXConnected(d?.connected === true); })
-        .catch(() => { if (!cancelled) setXConnected(false); });
-    });
-    return () => { cancelled = true; };
+    const t = await getToken();
+    if (!t) return;
+    const res = await fetch(`${base}/api/x/me`, { headers: { Authorization: `Bearer ${t}` }, cache: "no-store" });
+    const d = await res.json().catch(() => ({}));
+    setXConnected(d?.connected === true);
   }, [me?.id, base, getToken]);
+
+  useEffect(() => {
+    fetchXMe();
+  }, [fetchXMe]);
+
+  const xConnectedFromRedirect = searchParams?.get("x_connected") === "1";
+  useEffect(() => {
+    if (!xConnectedFromRedirect || !me?.id || !base) return;
+    fetchXMe();
+    const url = new URL(typeof window !== "undefined" ? window.location.href : "");
+    url.searchParams.delete("x_connected");
+    const replace = url.pathname + url.search;
+    if (typeof window !== "undefined" && (window.history?.replaceState)) window.history.replaceState(null, "", replace);
+  }, [xConnectedFromRedirect, me?.id, base, fetchXMe]);
 
   const loadDetailRsvps = useCallback(async (spaceId: string) => {
     const token = await getToken();
@@ -271,10 +289,19 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setSpaceSpeakerRequests(Array.isArray(data?.requests) ? data.requests : []);
   }, [base, getToken]);
 
+  const loadHostAndSpeakers = useCallback(async (spaceId: string) => {
+    const token = await getToken();
+    const res = await fetch(`${base}/api/xspaces/${spaceId}/host-and-speakers`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const data = await res.json().catch(() => ({}));
+    if (data.host != null) setHostAndSpeakers({ host: data.host, speakers: Array.isArray(data.speakers) ? data.speakers : [] });
+    else setHostAndSpeakers(null);
+  }, [base, getToken]);
+
   useEffect(() => {
     if (!detailsSpace) {
       setSpaceRsvps(null);
       setSpaceSpeakerRequests([]);
+      setHostAndSpeakers(null);
       setShowLinkXSpace(false);
       setShowReplaceLinkConfirm(false);
       setReplaceLinkMode(false);
@@ -288,8 +315,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setReplaceLinkSpaceId(null);
     setLinkXSpaceError(null);
     loadDetailRsvps(detailsSpace.id);
+    loadHostAndSpeakers(detailsSpace.id);
     if (me?.id && detailsSpace.host_profile_id === me.id) loadDetailSpeakerRequests(detailsSpace.id);
-  }, [detailsSpace?.id, detailsSpace?.host_profile_id, me?.id, loadDetailRsvps, loadDetailSpeakerRequests]);
+  }, [detailsSpace?.id, detailsSpace?.host_profile_id, me?.id, loadDetailRsvps, loadDetailSpeakerRequests, loadHostAndSpeakers]);
 
   const loadAudienceOverlaps = useCallback(
     async (spaceIds: string[]) => {
@@ -622,6 +650,47 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     );
   }
 
+  function HostRow({ host, compact }: { host: HostProfile; compact?: boolean }) {
+    const name = host.display_name?.trim() || (host.twitter_username ? `@${host.twitter_username}` : "Host");
+    const initials = (host.display_name?.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") || host.twitter_username?.slice(0, 2) || "?").toUpperCase();
+    const size = compact ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm";
+    return (
+      <div className={`flex items-center gap-2 ${compact ? "flex-wrap" : ""}`}>
+        {host.profile_image_url ? (
+          <img src={host.profile_image_url} alt="" className={`${size} rounded-full object-cover shrink-0`} />
+        ) : (
+          <span className={`${size} rounded-full bg-muted flex items-center justify-center font-medium text-muted-foreground shrink-0`}>{initials}</span>
+        )}
+        <div className="min-w-0">
+          <span className="text-sm font-medium text-foreground truncate block">{name}</span>
+          {host.twitter_username && host.display_name?.trim() && (
+            <span className="text-xs text-muted-foreground">@{host.twitter_username}</span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function SpeakersRow({ speakers, max = 5 }: { speakers: HostProfile[]; max?: number }) {
+    const show = speakers.slice(0, max);
+    const rest = speakers.length - max;
+    const size = "w-8 h-8 text-xs";
+    return (
+      <div className="flex items-center gap-1 flex-wrap">
+        <span className="text-xs font-medium text-muted-foreground mr-1">Speakers</span>
+        {show.map((p) => {
+          const initials = (p.display_name?.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") || p.twitter_username?.slice(0, 2) || "?").toUpperCase();
+          return p.profile_image_url ? (
+            <img key={p.id} src={p.profile_image_url} alt="" title={p.display_name ?? p.twitter_username ?? undefined} className={`${size} rounded-full object-cover shrink-0 ring-1 ring-border`} />
+          ) : (
+            <span key={p.id} title={p.display_name ?? p.twitter_username ?? undefined} className={`${size} rounded-full bg-muted flex items-center justify-center font-medium text-muted-foreground shrink-0 ring-1 ring-border`}>{initials}</span>
+          );
+        })}
+        {rest > 0 && <span className="text-xs text-muted-foreground ml-0.5">+{rest}</span>}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
@@ -632,7 +701,25 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         <div className="flex items-center gap-2 flex-wrap">
           {me?.id && (
             <>
-              {xConnected === false && (
+              {xConnected === true ? (
+                <>
+                  <span className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-muted text-muted-foreground text-sm font-medium cursor-default">Connected</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const token = await getToken();
+                      const res = await fetch(`${base}/api/x/connect`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, redirect: "manual" });
+                      if (res.status === 302) {
+                        const url = res.headers.get("Location");
+                        if (url) window.location.href = url;
+                      }
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent"
+                  >
+                    Reconnect
+                  </button>
+                </>
+              ) : xConnected === false ? (
                 <button
                   type="button"
                   onClick={async () => {
@@ -647,7 +734,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 >
                   Connect X
                 </button>
-              )}
+              ) : null}
               <button
                 type="button"
                 onClick={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setCreateError(null); setCreateJustDoneSpaceId(null); setShowCreate(true); }}
@@ -758,11 +845,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             pastSpaces.map((s) => {
               const stats = pastStatsBySpaceId[s.id];
               return (
-                <div key={s.id} className="p-4 rounded-xl border border-border bg-card">
+                <div key={s.id} className="p-4 rounded-xl border border-border bg-card flex flex-col gap-2">
                   <p className="font-medium text-foreground">{s.title}</p>
                   <p className="text-sm text-zinc-500">
                     {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} · ended
                   </p>
+                  {s.host && <HostRow host={s.host} compact />}
                   {stats && (stats.listeners_total != null || stats.peak_listeners != null || stats.duration_seconds != null) && (
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
                       {stats.listeners_total != null && `Listeners: ${stats.listeners_total}`}
@@ -803,7 +891,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
           ))}
         </div>
       ) : activeTab === "discover" ? (
-        <DiscoverTab loadDiscover={loadDiscover} onSpaceClick={(s) => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); }} />
+        <DiscoverTab loadDiscover={loadDiscover} onSpaceClick={(s) => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); }} hostRow={(host) => <HostRow host={host} compact />} />
       ) : activeTab === "my" && view === "list" ? (
         <div className="space-y-3">
           {overlapsError && (
@@ -849,6 +937,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     </div>
                     <span className="text-xs px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 shrink-0">{s.status}</span>
                   </div>
+                  {s.host && (
+                    <div className="pl-9">
+                      <HostRow host={s.host} compact />
+                    </div>
+                  )}
                   {isHost(s) && s.expect_x_link && !s.x_space_id && (
                     <div className="rounded-xl border border-border bg-card p-3 space-y-2">
                       <p className="text-sm text-muted-foreground">Not linked to X yet</p>
@@ -1164,6 +1257,16 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 {detailsSpace.scheduled_at ? new Date(detailsSpace.scheduled_at).toLocaleString() : "—"}
                 {detailsSpace.duration_mins ? ` · ${detailsSpace.duration_mins} min` : ""}
               </p>
+              {(hostAndSpeakers?.host ?? detailsSpace.host) && (
+                <div className="py-1">
+                  <HostRow host={hostAndSpeakers?.host ?? detailsSpace.host!} />
+                </div>
+              )}
+              {hostAndSpeakers && hostAndSpeakers.speakers.length > 0 && (
+                <div className="py-1">
+                  <SpeakersRow speakers={hostAndSpeakers.speakers} max={5} />
+                </div>
+              )}
               {isHost(detailsSpace) && detailsSpace.expect_x_link && !detailsSpace.x_space_id && (
                 <div className="rounded-xl border border-border bg-card p-3 space-y-2">
                   <p className="text-sm text-muted-foreground">Not linked to X yet</p>

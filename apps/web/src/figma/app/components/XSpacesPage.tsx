@@ -138,12 +138,16 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [addFromXError, setAddFromXError] = useState<string | null>(null);
   const [audienceOverlapsBySpaceId, setAudienceOverlapsBySpaceId] = useState<Record<string, AudienceOverlap[]>>({});
   const [overlapsError, setOverlapsError] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"my" | "discover" | "overlap-alerts">("my");
+  const [activeTab, setActiveTab] = useState<"my" | "discover" | "past" | "overlap-alerts">("my");
   const [addFromXSuccess, setAddFromXSuccess] = useState<{ participants_count: number; overlaps: AudienceOverlap[] } | null>(null);
   const [createCohosts, setCreateCohosts] = useState("");
   const [createXSpaceUrl, setCreateXSpaceUrl] = useState("");
   const [overlapsLoading, setOverlapsLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [pastSpaces, setPastSpaces] = useState<Space[]>([]);
+  const [pastStatsBySpaceId, setPastStatsBySpaceId] = useState<Record<string, { listeners_total?: number; peak_listeners?: number; duration_seconds?: number }>>({});
+  const [pastLoading, setPastLoading] = useState(false);
+  const [rsvpStatus, setRsvpStatus] = useState<Record<string, "interested" | "going">>({});
 
   const searchParams = useSearchParams();
   const debug = searchParams?.get("debug") === "1";
@@ -172,6 +176,15 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     const data = await res.json().catch(() => ({}));
     return data.spaces ?? [];
   }, [base, getToken]);
+
+  const loadPast = useCallback(async () => {
+    setPastLoading(true);
+    const res = await fetch(`${base}/api/xspaces/past`);
+    const data = await res.json().catch(() => ({}));
+    setPastSpaces(data.spaces ?? []);
+    setPastStatsBySpaceId(data.statsBySpaceId ?? {});
+    setPastLoading(false);
+  }, [base]);
 
   const loadSpacesForMonth = useCallback(async (year: number, month: number) => {
     setLoading(true);
@@ -205,6 +218,10 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   useEffect(() => {
     if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
   }, [view, calendarYear, calendarMonth, loadSpacesForMonth]);
+
+  useEffect(() => {
+    if (activeTab === "past") loadPast();
+  }, [activeTab, loadPast]);
 
   const loadAudienceOverlaps = useCallback(
     async (spaceIds: string[]) => {
@@ -415,7 +432,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-700">
-        {(["my", "discover", "overlap-alerts"] as const).map((tab) => (
+        {(["my", "discover", "past", "overlap-alerts"] as const).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -426,7 +443,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
             }`}
           >
-            {tab === "my" ? "My Spaces" : tab === "discover" ? "Discover" : "Overlap Alerts"}
+            {tab === "my" ? "My Spaces" : tab === "discover" ? "Discover" : tab === "past" ? "Past" : "Overlap Alerts"}
             {tab === "overlap-alerts" && overlapAlertsList.length > 0 && (
               <span className="ml-1.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-1.5 py-0.5 text-xs">
                 {overlapAlertsList.length}
@@ -484,8 +501,35 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         </div>
       )}
 
-      {loading ? (
+      {loading && activeTab !== "past" ? (
         <p className="text-zinc-500">Loading spaces…</p>
+      ) : activeTab === "past" ? (
+        <div className="space-y-3">
+          {pastLoading ? (
+            <p className="text-zinc-500">Loading past spaces…</p>
+          ) : pastSpaces.length === 0 ? (
+            <p className="text-zinc-500">No ended spaces yet. Stats will appear here once spaces are marked ended.</p>
+          ) : (
+            pastSpaces.map((s) => {
+              const stats = pastStatsBySpaceId[s.id];
+              return (
+                <div key={s.id} className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-900/50">
+                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{s.title}</p>
+                  <p className="text-sm text-zinc-500">
+                    {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} · ended
+                  </p>
+                  {stats && (stats.listeners_total != null || stats.peak_listeners != null || stats.duration_seconds != null) && (
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                      {stats.listeners_total != null && `Listeners: ${stats.listeners_total}`}
+                      {stats.peak_listeners != null && ` · Peak: ${stats.peak_listeners}`}
+                      {stats.duration_seconds != null && ` · Duration: ${Math.round(stats.duration_seconds / 60)} min`}
+                    </p>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
       ) : activeTab === "overlap-alerts" ? (
         <div className="space-y-3">
           {overlapsError && (
@@ -816,9 +860,41 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   </button>
                 </>
               ) : me?.id ? (
-                <button type="button" onClick={handleRequestSpeaker} disabled={speakerRequesting} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
+                <>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const token = await getToken();
+                      const res = await fetch(`${base}/api/xspaces/rsvp`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ space_id: detailsSpace.id, status: "interested" }),
+                      });
+                      if (res.ok) setRsvpStatus((prev) => ({ ...prev, [detailsSpace.id]: "interested" }));
+                    }}
+                    className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  >
+                    Interested
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const token = await getToken();
+                      const res = await fetch(`${base}/api/xspaces/rsvp`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ space_id: detailsSpace.id, status: "going" }),
+                      });
+                      if (res.ok) setRsvpStatus((prev) => ({ ...prev, [detailsSpace.id]: "going" }));
+                    }}
+                    className="px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/10"
+                  >
+                    Going
+                  </button>
+                  <button type="button" onClick={handleRequestSpeaker} disabled={speakerRequesting} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
                   {speakerRequesting ? "…" : "Request speaker"}
                 </button>
+                </>
               ) : null}
             </div>
           </div>

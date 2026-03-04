@@ -25,13 +25,21 @@ export async function POST(
   const { data: space } = await supabase.from("spaces").select("id, host_profile_id").eq("id", spaceId).maybeSingle();
   if (!space) return NextResponse.json({ error: "Space not found" }, { status: 404 });
 
+  let message: string | null = null;
+  try {
+    const body = await _request.json();
+    if (typeof body?.message === "string" && body.message.trim()) message = body.message.trim().slice(0, 500);
+  } catch {
+    /* no body or invalid */
+  }
+
   const { data, error } = await supabase
     .from("speaker_requests")
     .upsert(
-      { space_id: spaceId, requester_profile_id: user.id, status: "pending" },
+      { space_id: spaceId, requester_profile_id: user.id, status: "pending", ...(message != null ? { message } : {}) },
       { onConflict: "space_id,requester_profile_id" }
     )
-    .select("id, space_id, requester_profile_id, status, created_at")
+    .select("id, space_id, requester_profile_id, status, message, created_at")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

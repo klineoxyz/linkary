@@ -3976,10 +3976,14 @@ function LinkaryAppInner() {
     "landing", "overview", "dashboard", "profile", "profileEdit", "profileInsights", "userProfile", "userInsights", "market", "messages", "workRequests",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding",
     "orgDetail", "brandProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
-    "circles", "circleDetail", "connections", "kolLists", "calendar", "capitalPartners", "watchlist",
+    "circles", "circleDetail", "connections", "kolLists", "calendar", "xspaces", "capitalPartners", "watchlist",
   ]);
   useEffect(() => {
     if (!ALLOWED_ROUTES.has(route.name)) {
+      if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.log("[route] redirect to overview: disallowed route", { pathname: typeof window !== "undefined" ? window.location.pathname : "", routeName: route.name });
+      }
       setRoute({ name: "overview" });
     }
   }, [route.name]);

@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, token ? { global: { headers: { Authorization: `Bearer ${token}` } } } : {});
 
-  const spaceCols = "id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id";
+  const spaceCols = "id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url";
   const spaces: Array<{ id: string; host_profile_id: string; title: string; description: string | null; scheduled_at: string | null; duration_mins: number | null; status: string; created_at: string; x_space_id?: string | null }> = [];
 
   const useRange = fromParam && toParam && scope === "public";
@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const xSpaceUrl = typeof body.x_space_url === "string" ? body.x_space_url.trim() || null : null;
   const { data, error } = await supabase
     .from("spaces")
     .insert({
@@ -131,9 +132,10 @@ export async function POST(request: NextRequest) {
       scheduled_at: body.scheduled_at || null,
       duration_mins: typeof body.duration_mins === "number" ? body.duration_mins : null,
       status,
+      x_space_url: xSpaceUrl,
       updated_at: new Date().toISOString(),
     })
-    .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id")
+    .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

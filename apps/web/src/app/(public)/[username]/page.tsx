@@ -262,7 +262,7 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           const { data: historyRow } = await serviceSupabase
             .from("profile_slug_history")
             .select("profile_id")
-            .ilike("old_slug", segmentNorm)
+            .eq("old_slug", segmentNorm)
             .order("changed_at", { ascending: false })
             .limit(1)
             .maybeSingle();

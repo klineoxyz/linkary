@@ -1,23 +1,21 @@
 /**
  * POST /api/xspaces/detect-my-space — find X Space(s) matching Linkary space (title + time proximity).
  * Body: { space_id: string, selected_x_space_id?: string }.
- * When multiple candidates pass threshold, returns candidates and require_selection; client calls again with selected_x_space_id to link.
- * Rate limited per user (in-memory).
+ * When multiple candidates pass threshold, returns candidates and require_selection; client calls link-space to link.
+ * Rate limited: 10 requests per minute per profile_id (durable via Supabase rate_limits table).
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { rateLimitXSpacesDetect } from "@/lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const X_API_BASE = "https://api.twitter.com/2";
 
 const WINDOW_MS = 15 * 60 * 1000;
 const SCHEDULED_PROXIMITY_MS = 2 * 60 * 60 * 1000;
 const MIN_TITLE_SIMILARITY = 0.3;
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT_MAX = 10;
-
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function tokenize(s: string): Set<string> {
   return new Set(
@@ -69,22 +67,6 @@ function scoreCandidate(
   return score;
 }
 
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  let entry = rateLimitMap.get(userId);
-  if (!entry) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  if (now >= entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT_MAX) return false;
-  entry.count += 1;
-  return true;
-}
-
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
@@ -103,11 +85,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  if (!checkRateLimit(user.id)) {
-    return NextResponse.json(
-      { error: "Too many detection requests. Try again in a minute.", code: "RATE_LIMITED" },
-      { status: 429 }
-    );
+  if (supabaseServiceKey) {
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const rl = await rateLimitXSpacesDetect(user.id, supabaseAdmin);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many detection requests. Try again in a minute.", code: "RATE_LIMITED", resetAt: rl.resetAt },
+        { status: 429 }
+      );
+    }
   }
 
   let body: { space_id?: string; selected_x_space_id?: string } = {};

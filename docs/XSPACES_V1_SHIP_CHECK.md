@@ -134,6 +134,13 @@ LIMIT 100;
 
 ---
 
+## Rate limit (detect)
+
+- **Action:** Call `POST /api/xspaces/detect-my-space` with valid auth more than 10 times within 1 minute (same user).
+- **Pass:** Response is **429** with body containing `code: "RATE_LIMITED"` and a friendly error message. UI shows non-technical message and user can retry after a minute or use paste fallback.
+
+---
+
 ## Detection QA
 
 - **Two spaces in 15 min:** Create two X Spaces within 15 minutes (different titles/times). In Linkary create a space with “Create on X” and click **Detect my Space**. **Pass:** Picker shows multiple candidates; do not auto-link. User selects the correct one and link succeeds.
@@ -173,5 +180,7 @@ LIMIT 100;
 | **Upcoming** | Live spaces visible even if scheduled_at in past | ☐ |
 | **Security** | No API returns access_token/refresh_token; cron returns 401 without CRON_SECRET | ☐ |
 | **Detect safety** | Mismatched title or time >2h → no link; multiple candidates → picker only | ☐ |
+| **Rate limit** | Detect returns 429 after 10 requests in 1 minute per user; message and retry in UI | ☐ |
+| **Detect UX** | Status: “Checking…”, “Found N candidates…”, “No match found - paste URL”; errors show Retry | ☐ |
 | **UI** | Cards/buttons use border-border, bg-card, text-foreground; no one-off zinc-only styles | ☐ |
 | **Production** | No debug logs in prod build | ☐ |

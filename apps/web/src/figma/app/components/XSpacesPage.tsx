@@ -471,7 +471,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     }
     if (data.found && data.require_selection && Array.isArray(data.candidates)) {
       setDetectCandidates(data.candidates);
-      setDetectError(data.message ?? "Choose the Space that matches your Linkary space.");
+      setDetectError(null);
       return;
     }
     if (data.found && data.linked) {
@@ -480,7 +480,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       return;
     }
     if (data.found === false) {
-      setDetectError(data.message ?? data.error ?? "Not found. Paste the X Space link below.");
+      setDetectError("No match found — paste the X Space link below.");
+      return;
+    }
+    if (!res.ok) {
+      setDetectError("Something went wrong. You can retry or paste the link below.");
     }
   }, [base, createJustDoneSpaceId, getToken, clearCreateAndRefresh]);
 
@@ -870,9 +874,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   <button type="button" onClick={handleDetectMySpace} disabled={detectingSpace || xConnected !== true} className="px-4 py-2 rounded-lg border border-border bg-secondary hover:bg-accent text-foreground text-sm font-medium disabled:opacity-50">
                     {detectingSpace ? "Detecting…" : "Detect my Space"}
                   </button>
-                  {detectCandidates.length > 0 && (
+                  {detectingSpace && <p className="text-sm text-muted-foreground">Checking your recent X Spaces…</p>}
+                  {!detectingSpace && detectCandidates.length > 0 && (
+                    <p className="text-sm text-muted-foreground">Found {detectCandidates.length} candidate{detectCandidates.length !== 1 ? "s" : ""} — pick the right one:</p>
+                  )}
+                  {detectCandidates.length > 0 ? (
                     <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Multiple matches — choose one:</p>
                       {detectCandidates.map((c) => (
                         <button key={c.id} type="button" onClick={() => handleSelectDetectCandidate(c.id)} disabled={detectingSpace} className="w-full text-left px-3 py-2 rounded-lg border border-border bg-card hover:bg-accent text-foreground text-sm disabled:opacity-50">
                           {c.title || c.id} {c.scheduled_start ? ` · ${new Date(c.scheduled_start).toLocaleString()}` : ""}
@@ -880,7 +887,14 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       ))}
                     </div>
                   )}
-                  {detectError && <p className="text-sm text-amber-600 dark:text-amber-400">{detectError}</p>}
+                  {detectError && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm text-amber-600 dark:text-amber-400">{detectError}</p>
+                      <button type="button" onClick={() => { setDetectError(null); handleDetectMySpace(); }} disabled={detectingSpace || xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary hover:bg-accent text-foreground text-sm font-medium disabled:opacity-50">
+                        Retry
+                      </button>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground pt-2 border-t border-border">If detection fails, paste the X Space link below (fallback):</p>
                   <input type="url" value={createXSpaceUrl} onChange={(e) => setCreateXSpaceUrl(e.target.value)} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
                   {createXSpaceUrl.trim() && (

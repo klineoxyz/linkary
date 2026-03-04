@@ -32,6 +32,7 @@ What is automated, what is fallback, and how detection works.
   - `GET /api/x/me` — returns `x_user_id` and `username` from `x_oauth_tokens` for the current user (or 404 if not connected).
 - **Env:** `X_CLIENT_ID`, `X_CLIENT_SECRET`, `X_OAUTH_COOKIE_SECRET` for the OAuth flow. Callback URL must be allowlisted in the X app (e.g. `https://your-domain.com/api/x/callback`).
 - **Security:** No API response must ever include `access_token` or `refresh_token`; they are stored only in `x_oauth_tokens` and used server-side. `/api/x/me` returns only `x_user_id` and `username`.
+- **Rate limit (detect):** `POST /api/xspaces/detect-my-space` is limited to **10 requests per minute per profile_id**. When exceeded, the API returns **429** with body `{ error: "Too many detection requests. Try again in a minute.", code: "RATE_LIMITED", resetAt }`. Rate limiting is durable: Upstash Redis is used when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set; otherwise the Supabase `rate_limits` table (via `consume_rate_limit` RPC) is used.
 
 ---
 

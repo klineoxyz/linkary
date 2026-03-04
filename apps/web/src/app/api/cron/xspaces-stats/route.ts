@@ -10,17 +10,26 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const CRON_SECRET = process.env.CRON_SECRET;
 
-export async function GET(request: NextRequest) {
-  if (CRON_SECRET && request.headers.get("authorization") !== `Bearer ${CRON_SECRET}`) {
+function checkCronAuth(request: NextRequest): NextResponse | null {
+  if (!CRON_SECRET) {
+    return NextResponse.json({ error: "Cron not configured (CRON_SECRET missing)" }, { status: 503 });
+  }
+  const auth = request.headers.get("authorization");
+  if (auth !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  return null;
+}
+
+export async function GET(request: NextRequest) {
+  const err = checkCronAuth(request);
+  if (err) return err;
   return run();
 }
 
 export async function POST(request: NextRequest) {
-  if (CRON_SECRET && request.headers.get("authorization") !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const err = checkCronAuth(request);
+  if (err) return err;
   return run();
 }
 

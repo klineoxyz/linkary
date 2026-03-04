@@ -155,7 +155,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [detectingSpace, setDetectingSpace] = useState(false);
   const [detectError, setDetectError] = useState<string | null>(null);
   const [xConnected, setXConnected] = useState<boolean | null>(null);
-  const [spaceRsvps, setSpaceRsvps] = useState<{ total: number; going_count: number; interested_count: number; attendees: Array<{ profile_id: string; status: string; username?: string | null }> } | null>(null);
+  const [spaceRsvps, setSpaceRsvps] = useState<{ total: number; going_count: number; interested_count: number; attendees?: Array<{ profile_id: string; status: string; username?: string | null }> } | null>(null);
+  const [detectCandidates, setDetectCandidates] = useState<Array<{ id: string; title: string | null; state: string | null; created_at: string | null; scheduled_start: string | null; score: number }>>([]);
   const [spaceSpeakerRequests, setSpaceSpeakerRequests] = useState<Array<{ id: string; requester_profile_id: string; status: string; message: string | null; created_at: string; updated_at: string | null; username: string | null }>>([]);
   const [resolvingRequestId, setResolvingRequestId] = useState<string | null>(null);
   const [linkXSpaceUrl, setLinkXSpaceUrl] = useState("");
@@ -251,10 +252,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   }, [me?.id, base, getToken]);
 
   const loadDetailRsvps = useCallback(async (spaceId: string) => {
-    const res = await fetch(`${base}/api/xspaces/${spaceId}/rsvps`);
+    const token = await getToken();
+    const res = await fetch(`${base}/api/xspaces/${spaceId}/rsvps`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
     const data = await res.json().catch(() => ({}));
-    setSpaceRsvps(data?.total != null ? { total: data.total, going_count: data.going_count ?? 0, interested_count: data.interested_count ?? 0, attendees: data.attendees ?? [] } : null);
-  }, [base]);
+    setSpaceRsvps(data?.total != null ? { total: data.total, going_count: data.going_count ?? 0, interested_count: data.interested_count ?? 0, attendees: data.attendees } : null);
+  }, [base, getToken]);
 
   const loadDetailSpeakerRequests = useCallback(async (spaceId: string) => {
     const token = await getToken();
@@ -432,11 +434,29 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       else loadSpaces();
     }
   };
+  const clearCreateAndRefresh = useCallback(() => {
+    setCreateJustDoneSpaceId(null);
+    setShowCreate(false);
+    setCreateTitle("");
+    setCreateDescription("");
+    setCreateScheduledAt("");
+    setCreatePrefilledDate(null);
+    setCreateDurationMins(60);
+    setCreateCohosts("");
+    setCreateXSpaceUrl("");
+    setCreateError(null);
+    setDetectCandidates([]);
+    setDetectError(null);
+    if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
+    else loadSpaces();
+  }, [view, calendarYear, calendarMonth, loadSpaces, loadSpacesForMonth]);
+
   const handleDetectMySpace = useCallback(async () => {
     const spaceId = createJustDoneSpaceId;
     if (!spaceId) return;
     setDetectingSpace(true);
     setDetectError(null);
+    setDetectCandidates([]);
     const token = await getToken();
     const res = await fetch(`${base}/api/xspaces/detect-my-space`, {
       method: "POST",
@@ -445,23 +465,43 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     });
     const data = await res.json().catch(() => ({}));
     setDetectingSpace(false);
-    if (data.found) {
-      setCreateJustDoneSpaceId(null);
-      setShowCreate(false);
-      setCreateTitle("");
-      setCreateDescription("");
-      setCreateScheduledAt("");
-      setCreatePrefilledDate(null);
-      setCreateDurationMins(60);
-      setCreateCohosts("");
-      setCreateXSpaceUrl("");
-      setCreateError(null);
-      if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
-      else loadSpaces();
-    } else {
+    if (res.status === 429) {
+      setDetectError(data.error ?? "Too many attempts. Wait a minute and try again.");
+      return;
+    }
+    if (data.found && data.require_selection && Array.isArray(data.candidates)) {
+      setDetectCandidates(data.candidates);
+      setDetectError(data.message ?? "Choose the Space that matches your Linkary space.");
+      return;
+    }
+    if (data.found && data.linked) {
+      clearCreateAndRefresh();
+      return;
+    }
+    if (data.found === false) {
       setDetectError(data.message ?? data.error ?? "Not found. Paste the X Space link below.");
     }
-  }, [base, createJustDoneSpaceId, getToken, view, calendarYear, calendarMonth, loadSpaces, loadSpacesForMonth]);
+  }, [base, createJustDoneSpaceId, getToken, clearCreateAndRefresh]);
+
+  const handleSelectDetectCandidate = useCallback(async (xSpaceId: string) => {
+    const spaceId = createJustDoneSpaceId;
+    if (!spaceId) return;
+    setDetectingSpace(true);
+    setDetectError(null);
+    const token = await getToken();
+    const res = await fetch(`${base}/api/xspaces/detect-my-space`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ space_id: spaceId, selected_x_space_id: xSpaceId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setDetectingSpace(false);
+    if (data.found && data.linked) {
+      clearCreateAndRefresh();
+    } else {
+      setDetectError(data.error ?? "Failed to link. Try paste fallback.");
+    }
+  }, [base, createJustDoneSpaceId, getToken, clearCreateAndRefresh]);
 
   const handleRequestSpeaker = async () => {
     if (!detailsSpace || !me?.id || isHost(detailsSpace)) return;
@@ -740,19 +780,19 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
           )}
         </div>
       ) : activeTab === "my" && view === "month" ? (
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-900/50 overflow-hidden">
-          <div className="flex items-center justify-between p-3 border-b border-zinc-200 dark:border-zinc-700">
-            <button type="button" onClick={() => { if (calendarMonth === 1) { setCalendarYear((y) => y - 1); setCalendarMonth(12); } else setCalendarMonth((m) => m - 1); }} className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="flex items-center justify-between p-3 border-b border-border">
+            <button type="button" onClick={() => { if (calendarMonth === 1) { setCalendarYear((y) => y - 1); setCalendarMonth(12); } else setCalendarMonth((m) => m - 1); }} className="p-2 rounded-lg hover:bg-accent">
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+            <span className="font-semibold text-foreground">
               {new Date(calendarYear, calendarMonth - 1).toLocaleDateString("default", { month: "long", year: "numeric" })}
             </span>
-            <button type="button" onClick={() => { if (calendarMonth === 12) { setCalendarYear((y) => y + 1); setCalendarMonth(1); } else setCalendarMonth((m) => m + 1); }} className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+            <button type="button" onClick={() => { if (calendarMonth === 12) { setCalendarYear((y) => y + 1); setCalendarMonth(1); } else setCalendarMonth((m) => m + 1); }} className="p-2 rounded-lg hover:bg-accent">
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
-          <div className="grid grid-cols-7 text-center text-xs font-medium text-zinc-600 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-700">
+          <div className="grid grid-cols-7 text-center text-xs font-medium text-muted-foreground border-b border-border">
             {WEEKDAY_LABELS.map((l) => (
               <div key={l} className="py-2">{l}</div>
             ))}
@@ -775,7 +815,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                           setShowCreate(true);
                         }
                       }}
-                      className={`min-h-[100px] p-1.5 border-b border-r border-zinc-200 dark:border-zinc-700 last:border-r-0 ${cell.isCurrentMonth ? "bg-white dark:bg-zinc-900" : "bg-zinc-50 dark:bg-zinc-800/50"} ${me?.id ? "cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800" : ""}`}
+                      className={`min-h-[100px] p-1.5 border-b border-r border-border last:border-r-0 ${cell.isCurrentMonth ? "bg-card" : "bg-muted/30"} ${me?.id ? "cursor-pointer hover:bg-accent" : ""}`}
                     >
                       <div className={`text-sm font-medium mb-1 ${cell.isCurrentMonth ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400"}`}>
                         {cell.date.getDate()}
@@ -801,11 +841,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
       {showCreate && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); }} aria-hidden />
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }} aria-hidden />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card backdrop-blur-xl p-6 z-50 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Create X Space</h2>
-              <button type="button" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); }} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+              <button type="button" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -816,17 +856,30 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">Space created on Linkary. Now link it to X:</p>
                 <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-                  <p className="font-medium text-foreground">Step 1: Create your Space on X</p>
+                  {xConnected !== true && (
+                    <p className="text-sm text-amber-600 dark:text-amber-400">1. Connect X first (button above) so we can detect your Space.</p>
+                  )}
+                  <p className="font-medium text-foreground">2. Open X and create your Space</p>
                   <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
                     Open X Spaces
                   </a>
                   <p className="text-xs text-muted-foreground">Create a new Space on X, then return here.</p>
-                  <p className="font-medium text-foreground pt-2">Step 2: Detect my Space</p>
-                  <button type="button" onClick={handleDetectMySpace} disabled={detectingSpace} className="px-4 py-2 rounded-lg border border-border bg-secondary hover:bg-accent text-foreground text-sm font-medium disabled:opacity-50">
+                  <p className="font-medium text-foreground">3. Detect my Space</p>
+                  <button type="button" onClick={handleDetectMySpace} disabled={detectingSpace || xConnected !== true} className="px-4 py-2 rounded-lg border border-border bg-secondary hover:bg-accent text-foreground text-sm font-medium disabled:opacity-50">
                     {detectingSpace ? "Detecting…" : "Detect my Space"}
                   </button>
+                  {detectCandidates.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Multiple matches — choose one:</p>
+                      {detectCandidates.map((c) => (
+                        <button key={c.id} type="button" onClick={() => handleSelectDetectCandidate(c.id)} disabled={detectingSpace} className="w-full text-left px-3 py-2 rounded-lg border border-border bg-card hover:bg-accent text-foreground text-sm disabled:opacity-50">
+                          {c.title || c.id} {c.scheduled_start ? ` · ${new Date(c.scheduled_start).toLocaleString()}` : ""}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {detectError && <p className="text-sm text-amber-600 dark:text-amber-400">{detectError}</p>}
-                  <p className="text-xs text-muted-foreground">Or paste the X Space link below (fallback):</p>
+                  <p className="text-xs text-muted-foreground pt-2 border-t border-border">If detection fails, paste the X Space link below (fallback):</p>
                   <input type="url" value={createXSpaceUrl} onChange={(e) => setCreateXSpaceUrl(e.target.value)} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
                   {createXSpaceUrl.trim() && (
                     <button type="button" onClick={async () => {
@@ -1011,7 +1064,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 <div className="rounded-xl border border-border bg-card p-3 space-y-1">
                   <p className="text-xs font-medium text-muted-foreground">Linkary RSVPs</p>
                   <p className="text-sm text-foreground">{spaceRsvps.going_count} going · {spaceRsvps.interested_count} interested</p>
-                  {spaceRsvps.attendees.length > 0 && (
+                  {spaceRsvps.attendees && spaceRsvps.attendees.length > 0 && (
                     <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">
                       {spaceRsvps.attendees.slice(0, 10).map((a) => (
                         <li key={a.profile_id}>@{a.username ?? "user"} — {a.status}</li>

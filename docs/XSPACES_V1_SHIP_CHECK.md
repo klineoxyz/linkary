@@ -119,6 +119,14 @@ LIMIT 100;
 
 ---
 
+## Detection QA
+
+- **Two spaces in 15 min:** Create two X Spaces within 15 minutes (different titles/times). In Linkary create a space with “Create on X” and click **Detect my Space**. **Pass:** Picker shows multiple candidates; do not auto-link. User selects the correct one and link succeeds.
+- **Mismatched title:** Create Linkary space with title “Alpha Meetup”, then on X create a Space with a completely different title (e.g. “Random Chat”). Click **Detect my Space**. **Pass:** No auto-link (score below threshold); either “No matching Space” or candidates only. Do not link the wrong Space.
+- **No token (fallback):** With X not connected (or disconnect for test), open Create Space, enable “Create on X”, create the Linkary space. **Pass:** Step 1 prompts “Connect X first”; Detect is disabled until connected. User can use paste fallback to link via X Space URL.
+
+---
+
 ## Quick checklist
 
 | # | Step                    | Pass |

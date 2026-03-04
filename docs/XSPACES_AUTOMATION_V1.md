@@ -31,6 +31,7 @@ What is automated, what is fallback, and how detection works.
   - `GET /api/x/callback` — exchanges code for tokens, fetches X user (e.g. `/2/users/me`), upserts into `x_oauth_tokens`, redirects to `/xspaces`.
   - `GET /api/x/me` — returns `x_user_id` and `username` from `x_oauth_tokens` for the current user (or 404 if not connected).
 - **Env:** `X_CLIENT_ID`, `X_CLIENT_SECRET`, `X_OAUTH_COOKIE_SECRET` for the OAuth flow. Callback URL must be allowlisted in the X app (e.g. `https://your-domain.com/api/x/callback`).
+- **Security:** No API response must ever include `access_token` or `refresh_token`; they are stored only in `x_oauth_tokens` and used server-side. `/api/x/me` returns only `x_user_id` and `username`.
 
 ---
 

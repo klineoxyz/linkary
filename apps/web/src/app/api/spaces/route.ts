@@ -66,14 +66,15 @@ export async function GET(request: NextRequest) {
   }
 
   if (!useRange && !mine) {
+    const now = new Date().toISOString();
     let q = supabase
       .from("spaces")
       .select(spaceCols)
-      .in("status", ["scheduled", "live"])
+      .in("status", ["planned", "scheduled", "live"])
       .order("scheduled_at", { ascending: true })
       .limit(100);
     if (upcoming) {
-      q = q.gte("scheduled_at", new Date().toISOString());
+      q = q.or(`scheduled_at.gte."${now}",status.eq.live`);
     }
     const { data, error } = await q;
     if (!error) spaces.push(...(data ?? []));

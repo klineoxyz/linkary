@@ -132,6 +132,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [editTitle, setEditTitle] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [speakerRequesting, setSpeakerRequesting] = useState(false);
+  const [speakerRequestMessage, setSpeakerRequestMessage] = useState("");
   const [showAddFromX, setShowAddFromX] = useState(false);
   const [addFromXUrl, setAddFromXUrl] = useState("");
   const [addFromXSaving, setAddFromXSaving] = useState(false);
@@ -380,9 +381,17 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     if (!detailsSpace || !me?.id || isHost(detailsSpace)) return;
     setSpeakerRequesting(true);
     const token = await getToken();
-    const res = await fetch(`${base}/api/spaces/${detailsSpace.id}/speaker-request`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    const body = speakerRequestMessage.trim() ? { message: speakerRequestMessage.trim().slice(0, 500) } : {};
+    const res = await fetch(`${base}/api/spaces/${detailsSpace.id}/speaker-request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
     setSpeakerRequesting(false);
-    if (res.ok) setDetailsSpace(null);
+    if (res.ok) {
+      setSpeakerRequestMessage("");
+      setDetailsSpace(null);
+    }
   };
 
   function OverlapText({ o }: { o: AudienceOverlap }) {
@@ -558,7 +567,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
           ))}
         </div>
       ) : activeTab === "discover" ? (
-        <DiscoverTab loadDiscover={loadDiscover} onSpaceClick={setDetailsSpace} />
+        <DiscoverTab loadDiscover={loadDiscover} onSpaceClick={(s) => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); }} />
       ) : activeTab === "my" && view === "list" ? (
         <div className="space-y-3">
           {overlapsError && (
@@ -618,7 +627,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     </div>
                   )}
                   <div className="pl-9 flex gap-2">
-                    <button type="button" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); }} className="text-sm text-primary hover:underline">Details</button>
+                    <button type="button" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); }} className="text-sm text-primary hover:underline">Details</button>
                   </div>
                 </div>
               );
@@ -669,7 +678,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       {visible.map((s) => (
                         <div
                           key={s.id}
-                          onClick={(e) => { e.stopPropagation(); setDetailsSpace(s); setEditTitle(s.title); }}
+                          onClick={(e) => { e.stopPropagation(); setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); }}
                           className="text-xs truncate rounded px-1 py-0.5 bg-primary/10 text-primary dark:bg-primary/20 mb-0.5 cursor-pointer hover:bg-primary/20 dark:hover:bg-primary/30"
                         >
                           {s.title}
@@ -861,6 +870,16 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 </>
               ) : me?.id ? (
                 <>
+                  <div className="mb-2">
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">Message to host (optional)</label>
+                    <textarea
+                      value={speakerRequestMessage}
+                      onChange={(e) => setSpeakerRequestMessage(e.target.value)}
+                      placeholder="Why you’d like to speak…"
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={async () => {
@@ -870,7 +889,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                         body: JSON.stringify({ space_id: detailsSpace.id, status: "interested" }),
                       });
-                      if (res.ok) setRsvpStatus((prev) => ({ ...prev, [detailsSpace.id]: "interested" }));
+                      const data = await res.json().catch(() => ({}));
+                      if (res.ok && (data?.status === "interested" || data?.status === "going")) setRsvpStatus((prev) => ({ ...prev, [detailsSpace.id]: data.status }));
                     }}
                     className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   >
@@ -885,7 +905,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                         body: JSON.stringify({ space_id: detailsSpace.id, status: "going" }),
                       });
-                      if (res.ok) setRsvpStatus((prev) => ({ ...prev, [detailsSpace.id]: "going" }));
+                      const data = await res.json().catch(() => ({}));
+                      if (res.ok && (data?.status === "interested" || data?.status === "going")) setRsvpStatus((prev) => ({ ...prev, [detailsSpace.id]: data.status }));
                     }}
                     className="px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/10"
                   >

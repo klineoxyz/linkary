@@ -32,15 +32,16 @@ Run after deploying code and applying migration `20260305000000_xspaces_v1_rsvp_
 
 - **Action:** Log in as a **different** user. Open Discover, click a space, click **Interested** then **Going** (or vice versa).
 - **Pass:** No error; only one row per (space_id, profile_id) in `space_rsvps`; status toggles to last clicked.
-- **API check:** `POST /api/xspaces/rsvp` with `{ space_id, status: "interested" | "going" }` returns 200 and row; repeat with other status updates same row.
+- **API check:** `POST /api/xspaces/rsvp` with `{ space_id, status: "interested" | "going" }` returns 200 and the updated row; repeat with the other status to confirm the same row is updated (upsert on `space_id, profile_id`).
+- **SQL check:** See “SQL snippets” below: query `space_rsvps` by `profile_id`; duplicate check should return 0 rows.
 
 ---
 
 ## 5. Speaker request with message
 
-- **Action:** As non-host, open a space detail, click **Request speaker**. Optionally add a message (if UI supports it). Submit.
+- **Action:** As non-host, open a space detail, optionally enter a message in **Message to host (optional)**, then click **Request speaker**.
 - **Pass:** Request is created; host sees it (e.g. HostDashboard or notifications). `speaker_requests` has one row with optional `message`.
-- **API check:** `POST /api/spaces/{id}/speaker-request` or `POST /api/xspaces/speaker-request` with `{ space_id, message? }` returns 200.
+- **API check:** `POST /api/spaces/{id}/speaker-request` with `{ message? }` or `POST /api/xspaces/speaker-request` with `{ space_id, message? }` returns 200.
 
 ---
 
@@ -64,6 +65,48 @@ Run after deploying code and applying migration `20260305000000_xspaces_v1_rsvp_
 
 - **Action:** In production build, visit `/xspaces` and trigger a disallowed-route case (e.g. navigate to an invalid route that would redirect to overview). Check browser console and server logs.
 - **Pass:** No `[route] redirect to overview` or other debug logs in production. Redirect logging is gated by `NODE_ENV !== "production"`.
+
+---
+
+## SQL snippets (Supabase SQL Editor)
+
+Paste into Supabase → SQL Editor to validate data. Replace `'<PROFILE_UUID>'` with the signed-in user’s profile id (same as `auth.uid()`).
+
+```sql
+-- 1) RSVPs for current user (one row per space; status = interested | going)
+SELECT * FROM public.space_rsvps
+WHERE profile_id = '<PROFILE_UUID>'
+ORDER BY created_at DESC;
+
+-- 2) Duplicate RSVP check (should return 0 rows after migration)
+SELECT space_id, profile_id, COUNT(*)
+FROM public.space_rsvps
+GROUP BY space_id, profile_id
+HAVING COUNT(*) > 1;
+
+-- 3) Past spaces (ended) with optional stats
+SELECT s.id, s.title, s.scheduled_at, s.status,
+       st.listeners_total, st.peak_listeners, st.duration_seconds
+FROM public.spaces s
+LEFT JOIN LATERAL (
+  SELECT listeners_total, peak_listeners, duration_seconds
+  FROM public.space_stats
+  WHERE space_id = s.id
+  ORDER BY captured_at DESC
+  LIMIT 1
+) st ON true
+WHERE s.status = 'ended'
+ORDER BY s.scheduled_at DESC
+LIMIT 50;
+
+-- 4) Upcoming + live (same logic as GET /api/xspaces/upcoming)
+SELECT id, title, scheduled_at, status
+FROM public.spaces
+WHERE status IN ('planned','scheduled','live')
+  AND (scheduled_at >= now() OR status = 'live')
+ORDER BY scheduled_at ASC
+LIMIT 100;
+```
 
 ---
 

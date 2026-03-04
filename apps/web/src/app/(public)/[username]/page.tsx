@@ -70,11 +70,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params;
   const segment = (username ?? "").trim();
   const segmentLower = normalizeIdentifier(segment);
-  if (!segment || isReservedPath(segmentLower)) {
-    return {
-      title: "Linkary",
-      robots: { index: false, follow: false },
-    };
+  if (!segment) {
+    return { title: "Linkary" };
   }
   const kind = getIdentifierKind(segment);
   let serviceSupabase: import("@supabase/supabase-js").SupabaseClient | null = null;
@@ -91,35 +88,41 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   let published = true;
   let canonicalSlug: string = segmentLower;
   if (kind === "slug" && serviceSupabase) {
-    const [u, t] = await Promise.all([
-      serviceSupabase.from("profiles").select("id, username, twitter_username, published").ilike("username", segmentLower).maybeSingle(),
-      serviceSupabase.from("profiles").select("id, username, twitter_username, published").ilike("twitter_username", segmentLower).maybeSingle(),
-    ]);
-    const row = (u.data ?? t.data) as { id: string; username?: string | null; twitter_username?: string | null; published?: boolean } | null;
-    if (row?.username) {
-      canonicalSlug = row.username;
-    }
-    if (row) {
-      published = row.published === true;
-      if (published) {
-        const { data: viewRow } = await serviceSupabase
-          .from("public_profile_view")
-          .select("display_name, username, bio")
-          .eq("id", row.id)
-          .maybeSingle();
-        const v = viewRow as { display_name?: string | null; username?: string | null; bio?: string | null } | null;
-        if (v) {
-          title = `${v.display_name || v.username || segment} on Linkary`;
-          if (v.bio && typeof v.bio === "string") {
-            description = v.bio.length > 160 ? v.bio.slice(0, 157) + "…" : v.bio;
+    const { getPublicEntityByUsername } = await import("@/lib/publicData");
+    const entity = await getPublicEntityByUsername(segmentLower, serviceSupabase);
+    if (entity) {
+      if (entity.type === "profile" && entity.profile) {
+        const p = entity.profile;
+        canonicalSlug = (p.username ?? p.twitter_username ?? "").replace(/^@/, "").toLowerCase() || segmentLower;
+        published = p.published === true;
+        if (published) {
+          title = `${p.display_name || p.username || p.twitter_username || segment} on Linkary`;
+          if (p.bio && typeof p.bio === "string") {
+            description = p.bio.length > 160 ? p.bio.slice(0, 157) + "…" : p.bio;
           }
+        }
+      } else if (entity.type === "org" && entity.org) {
+        const o = entity.org;
+        canonicalSlug = (o.slug ?? "").toLowerCase() || segmentLower;
+        title = `${o.name || segment} on Linkary`;
+        if (o.tagline && typeof o.tagline === "string") {
+          description = o.tagline.length > 160 ? o.tagline.slice(0, 157) + "…" : o.tagline;
         }
       }
     } else {
       published = false;
+      if (isReservedPath(segmentLower)) {
+        return {
+          title: "Linkary",
+          robots: { index: false, follow: false },
+        };
+      }
     }
   } else if (kind === "slug") {
     published = false;
+    if (isReservedPath(segmentLower)) {
+      return { title: "Linkary", robots: { index: false, follow: false } };
+    }
   } else {
     const entity = await resolvePublicEntity(segment, { serviceSupabase: serviceSupabase ?? undefined });
     if (entity) {
@@ -183,11 +186,11 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
   if (!segment) notFound();
 
   const segmentLower = normalizeIdentifier(segment);
-  if (isReservedPath(segmentLower)) {
-    return <AppWithProviders />;
-  }
-
   const kind = getIdentifierKind(segment);
+
+  if (process.env.NODE_ENV === "development" && isDebug) {
+    console.log("[slug-page]", { pathname: `/${segment}`, segmentLower, reserved: isReservedPath(segmentLower), kind });
+  }
 
   if (kind === "slug") {
     let serviceSupabase: ReturnType<typeof import("@/lib/x-analytics-server").createServiceSupabase>;
@@ -223,7 +226,35 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       } | null;
       const matchedBy = byUsername.data ? "username" : byTwitter.data ? "twitter_username" : null;
 
+      if (process.env.NODE_ENV === "development" && isDebug && minimalRow) {
+        console.log("[slug-page] resolver=profile", { matchedBy, profile_id: minimalRow.id });
+      }
+
       if (!minimalRow) {
+        const { getPublicEntityByUsername } = await import("@/lib/publicData");
+        const entityFromSlug = await getPublicEntityByUsername(segmentLower, serviceSupabase);
+        if (entityFromSlug) {
+          if (process.env.NODE_ENV === "development" && isDebug) {
+            console.log("[slug-page] resolver=org_or_published_profile", { type: entityFromSlug.type });
+          }
+          const entity = await resolveEntityMediaToSignedUrls(entityFromSlug, serviceSupabase);
+          const dto = entityToPublicDTO(entity);
+          const entityView = dtoToEntityView(dto);
+          const canonicalSlug =
+            entity.type === "profile"
+              ? (entity.profile?.username ?? entity.profile?.twitter_username ?? "").replace(/^@/, "").toLowerCase()
+              : (entity.org?.slug ?? "").toLowerCase();
+          return (
+            <PublicOnePagerWrapper
+              entityView={entityView}
+              username={canonicalSlug || segmentLower}
+              analyticsSource={dto.analytics.source}
+              analyticsInitialized={dto.analytics.initialized}
+              hasXConnected={entity.type === "profile" && !!entity.profile?.twitter_username}
+              brochure={viewBrochure}
+            />
+          );
+        }
         const { data: historyRow } = await serviceSupabase
           .from("profile_slug_history")
           .select("profile_id")
@@ -240,8 +271,14 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
             .maybeSingle();
           const currentUsername = (profileRow as { username?: string | null } | null)?.username?.trim();
           if (currentUsername) {
+            if (process.env.NODE_ENV === "development" && isDebug) {
+              console.log("[slug-page] redirect=slug_history", { from: segmentLower, to: currentUsername });
+            }
             permanentRedirect(`/${encodeURIComponent(currentUsername)}`);
           }
+        }
+        if (isReservedPath(segmentLower)) {
+          return <AppWithProviders />;
         }
         return <NotFoundClaimView requestedUsername={segmentLower} />;
       }
@@ -290,6 +327,9 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       // SEO: 301 permanent redirect alias -> canonical (if visited via twitter_username, redirect to profiles.username).
       const canonicalUsername = (profileRow.username ?? "").trim().toLowerCase();
       if (matchedBy === "twitter_username" && canonicalUsername && segmentLower !== canonicalUsername) {
+        if (process.env.NODE_ENV === "development" && isDebug) {
+          console.log("[slug-page] redirect=alias", { from: segmentLower, to: profileRow.username });
+        }
         permanentRedirect(`/${encodeURIComponent(profileRow.username!)}`);
       }
 

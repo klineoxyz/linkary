@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, token ? { global: { headers: { Authorization: `Bearer ${token}` } } } : {});
 
-  const spaceCols = "id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url";
-  const spaces: Array<{ id: string; host_profile_id: string; title: string; description: string | null; scheduled_at: string | null; duration_mins: number | null; status: string; created_at: string; x_space_id?: string | null }> = [];
+  const spaceCols = "id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url, expect_x_link";
+  const spaces: Array<{ id: string; host_profile_id: string; title: string; description: string | null; scheduled_at: string | null; duration_mins: number | null; status: string; created_at: string; x_space_id?: string | null; x_space_url?: string | null; expect_x_link?: boolean }> = [];
 
   const useRange = fromParam && toParam && scope === "public";
   if (useRange) {
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  let body: { title?: string; description?: string; scheduled_at?: string; duration_mins?: number; status?: string; cohosts?: string; x_space_url?: string } = {};
+  let body: { title?: string; description?: string; scheduled_at?: string; duration_mins?: number; status?: string; cohosts?: string; x_space_url?: string; expect_x_link?: boolean } = {};
   try {
     body = await request.json();
   } catch {
@@ -124,6 +124,7 @@ export async function POST(request: NextRequest) {
   }
 
   const xSpaceUrl = typeof body.x_space_url === "string" ? body.x_space_url.trim() || null : null;
+  const expectXLink = body.expect_x_link === true;
   const { data, error } = await supabase
     .from("spaces")
     .insert({
@@ -134,9 +135,10 @@ export async function POST(request: NextRequest) {
       duration_mins: typeof body.duration_mins === "number" ? body.duration_mins : null,
       status,
       x_space_url: xSpaceUrl,
+      expect_x_link: expectXLink,
       updated_at: new Date().toISOString(),
     })
-    .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url")
+    .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url, expect_x_link")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

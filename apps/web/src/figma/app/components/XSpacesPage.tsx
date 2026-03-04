@@ -16,6 +16,7 @@ type Space = {
   created_at: string;
   x_space_id?: string | null;
   x_space_url?: string | null;
+  expect_x_link?: boolean;
 };
 
 type Overlap = { id: string; title: string; scheduled_at: string; host_profile_id: string; duration_mins: number | null };
@@ -162,6 +163,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [linkXSpaceUrl, setLinkXSpaceUrl] = useState("");
   const [linkXSpaceSaving, setLinkXSpaceSaving] = useState(false);
   const [showLinkXSpace, setShowLinkXSpace] = useState(false);
+  const [showReplaceLinkConfirm, setShowReplaceLinkConfirm] = useState(false);
+  const [replaceLinkMode, setReplaceLinkMode] = useState(false);
+  const [linkXSpaceError, setLinkXSpaceError] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
   const debug = searchParams?.get("debug") === "1";
@@ -270,8 +274,15 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       setSpaceRsvps(null);
       setSpaceSpeakerRequests([]);
       setShowLinkXSpace(false);
+      setShowReplaceLinkConfirm(false);
+      setReplaceLinkMode(false);
+      setLinkXSpaceError(null);
       return;
     }
+    setShowLinkXSpace(false);
+    setShowReplaceLinkConfirm(false);
+    setReplaceLinkMode(false);
+    setLinkXSpaceError(null);
     loadDetailRsvps(detailsSpace.id);
     if (me?.id && detailsSpace.host_profile_id === me.id) loadDetailSpeakerRequests(detailsSpace.id);
   }, [detailsSpace?.id, detailsSpace?.host_profile_id, me?.id, loadDetailRsvps, loadDetailSpeakerRequests]);
@@ -356,6 +367,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         status: "planned",
         cohosts: createCohosts.trim() || undefined,
         x_space_url: createXSpaceUrl.trim() || undefined,
+        expect_x_link: createOnX,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -451,12 +463,68 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     else loadSpaces();
   }, [view, calendarYear, calendarMonth, loadSpaces, loadSpacesForMonth]);
 
+  const updateSpaceLinkState = useCallback((spaceId: string, x_space_id: string, x_space_url: string) => {
+    setSpaces((prev) => prev.map((s) => (s.id === spaceId ? { ...s, x_space_id, x_space_url } : s)));
+    setDetailsSpace((prev) => (prev?.id === spaceId ? { ...prev, x_space_id, x_space_url } : prev));
+  }, []);
+
+  const [detectLinkedPolling, setDetectLinkedPolling] = useState(false);
+  const pollIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    const spaceId = createJustDoneSpaceId;
+    if (!spaceId || !detectLinkedPolling) return;
+    const POLL_INTERVAL_MS = 10_000;
+    const POLL_DURATION_MS = 60_000;
+    const startedAt = Date.now();
+    const poll = async (): Promise<boolean> => {
+      try {
+        const res = await fetch(`${base}/api/xspaces/${spaceId}/link-status`);
+        const data = await res.json().catch(() => ({}));
+        if (data.linked && data.x_space_id && data.x_space_url) {
+          updateSpaceLinkState(spaceId, data.x_space_id, data.x_space_url);
+          setDetectLinkedPolling(false);
+          setDetectError(null);
+          setDetectCandidates([]);
+          clearCreateAndRefresh();
+          return true;
+        }
+      } catch {
+        /* ignore */
+      }
+      return false;
+    };
+    const tick = () => {
+      if (Date.now() - startedAt >= POLL_DURATION_MS) {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+        setDetectLinkedPolling(false);
+        setDetectError("No match found — paste the X Space link below.");
+        return;
+      }
+      poll().then((done) => {
+        if (done && pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+      });
+    };
+    poll().then((done) => {
+      if (done) return;
+      pollIntervalRef.current = setInterval(tick, POLL_INTERVAL_MS);
+    });
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    };
+  }, [base, createJustDoneSpaceId, detectLinkedPolling, updateSpaceLinkState, clearCreateAndRefresh]);
+
   const handleDetectMySpace = useCallback(async () => {
     const spaceId = createJustDoneSpaceId;
     if (!spaceId) return;
     setDetectingSpace(true);
     setDetectError(null);
     setDetectCandidates([]);
+    setDetectLinkedPolling(true);
     const token = await getToken();
     const res = await fetch(`${base}/api/xspaces/detect-my-space`, {
       method: "POST",
@@ -466,7 +534,13 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     const data = await res.json().catch(() => ({}));
     setDetectingSpace(false);
     if (res.status === 429) {
+      setDetectLinkedPolling(false);
       setDetectError(data.error ?? "Too many attempts. Wait a minute and try again.");
+      return;
+    }
+    if (res.status === 409 && data.code === "ALREADY_LINKED") {
+      setDetectLinkedPolling(false);
+      setDetectError("This space is already linked. Use Replace in the space details to change it.");
       return;
     }
     if (data.found && data.require_selection && Array.isArray(data.candidates)) {
@@ -474,8 +548,10 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       setDetectError(null);
       return;
     }
-    if (data.found && data.linked) {
+    if (data.found && data.linked && data.x_space_id && spaceId) {
+      setDetectLinkedPolling(false);
       setDetectCandidates([]);
+      updateSpaceLinkState(spaceId, data.x_space_id, data.x_space_url ?? `https://x.com/i/spaces/${data.x_space_id}`);
       clearCreateAndRefresh();
       return;
     }
@@ -484,9 +560,10 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       return;
     }
     if (!res.ok) {
+      setDetectLinkedPolling(false);
       setDetectError("Something went wrong. You can retry or paste the link below.");
     }
-  }, [base, createJustDoneSpaceId, getToken, clearCreateAndRefresh]);
+  }, [base, createJustDoneSpaceId, getToken, clearCreateAndRefresh, updateSpaceLinkState]);
 
   const handleSelectDetectCandidate = useCallback(async (xSpaceId: string) => {
     const spaceId = createJustDoneSpaceId;
@@ -503,11 +580,14 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setDetectingSpace(false);
     if (res.ok && data.x_space_id) {
       setDetectCandidates([]);
+      updateSpaceLinkState(spaceId, data.x_space_id, data.x_space_url ?? `https://x.com/i/spaces/${data.x_space_id}`);
       clearCreateAndRefresh();
+    } else if (res.status === 409 && data.code === "ALREADY_LINKED") {
+      setDetectError("This space is already linked. Use Replace in the space details to change it.");
     } else {
       setDetectError(data.error ?? "Failed to link. Try paste fallback.");
     }
-  }, [base, createJustDoneSpaceId, getToken, clearCreateAndRefresh]);
+  }, [base, createJustDoneSpaceId, getToken, clearCreateAndRefresh, updateSpaceLinkState]);
 
   const handleRequestSpeaker = async () => {
     if (!detailsSpace || !me?.id || isHost(detailsSpace)) return;
@@ -764,6 +844,19 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     </div>
                     <span className="text-xs px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 shrink-0">{s.status}</span>
                   </div>
+                  {isHost(s) && s.expect_x_link && !s.x_space_id && (
+                    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+                      <p className="text-sm text-muted-foreground">Not linked to X yet</p>
+                      <div className="flex flex-wrap gap-2">
+                        {xConnected === false && (
+                          <button type="button" onClick={async () => { const token = await getToken(); const res = await fetch(`${base}/api/x/connect`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, redirect: "manual" }); if (res.status === 302) { const url = res.headers.get("Location"); if (url) window.location.href = url; } }} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Connect X</button>
+                        )}
+                        <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Open X</a>
+                        <button type="button" onClick={() => { setCreateJustDoneSpaceId(s.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent disabled:opacity-50">Detect my Space</button>
+                        <button type="button" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); setShowLinkXSpace(true); }} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Paste link</button>
+                      </div>
+                    </div>
+                  )}
                   {audienceOverlaps.length > 0 && (
                     <div className="flex items-start gap-2 pl-9 text-sm">
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -886,7 +979,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                         </button>
                       ))}
                     </div>
-                  )}
+                  ) : null}
                   {detectError && (
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm text-amber-600 dark:text-amber-400">{detectError}</p>
@@ -903,7 +996,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       const token = await getToken();
                       const res = await fetch(`${base}/api/spaces/sync-from-x`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ space_url: createXSpaceUrl.trim() }) });
                       const data = await res.json().catch(() => ({}));
-                      if (data.space) {
+                      if (data.space?.id && data.space?.x_space_id) {
+                        updateSpaceLinkState(data.space.id, data.space.x_space_id, data.space.x_space_url ?? `https://x.com/i/spaces/${data.space.x_space_id}`);
                         setCreateJustDoneSpaceId(null); setShowCreate(false); setCreateTitle(""); setCreateDescription(""); setCreateScheduledAt(""); setCreatePrefilledDate(null); setCreateDurationMins(60); setCreateCohosts(""); setCreateXSpaceUrl(""); setCreateError(null);
                         if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces();
                       } else setDetectError(data.message ?? data.error ?? "Failed to link.");
@@ -1045,7 +1139,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
       {detailsSpace && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setDetailsSpace(null)} aria-hidden />
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setDetailsSpace(null); setShowReplaceLinkConfirm(false); setReplaceLinkMode(false); setLinkXSpaceError(null); }} aria-hidden />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl border border-border bg-card p-6 z-50 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Space details</h2>
@@ -1063,6 +1157,19 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 {detailsSpace.scheduled_at ? new Date(detailsSpace.scheduled_at).toLocaleString() : "—"}
                 {detailsSpace.duration_mins ? ` · ${detailsSpace.duration_mins} min` : ""}
               </p>
+              {isHost(detailsSpace) && detailsSpace.expect_x_link && !detailsSpace.x_space_id && (
+                <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+                  <p className="text-sm text-muted-foreground">Not linked to X yet</p>
+                  <div className="flex flex-wrap gap-2">
+                    {xConnected === false && (
+                      <button type="button" onClick={async () => { const token = await getToken(); const res = await fetch(`${base}/api/x/connect`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, redirect: "manual" }); if (res.status === 302) { const url = res.headers.get("Location"); if (url) window.location.href = url; } }} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Connect X</button>
+                    )}
+                    <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Open X</a>
+                    <button type="button" onClick={() => { setDetailsSpace(null); setCreateJustDoneSpaceId(detailsSpace.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent disabled:opacity-50">Detect my Space</button>
+                    <button type="button" onClick={() => setShowLinkXSpace(true)} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Paste link</button>
+                  </div>
+                </div>
+              )}
               {detailsSpace.description && <p className="text-sm text-muted-foreground">{detailsSpace.description}</p>}
               {detailsSpace.x_space_url && (
                 <a href={detailsSpace.x_space_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">
@@ -1110,18 +1217,45 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       if (res.ok) { setDetailsSpace({ ...detailsSpace, status: "ended" }); if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces(); }
                     }} disabled={editSaving} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent disabled:opacity-50">Mark as ended</button>
                   )}
-                  <button type="button" onClick={() => setShowLinkXSpace(!showLinkXSpace)} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent">Link X Space</button>
+                  {detailsSpace.x_space_id ? (
+                    <button type="button" onClick={() => { setShowReplaceLinkConfirm(true); setLinkXSpaceError(null); }} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent">Replace linked X Space</button>
+                  ) : (
+                    <button type="button" onClick={() => { setShowLinkXSpace(!showLinkXSpace); setLinkXSpaceError(null); setReplaceLinkMode(false); }} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent">Link X Space</button>
+                  )}
+                  {showReplaceLinkConfirm && (
+                    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+                      <p className="text-sm text-muted-foreground">Replace linked X Space? This will disconnect the current X Space from this Linkary Space.</p>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => { setShowReplaceLinkConfirm(false); }} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent">Cancel</button>
+                        <button type="button" onClick={() => { setShowReplaceLinkConfirm(false); setReplaceLinkMode(true); setShowLinkXSpace(true); setLinkXSpaceUrl(""); }} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm">Replace</button>
+                      </div>
+                    </div>
+                  )}
                   {showLinkXSpace && (
                     <div className="rounded-xl border border-border bg-card p-3 space-y-2">
-                      <input type="url" value={linkXSpaceUrl} onChange={(e) => setLinkXSpaceUrl(e.target.value)} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                      {linkXSpaceError && <p className="text-sm text-amber-600 dark:text-amber-400">{linkXSpaceError}</p>}
+                      <input type="url" value={linkXSpaceUrl} onChange={(e) => { setLinkXSpaceUrl(e.target.value); setLinkXSpaceError(null); }} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
                       <button type="button" disabled={linkXSpaceSaving} onClick={async () => {
-                        if (!linkXSpaceUrl.trim()) return;
+                        if (!linkXSpaceUrl.trim() || !detailsSpace) return;
+                        const match = linkXSpaceUrl.trim().match(/i\/spaces\/([A-Za-z0-9_-]+)/);
+                        const xSpaceId = match ? match[1] : null;
+                        if (!xSpaceId) { setLinkXSpaceError("Invalid X Space URL. Use a link like https://x.com/i/spaces/..."); return; }
                         setLinkXSpaceSaving(true);
+                        setLinkXSpaceError(null);
                         const token = await getToken();
-                        const res = await fetch(`${base}/api/spaces/sync-from-x`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ space_url: linkXSpaceUrl.trim() }) });
+                        const res = await fetch(`${base}/api/xspaces/link-space`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ space_id: detailsSpace.id, x_space_id: xSpaceId, force: replaceLinkMode }) });
                         const data = await res.json().catch(() => ({}));
                         setLinkXSpaceSaving(false);
-                        if (data.space) { setDetailsSpace({ ...detailsSpace, x_space_id: data.space.x_space_id ?? detailsSpace.x_space_id, x_space_url: data.space.x_space_url ?? detailsSpace.x_space_url }); setLinkXSpaceUrl(""); setShowLinkXSpace(false); }
+                        if (res.ok && data.x_space_id) {
+                          const url = data.x_space_url ?? `https://x.com/i/spaces/${data.x_space_id}`;
+                          updateSpaceLinkState(detailsSpace.id, data.x_space_id, url);
+                          setDetailsSpace({ ...detailsSpace, x_space_id: data.x_space_id, x_space_url: url });
+                          setLinkXSpaceUrl(""); setShowLinkXSpace(false); setReplaceLinkMode(false);
+                        } else if (res.status === 409) {
+                          setLinkXSpaceError(data.error ?? "Already linked. Use Replace to change.");
+                        } else {
+                          setLinkXSpaceError(data.error ?? "Failed to link.");
+                        }
                       }} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">Save link</button>
                     </div>
                   )}

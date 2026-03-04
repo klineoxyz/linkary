@@ -1,6 +1,7 @@
 /**
  * POST /api/xspaces/link-space — host links a chosen X Space to their Linkary space.
- * Body: { space_id: string, x_space_id: string }. Used after detect-my-space returns require_selection.
+ * Body: { space_id: string, x_space_id: string, force?: boolean }. force: true allows overwriting existing link.
+ * Returns 409 ALREADY_LINKED when space already has x_space_id and force is not true.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  let body: { space_id?: string; x_space_id?: string } = {};
+  let body: { space_id?: string; x_space_id?: string; force?: boolean } = {};
   try {
     body = await request.json();
   } catch {
@@ -34,21 +35,36 @@ export async function POST(request: NextRequest) {
   }
   const spaceId = typeof body.space_id === "string" ? body.space_id.trim() : null;
   const xSpaceId = typeof body.x_space_id === "string" ? body.x_space_id.trim() : null;
+  const force = body.force === true;
   if (!spaceId || !xSpaceId) {
     return NextResponse.json({ error: "space_id and x_space_id required" }, { status: 400 });
   }
 
   const { data: space, error: spaceError } = await supabase
     .from("spaces")
-    .select("id, host_profile_id")
+    .select("id, host_profile_id, x_space_id, x_space_url")
     .eq("id", spaceId)
     .maybeSingle();
 
   if (spaceError || !space) {
     return NextResponse.json({ error: "Space not found" }, { status: 404 });
   }
-  if ((space as { host_profile_id: string }).host_profile_id !== user.id) {
+  const row = space as { host_profile_id: string; x_space_id: string | null; x_space_url: string | null };
+  if (row.host_profile_id !== user.id) {
     return NextResponse.json({ error: "Only the host can link an X Space" }, { status: 403 });
+  }
+
+  const alreadyLinked = !!(row.x_space_id ?? row.x_space_url);
+  if (alreadyLinked && !force) {
+    return NextResponse.json(
+      {
+        error: "This space is already linked to an X Space. Use Replace to change it.",
+        code: "ALREADY_LINKED",
+        x_space_id: row.x_space_id ?? null,
+        x_space_url: row.x_space_url ?? null,
+      },
+      { status: 409 }
+    );
   }
 
   const xSpaceUrl = `https://x.com/i/spaces/${xSpaceId}`;

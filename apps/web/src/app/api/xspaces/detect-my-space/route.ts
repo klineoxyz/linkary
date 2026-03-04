@@ -173,14 +173,26 @@ export async function POST(request: NextRequest) {
   if (selectedXSpaceId && linkarySpaceId) {
     const valid = recent.some((s) => s.id === selectedXSpaceId);
     if (valid) {
-      const xSpaceUrl = `https://x.com/i/spaces/${selectedXSpaceId}`;
       const { data: space } = await supabase
         .from("spaces")
-        .select("id, host_profile_id")
+        .select("id, host_profile_id, x_space_id, x_space_url")
         .eq("id", linkarySpaceId)
         .maybeSingle();
-      const sp = space as { id: string; host_profile_id: string } | null;
+      const sp = space as { id: string; host_profile_id: string; x_space_id: string | null; x_space_url: string | null } | null;
       if (sp && sp.host_profile_id === user.id) {
+        const alreadyLinked = !!(sp.x_space_id ?? sp.x_space_url);
+        if (alreadyLinked) {
+          return NextResponse.json(
+            {
+              error: "This space is already linked to an X Space. Use Replace to change it.",
+              code: "ALREADY_LINKED",
+              x_space_id: sp.x_space_id ?? null,
+              x_space_url: sp.x_space_url ?? null,
+            },
+            { status: 409, headers: rateLimitHeaders }
+          );
+        }
+        const xSpaceUrl = `https://x.com/i/spaces/${selectedXSpaceId}`;
         await supabase
           .from("spaces")
           .update({
@@ -233,11 +245,23 @@ export async function POST(request: NextRequest) {
     if (linkarySpaceId) {
       const { data: space } = await supabase
         .from("spaces")
-        .select("id, host_profile_id")
+        .select("id, host_profile_id, x_space_id, x_space_url")
         .eq("id", linkarySpaceId)
         .maybeSingle();
-      const sp = space as { id: string; host_profile_id: string } | null;
+      const sp = space as { id: string; host_profile_id: string; x_space_id: string | null; x_space_url: string | null } | null;
       if (sp && sp.host_profile_id === user.id) {
+        const alreadyLinked = !!(sp.x_space_id ?? sp.x_space_url);
+        if (alreadyLinked) {
+          return NextResponse.json(
+            {
+              error: "This space is already linked to an X Space. Use Replace to change it.",
+              code: "ALREADY_LINKED",
+              x_space_id: sp.x_space_id ?? null,
+              x_space_url: sp.x_space_url ?? null,
+            },
+            { status: 409, headers: rateLimitHeaders }
+          );
+        }
         await supabase
           .from("spaces")
           .update({

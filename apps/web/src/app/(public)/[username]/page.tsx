@@ -255,14 +255,19 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
             />
           );
         }
-        const { data: historyRow } = await serviceSupabase
-          .from("profile_slug_history")
-          .select("profile_id")
-          .ilike("old_slug", segmentLower)
-          .order("changed_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const hist = historyRow as { profile_id: string } | null;
+        // Slug history lookup only for non-empty normalized segment (never empty string).
+        const segmentNorm = segmentLower.trim().toLowerCase();
+        let hist: { profile_id: string } | null = null;
+        if (segmentNorm !== "") {
+          const { data: historyRow } = await serviceSupabase
+            .from("profile_slug_history")
+            .select("profile_id")
+            .ilike("old_slug", segmentNorm)
+            .order("changed_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          hist = historyRow as { profile_id: string } | null;
+        }
         if (hist?.profile_id) {
           const { data: profileRow } = await serviceSupabase
             .from("profiles")

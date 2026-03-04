@@ -1,5 +1,6 @@
 /**
- * GET /api/x/me — verify token and return x_user_id + username from x_oauth_tokens for current user.
+ * GET /api/x/me — X connection status. Always 200 when authenticated; never returns tokens.
+ * Source of truth: public.x_oauth_tokens (Supabase). CDP is not used for XSpaces connection.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ connected: false, x_user_id: null, username: null, provider: null }, { status: 200 });
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     error: userError,
   } = await supabase.auth.getUser(token);
   if (userError || !user?.id) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    return NextResponse.json({ connected: false, x_user_id: null, username: null, provider: null }, { status: 200 });
   }
 
   const { data: row, error } = await supabase
@@ -33,16 +34,22 @@ export async function GET(request: NextRequest) {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ connected: false, x_user_id: null, username: null, provider: null }, { status: 200 });
   }
   if (!row) {
-    return NextResponse.json({ error: "X not connected", connected: false }, { status: 404 });
+    return NextResponse.json({
+      connected: false,
+      x_user_id: null,
+      username: null,
+      provider: null,
+    }, { status: 200 });
   }
 
   const r = row as { x_user_id: string | null; x_username: string | null };
   return NextResponse.json({
+    connected: true,
     x_user_id: r.x_user_id ?? null,
     username: r.x_username ?? null,
-    connected: true,
+    provider: "supabase",
   });
 }

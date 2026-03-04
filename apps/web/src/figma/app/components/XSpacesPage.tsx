@@ -266,14 +266,28 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   }, [fetchXMe]);
 
   const xConnectedFromRedirect = searchParams?.get("x_connected") === "1";
+  const xOauthError = searchParams?.get("x_oauth_error") === "1";
+  const [showOAuthErrorBanner, setShowOAuthErrorBanner] = useState(false);
   useEffect(() => {
     if (!xConnectedFromRedirect || !me?.id || !base) return;
     fetchXMe();
     const url = new URL(typeof window !== "undefined" ? window.location.href : "");
     url.searchParams.delete("x_connected");
+    url.searchParams.delete("x_oauth_error");
     const replace = url.pathname + url.search;
     if (typeof window !== "undefined" && (window.history?.replaceState)) window.history.replaceState(null, "", replace);
   }, [xConnectedFromRedirect, me?.id, base, fetchXMe]);
+
+  useEffect(() => {
+    if (xOauthError) {
+      setShowOAuthErrorBanner(true);
+      if (typeof window !== "undefined" && window.history?.replaceState) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("x_oauth_error");
+        window.history.replaceState(null, "", url.pathname + url.search);
+      }
+    }
+  }, [xOauthError]);
 
   const loadDetailRsvps = useCallback(async (spaceId: string) => {
     const token = await getToken();
@@ -785,6 +799,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         ))}
       </div>
 
+      {showOAuthErrorBanner && (
+        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 text-sm flex items-center justify-between gap-2">
+          <p className="text-amber-800 dark:text-amber-200">X connection failed, please try again.</p>
+          <button type="button" onClick={() => setShowOAuthErrorBanner(false)} className="shrink-0 px-2 py-1 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-sm font-medium">Dismiss</button>
+        </div>
+      )}
       {debug && (
         <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 text-sm">
           <p className="font-medium text-amber-800 dark:text-amber-200 mb-2">Debug (/?debug=1)</p>

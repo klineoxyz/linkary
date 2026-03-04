@@ -1,12 +1,13 @@
 /**
- * GET /api/x/callback — X OAuth callback. Exchanges code for tokens, stores in x_oauth_tokens, redirects to /xspaces.
+ * GET /api/x/callback — X OAuth callback. Exchanges code for tokens, upserts into x_oauth_tokens (service role), redirects to /xspaces.
+ * Safe failure: redirect to /xspaces?x_oauth_error=1 (no details in URL). Never leaks tokens.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const X_CLIENT_ID = process.env.X_CLIENT_ID;
 const X_CLIENT_SECRET = process.env.X_CLIENT_SECRET;
 const X_OAUTH_COOKIE_SECRET = process.env.X_OAUTH_COOKIE_SECRET;
@@ -19,6 +20,10 @@ function signPayload(payload: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(payload).digest("base64url");
 }
 
+function redirectError(origin: string): NextResponse {
+  return NextResponse.redirect(`${origin}/xspaces?x_oauth_error=1`, 302);
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");
@@ -27,37 +32,39 @@ export async function GET(request: NextRequest) {
 
   const origin = request.nextUrl.origin;
   const redirectTo = `${origin}/xspaces?x_connected=1`;
-  const redirectError = (msg: string) =>
-    NextResponse.redirect(`${origin}/xspaces?x_oauth_error=${encodeURIComponent(msg)}`, 302);
+
+  if (!supabaseServiceKey) {
+    return redirectError(origin);
+  }
 
   if (errorParam) {
-    return redirectError(errorParam === "access_denied" ? "Connection cancelled" : errorParam);
+    return redirectError(origin);
   }
   if (!code || !state || !X_CLIENT_ID || !X_CLIENT_SECRET || !X_OAUTH_COOKIE_SECRET) {
-    return redirectError("Missing code or configuration");
+    return redirectError(origin);
   }
 
   const cookieValue = request.cookies.get(COOKIE_NAME)?.value;
   if (!cookieValue) {
-    return redirectError("Session expired. Try connecting again.");
+    return redirectError(origin);
   }
 
   const [payloadB64, signature] = cookieValue.split(".");
   if (!payloadB64 || !signature) {
-    return redirectError("Invalid callback state");
+    return redirectError(origin);
   }
   const payloadStr = Buffer.from(payloadB64, "base64url").toString("utf8");
   if (signPayload(payloadStr, X_OAUTH_COOKIE_SECRET) !== signature) {
-    return redirectError("Invalid callback state");
+    return redirectError(origin);
   }
   let pending: { state: string; profile_id: string; code_verifier: string };
   try {
     pending = JSON.parse(payloadStr);
   } catch {
-    return redirectError("Invalid callback state");
+    return redirectError(origin);
   }
   if (pending.state !== state || !pending.profile_id || !pending.code_verifier) {
-    return redirectError("Invalid callback state");
+    return redirectError(origin);
   }
 
   const redirectUri = `${origin}/api/x/callback`;
@@ -76,8 +83,7 @@ export async function GET(request: NextRequest) {
     body: body.toString(),
   });
   if (!tokenRes.ok) {
-    const errText = await tokenRes.text();
-    return redirectError("Token exchange failed");
+    return redirectError(origin);
   }
   const tokenData = (await tokenRes.json()) as {
     access_token?: string;
@@ -87,7 +93,7 @@ export async function GET(request: NextRequest) {
   };
   const accessToken = tokenData.access_token;
   if (!accessToken) {
-    return redirectError("No access token returned");
+    return redirectError(origin);
   }
 
   const meRes = await fetch(X_USER_ME, {
@@ -124,7 +130,17 @@ export async function GET(request: NextRequest) {
     { onConflict: "profile_id" }
   );
   if (upsertErr) {
-    return redirectError("Failed to store connection");
+    return redirectError(origin);
+  }
+
+  const { data: verifyRow } = await supabase
+    .from("x_oauth_tokens")
+    .select("profile_id")
+    .eq("profile_id", pending.profile_id)
+    .eq("provider", "x")
+    .maybeSingle();
+  if (!verifyRow) {
+    return redirectError(origin);
   }
 
   const res = NextResponse.redirect(redirectTo, 302);

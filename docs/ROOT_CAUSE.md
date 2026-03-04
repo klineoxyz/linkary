@@ -41,16 +41,16 @@ After shipping slug safety + SEO (safeSlug, reservedPaths single source, canonic
 
 - Reserved slug **protection at claim time** (safeSlug): we still never allow claiming a reserved slug as a **new** slug; we only allow **existing** owners to keep being reachable at that path.
 - Canonical URL remains `https://linkary.xyz/<profiles.username>` (or org slug) when we show a profile/org.
-- Alias redirect: when we **do** find a profile by twitter_username and segment !== profiles.username, we 301 to profiles.username.
-- Old slug redirect: when we find a row in profile_slug_history for the segment, we 301 to current profiles.username.
+- Alias redirect: when we **do** find a profile by twitter_username and segment !== profiles.username, we 308 (permanentRedirect) to profiles.username.
+- Old slug redirect: when we find a row in profile_slug_history for the segment, we 308 (permanentRedirect) to current profiles.username.
 - Reserved segments that are **unclaimed** still show AppWithProviders with noindex.
 
 ## Acceptance (after fix)
 
 - `/dashboard`, `/xspaces`, `/analytics` still load (static routes).
 - `/<profiles.username>` loads the public profile.
-- `/<twitter_username>` (when different from username) 301s to `/<profiles.username>`.
-- `/<old_slug>` in profile_slug_history 301s to `/<profiles.username>`.
+- `/<twitter_username>` (when different from username) 308s to `/<profiles.username>` (permanentRedirect).
+- `/<old_slug>` in profile_slug_history 308s to `/<profiles.username>` (permanentRedirect).
 - `/<org_slug>` loads the org (when we add org resolution).
 - If a profile/org **owns** a segment that is in RESERVED_PATHS, that URL shows the profile/org (not app shell).
 - Unknown slug (no profile, no org, no history) shows claim/404; if that slug is reserved, show app shell + noindex.

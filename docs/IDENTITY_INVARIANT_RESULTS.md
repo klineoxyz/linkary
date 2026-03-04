@@ -16,6 +16,8 @@ Run in production/staging and record below. All must return **0 rows**.
 | C) Multiple rows per `(user_id, provider)` in social_accounts | Section E.3 | **0 rows** |
 | D) `profiles.twitter_user_id` ≠ `social_accounts.provider_user_id` for X provider | Section E.4 (cross-table) | **0 rows** |
 
+Cross-table check (D) is the final proof that X identity does not cross accounts: both columns must match when both are non-empty for provider in ('twitter','x').
+
 ---
 
 ## Slug history: no redirect for /muazxinthi

@@ -1,26 +1,40 @@
 -- =============================================================================
 -- Slug history & identity debug pack
--- Replace <PROFILE_ID> with a real profile (auth.users.id / profiles.id).
+-- IMPORTANT: profiles.id, user_id, profile_id are UUIDs. Do NOT use a slug string
+-- (e.g. 'muazxinthi') in id/user_id/profile_id — use the safe variants below.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- A) Profile identity
+-- A) Profile identity (use ONE of the three variants)
 -- -----------------------------------------------------------------------------
 -- Expected: twitter_user_id is set once and must never change (immutable).
 -- username = public slug (can change); twitter_username = display handle (can change).
+
+-- A1) By UUID (when you have the real profile id):
+-- SELECT id, username, twitter_user_id, twitter_username, twitter_username_candidate
+-- FROM public.profiles
+-- WHERE id = '<UUID>';
+
+-- A2) By slug (safe — username is text). Replace <slug> with e.g. muazxinthi:
 SELECT id, username, twitter_user_id, twitter_username, twitter_username_candidate
 FROM public.profiles
-WHERE id = '<PROFILE_ID>';
+WHERE lower(btrim(username)) = lower(btrim('<slug>'));
+
+-- A3) By handle (safe — twitter_username is text). Replace <handle> with X handle:
+-- SELECT id, username, twitter_user_id, twitter_username, twitter_username_candidate
+-- FROM public.profiles
+-- WHERE lower(btrim(twitter_username)) = lower(btrim('<handle>'));
 
 -- -----------------------------------------------------------------------------
--- B) X identity linkage (social_accounts)
+-- B) X identity linkage (social_accounts). Use UUID from A for user_id.
 -- -----------------------------------------------------------------------------
 -- Expected: provider_user_id must remain constant for provider = 'twitter'.
 -- A profile must not have multiple different provider_user_id for the same provider.
-SELECT user_id, provider, provider_user_id, username, created_at, updated_at
-FROM public.social_accounts
-WHERE user_id = '<PROFILE_ID>'
-ORDER BY updated_at DESC;
+-- Replace <UUID> with the profile id from section A (do NOT use a slug).
+-- SELECT user_id, provider, provider_user_id, username, created_at, updated_at
+-- FROM public.social_accounts
+-- WHERE user_id = '<UUID>'
+-- ORDER BY updated_at DESC;
 
 -- Invariant check: no profile should have more than one distinct provider_user_id per provider.
 -- (Run without substitution to find violations.)
@@ -41,13 +55,21 @@ FROM public.usernames
 WHERE username IN ('muazxinthi', 'web3rehman');
 
 -- -----------------------------------------------------------------------------
--- D) Slug history (profile_slug_history)
+-- D) Slug history (profile_slug_history). By slug (safe) or by UUID.
 -- -----------------------------------------------------------------------------
 -- Should contain only real slug changes (no empty old_slug).
-SELECT id, profile_id, old_slug, new_slug, changed_at
-FROM public.profile_slug_history
-WHERE profile_id = '<PROFILE_ID>'
-ORDER BY changed_at DESC;
+
+-- D1) By slug — get history for the profile that currently has this username. Replace <slug> with e.g. muazxinthi:
+SELECT h.id, h.profile_id, h.old_slug, h.new_slug, h.changed_at
+FROM public.profile_slug_history h
+JOIN public.profiles p ON p.id = h.profile_id AND lower(btrim(p.username)) = lower(btrim('<slug>'))
+ORDER BY h.changed_at DESC;
+
+-- D2) By UUID (when you have the profile id): replace <UUID> with real id.
+-- SELECT id, profile_id, old_slug, new_slug, changed_at
+-- FROM public.profile_slug_history
+-- WHERE profile_id = '<UUID>'
+-- ORDER BY changed_at DESC;
 
 -- Rows with empty old_slug should be zero after cleanup migration.
 SELECT count(*) AS invalid_old_slug_count

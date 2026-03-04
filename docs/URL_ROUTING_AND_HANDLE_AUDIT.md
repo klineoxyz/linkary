@@ -277,14 +277,14 @@ The following minimal safe fixes were implemented based on this audit:
 
 4. **SEO: canonical and redirects**  
    - Canonical URL for profile page is always `https://linkary.xyz/{profiles.username}` (set in generateMetadata and used for alternates, openGraph.url, og image).
-   - If segment matches `profiles.twitter_username` but not `profiles.username`, 301 (permanentRedirect) to `/{profiles.username}`.
+   - If segment matches `profiles.twitter_username` but not `profiles.username`, 308 (permanentRedirect) to `/{profiles.username}`.
    - Reserved segment renders app shell with `robots: { index: false, follow: false }`.
 
 5. **Reserved route checklist and collision script**  
    `docs/RESERVED_ROUTES_CHECKLIST.md`: process for adding top-level routes. `apps/web/scripts/checkReservedCollisions.ts`: reads RESERVED_PATHS, queries usernames for matching slugs, exits 1 if collisions.
 
 6. **Old slug redirect**  
-   Migration `supabase/migrations/20260304000000_profile_slug_history.sql`: table `profile_slug_history(profile_id, old_slug, new_slug, changed_at)`; trigger on `profiles.username` update. In `(public)/[username]/page.tsx`, if segment matches no profile by username/twitter_username, lookup by `profile_slug_history.old_slug` and 301 to current `profiles.username`.
+   Migration `supabase/migrations/20260304000000_profile_slug_history.sql`: table `profile_slug_history(profile_id, old_slug, new_slug, changed_at)`; trigger on `profiles.username` update. In `(public)/[username]/page.tsx`, if segment matches no profile by username/twitter_username, lookup by `profile_slug_history.old_slug` and 308 (permanentRedirect) to current `profiles.username`.
 
 ---
 
@@ -292,9 +292,9 @@ The following minimal safe fixes were implemented based on this audit:
 
 - [ ] **Reserved handle test:** Sign in with X handle that is a reserved word (e.g. "dashboard"). Expect Linkary slug to become `dashboard-xxxx` (or similar with stable suffix) and profile reachable at that URL.
 - [ ] **Collision test:** Two users cannot claim the same slug; second gets USERNAME_TAKEN_VERIFIED or a suffixed slug. Sync-handle when handle is taken returns 200 with `slug_claimed: false`, `reason: "USERNAME_TAKEN_VERIFIED"`.
-- [ ] **Alias redirect test:** Visit `/{twitter_username}` when it differs from `profiles.username`. Expect 301 to `/{profiles.username}`. Canonical in HTML/OG should be `/{profiles.username}`.
+- [ ] **Alias redirect test:** Visit `/{twitter_username}` when it differs from `profiles.username`. Expect 308 (permanentRedirect) to `/{profiles.username}`. Canonical in HTML/OG should be `/{profiles.username}`.
 - [ ] **Canonical tag check:** View source on a profile page (and when accessed via twitter_username). Single canonical URL; no duplicate canonical for same profile.
-- [ ] **Old slug redirect:** After changing slug (e.g. via claim or sync-handle), visit old slug URL. Expect 301 to new slug.
+- [ ] **Old slug redirect:** After changing slug (e.g. via claim or sync-handle), visit old slug URL. Expect 308 (permanentRedirect) to new slug.
 - [ ] **Reserved path noindex:** Visit a reserved first segment (e.g. `/dashboard`). If it hits the dynamic route (e.g. no static page), page has `robots: noindex,nofollow`.
 - [ ] **assertReservedPaths:** Run `pnpm exec tsx apps/web/scripts/assertReservedPaths.ts` — exits 0. **checkReservedCollisions:** Run with DB env set — exits 0 when no collisions, 1 when reserved path is claimed.
 

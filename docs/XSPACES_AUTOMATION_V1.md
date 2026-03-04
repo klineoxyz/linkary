@@ -32,7 +32,15 @@ What is automated, what is fallback, and how detection works.
   - `GET /api/x/me` — returns `x_user_id` and `username` from `x_oauth_tokens` for the current user (or 404 if not connected).
 - **Env:** `X_CLIENT_ID`, `X_CLIENT_SECRET`, `X_OAUTH_COOKIE_SECRET` for the OAuth flow. Callback URL must be allowlisted in the X app (e.g. `https://your-domain.com/api/x/callback`).
 - **Security:** No API response must ever include `access_token` or `refresh_token`; they are stored only in `x_oauth_tokens` and used server-side. `/api/x/me` returns only `x_user_id` and `username`.
-- **Rate limit (detect):** `POST /api/xspaces/detect-my-space` is limited to **10 requests per minute per profile_id**. When exceeded, the API returns **429** with body `{ error: "Too many detection requests. Try again in a minute.", code: "RATE_LIMITED", resetAt }`. Rate limiting is durable: Upstash Redis is used when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set; otherwise the Supabase `rate_limits` table (via `consume_rate_limit` RPC) is used.
+- **Rate limit (detect):** `POST /api/xspaces/detect-my-space` is limited to **10 requests per minute per profile_id**. When exceeded, the API returns **429** with body `{ error: "Too many detection requests. Try again in a minute.", code: "RATE_LIMITED", resetAt }`. Rate limiting is durable: Upstash Redis is used when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set; otherwise the Supabase `rate_limits` table (via `consume_rate_limit` RPC) is used. If both Upstash and Supabase service role are unavailable, the API returns **503** with body `{ error: "Rate limit service unavailable." }` (no bypass). Every response after the rate limit check includes safe debug headers: `X-RateLimit-Limit: 10`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` (ISO timestamp).
+
+---
+
+## Rate limit observability and fallback
+
+- **How to verify Upstash is being used:** Ensure `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set in the environment. Call `POST /api/xspaces/detect-my-space` with valid auth and inspect the response headers: you should see `X-RateLimit-Limit: 10`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`. The slot is consumed in Upstash Redis when both env vars are present and the request succeeds.
+- **How to verify Supabase fallback is used:** Unset or remove `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (keep `SUPABASE_SERVICE_ROLE_KEY` set). Call the detect endpoint again; rate limiting still applies and the same headers are returned, with the counter stored in the Supabase `rate_limits` table.
+- **How to verify 503 when both unavailable:** Unset both Upstash env vars and `SUPABASE_SERVICE_ROLE_KEY`. The detect endpoint returns **503** with message "Rate limit service unavailable." (no rate limit bypass).
 
 ---
 

@@ -49,21 +49,28 @@ export function getClientIp(request: Request): string {
 }
 
 const XSPACES_DETECT_RL_KEY = "rl:xspaces:detect:";
-const XSPACES_DETECT_LIMIT = 10;
+export const XSPACES_DETECT_RL_LIMIT = 10;
 const XSPACES_DETECT_WINDOW_SEC = 60;
+
+export type XSpacesDetectRateLimitResult =
+  | RateLimitResult
+  | (RateLimitResult & { unavailable: true });
 
 /**
  * Rate limit for POST /api/xspaces/detect-my-space: 10 req/min per profile_id.
- * Prefers Upstash Redis when UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are set;
- * otherwise uses Supabase consume_rate_limit RPC.
+ * Uses Upstash Redis when UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are set;
+ * otherwise uses Supabase consume_rate_limit RPC when SUPABASE_SERVICE_ROLE_KEY is set.
+ * Returns { unavailable: true } only when both Upstash and Supabase service role are unavailable (no bypass).
  */
 export async function rateLimitXSpacesDetect(
   profileId: string,
-  supabaseAdmin: SupabaseClient
-): Promise<RateLimitResult> {
+  supabaseAdmin: SupabaseClient | null
+): Promise<XSpacesDetectRateLimitResult> {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (url && token) {
+  const hasUpstash = !!(url && token);
+
+  if (hasUpstash) {
     const key = XSPACES_DETECT_RL_KEY + profileId;
     try {
       const incrRes = await fetch(`${url}/incr/${encodeURIComponent(key)}`, {
@@ -79,21 +86,53 @@ export async function rateLimitXSpacesDetect(
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-      const allowed = count <= XSPACES_DETECT_LIMIT;
+      const allowed = count <= XSPACES_DETECT_RL_LIMIT;
       const resetAt = new Date(Date.now() + XSPACES_DETECT_WINDOW_SEC * 1000).toISOString();
       return {
         allowed,
-        remaining: Math.max(0, XSPACES_DETECT_LIMIT - count),
+        remaining: Math.max(0, XSPACES_DETECT_RL_LIMIT - count),
         resetAt,
       };
     } catch {
-      /* fall through to Supabase */
+      if (supabaseAdmin) {
+        return rateLimit({
+          key: XSPACES_DETECT_RL_KEY + profileId,
+          limit: XSPACES_DETECT_RL_LIMIT,
+          windowSeconds: XSPACES_DETECT_WINDOW_SEC,
+          supabaseAdmin,
+        });
+      }
+      return {
+        allowed: false,
+        remaining: 0,
+        resetAt: new Date().toISOString(),
+        unavailable: true,
+      };
     }
   }
-  return rateLimit({
-    key: XSPACES_DETECT_RL_KEY + profileId,
-    limit: XSPACES_DETECT_LIMIT,
-    windowSeconds: XSPACES_DETECT_WINDOW_SEC,
-    supabaseAdmin,
-  });
+
+  if (supabaseAdmin) {
+    return rateLimit({
+      key: XSPACES_DETECT_RL_KEY + profileId,
+      limit: XSPACES_DETECT_RL_LIMIT,
+      windowSeconds: XSPACES_DETECT_WINDOW_SEC,
+      supabaseAdmin,
+    });
+  }
+
+  return {
+    allowed: false,
+    remaining: 0,
+    resetAt: new Date().toISOString(),
+    unavailable: true,
+  };
+}
+
+/** Safe response headers for detect-my-space (observable rate limit). Do not log or expose tokens. */
+export function xSpacesDetectRateLimitHeaders(rl: RateLimitResult): Record<string, string> {
+  return {
+    "X-RateLimit-Limit": String(XSPACES_DETECT_RL_LIMIT),
+    "X-RateLimit-Remaining": String(rl.remaining),
+    "X-RateLimit-Reset": rl.resetAt,
+  };
 }

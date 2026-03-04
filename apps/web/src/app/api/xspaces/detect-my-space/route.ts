@@ -6,11 +6,11 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { rateLimitXSpacesDetect } from "@/lib/rate-limit";
+import { rateLimitXSpacesDetect, xSpacesDetectRateLimitHeaders } from "@/lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
 const X_API_BASE = "https://api.twitter.com/2";
 
 const WINDOW_MS = 15 * 60 * 1000;
@@ -85,16 +85,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  if (supabaseServiceKey) {
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const rl = await rateLimitXSpacesDetect(user.id, supabaseAdmin);
-    if (!rl.allowed) {
-      return NextResponse.json(
-        { error: "Too many detection requests. Try again in a minute.", code: "RATE_LIMITED", resetAt: rl.resetAt },
-        { status: 429 }
-      );
-    }
+  const supabaseAdmin = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : null;
+  const rl = await rateLimitXSpacesDetect(user.id, supabaseAdmin);
+
+  if ("unavailable" in rl && rl.unavailable) {
+    return NextResponse.json(
+      { error: "Rate limit service unavailable." },
+      { status: 503 }
+    );
   }
+
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many detection requests. Try again in a minute.", code: "RATE_LIMITED", resetAt: rl.resetAt },
+      { status: 429, headers: xSpacesDetectRateLimitHeaders(rl) }
+    );
+  }
+
+  const rateLimitHeaders = xSpacesDetectRateLimitHeaders(rl);
 
   let body: { space_id?: string; selected_x_space_id?: string } = {};
   try {
@@ -115,7 +123,7 @@ export async function POST(request: NextRequest) {
   if (tokenError || !tokenRow?.access_token) {
     return NextResponse.json(
       { error: "Connect X first (Settings or XSpaces) to detect your Space", code: "X_NOT_CONNECTED" },
-      { status: 403 }
+      { status: 403, headers: rateLimitHeaders }
     );
   }
 
@@ -123,7 +131,7 @@ export async function POST(request: NextRequest) {
   if (!xUserId) {
     return NextResponse.json(
       { error: "X user id not found. Reconnect X.", code: "X_NOT_CONNECTED" },
-      { status: 403 }
+      { status: 403, headers: rateLimitHeaders }
     );
   }
 
@@ -136,7 +144,7 @@ export async function POST(request: NextRequest) {
   if (!res.ok) {
     return NextResponse.json(
       { error: "Could not fetch Spaces from X", code: "X_API_ERROR" },
-      { status: 502 }
+      { status: 502, headers: rateLimitHeaders }
     );
   }
 
@@ -181,13 +189,16 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq("id", linkarySpaceId);
-        return NextResponse.json({
-          found: true,
-          linked: true,
-          x_space_id: selectedXSpaceId,
-          x_space_url: xSpaceUrl,
-          space_id: linkarySpaceId,
-        });
+        return NextResponse.json(
+          {
+            found: true,
+            linked: true,
+            x_space_id: selectedXSpaceId,
+            x_space_url: xSpaceUrl,
+            space_id: linkarySpaceId,
+          },
+          { headers: rateLimitHeaders }
+        );
       }
     }
   }
@@ -207,10 +218,13 @@ export async function POST(request: NextRequest) {
   }));
 
   if (candidates.length === 0) {
-    return NextResponse.json({
-      found: false,
-      message: "No matching Space in the last 15 minutes. Check title and time, or paste the link below.",
-    });
+    return NextResponse.json(
+      {
+        found: false,
+        message: "No matching Space in the last 15 minutes. Check title and time, or paste the link below.",
+      },
+      { headers: rateLimitHeaders }
+    );
   }
 
   if (candidates.length === 1 && candidates[0].score >= 0.5) {
@@ -234,21 +248,27 @@ export async function POST(request: NextRequest) {
           .eq("id", linkarySpaceId);
       }
     }
-    return NextResponse.json({
-      found: true,
-      linked: true,
-      x_space_id: picked.id,
-      x_space_url: xSpaceUrl,
-      title: picked.title,
-      state: picked.state,
-      space_id: linkarySpaceId ?? undefined,
-    });
+    return NextResponse.json(
+      {
+        found: true,
+        linked: true,
+        x_space_id: picked.id,
+        x_space_url: xSpaceUrl,
+        title: picked.title,
+        state: picked.state,
+        space_id: linkarySpaceId ?? undefined,
+      },
+      { headers: rateLimitHeaders }
+    );
   }
 
-  return NextResponse.json({
-    found: true,
-    require_selection: true,
-    candidates,
-    message: "Multiple Spaces match. Choose the correct one below.",
-  });
+  return NextResponse.json(
+    {
+      found: true,
+      require_selection: true,
+      candidates,
+      message: "Multiple Spaces match. Choose the correct one below.",
+    },
+    { headers: rateLimitHeaders }
+  );
 }

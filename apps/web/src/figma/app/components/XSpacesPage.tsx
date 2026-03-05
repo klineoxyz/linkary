@@ -293,7 +293,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const spacesByDay = useMemo(() => {
     const map = new Map<string, Space[]>();
     for (const s of spaces) {
-      if (!s.scheduled_at) continue;
+      if (!s.scheduled_at || s.status === "cancelled") continue;
       const day = toLocalYMD(new Date(s.scheduled_at));
       if (!map.has(day)) map.set(day, []);
       map.get(day)!.push(s);

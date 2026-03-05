@@ -659,10 +659,10 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
   function OverlapText({ o }: { o: AudienceOverlap }) {
     const pct = Number(o.overlap_percent);
-    const isRed = pct >= 5.0;
+    const isHigh = pct >= 5.0;
     const pctDisplay = Number.isFinite(pct) ? pct.toFixed(1) : "0.0";
     return (
-      <span className={isRed ? "text-red-600 dark:text-red-400 font-medium" : ""}>
+      <span className={isHigh ? "text-destructive font-medium" : ""}>
         Audience overlap: {pctDisplay}% ({o.overlap_count} users)
       </span>
     );
@@ -712,7 +712,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const homeEventListContent = mainNav === "home" ? (
         <div className="space-y-3">
           {overlapsError && (
-            <p className="text-sm text-amber-600 dark:text-amber-400">Overlaps unavailable.</p>
+            <p className="text-sm text-muted-foreground">Overlaps unavailable.</p>
           )}
           {upcoming.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
@@ -748,11 +748,13 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       <p className="text-sm text-muted-foreground">Not linked to X yet</p>
                       <div className="flex flex-wrap gap-2">
                         {xConnected === false && (
-                          <button type="button" onClick={handleConnectX} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Connect X</button>
+                          <Button type="button" variant="outline" size="sm" onClick={handleConnectX} className="rounded-xl">Connect X</Button>
                         )}
-                        <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Open X</a>
-                        <button type="button" onClick={() => { setCreateJustDoneSpaceId(s.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent disabled:opacity-50">Detect my Space</button>
-                        <button type="button" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); setShowLinkXSpace(true); }} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Paste link</button>
+                        <Button variant="outline" size="sm" asChild className="rounded-xl">
+                          <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer">Open X</a>
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => { setCreateJustDoneSpaceId(s.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="rounded-xl">Detect my Space</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); setShowLinkXSpace(true); }} className="rounded-xl">Paste link</Button>
                       </div>
                     </div>
                   )}
@@ -767,7 +769,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     </div>
                   )}
                   <div className="pl-9 flex gap-2">
-                    <button type="button" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); }} className="text-sm text-primary hover:underline">Details</button>
+                    <Button type="button" variant="link" size="sm" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); }}>Details</Button>
                   </div>
                 </div>
               );
@@ -806,33 +808,33 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         </div>
 
       {connectXError && (
-        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 text-sm flex items-center justify-between gap-2">
-          <p className="text-amber-800 dark:text-amber-200">
+        <div className="rounded-2xl border border-border bg-card p-4 text-sm flex items-center justify-between gap-2">
+          <p className="text-foreground">
             {connectXError.type === "not_configured"
               ? (connectXError.missing.length > 0
                 ? `X connection isn't configured. Missing: ${connectXError.missing.join(", ")}.`
                 : "X connection is not configured on this environment. Please contact support.")
               : "Could not start X connection. Please try again."}
           </p>
-          <button type="button" onClick={() => setConnectXError(null)} className="shrink-0 px-2 py-1 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-sm font-medium">Dismiss</button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setConnectXError(null)} className="shrink-0 rounded-xl">Dismiss</Button>
         </div>
       )}
       {showOAuthErrorBanner && (
-        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 text-sm flex items-center justify-between gap-2">
-          <p className="text-amber-800 dark:text-amber-200">X connection failed, please try again.</p>
-          <button type="button" onClick={() => setShowOAuthErrorBanner(false)} className="shrink-0 px-2 py-1 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-sm font-medium">Dismiss</button>
+        <div className="rounded-2xl border border-border bg-card p-4 text-sm flex items-center justify-between gap-2">
+          <p className="text-foreground">X connection failed, please try again.</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => setShowOAuthErrorBanner(false)} className="shrink-0 rounded-xl">Dismiss</Button>
         </div>
       )}
       {debug && (
-        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 text-sm">
-          <p className="font-medium text-amber-800 dark:text-amber-200 mb-2">Debug (/?debug=1)</p>
+        <div className="rounded-2xl border border-border bg-muted p-4 text-sm">
+          <p className="font-medium text-foreground mb-2">Debug (/?debug=1)</p>
           {mySpaces.map((s) => {
             const overlaps = audienceOverlapsBySpaceId[s.id] ?? [];
             return (
-              <div key={s.id} className="mb-3 pl-2 border-l-2 border-amber-300 dark:border-amber-700">
+              <div key={s.id} className="mb-3 pl-2 border-l-2 border-border">
                 <p className="font-medium text-foreground">{s.title}</p>
                 {!s.x_space_id ? (
-                  <p className="text-amber-700 dark:text-amber-300">Participants not synced</p>
+                  <p className="text-muted-foreground">Participants not synced</p>
                 ) : (
                   <>
                     <p className="text-muted-foreground">x_space_id: {s.x_space_id}</p>
@@ -854,20 +856,20 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       )}
 
       {addFromXSuccess && (
-        <div className="p-4 rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200">
-          <p className="font-medium mb-1">Space synced from X</p>
-          <p className="text-sm mb-2">Participants captured: {addFromXSuccess.participants_count}</p>
+        <div className="p-4 rounded-2xl border border-border bg-card">
+          <p className="font-medium text-foreground mb-1">Space synced from X</p>
+          <p className="text-sm text-muted-foreground mb-2">Participants captured: {addFromXSuccess.participants_count}</p>
           {addFromXSuccess.overlaps.length > 0 && (
-            <p className="text-sm font-medium mt-2">Top overlaps:</p>
+            <p className="text-sm font-medium text-foreground mt-2">Top overlaps:</p>
           )}
-          <ul className="text-sm list-disc list-inside mt-1">
+          <ul className="text-sm text-foreground list-disc list-inside mt-1">
             {addFromXSuccess.overlaps.slice(0, 3).map((o, i) => (
               <li key={i}>
                 @{o.other_host_username ?? "user"} — <OverlapText o={o} />
               </li>
             ))}
           </ul>
-          <button type="button" onClick={() => setAddFromXSuccess(null)} className="mt-2 text-sm underline">Dismiss</button>
+          <Button type="button" variant="link" size="sm" onClick={() => setAddFromXSuccess(null)} className="mt-2">Dismiss</Button>
         </div>
       )}
 
@@ -913,24 +915,24 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               </Button>
             </div>
             {createError && (
-              <p className="mb-3 text-sm text-red-600 dark:text-red-400">{createError}</p>
+              <p className="mb-3 text-sm text-destructive">{createError}</p>
             )}
             {createJustDoneSpaceId ? (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">Space created on Linkary. Now link it to X:</p>
                 <div className="rounded-xl border border-border bg-card p-4 space-y-3">
                   {xConnected !== true && (
-                    <p className="text-sm text-amber-600 dark:text-amber-400">1. Connect X first (button above) to grant X API access so we can detect your Space.</p>
+                    <p className="text-sm text-muted-foreground">1. Connect X first (button above) to grant X API access so we can detect your Space.</p>
                   )}
                   <p className="font-medium text-foreground">2. Open X and create your Space</p>
-                  <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
-                    Open X Spaces
-                  </a>
+                  <Button asChild className="rounded-xl">
+                    <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer">Open X Spaces</a>
+                  </Button>
                   <p className="text-xs text-muted-foreground">Create a new Space on X, then return here.</p>
                   <p className="font-medium text-foreground">3. Detect my Space</p>
-                  <button type="button" onClick={handleDetectMySpace} disabled={detectingSpace || xConnected !== true} className="px-4 py-2 rounded-lg border border-border bg-secondary hover:bg-accent text-foreground text-sm font-medium disabled:opacity-50">
+                  <Button type="button" variant="outline" onClick={handleDetectMySpace} disabled={detectingSpace || xConnected !== true} className="rounded-xl">
                     {detectingSpace ? "Detecting…" : "Detect my Space"}
-                  </button>
+                  </Button>
                   {detectingSpace && <p className="text-sm text-muted-foreground">Checking your recent X Spaces…</p>}
                   {!detectingSpace && detectCandidates.length > 0 && (
                     <p className="text-sm text-muted-foreground">Found {detectCandidates.length} candidate{detectCandidates.length !== 1 ? "s" : ""} — pick the right one:</p>
@@ -938,24 +940,24 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   {detectCandidates.length > 0 ? (
                     <div className="space-y-2">
                       {detectCandidates.map((c) => (
-                        <button key={c.id} type="button" onClick={() => handleSelectDetectCandidate(c.id)} disabled={detectingSpace} className="w-full text-left px-3 py-2 rounded-lg border border-border bg-card hover:bg-accent text-foreground text-sm disabled:opacity-50">
+                        <Button key={c.id} type="button" variant="outline" onClick={() => handleSelectDetectCandidate(c.id)} disabled={detectingSpace} className="w-full justify-start rounded-xl">
                           {c.title || c.id} {c.scheduled_start ? ` · ${new Date(c.scheduled_start).toLocaleString()}` : ""}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   ) : null}
                   {detectError && (
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm text-amber-600 dark:text-amber-400">{detectError}</p>
-                      <button type="button" onClick={() => { setDetectError(null); handleDetectMySpace(); }} disabled={detectingSpace || xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary hover:bg-accent text-foreground text-sm font-medium disabled:opacity-50">
+                      <p className="text-sm text-destructive">{detectError}</p>
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setDetectError(null); handleDetectMySpace(); }} disabled={detectingSpace || xConnected !== true} className="rounded-xl">
                         Retry
-                      </button>
+                      </Button>
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground pt-2 border-t border-border">If detection fails, paste the X Space link below (fallback):</p>
                   <input type="url" value={createXSpaceUrl} onChange={(e) => setCreateXSpaceUrl(e.target.value)} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
                   {createXSpaceUrl.trim() && (
-                    <button type="button" onClick={async () => {
+                    <Button type="button" onClick={async () => {
                       if (!parseXSpaceId(createXSpaceUrl.trim())) { setDetectError("Invalid X Space link."); return; }
                       setDetectError(null);
                       const token = await getToken();
@@ -968,7 +970,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       } else if (res.status === 409 && data.code === "ALREADY_IMPORTED") {
                         setDetectError(data.error ?? "Already imported.");
                       } else setDetectError(data.error ?? data.message ?? "Failed to link.");
-                    }} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">Link pasted URL</button>
+                    }} className="rounded-xl">Link pasted URL</Button>
                   )}
                 </div>
               </div>
@@ -979,7 +981,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 <span className="text-sm font-medium text-foreground">Create on X (recommended)</span>
               </label>
               {createOnX && xConnected === false && (
-                <p className="text-sm text-amber-600 dark:text-amber-400">Connect X first (button below) to grant X API access for import and auto-detect.</p>
+                <p className="text-sm text-muted-foreground">Connect X first (button below) to grant X API access for import and auto-detect.</p>
               )}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">Title</label>
@@ -1008,7 +1010,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               </div>
               )}
               {overlapLabel && (
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm">
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-muted border border-border text-foreground text-sm">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   {overlapLabel}
                   {overlaps.length > 0 && (
@@ -1026,10 +1028,10 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             <div className="mt-4 flex justify-end gap-2">
               {!createJustDoneSpaceId && (
                 <>
-                  <button type="button" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateJustDoneSpaceId(null); }} className="px-4 py-2 rounded-lg border border-border text-foreground">Cancel</button>
-                  <button type="button" onClick={handleCreate} disabled={saving || !createTitle.trim() || !createScheduledAt.trim()} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
+                  <Button type="button" variant="outline" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateJustDoneSpaceId(null); }} className="rounded-xl">Cancel</Button>
+                  <Button type="button" onClick={handleCreate} disabled={saving || !createTitle.trim() || !createScheduledAt.trim()} className="rounded-xl">
                     {saving ? "Creating…" : "Create"}
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -1040,12 +1042,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       {showAddFromX && (
         <>
           <div className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} aria-hidden />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl border border-border bg-card p-6 z-50 shadow-xl">
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card p-6 z-50 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Add Space from X</h2>
-              <button type="button" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="p-1 rounded-lg hover:bg-accent">
+              <Button type="button" variant="ghost" size="icon" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="rounded-xl">
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
             <p className="text-sm text-muted-foreground mb-3">Paste an X Space link you host. We’ll pull details using X API access (Connect X) and support audience overlap when both hosts are registered.</p>
             <input
@@ -1068,10 +1070,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     {myXSpacesList.map((item) => (
                       <li key={item.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-border bg-card text-sm">
                         <span className="min-w-0 truncate font-medium text-foreground">{item.title || "Untitled Space"}</span>
-                        <button
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
                           disabled={addFromXSaving}
-                          className="shrink-0 px-2 py-1 rounded-lg border border-border bg-secondary text-foreground hover:bg-accent disabled:opacity-50 text-xs font-medium"
+                          className="shrink-0 rounded-xl"
                           onClick={async () => {
                             setAddFromXError(null);
                             setAddFromXSaving(true);
@@ -1091,7 +1095,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                           }}
                         >
                           Import
-                        </button>
+                        </Button>
                       </li>
                     ))}
                   </ul>
@@ -1105,11 +1109,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               <p className="text-sm text-destructive mb-2">{addFromXError}</p>
             )}
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="px-4 py-2 rounded-lg border border-border text-foreground">Cancel</button>
-              <button
+              <Button type="button" variant="outline" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="rounded-xl">Cancel</Button>
+              <Button
                 type="button"
                 disabled={addFromXSaving || xConnected !== true || !addFromXUrl.trim()}
-                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"
+                className="rounded-xl"
                 onClick={async () => {
                   if (!parseXSpaceId(addFromXUrl.trim())) { setAddFromXError("Invalid X Space link."); return; }
                   setAddFromXError(null);
@@ -1147,7 +1151,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 }}
               >
                 {addFromXSaving ? "Syncing…" : "Add from X"}
-              </button>
+              </Button>
             </div>
           </div>
         </>
@@ -1240,36 +1244,36 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               {isHost(detailsSpace) && (
                 <>
                   {detailsSpace.status !== "ended" && detailsSpace.status !== "cancelled" && (
-                    <button type="button" onClick={async () => {
+                    <Button type="button" variant="outline" size="sm" onClick={async () => {
                       setEditSaving(true);
                       const token = await getToken();
                       const res = await fetch(`${base}/api/spaces/${detailsSpace.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: "ended" }) });
                       setEditSaving(false);
                       if (res.ok) { setDetailsSpace({ ...detailsSpace, status: "ended" }); if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces(); }
-                    }} disabled={editSaving} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent disabled:opacity-50">Mark as ended</button>
+                    }} disabled={editSaving} className="rounded-xl">Mark as ended</Button>
                   )}
                   {detailsSpace.x_space_id ? (
-                    <button type="button" onClick={() => { setShowReplaceLinkConfirm(true); setLinkXSpaceError(null); }} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent">Replace linked X Space</button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setShowReplaceLinkConfirm(true); setLinkXSpaceError(null); }} className="rounded-xl">Replace linked X Space</Button>
                   ) : (
-                    <button type="button" onClick={() => { setShowLinkXSpace(!showLinkXSpace); setLinkXSpaceError(null); setReplaceLinkMode(false); }} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent">Link X Space</button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setShowLinkXSpace(!showLinkXSpace); setLinkXSpaceError(null); setReplaceLinkMode(false); }} className="rounded-xl">Link X Space</Button>
                   )}
                   {showReplaceLinkConfirm && (
                     <div className="rounded-xl border border-border bg-card p-3 space-y-2">
                       <p className="text-sm text-muted-foreground">Replace linked X Space? This will disconnect the current X Space from this Linkary Space.</p>
                       <div className="flex gap-2">
-                        <button type="button" onClick={() => { setShowReplaceLinkConfirm(false); }} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent">Cancel</button>
-                        <button type="button" onClick={() => { setShowReplaceLinkConfirm(false); setReplaceLinkMode(true); setReplaceLinkSpaceId(detailsSpace.id); setShowLinkXSpace(true); setLinkXSpaceUrl(""); setLinkXSpaceError(null); }} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm">Replace</button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => { setShowReplaceLinkConfirm(false); }} className="rounded-xl">Cancel</Button>
+                        <Button type="button" size="sm" onClick={() => { setShowReplaceLinkConfirm(false); setReplaceLinkMode(true); setReplaceLinkSpaceId(detailsSpace.id); setShowLinkXSpace(true); setLinkXSpaceUrl(""); setLinkXSpaceError(null); }} className="rounded-xl">Replace</Button>
                       </div>
                     </div>
                   )}
                   {showLinkXSpace && (
                     <div className="rounded-xl border border-border bg-card p-3 space-y-2">
-                      {linkXSpaceError && <p className="text-sm text-amber-600 dark:text-amber-400">{linkXSpaceError}</p>}
+                      {linkXSpaceError && <p className="text-sm text-destructive">{linkXSpaceError}</p>}
                       {replaceLinkMode && (
                         <>
                           <p className="text-xs font-medium text-muted-foreground">Paste replacement URL</p>
                           <input type="url" value={linkXSpaceUrl} onChange={(e) => { setLinkXSpaceUrl(e.target.value); setLinkXSpaceError(null); }} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
-                          <button type="button" disabled={linkXSpaceSaving} onClick={async () => {
+                          <Button type="button" size="sm" disabled={linkXSpaceSaving} onClick={async () => {
                             if (!linkXSpaceUrl.trim() || !detailsSpace) return;
                             const xSpaceId = parseXSpaceId(linkXSpaceUrl.trim());
                             if (!xSpaceId) { setLinkXSpaceError("Invalid X Space link."); return; }
@@ -1289,15 +1293,15 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                             } else {
                               setLinkXSpaceError(data.error ?? "Failed to link.");
                             }
-                          }} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">Save link</button>
+                          }} className="rounded-xl">Save link</Button>
                           <p className="text-xs font-medium text-muted-foreground pt-2 border-t border-border">Or detect replacement</p>
-                          <button type="button" onClick={() => { setDetailsSpace(null); setCreateJustDoneSpaceId(detailsSpace.id); setReplaceLinkSpaceId(detailsSpace.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent disabled:opacity-50">Detect my Space</button>
+                          <Button type="button" variant="outline" size="sm" onClick={() => { setDetailsSpace(null); setCreateJustDoneSpaceId(detailsSpace.id); setReplaceLinkSpaceId(detailsSpace.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="rounded-xl">Detect my Space</Button>
                         </>
                       )}
                       {!replaceLinkMode && (
                         <>
                       <input type="url" value={linkXSpaceUrl} onChange={(e) => { setLinkXSpaceUrl(e.target.value); setLinkXSpaceError(null); }} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
-                      <button type="button" disabled={linkXSpaceSaving} onClick={async () => {
+                      <Button type="button" size="sm" disabled={linkXSpaceSaving} onClick={async () => {
                         if (!linkXSpaceUrl.trim() || !detailsSpace) return;
                         const xSpaceId = parseXSpaceId(linkXSpaceUrl.trim());
                         if (!xSpaceId) { setLinkXSpaceError("Invalid X Space link."); return; }
@@ -1317,7 +1321,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                         } else {
                           setLinkXSpaceError(data.error ?? "Failed to link.");
                         }
-                      }} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">Save link</button>
+                      }} className="rounded-xl">Save link</Button>
                         </>
                       )}
                     </div>
@@ -1331,20 +1335,20 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                           <span className="text-muted-foreground">{sr.status}</span>
                           {sr.status === "pending" && (
                             <div className="flex gap-1">
-                              <button type="button" disabled={resolvingRequestId === sr.id} onClick={async () => {
+                              <Button type="button" size="sm" disabled={resolvingRequestId === sr.id} onClick={async () => {
                                 setResolvingRequestId(sr.id);
                                 const token = await getToken();
                                 await fetch(`${base}/api/xspaces/speaker-request/resolve`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ request_id: sr.id, status: "approved" }) });
                                 setResolvingRequestId(null);
                                 loadDetailSpeakerRequests(detailsSpace.id);
-                              }} className="px-2 py-1 rounded-lg bg-primary/20 text-primary border border-primary/30 text-xs disabled:opacity-50">Approve</button>
-                              <button type="button" disabled={resolvingRequestId === sr.id} onClick={async () => {
+                              }} className="rounded-lg text-xs bg-primary/20 text-primary border-primary/30 hover:bg-primary/30">Approve</Button>
+                              <Button type="button" variant="outline" size="sm" disabled={resolvingRequestId === sr.id} onClick={async () => {
                                 setResolvingRequestId(sr.id);
                                 const token = await getToken();
                                 await fetch(`${base}/api/xspaces/speaker-request/resolve`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ request_id: sr.id, status: "rejected" }) });
                                 setResolvingRequestId(null);
                                 loadDetailSpeakerRequests(detailsSpace.id);
-                              }} className="px-2 py-1 rounded-lg border border-border text-muted-foreground text-xs disabled:opacity-50">Reject</button>
+                              }} className="rounded-lg text-xs">Reject</Button>
                             </div>
                           )}
                         </div>
@@ -1407,8 +1411,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm"
                     />
                   </div>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={async () => {
                       const token = await getToken();
                       const res = await fetch(`${base}/api/xspaces/rsvp`, {
@@ -1419,12 +1424,13 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       const data = await res.json().catch(() => ({}));
                       if (res.ok && (data?.status === "interested" || data?.status === "going")) setRsvpStatus((prev) => ({ ...prev, [detailsSpace.id]: data.status }));
                     }}
-                    className="px-4 py-2 rounded-lg border border-border text-foreground hover:bg-accent"
+                    className="rounded-xl"
                   >
                     Interested
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={async () => {
                       const token = await getToken();
                       const res = await fetch(`${base}/api/xspaces/rsvp`, {
@@ -1435,13 +1441,13 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       const data = await res.json().catch(() => ({}));
                       if (res.ok && (data?.status === "interested" || data?.status === "going")) setRsvpStatus((prev) => ({ ...prev, [detailsSpace.id]: data.status }));
                     }}
-                    className="px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/10"
+                    className="rounded-xl border-primary text-primary hover:bg-primary/10"
                   >
                     Going
-                  </button>
-                  <button type="button" onClick={handleRequestSpeaker} disabled={speakerRequesting} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
+                  </Button>
+                  <Button type="button" onClick={handleRequestSpeaker} disabled={speakerRequesting} className="rounded-xl">
                     {speakerRequesting ? "…" : "Request speaker"}
-                  </button>
+                  </Button>
                 </>
               ) : null}
             </div>

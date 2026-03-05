@@ -119,3 +119,18 @@
 - [ ] **Home / Explore / Calendar** — Sidebar switches views; Home loads spaces; Explore loads discover; Calendar loads month; data correct per view.
 - [ ] **Modal** — Event detail opens/closes cleanly; header has title + Open on X (if linked), Add to calendar, Share, Close; no duplicate Open on X in body; responsive.
 - [ ] **CalendarView** — Month/List/Week toggle in top bar; Month and List switch content; Week placeholder styled correctly.
+
+---
+
+## E) Final polish QA (10 steps) — post–governance pass
+
+1. **Governance** — No forbidden palette classes in XSpaces scope: no `zinc-`, `neutral-`, `amber-`, `red-`, `green-`, `blue-`, `slate-`, `gray-`, `bg-black`, `bg-white`, `text-white` (or `dark:` variants of those) in `XSpacesPage.tsx` or `xspaces/*`.
+2. **Banners** — Connect X error, OAuth error, overlap warning, add-from-X success use only token styles (`bg-card`/`bg-muted`, `border-border`, `text-foreground`/`text-muted-foreground`, `text-destructive` for errors); rounded-2xl, no amber/red/green.
+3. **Buttons** — Home list (Details, Connect X, Detect my Space, Paste link, Open X), Create modal, Add from X modal, Event detail (Approve/Reject, Mark as ended, Replace/Save link, etc.) use `<Button>` with variants; no raw palette classes; radii consistent (rounded-xl/2xl).
+4. **Calendar list mode** — List view groups by date (Today, Tomorrow, then weekday+date); each event row is a card (`rounded-2xl border border-border bg-card`); shows time (Clock icon), title, status chip; matches Explore/Home density.
+5. **Modals** — Overlay `bg-foreground/50 backdrop-blur-sm`; container `rounded-2xl`, `border-border`, `bg-card`; header row: title left, actions right; no absolute positioning hacks.
+6. **Event detail** — Single "Open on X" in header only; right column spacing (countdown, speakers, combined followers); combined followers fallback "Not available".
+7. **Connect X / Add from X / detect** — Flows still work; 409 handling shows appropriate message; no token leakage.
+8. **No tokens in UI** — `access_token` and `refresh_token` never rendered or logged in UI/console.
+9. **Visual consistency** — Banners and cards match Linkary analytics UI (spacing, rounded-2xl, subtle borders).
+10. **Regression** — Auth, `/auth/callback`, persist-social, and API contracts/paths unchanged.

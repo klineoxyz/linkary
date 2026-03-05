@@ -1,8 +1,23 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Calendar, List } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, List, Clock } from "lucide-react";
 import { Button } from "../ui/button";
+
+function getDateLabel(ymd: string): string {
+  const d = new Date(ymd + "T12:00:00");
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (ymd === today.toISOString().slice(0, 10)) return "Today";
+  if (ymd === tomorrow.toISOString().slice(0, 10)) return "Tomorrow";
+  return d.toLocaleDateString("default", { weekday: "short", day: "numeric", month: "short" });
+}
+
+function formatTime(scheduledAt: string | null): string {
+  if (!scheduledAt) return "—";
+  return new Date(scheduledAt).toLocaleTimeString("default", { hour: "numeric", minute: "2-digit" });
+}
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MAX_EVENTS_PER_DAY = 3;
@@ -83,6 +98,27 @@ export function CalendarView({
     return out;
   }, [spacesByDay]);
 
+  const groupedByDateLabel = useMemo(() => {
+    const map = new Map<string, { space: SpaceForCalendar; ymd: string }[]>();
+    flattenedSpaces.forEach((item) => {
+      const label = getDateLabel(item.ymd);
+      if (!map.has(label)) map.set(label, []);
+      map.get(label)!.push(item);
+    });
+    return map;
+  }, [flattenedSpaces]);
+
+  const orderedDateLabels = useMemo(() => {
+    const order = ["Today", "Tomorrow"];
+    const rest = Array.from(groupedByDateLabel.keys()).filter((k) => !order.includes(k));
+    rest.sort((a, b) => {
+      const aItem = groupedByDateLabel.get(a)?.[0];
+      const bItem = groupedByDateLabel.get(b)?.[0];
+      return (aItem?.ymd ?? "").localeCompare(bItem?.ymd ?? "");
+    });
+    return [...order.filter((k) => groupedByDateLabel.has(k)), ...rest];
+  }, [groupedByDateLabel]);
+
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-border flex-wrap gap-2">
@@ -127,25 +163,41 @@ export function CalendarView({
         </Button>
       </div>
       {viewMode === "list" ? (
-        <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
+        <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
           {flattenedSpaces.length === 0 ? (
             <p className="text-sm text-muted-foreground">No events this month.</p>
           ) : (
-            flattenedSpaces.map(({ space, ymd }) => (
-              <div
-                key={space.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => onEventClick?.(space)}
-                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onEventClick?.(space)}
-                className="p-3 rounded-xl border border-border bg-card hover:border-primary/20 hover:bg-accent/50 transition-colors cursor-pointer text-left"
-              >
-                <p className="font-medium text-foreground truncate">{space.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {space.scheduled_at ? new Date(space.scheduled_at).toLocaleString() : ymd}
-                </p>
-              </div>
-            ))
+            orderedDateLabels.map((label) => {
+              const groupItems = groupedByDateLabel.get(label) ?? [];
+              return (
+                <div key={label}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">{label}</p>
+                  <div className="space-y-2">
+                    {groupItems.map(({ space, ymd }) => (
+                      <div
+                        key={space.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onEventClick?.(space)}
+                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onEventClick?.(space)}
+                        className="p-4 rounded-2xl border border-border bg-card hover:border-primary/20 hover:bg-accent/50 transition-colors cursor-pointer text-left flex items-start gap-3"
+                      >
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
+                          <Clock className="w-4 h-4" />
+                          {formatTime(space.scheduled_at)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-foreground truncate">{space.title}</p>
+                          <span className="inline-flex mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                            Planned
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       ) : (

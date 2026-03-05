@@ -26,6 +26,10 @@
     "x:provider:selftest": "pnpm --filter worker run x:provider:selftest",
     "x:ingest:healthcheck": "pnpm --filter worker run x:ingest:healthcheck",
     "check:storage-url": "pnpm --filter web run check:storage-url",
+    "test:xspaces": "pnpm --filter web run test:xspaces",
+    "test:xspaces-dates": "pnpm --filter web run test:xspaces-dates",
+    "smoke:xspaces": "pnpm --filter web run smoke:xspaces",
+    "smoke:xspaces:full": "pnpm --filter web run smoke:xspaces:full",
     "start": "node apps/api/dist/index.js"
   },
   "devDependencies": {

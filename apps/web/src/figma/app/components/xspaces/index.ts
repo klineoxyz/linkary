@@ -1,4 +1,5 @@
 export { XSpacesSidebar, type MainNav } from "./XSpacesSidebar";
+export { XSpacesErrorBoundary } from "./XSpacesErrorBoundary";
 export { StatCardsRow } from "./StatCardsRow";
 export { FiltersRail } from "./FiltersRail";
 export { EventCard, type SpaceForCard, type HostProfile as EventCardHost } from "./EventCard";

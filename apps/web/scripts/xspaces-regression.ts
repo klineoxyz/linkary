@@ -10,7 +10,10 @@ import { join } from "path";
 const FORBIDDEN_PREFIXES = [
   "zinc-", "neutral-", "bg-black", "text-white", "amber-", "red-", "green-", "blue-", "slate-", "gray-", "bg-white",
 ];
+/** Known-safe tokens that may contain forbidden substrings (e.g. translate-x contains "slate") */
+const ALLOWLIST = ["-translate-x-1/2", "-translate-y-1/2", "translate-x-", "translate-y-", "-translate-x", "-translate-y"];
 function tokenHasForbidden(token: string): boolean {
+  if (ALLOWLIST.some((a) => token === a || token.startsWith(a))) return false;
   return FORBIDDEN_PREFIXES.some((p) => token === p || token.startsWith(p + "-") || token.startsWith(p + "/"));
 }
 const ROOT = join(process.cwd(), "src", "figma", "app", "components");

@@ -174,3 +174,71 @@
 8. **Navigation** — Only `mainNav` state; CalendarView `viewMode` internal only.
 9. **Errors** — Banners show user-safe messages only (no stack traces or raw API bodies).
 10. **Manual smoke** — Create space, add from X, open event, approve/reject speaker (if host), RSVP, link X Space; all without errors.
+
+---
+
+## G) Pre-deploy pass (Release Captain)
+
+### 1) SSR / Next.js safety — what was changed and why it’s SSR-safe
+
+- **`handleModalKeyDown`** — Added `if (typeof document === "undefined") return;` at the top so `document.activeElement` and DOM queries never run during SSR (handler is only invoked on keydown in the browser, but the guard is defensive).
+- **`base`** — Already set with `typeof window !== "undefined" ? window.location.origin : ""` so SSR gets `""` and no `window` access.
+- **OAuth redirect / history** — All `window.location` and `window.history.replaceState` use is inside `useEffect` or behind `typeof window !== "undefined"`, so they never run on the server.
+- **Focus trap / initial focus** — All `requestAnimationFrame`, `querySelector`, and `focus()` calls live inside `useEffect` (modal open effects). React does not run effects during SSR, so no DOM or `document` access on the server.
+- **`xspaces/utils.ts`** — `isDev` uses `process.env.NODE_ENV` when `process` exists; `window` is only read inside `typeof window !== "undefined"`; `xspacesDebug` checks `window` before using `window.location`. No unguarded browser globals.
+- **AbortController** — Used only inside `useEffect` in the browser; supported in Node 18+ and all target browsers; no polyfill added.
+
+### 2) Error boundary + graceful fallbacks
+
+- **XSpacesErrorBoundary** added in `xspaces/XSpacesErrorBoundary.tsx`: class component with `getDerivedStateFromError` and `componentDidCatch`. Renders a token-based banner (`bg-card`, `border-border`, `text-foreground`, `text-muted-foreground`) and a **Reload** `<Button>`. Displayed message comes from **sanitizeErrorMessage(error?.message)** so no raw payload or stack is shown. XSpacesPage wraps its shell (sidebar + main) in `<XSpacesErrorBoundary>` so a single view crash does not blank the whole app.
+
+### 3) Real E2E smoke (minimal)
+
+- **No Playwright** in the repo. Implemented a **runtime smoke script** instead: `apps/web/scripts/xspaces-smoke.ts`.
+- **Behavior:** Starts the production server (`next start -p 3001`) in the background, waits for GET `/xspaces` to return 200 or 302/307, and if 200 asserts the HTML includes "X Spaces" or "Calendar" (sidebar). Then kills the server. No auth, no OAuth, no fixture data.
+- **How to run**
+  - **Locally (after build):** From repo root: `pnpm run smoke:xspaces` or `pnpm --filter web run smoke:xspaces`. From `apps/web`: `pnpm run smoke:xspaces`.
+  - **Full (build + smoke):** `pnpm run smoke:xspaces:full` or `pnpm --filter web run smoke:xspaces:full`.
+  - **CI:** Run from repo root: `pnpm run test:xspaces` (fast), then optionally `pnpm run smoke:xspaces:full` (build + smoke). Port is configurable via `XSPACES_SMOKE_PORT` (default 3001).
+
+### 4) Governance enforcement in CI
+
+- **Script:** `scripts/xspaces-regression.ts` runs date tests then governance. **Fail fast:** exits with code 1 and prints the first violating file/line/token; no fix-up.
+- **Allowlist:** Added `ALLOWLIST` for known-safe tokens that contain forbidden substrings (e.g. `-translate-x-1/2`, `-translate-y-1/2`) so Tailwind translate classes are not reported as `slate-`.
+- **Scope:** Source-only (XSpacesPage.tsx and xspaces/*). No compiled-output check; stable and CI-friendly.
+- **CI hook:** From repo root run `pnpm run test:xspaces` in your pipeline (e.g. `test` or `lint` step). Root `package.json` has `test:xspaces`, `test:xspaces-dates`, `smoke:xspaces`, `smoke:xspaces:full` so a single job can run them.
+
+### 5) Bundle + dependency hygiene
+
+- **xspaces/utils.ts** — No imports; only Node/browser globals and pure helpers. No heavy deps.
+- **Icons** — Tree-shake friendly: `import { Clock } from "lucide-react"` (and similar) throughout; no default import of the whole library.
+- **No new dependencies** — Only existing packages (React, Next, lucide-react, etc.). XSpacesErrorBoundary and smoke script use existing Button and tsx.
+
+---
+
+### PR-style summary: What changed / Why / How to test
+
+**What changed**
+- SSR guard in modal keydown handler (`document` check).
+- XSpacesErrorBoundary wrapping the XSpaces shell; token-only UI and sanitized error message.
+- Runtime smoke script (build, start server, GET /xspaces, assert shell).
+- Governance allowlist for translate-style classes; CI-ready commands at repo root.
+
+**Why**
+- Safe server render and no DOM access during SSR.
+- One view crash does not blank the app; users see a safe message and Reload.
+- One automated smoke to verify page load and shell without Playwright or real auth.
+- CI can run governance and smoke with clear failures and no false positives.
+
+**How to test**
+- `pnpm --filter web run test:xspaces` — date tests + governance (no forbidden tokens).
+- `pnpm --filter web run test:xspaces-dates` — date/utils tests only.
+- `pnpm --filter web run smoke:xspaces` — smoke (requires prior `pnpm --filter web build`).
+- `pnpm --filter web run smoke:xspaces:full` — build then smoke.
+- From repo root: `pnpm run test:xspaces`, `pnpm run smoke:xspaces`, etc.
+
+**Confirmations**
+- **No auth changes** — `/auth/callback`, persist-social, and auth flows unchanged.
+- **No API contract changes** — No server endpoints or request/response shapes changed.
+- **No token leaks** — access_token/refresh_token are not rendered or logged; sanitizeErrorMessage and xspacesDebug stay safe.
+- **Tokens-only styling preserved** — XSpaces UI and error boundary use only Linkary tokens (bg-card, border-border, text-foreground, etc.); no new palette classes.

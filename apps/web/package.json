@@ -14,7 +14,9 @@
     "launch:check": "tsx scripts/launchCheck.ts",
     "verify:rls": "tsx scripts/verifyRlsSafety.ts",
     "test:xspaces": "tsx scripts/xspaces-regression.ts",
-    "test:xspaces-dates": "tsx src/figma/app/components/xspaces/utils.test.ts"
+    "test:xspaces-dates": "tsx src/figma/app/components/xspaces/utils.test.ts",
+    "smoke:xspaces": "tsx scripts/xspaces-smoke.ts",
+    "smoke:xspaces:full": "pnpm build && pnpm run smoke:xspaces"
   },
   "dependencies": {
     "@coinbase/cdp-core": "^0.0.85",

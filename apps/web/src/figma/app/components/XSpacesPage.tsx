@@ -7,6 +7,7 @@ import { parseXSpaceId } from "@/lib/parseXSpaceId";
 import { supabase } from "@/lib/supabase";
 import {
   XSpacesSidebar,
+  XSpacesErrorBoundary,
   HomeView,
   ExploreView,
   CalendarView,
@@ -202,6 +203,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     onClose: () => void,
     containerRef: React.RefObject<HTMLDivElement | null>
   ) {
+    if (typeof document === "undefined") return;
     if (e.key === "Escape") {
       e.preventDefault();
       onClose();
@@ -877,6 +879,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       ) : null;
 
   return (
+    <XSpacesErrorBoundary>
     <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 min-h-0">
       <XSpacesSidebar mainNav={mainNav} onNav={setMainNav} />
       <main className="flex-1 min-w-0 space-y-6">
@@ -1575,5 +1578,6 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       )}
       </main>
     </div>
+    </XSpacesErrorBoundary>
   );
 }

@@ -4,6 +4,18 @@ What is automated, what is fallback, and how detection works.
 
 ---
 
+## Product + Auth: Option A (recommended v1)
+
+**Recommendation: Keep Connect X as a separate step.** Login with X uses Supabase Auth and populates `profiles` + `social_accounts`; it does **not** populate `x_oauth_tokens`. XSpaces needs X API v2 access (e.g. `space.read`) for import, detect, and past-Spaces list; that access is stored only in `x_oauth_tokens` and is obtained via the dedicated **Connect X** flow on /xspaces (`POST /api/x/connect` → X OAuth → `GET /api/x/callback`). We do **not** reuse the login provider token for XSpaces because: (1) login provider scopes may not include `space.read`; (2) one explicit step gives users a clear mental model and avoids silent API failures. No part of the platform should assume that “logged in with X” implies a row in `x_oauth_tokens`; all XSpaces endpoints return `X_NOT_CONNECTED` when the row is missing.
+
+**Verification checklist (Option A):**
+- [ ] **Login still works** — Sign in with X completes; `/auth/callback` and `persist-social` run; profile + social_accounts populated; no changes to redirect or token handling.
+- [ ] **XSpaces for new users** — New user can go to /xspaces, see "Connect X" copy explaining X API access, complete Connect X flow, then use Detect my Space, Add from X, and Past X Spaces.
+- [ ] **Existing users unchanged** — Users who already have a row in `x_oauth_tokens` continue to see connected state and use XSpaces; users without a row see clear copy to Connect X.
+- [ ] **No token leaks** — No API or page returns `access_token` or `refresh_token`; `/api/x/me` returns only `connected`, `x_user_id`, `username`, `provider`.
+
+---
+
 ## Source of truth for X connection
 
 **Decision: Supabase `x_oauth_tokens` is the single source of truth.**

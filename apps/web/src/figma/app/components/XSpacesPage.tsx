@@ -746,7 +746,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">X Spaces</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Create and manage your X Spaces. Link to X to auto-detect new Spaces.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Create and manage your X Spaces. Connect X once to enable import and auto-detect (we need X API access for that).</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {me?.id && (
@@ -1100,7 +1100,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 <p className="text-sm text-muted-foreground">Space created on Linkary. Now link it to X:</p>
                 <div className="rounded-xl border border-border bg-card p-4 space-y-3">
                   {xConnected !== true && (
-                    <p className="text-sm text-amber-600 dark:text-amber-400">1. Connect X first (button above) so we can detect your Space.</p>
+                    <p className="text-sm text-amber-600 dark:text-amber-400">1. Connect X first (button above) to grant X API access so we can detect your Space.</p>
                   )}
                   <p className="font-medium text-foreground">2. Open X and create your Space</p>
                   <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
@@ -1159,7 +1159,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 <span className="text-sm font-medium text-foreground">Create on X (recommended)</span>
               </label>
               {createOnX && xConnected === false && (
-                <p className="text-sm text-amber-600 dark:text-amber-400">Connect X first (Settings → Integrations or use Connect X below) to auto-detect your Space.</p>
+                <p className="text-sm text-amber-600 dark:text-amber-400">Connect X first (button below) to grant X API access for import and auto-detect.</p>
               )}
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Title</label>
@@ -1227,7 +1227,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-muted-foreground mb-3">Paste an X (Twitter) Space link you host. We’ll pull the details and use it for audience overlap (when both hosts are registered).</p>
+            <p className="text-sm text-muted-foreground mb-3">Paste an X Space link you host. We’ll pull details using X API access (Connect X) and support audience overlap when both hosts are registered.</p>
             <input
               type="url"
               value={addFromXUrl}
@@ -1279,7 +1279,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               </div>
             )}
             {xConnected !== true && (
-              <p className="text-sm text-muted-foreground mb-2">Connect X first to import or see your past Spaces.</p>
+              <p className="text-sm text-muted-foreground mb-2">Connect X first to grant X API access — then you can import or see your past Spaces.</p>
             )}
             {addFromXError && (
               <p className="text-sm text-destructive mb-2">{addFromXError}</p>

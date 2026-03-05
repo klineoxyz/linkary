@@ -21,7 +21,8 @@ function isXProvider(p: unknown): boolean {
 /**
  * POST /api/auth/post-login-bootstrap
  * Run once after X OAuth login: ensure profile row, upsert social_accounts from X identity, update profile mirror.
- * So X connection is automatic on login; no separate "Connect X" needed for MVP.
+ * This covers identity/analytics (social_accounts). XSpaces import/detect use x_oauth_tokens and require the separate
+ * "Connect X" flow on /xspaces — do not assume login populates x_oauth_tokens.
  */
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");

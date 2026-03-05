@@ -148,6 +148,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [addFromXUrl, setAddFromXUrl] = useState("");
   const [addFromXSaving, setAddFromXSaving] = useState(false);
   const [addFromXError, setAddFromXError] = useState<string | null>(null);
+  const [myXSpacesList, setMyXSpacesList] = useState<Array<{ id: string; title: string | null; state: string | null; started_at: string | null; scheduled_start: string | null; url: string }>>([]);
+  const [myXSpacesLoading, setMyXSpacesLoading] = useState(false);
   const [audienceOverlapsBySpaceId, setAudienceOverlapsBySpaceId] = useState<Record<string, AudienceOverlap[]>>({});
   const [overlapsError, setOverlapsError] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"my" | "discover" | "past" | "overlap-alerts">("my");
@@ -307,6 +309,15 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     }
   }, [xOauthError]);
 
+  useEffect(() => {
+    if (showAddFromX && xConnected === true) {
+      setMyXSpacesLoading(true);
+      loadMyXSpaces().finally(() => setMyXSpacesLoading(false));
+    } else if (!showAddFromX) {
+      setMyXSpacesList([]);
+    }
+  }, [showAddFromX, xConnected, loadMyXSpaces]);
+
   const loadDetailRsvps = useCallback(async (spaceId: string) => {
     const token = await getToken();
     const res = await fetch(`${base}/api/xspaces/${spaceId}/rsvps`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
@@ -327,6 +338,13 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     const data = await res.json().catch(() => ({}));
     if (data.host != null) setHostAndSpeakers({ host: data.host, speakers: Array.isArray(data.speakers) ? data.speakers : [] });
     else setHostAndSpeakers(null);
+  }, [base, getToken]);
+
+  const loadMyXSpaces = useCallback(async () => {
+    const token = await getToken();
+    const res = await fetch(`${base}/api/xspaces/my-x-spaces`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const data = await res.json().catch(() => ({}));
+    setMyXSpacesList(Array.isArray(data.spaces) ? data.spaces : []);
   }, [base, getToken]);
 
   useEffect(() => {
@@ -1121,13 +1139,15 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       if (!parseXSpaceId(createXSpaceUrl.trim())) { setDetectError("Invalid X Space link."); return; }
                       setDetectError(null);
                       const token = await getToken();
-                      const res = await fetch(`${base}/api/spaces/sync-from-x`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ space_url: createXSpaceUrl.trim() }) });
+                      const res = await fetch(`${base}/api/spaces/sync-from-x`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ url: createXSpaceUrl.trim() }) });
                       const data = await res.json().catch(() => ({}));
                       if (data.space?.id && data.space?.x_space_id) {
                         updateSpaceLinkState(data.space.id, data.space.x_space_id, data.space.x_space_url ?? `https://x.com/i/spaces/${data.space.x_space_id}`);
                         setCreateJustDoneSpaceId(null); setShowCreate(false); setCreateTitle(""); setCreateDescription(""); setCreateScheduledAt(""); setCreatePrefilledDate(null); setCreateDurationMins(60); setCreateCohosts(""); setCreateXSpaceUrl(""); setCreateError(null);
                         if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces();
-                      } else setDetectError(data.message ?? data.error ?? "Failed to link.");
+                      } else if (res.status === 409 && data.code === "ALREADY_IMPORTED") {
+                        setDetectError(data.error ?? "Already imported.");
+                      } else setDetectError(data.error ?? data.message ?? "Failed to link.");
                     }} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">Link pasted URL</button>
                   )}
                 </div>
@@ -1213,8 +1233,54 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               value={addFromXUrl}
               onChange={(e) => { setAddFromXUrl(e.target.value); setAddFromXError(null); }}
               placeholder="https://x.com/i/spaces/..."
-              className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground mb-2"
+              disabled={xConnected !== true}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground mb-2 disabled:opacity-50"
             />
+            {xConnected === true && (
+              <div className="mb-3">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Past X Spaces (last 30 days)</p>
+                {myXSpacesLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading…</p>
+                ) : myXSpacesList.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No recent Spaces from X.</p>
+                ) : (
+                  <ul className="space-y-2 max-h-48 overflow-y-auto">
+                    {myXSpacesList.map((item) => (
+                      <li key={item.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-border bg-card text-sm">
+                        <span className="min-w-0 truncate font-medium text-foreground">{item.title || "Untitled Space"}</span>
+                        <button
+                          type="button"
+                          disabled={addFromXSaving}
+                          className="shrink-0 px-2 py-1 rounded-lg border border-border bg-secondary text-foreground hover:bg-accent disabled:opacity-50 text-xs font-medium"
+                          onClick={async () => {
+                            setAddFromXError(null);
+                            setAddFromXSaving(true);
+                            const t = await getToken();
+                            const r = await fetch(`${base}/api/spaces/sync-from-x`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` }, body: JSON.stringify({ url: item.url }) });
+                            const d = await r.json().catch(() => ({}));
+                            setAddFromXSaving(false);
+                            if (d.space) {
+                              setShowAddFromX(false);
+                              setAddFromXSuccess({ participants_count: typeof d.participants_count === "number" ? d.participants_count : 0, overlaps: [] });
+                              if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces();
+                            } else if (r.status === 409 && d.code === "ALREADY_IMPORTED") {
+                              setAddFromXError(d.error ?? "Already imported.");
+                            } else {
+                              setAddFromXError(d.error ?? d.message ?? "Failed to import.");
+                            }
+                          }}
+                        >
+                          Import
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+            {xConnected !== true && (
+              <p className="text-sm text-muted-foreground mb-2">Connect X first to import or see your past Spaces.</p>
+            )}
             {addFromXError && (
               <p className="text-sm text-destructive mb-2">{addFromXError}</p>
             )}
@@ -1222,7 +1288,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               <button type="button" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="px-4 py-2 rounded-lg border border-border text-foreground">Cancel</button>
               <button
                 type="button"
-                disabled={addFromXSaving || !addFromXUrl.trim()}
+                disabled={addFromXSaving || xConnected !== true || !addFromXUrl.trim()}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"
                 onClick={async () => {
                   if (!parseXSpaceId(addFromXUrl.trim())) { setAddFromXError("Invalid X Space link."); return; }
@@ -1232,7 +1298,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   const res = await fetch(`${base}/api/spaces/sync-from-x`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ space_url: addFromXUrl.trim() }),
+                    body: JSON.stringify({ url: addFromXUrl.trim() }),
                   });
                   const data = await res.json().catch(() => ({}));
                   setAddFromXSaving(false);
@@ -1251,10 +1317,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       const arr = Array.isArray(ovData.overlaps) ? ovData.overlaps : [];
                       setAddFromXSuccess((prev) => (prev ? { ...prev, overlaps: arr.slice(0, 3) } : null));
                     } catch {
-                      // keep success panel with 0 overlaps
+                      // keep success panel
                     }
+                  } else if (res.status === 409 && data.code === "ALREADY_IMPORTED") {
+                    setAddFromXError(data.error ?? "Already imported.");
                   } else {
-                    setAddFromXError(data.message ?? data.error ?? "Failed to sync Space");
+                    setAddFromXError(data.error ?? data.message ?? "Failed to sync Space");
                   }
                 }}
               >

@@ -291,6 +291,27 @@ export type XSpaceDetail = {
   participants?: { admins?: XSpaceParticipant[]; speakers?: XSpaceParticipant[]; listeners?: XSpaceParticipant[] };
 };
 
+const X_API_BASE = "https://api.twitter.com/2";
+
+/** Fetch Space by ID from X API v2 (Bearer token). Returns null on error. host_ids used to verify ownership. */
+export async function fetchXSpaceByIdV2(
+  spaceId: string,
+  accessToken: string
+): Promise<{ id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } | null> {
+  const id = String(spaceId ?? "").trim();
+  if (!id || !accessToken) return null;
+  const fields = "title,state,created_at,scheduled_start,host_ids";
+  const res = await fetch(`${X_API_BASE}/spaces/${encodeURIComponent(id)}?space.fields=${encodeURIComponent(fields)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { data?: { id?: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } };
+  const data = json?.data;
+  if (!data || !data.id) return null;
+  return data as { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] };
+}
+
 /** Fetch Space detail by ID from twitterapi.io. Returns null on error or missing data. */
 export async function fetchXSpaceDetail(spaceId: string, apiKey: string): Promise<XSpaceDetail | null> {
   const id = String(spaceId ?? "").trim();

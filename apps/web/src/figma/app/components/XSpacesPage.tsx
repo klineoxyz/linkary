@@ -1517,6 +1517,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
           </div>
         </>
       )}
+      </main>
     </div>
   );
 }

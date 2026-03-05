@@ -9,7 +9,8 @@ import { join } from "path";
 import { spawnSync } from "child_process";
 
 const FORBIDDEN_PREFIXES = [
-  "zinc-", "neutral-", "bg-black", "text-white", "amber-", "red-", "green-", "blue-", "slate-", "gray-", "bg-white",
+  "zinc-", "neutral-", "bg-black", "text-white", "bg-white", "border-white", "ring-white",
+  "amber-", "red-", "green-", "blue-", "slate-", "gray-",
 ];
 /** Known-safe tokens that may contain forbidden substrings (e.g. translate-x contains "slate") */
 const ALLOWLIST = ["-translate-x-1/2", "-translate-y-1/2", "translate-x-", "translate-y-", "-translate-x", "-translate-y"];
@@ -20,6 +21,11 @@ function tokenHasForbidden(token: string): boolean {
 const ROOT = join(process.cwd(), "src", "figma", "app", "components");
 const XSPACES_PAGE = join(ROOT, "XSpacesPage.tsx");
 const XSPACES_DIR = join(ROOT, "xspaces");
+
+function isCommentOnlyOrCommentedLine(line: string): boolean {
+  const t = line.trim();
+  return t.startsWith("//") || t === "" || t.startsWith("*") || t.startsWith("/*");
+}
 
 function readFiles(dir: string, ext: string): { path: string; content: string }[] {
   const out: { path: string; content: string }[] = [];
@@ -44,17 +50,22 @@ function governanceCheck(): boolean {
 
   for (const { path, content } of files) {
     const lines = content.split("\n");
-    lines.forEach((line, i) => {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (isCommentOnlyOrCommentedLine(line)) continue;
       const classNameMatch = line.match(/className=["'`]([^"'`]+)["'`]/);
-      if (!classNameMatch) return;
+      if (!classNameMatch) continue;
       const tokens = classNameMatch[1].split(/\s+/);
       for (const token of tokens) {
         if (tokenHasForbidden(token)) {
-          console.error(`Governance: ${path}:${i + 1}: forbidden class token: ${token}`);
+          const snippet = line.trim().slice(0, 80) + (line.trim().length > 80 ? "..." : "");
+          console.error(`Governance FAIL: ${path}:${i + 1}`);
+          console.error(`  forbidden token: ${token}`);
+          console.error(`  snippet: ${snippet}`);
           failed = true;
         }
       }
-    });
+    }
   }
   return !failed;
 }
@@ -68,9 +79,11 @@ function main() {
     cwd,
     stdio: "inherit",
     env: { ...process.env },
+    shell: process.platform === "win32",
   });
-  if (out.status !== 0) {
-    console.error("Date tests failed (exit code " + out.status + ")");
+  const status = out.status ?? out.signal ?? -1;
+  if (status !== 0) {
+    console.error("Date tests failed (exit code " + (out.status ?? "null") + (out.signal ? `, signal ${out.signal}` : "") + ")");
     process.exit(1);
   }
 

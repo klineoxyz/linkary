@@ -880,7 +880,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
   return (
     <XSpacesErrorBoundary>
-    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 min-h-0">
+    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 min-h-0" data-testid="xspaces-shell">
       <XSpacesSidebar mainNav={mainNav} onNav={setMainNav} />
       <main className="flex-1 min-w-0 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">

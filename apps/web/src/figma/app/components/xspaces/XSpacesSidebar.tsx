@@ -22,6 +22,7 @@ export function XSpacesSidebar({
     <aside
       className="w-full sm:w-56 shrink-0 border-r border-border bg-card rounded-2xl sm:rounded-r-none overflow-hidden"
       aria-label="XSpaces navigation"
+      data-testid="xspaces-sidebar"
     >
       <nav className="p-2 sm:p-3 flex flex-row sm:flex-col gap-1">
         {items.map(({ id, label, icon: Icon }) => {
@@ -31,6 +32,7 @@ export function XSpacesSidebar({
               key={id}
               type="button"
               onClick={() => onNav(id)}
+              data-testid={id === "calendar" ? "xspaces-nav-calendar" : undefined}
               className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 active
                   ? "bg-primary/10 text-primary border border-primary/20"

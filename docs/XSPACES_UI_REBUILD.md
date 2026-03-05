@@ -242,3 +242,32 @@
 - **No API contract changes** — No server endpoints or request/response shapes changed.
 - **No token leaks** — access_token/refresh_token are not rendered or logged; sanitizeErrorMessage and xspacesDebug stay safe.
 - **Tokens-only styling preserved** — XSpaces UI and error boundary use only Linkary tokens (bg-card, border-border, text-foreground, etc.); no new palette classes.
+
+---
+
+## Release checklist (copy/paste for deploy PR)
+
+### Commands to run (from repo root)
+
+```bash
+pnpm run test:xspaces
+pnpm run test:xspaces-dates
+pnpm run smoke:xspaces:full
+```
+
+### Expected outputs
+
+- **test:xspaces** — `All XSpaces regression checks passed.` (date tests + governance; exit 0).
+- **test:xspaces-dates** — `All date/util tests passed.` (exit 0).
+- **smoke:xspaces:full** — Build completes, then `[xspaces-smoke] PASS: Page loads or redirects to login (200/302/307).` (exit 0).
+
+### Smoke notes
+
+- **200** = page loaded; body must contain one of: `data-testid="xspaces-shell"`, `data-testid="xspaces-sidebar"`, `data-testid="xspaces-nav-calendar"`, or sidebar text (Home/Explore/Calendar), or `__NEXT_DATA__`/xspaces.
+- **302/307** = redirect to login; treated as pass (unauthenticated smoke).
+- Env (optional): `XSPACES_SMOKE_PORT`, `XSPACES_SMOKE_URL_BASE` (smoke external server), `XSPACES_SMOKE_PATH` (default `/xspaces`).
+
+### Rollback
+
+- Revert the XSpaces deploy commit(s). No feature flag; routing and API unchanged.
+- If needed, revert list: XSpacesPage, xspaces/*, scripts/xspaces-*, docs/XSPACES_UI_REBUILD.md, package.json scripts (test:xspaces, smoke:xspaces, etc.).

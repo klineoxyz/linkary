@@ -48,12 +48,7 @@ What is automated, what is fallback, and how detection works.
   - `POST /api/x/connect` — starts OAuth. Returns **200** with `{ url }` when configured; client does `window.location.href = url`. Returns **503** with `{ error, code: "X_OAUTH_NOT_CONFIGURED", missing: ["X_CLIENT_ID", ...] }` when required env is missing (variable names only, no secrets). Never fails silently.
   - `GET /api/x/callback` — exchanges code for tokens, fetches X user (e.g. `/2/users/me`), **upserts into `x_oauth_tokens` using the service role**, then re-selects the row to verify; on any failure redirects to `/xspaces?x_oauth_error=1` (no details in URL). Success redirects to `/xspaces?x_connected=1`. If `SUPABASE_SERVICE_ROLE_KEY` is missing, redirects to `x_oauth_error=1`.
   - `GET /api/x/me` — **always returns 200** when the request is valid. Body: `{ connected: boolean, x_user_id: string|null, username: string|null, provider: 'supabase'|null }`. Never returns tokens; never returns 404 for “not connected” (use `connected: false`).
-- **Required env (e.g. Vercel):** For Connect X to work you must set:
-  - `X_CLIENT_ID`
-  - `X_CLIENT_SECRET` (used by callback only)
-  - `X_OAUTH_COOKIE_SECRET`
-  - `SUPABASE_SERVICE_ROLE_KEY` (callback needs it to write to `x_oauth_tokens`)
-  Callback URL must be allowlisted in the X app (e.g. `https://your-domain.com/api/x/callback`).
+- **Required env:** See **Vercel env checklist** below.
 - **Security:** No API response must ever include `access_token` or `refresh_token`; they are stored only in `x_oauth_tokens` and used server-side. `/api/x/me` returns only `connected`, `x_user_id`, `username`, and `provider`.
 - **Rate limit (detect):** `POST /api/xspaces/detect-my-space` is limited to **10 requests per minute per profile_id**. When exceeded, the API returns **429** with body `{ error: "Too many detection requests. Try again in a minute.", code: "RATE_LIMITED", resetAt }`. Rate limiting is durable: Upstash Redis is used when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set; otherwise the Supabase `rate_limits` table (via `consume_rate_limit` RPC) is used. If both Upstash and Supabase service role are unavailable, the API returns **503** with body `{ error: "Rate limit service unavailable." }` (no bypass). Every response after the rate limit check includes safe debug headers: `X-RateLimit-Limit: 10`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` (ISO timestamp).
 
@@ -117,11 +112,32 @@ If `SELECT * FROM public.x_oauth_tokens` returns 0 rows in production, possible 
 
 ---
 
+## Vercel env checklist (fix in ~2 minutes)
+
+Set these in Vercel → Project → Settings → Environment Variables (for Production and Preview if needed):
+
+| Variable | Required for | Notes |
+|----------|----------------|-------|
+| `X_CLIENT_ID` | Connect + Callback | From X Developer Portal (OAuth 2.0 client). |
+| `X_OAUTH_COOKIE_SECRET` | Connect + Callback | Any long random string; used to sign the PKCE cookie. |
+| `X_CLIENT_SECRET` | Callback only | Same X app; needed to exchange code for tokens. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Callback only | So the callback can write to `x_oauth_tokens` (bypasses RLS). |
+
+**Callback URL:** In the X Developer Portal, allowlist: **`https://linkary.xyz/api/x/callback`** (or your production domain). Must match exactly.
+
+**Quick test:** After saving env vars and redeploying, call **`POST /api/x/connect`** with a valid Bearer token.  
+- **200** with `{ url: "https://twitter.com/i/oauth2/authorize?..." }` → configured.  
+- **503** with `{ error: "X OAuth is not configured.", code: "X_OAUTH_NOT_CONFIGURED", missing: ["X_CLIENT_ID", ...] }` → add the listed vars and redeploy.
+
+**DEV only:** When not in production, **`GET /api/dev/x-oauth-status`** (Bearer required) returns `{ configured_connect, configured_callback, missing_connect, missing_callback, callback_url_expected }` (variable names only, no secrets) so you can see exactly what’s missing.
+
+---
+
 ## Ship-check: Connect X
 
 1. **Config:** Call `POST /api/x/connect` with a valid Bearer token.  
    - If configured: response is **200** with body `{ url: "https://twitter.com/i/oauth2/authorize?..." }`.  
-   - If misconfigured: response is **503** with body `{ error: "X OAuth is not configured.", code: "X_OAUTH_NOT_CONFIGURED", missing: ["X_CLIENT_ID", ...] }`. Fix by setting the listed env vars.
+   - If misconfigured: response is **503** with body `{ error: "X OAuth is not configured.", code: "X_OAUTH_NOT_CONFIGURED", missing: ["X_CLIENT_ID", ...] }`. Fix by setting the listed env vars (see **Vercel env checklist** above).
 2. **E2E:** After a successful OAuth (user approves on X and returns to callback), run  
    `SELECT profile_id, x_user_id, x_username, updated_at FROM public.x_oauth_tokens ORDER BY updated_at DESC LIMIT 5;`  
    and confirm a row exists for the test user.

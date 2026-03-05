@@ -177,7 +177,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [replaceLinkSpaceId, setReplaceLinkSpaceId] = useState<string | null>(null);
   const [linkXSpaceError, setLinkXSpaceError] = useState<string | null>(null);
   const [hostAndSpeakers, setHostAndSpeakers] = useState<{ host: HostProfile; speakers: HostProfile[] } | null>(null);
-  const [connectXError, setConnectXError] = useState<"not_configured" | "generic" | null>(null);
+  const [connectXError, setConnectXError] = useState<{ type: "not_configured"; missing: string[] } | { type: "generic" } | null>(null);
 
   const searchParams = useSearchParams();
   const debug = searchParams?.get("debug") === "1";
@@ -276,10 +276,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       return;
     }
     if (res.status === 503 && data?.code === "X_OAUTH_NOT_CONFIGURED") {
-      setConnectXError("not_configured");
+      const missing = Array.isArray(data.missing) ? data.missing.filter((k): k is string => typeof k === "string") : [];
+      setConnectXError({ type: "not_configured", missing });
       return;
     }
-    setConnectXError("generic");
+    setConnectXError({ type: "generic" });
   }, [base, getToken]);
 
   const xConnectedFromRedirect = searchParams?.get("x_connected") === "1";
@@ -797,7 +798,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       {connectXError && (
         <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 text-sm flex items-center justify-between gap-2">
           <p className="text-amber-800 dark:text-amber-200">
-            {connectXError === "not_configured" ? "X connection is not configured on this environment. Please contact support." : "Could not start X connection. Please try again."}
+            {connectXError.type === "not_configured"
+              ? (connectXError.missing.length > 0
+                ? `X connection isn't configured. Missing: ${connectXError.missing.join(", ")}.`
+                : "X connection is not configured on this environment. Please contact support.")
+              : "Could not start X connection. Please try again."}
           </p>
           <button type="button" onClick={() => setConnectXError(null)} className="shrink-0 px-2 py-1 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-sm font-medium">Dismiss</button>
         </div>

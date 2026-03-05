@@ -31,14 +31,15 @@ export async function POST(request: NextRequest) {
 
   const missing = CONNECT_REQUIRED_ENV.filter((key) => !process.env[key]);
   if (missing.length > 0) {
-    return NextResponse.json(
-      {
-        error: "X OAuth is not configured.",
-        code: "X_OAUTH_NOT_CONFIGURED",
-        missing: [...missing],
-      },
-      { status: 503 }
-    );
+    const body = {
+      error: "X OAuth is not configured.",
+      code: "X_OAUTH_NOT_CONFIGURED",
+      missing: missing.slice() as string[],
+    };
+    return NextResponse.json(body, {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const X_CLIENT_ID = process.env.X_CLIENT_ID!;

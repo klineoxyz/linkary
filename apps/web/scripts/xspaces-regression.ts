@@ -6,6 +6,7 @@
  */
 import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
+import { spawnSync } from "child_process";
 
 const FORBIDDEN_PREFIXES = [
   "zinc-", "neutral-", "bg-black", "text-white", "amber-", "red-", "green-", "blue-", "slate-", "gray-", "bg-white",
@@ -58,12 +59,20 @@ function governanceCheck(): boolean {
   return !failed;
 }
 
-async function main() {
+function main() {
   console.log("Running XSpaces date/utils tests...");
-  await import("../src/figma/app/components/xspaces/utils.test.ts").catch((e) => {
-    console.error("Date tests failed:", e);
-    process.exit(1);
+  const cwd = process.cwd();
+  const testPath = join(cwd, "src", "figma", "app", "components", "xspaces", "utils.test.ts");
+  const tsxBin = join(cwd, "node_modules", ".bin", process.platform === "win32" ? "tsx.cmd" : "tsx");
+  const out = spawnSync(tsxBin, [testPath], {
+    cwd,
+    stdio: "inherit",
+    env: { ...process.env },
   });
+  if (out.status !== 0) {
+    console.error("Date tests failed (exit code " + out.status + ")");
+    process.exit(1);
+  }
 
   console.log("Running XSpaces governance grep...");
   if (!governanceCheck()) {

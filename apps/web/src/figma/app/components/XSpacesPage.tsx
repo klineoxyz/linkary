@@ -2,9 +2,20 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { Calendar, List, Plus, Clock, AlertCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, List, Plus, Clock, AlertCircle, X, ChevronLeft, ChevronRight, Share2 } from "lucide-react";
 import { parseXSpaceId } from "@/lib/parseXSpaceId";
 import { supabase } from "@/lib/supabase";
+import {
+  XSpacesSidebar,
+  HomeView,
+  ExploreView,
+  CalendarView,
+  CountdownTimers,
+  type MainNav,
+  type SpaceForCard,
+  type SpaceForCalendar,
+} from "./xspaces";
+import { Button } from "./ui/button";
 
 type HostProfile = { id: string; display_name: string | null; twitter_username: string | null; profile_image_url: string | null };
 
@@ -180,6 +191,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [linkXSpaceError, setLinkXSpaceError] = useState<string | null>(null);
   const [hostAndSpeakers, setHostAndSpeakers] = useState<{ host: HostProfile; speakers: HostProfile[] } | null>(null);
   const [connectXError, setConnectXError] = useState<{ type: "not_configured"; missing: string[] } | { type: "generic" } | null>(null);
+  const [mainNav, setMainNav] = useState<MainNav>("home");
+  const [discoverSpaces, setDiscoverSpaces] = useState<Space[]>([]);
 
   const searchParams = useSearchParams();
   const debug = searchParams?.get("debug") === "1";
@@ -246,14 +259,30 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   useEffect(() => {
     if (view === "list") loadSpaces();
   }, [view, loadSpaces]);
+  useEffect(() => {
+    if (mainNav === "home") loadSpaces();
+  }, [mainNav, loadSpaces]);
 
   useEffect(() => {
     if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
   }, [view, calendarYear, calendarMonth, loadSpacesForMonth]);
+  useEffect(() => {
+    if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth);
+  }, [mainNav, calendarYear, calendarMonth, loadSpacesForMonth]);
 
   useEffect(() => {
     if (activeTab === "past") loadPast();
   }, [activeTab, loadPast]);
+
+  useEffect(() => {
+    if (mainNav === "explore") {
+      let cancelled = false;
+      loadDiscover().then((data) => {
+        if (!cancelled) setDiscoverSpaces(data);
+      });
+      return () => { cancelled = true; };
+    }
+  }, [mainNav, loadDiscover]);
 
   const fetchXMe = useCallback(async () => {
     if (!me?.id || !base) return;
@@ -309,6 +338,13 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     }
   }, [xOauthError]);
 
+  const loadMyXSpaces = useCallback(async () => {
+    const token = await getToken();
+    const res = await fetch(`${base}/api/xspaces/my-x-spaces`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const data = await res.json().catch(() => ({}));
+    setMyXSpacesList(Array.isArray(data.spaces) ? data.spaces : []);
+  }, [base, getToken]);
+
   useEffect(() => {
     if (showAddFromX && xConnected === true) {
       setMyXSpacesLoading(true);
@@ -338,13 +374,6 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     const data = await res.json().catch(() => ({}));
     if (data.host != null) setHostAndSpeakers({ host: data.host, speakers: Array.isArray(data.speakers) ? data.speakers : [] });
     else setHostAndSpeakers(null);
-  }, [base, getToken]);
-
-  const loadMyXSpaces = useCallback(async () => {
-    const token = await getToken();
-    const res = await fetch(`${base}/api/xspaces/my-x-spaces`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    const data = await res.json().catch(() => ({}));
-    setMyXSpacesList(Array.isArray(data.spaces) ? data.spaces : []);
   }, [base, getToken]);
 
   useEffect(() => {
@@ -741,77 +770,107 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">X Spaces</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Create and manage your X Spaces. Connect X once to enable import and auto-detect (we need X API access for that).</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {me?.id && (
-            <>
-              {xConnected === true ? (
-                <>
-                  <span className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-muted text-muted-foreground text-sm font-medium cursor-default">Connected</span>
-                  <button type="button" onClick={handleConnectX} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">
-                    Reconnect
-                  </button>
-                </>
-              ) : xConnected === false ? (
-                <button type="button" onClick={handleConnectX} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">
-                  Connect X
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setCreateError(null); setCreateJustDoneSpaceId(null); setShowCreate(true); }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
-              >
-                <Plus className="w-4 h-4" /> Create Space
-              </button>
-              <button
-                type="button"
-                onClick={() => { setAddFromXUrl(""); setAddFromXError(null); setAddFromXSuccess(null); setShowAddFromX(true); }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent"
-              >
-                Add from X
-              </button>
-            </>
+  const homeEventListContent = mainNav === "home" ? (
+        <div className="space-y-3">
+          {overlapsError && (
+            <p className="text-sm text-amber-600 dark:text-amber-400">Overlaps unavailable.</p>
           )}
-          <button
-            type="button"
-            onClick={() => setView(view === "list" ? "month" : "list")}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 text-sm"
-          >
-            {view === "list" ? <Calendar className="w-4 h-4" /> : <List className="w-4 h-4" />}
-            {view === "list" ? "Month" : "List"}
-          </button>
+          {upcoming.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+              <p className="text-muted-foreground mb-4">No upcoming spaces yet.</p>
+              {me?.id && (
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Button onClick={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setCreateError(null); setShowCreate(true); }}>Create Space</Button>
+                  <Button variant="outline" onClick={() => { setAddFromXUrl(""); setAddFromXError(null); setShowAddFromX(true); }}>Add from X</Button>
+                </div>
+              )}
+              <div className="mt-4">
+                <Button variant="outline" onClick={() => setMainNav("explore")}>Explore</Button>
+              </div>
+            </div>
+          ) : (
+            upcoming.map((s) => {
+              const audienceOverlaps = audienceOverlapsBySpaceId[s.id] ?? [];
+              return (
+                <div key={s.id} className="p-4 rounded-2xl border border-border bg-card flex flex-col gap-2">
+                  <div className="flex items-center gap-4">
+                    <Clock className="w-5 h-5 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground truncate">{s.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} {s.duration_mins ? ` · ${s.duration_mins} min` : ""}
+                      </p>
+                    </div>
+                    <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground shrink-0">{s.status}</span>
+                  </div>
+                  {s.host && <div className="pl-9"><HostRow host={s.host} compact /></div>}
+                  {isHost(s) && s.expect_x_link && !s.x_space_id && (
+                    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+                      <p className="text-sm text-muted-foreground">Not linked to X yet</p>
+                      <div className="flex flex-wrap gap-2">
+                        {xConnected === false && (
+                          <button type="button" onClick={handleConnectX} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Connect X</button>
+                        )}
+                        <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Open X</a>
+                        <button type="button" onClick={() => { setCreateJustDoneSpaceId(s.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent disabled:opacity-50">Detect my Space</button>
+                        <button type="button" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); setShowLinkXSpace(true); }} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Paste link</button>
+                      </div>
+                    </div>
+                  )}
+                  {audienceOverlaps.length > 0 && (
+                    <div className="flex items-start gap-2 pl-9 text-sm">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>
+                        {audienceOverlaps.map((o, i) => (
+                          <span key={o.other_space_id}>{i > 0 && "; "}@{o.other_host_username ?? "user"}: <OverlapText o={o} /></span>
+                        ))}
+                      </span>
+                    </div>
+                  )}
+                  <div className="pl-9 flex gap-2">
+                    <button type="button" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); }} className="text-sm text-primary hover:underline">Details</button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
-      </div>
+      ) : null;
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-700">
-        {(["my", "discover", "past", "overlap-alerts"] as const).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-              activeTab === tab
-                ? "bg-primary/10 text-primary border-b-2 border-primary"
-                : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            }`}
-          >
-            {tab === "my" ? "My Spaces" : tab === "discover" ? "Discover" : tab === "past" ? "Past" : "Overlap Alerts"}
-            {tab === "overlap-alerts" && overlapAlertsList.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-1.5 py-0.5 text-xs">
-                {overlapAlertsList.length}
-              </span>
+  return (
+    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 min-h-0">
+      <XSpacesSidebar mainNav={mainNav} onNav={setMainNav} />
+      <main className="flex-1 min-w-0 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">X Spaces</h1>
+            <p className="mt-1 sm:mt-2 text-sm text-muted-foreground">Create and manage your X Spaces. Connect X once to enable import and auto-detect.</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {me?.id && (
+              <>
+                {xConnected === true ? (
+                  <>
+                    <span className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-muted text-muted-foreground text-sm font-medium cursor-default">Connected</span>
+                    <Button variant="outline" size="sm" onClick={handleConnectX}>Reconnect</Button>
+                  </>
+                ) : xConnected === false ? (
+                  <Button variant="outline" size="sm" onClick={handleConnectX}>Connect X</Button>
+                ) : null}
+                <Button size="sm" onClick={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setCreateError(null); setCreateJustDoneSpaceId(null); setShowCreate(true); }}>
+                  <Plus className="w-4 h-4" /> Create Space
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => { setAddFromXUrl(""); setAddFromXError(null); setAddFromXSuccess(null); setShowAddFromX(true); }}>Add from X</Button>
+              </>
             )}
-          </button>
-        ))}
-      </div>
+            {mainNav === "calendar" && (
+              <Button variant="outline" size="sm" onClick={() => setView(view === "list" ? "month" : "list")}>
+                {view === "list" ? <Calendar className="w-4 h-4" /> : <List className="w-4 h-4" />}
+                {view === "list" ? "Month" : "List"}
+              </Button>
+            )}
+          </div>
+        </div>
 
       {connectXError && (
         <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 text-sm flex items-center justify-between gap-2">
@@ -879,208 +938,36 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         </div>
       )}
 
-      {loading && activeTab !== "past" ? (
-        <p className="text-zinc-500">Loading spaces…</p>
-      ) : activeTab === "past" ? (
-        <div className="space-y-3">
-          {pastLoading ? (
-            <p className="text-zinc-500">Loading past spaces…</p>
-          ) : pastSpaces.length === 0 ? (
-            <p className="text-zinc-500">No ended spaces yet. Stats will appear here once spaces are marked ended.</p>
-          ) : (
-            pastSpaces.map((s) => {
-              const stats = pastStatsBySpaceId[s.id];
-              return (
-                <div key={s.id} className="p-4 rounded-xl border border-border bg-card flex flex-col gap-2">
-                  <p className="font-medium text-foreground">{s.title}</p>
-                  <p className="text-sm text-zinc-500">
-                    {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} · ended
-                  </p>
-                  {s.host && <HostRow host={s.host} compact />}
-                  {stats && (stats.listeners_total != null || stats.peak_listeners != null || stats.duration_seconds != null) && (
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                      {stats.listeners_total != null && `Listeners: ${stats.listeners_total}`}
-                      {stats.peak_listeners != null && ` · Peak: ${stats.peak_listeners}`}
-                      {stats.duration_seconds != null && ` · Duration: ${Math.round(stats.duration_seconds / 60)} min`}
-                    </p>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      ) : activeTab === "overlap-alerts" ? (
-        <div className="space-y-3">
-          {overlapsError && (
-            <p className="text-sm text-amber-700 dark:text-amber-300">Overlaps unavailable.</p>
-          )}
-          {!overlapsLoading && overlapAlertsList.length === 0 && !overlapsError && (
-            <p className="text-zinc-500">No overlap alerts. You are clear.</p>
-          )}
-          {(overlapsLoading && !overlapsSkeletonShown) && (
-            <div className="animate-pulse space-y-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 rounded-xl bg-muted" />
-              ))}
-            </div>
-          )}
-          {!overlapsLoading && overlapAlertsList.map(({ space, overlap }) => (
-            <div key={`${space.id}-${overlap.other_space_id}`} className="p-4 rounded-xl border border-border bg-card">
-              <p className="font-medium text-zinc-900 dark:text-zinc-100">{space.title}</p>
-              <p className="text-sm text-zinc-500 mb-2">
-                Your space {space.scheduled_at ? new Date(space.scheduled_at).toLocaleString() : ""}
-              </p>
-              <p className="text-sm">
-                ↔ @{overlap.other_host_username ?? "user"} — {overlap.other_space_title} — <OverlapText o={overlap} />
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : activeTab === "discover" ? (
-        <DiscoverTab loadDiscover={loadDiscover} onSpaceClick={(s) => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); }} hostRow={(host) => <HostRow host={host} compact />} />
-      ) : activeTab === "my" && view === "list" ? (
-        <div className="space-y-3">
-          {overlapsError && (
-            <p className="text-sm text-amber-700 dark:text-amber-300">Overlaps unavailable.</p>
-          )}
-          {upcoming.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border p-8 text-center">
-              <p className="text-muted-foreground mb-4">No upcoming spaces yet.</p>
-              {me?.id && (
-                <div className="flex flex-wrap justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setCreateError(null); setShowCreate(true); }}
-                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
-                  >
-                    Create Space
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setAddFromXUrl(""); setAddFromXError(null); setShowAddFromX(true); }}
-                    className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 text-sm font-medium"
-                  >
-                    Add from X
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            upcoming.map((s) => {
-              const audienceOverlaps = audienceOverlapsBySpaceId[s.id] ?? [];
-              return (
-                <div
-                  key={s.id}
-                  className="p-4 rounded-xl border border-border bg-card flex flex-col gap-2"
-                >
-                  <div className="flex items-center gap-4">
-                    <Clock className="w-5 h-5 text-zinc-400 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{s.title}</p>
-                      <p className="text-sm text-zinc-500">
-                        {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} {s.duration_mins ? ` · ${s.duration_mins} min` : ""}
-                      </p>
-                    </div>
-                    <span className="text-xs px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 shrink-0">{s.status}</span>
-                  </div>
-                  {s.host && (
-                    <div className="pl-9">
-                      <HostRow host={s.host} compact />
-                    </div>
-                  )}
-                  {isHost(s) && s.expect_x_link && !s.x_space_id && (
-                    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
-                      <p className="text-sm text-muted-foreground">Not linked to X yet</p>
-                      <div className="flex flex-wrap gap-2">
-                        {xConnected === false && (
-                          <button type="button" onClick={handleConnectX} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Connect X</button>
-                        )}
-                        <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Open X</a>
-                        <button type="button" onClick={() => { setCreateJustDoneSpaceId(s.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent disabled:opacity-50">Detect my Space</button>
-                        <button type="button" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); setShowLinkXSpace(true); }} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Paste link</button>
-                      </div>
-                    </div>
-                  )}
-                  {audienceOverlaps.length > 0 && (
-                    <div className="flex items-start gap-2 pl-9 text-sm">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                      <span>
-                        {audienceOverlaps.map((o, i) => (
-                          <span key={o.other_space_id}>
-                            {i > 0 && "; "}
-                            @{o.other_host_username ?? "user"}: <OverlapText o={o} />
-                          </span>
-                        ))}
-                      </span>
-                    </div>
-                  )}
-                  <div className="pl-9 flex gap-2">
-                    <button type="button" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); }} className="text-sm text-primary hover:underline">Details</button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      ) : activeTab === "my" && view === "month" ? (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center justify-between p-3 border-b border-border">
-            <button type="button" onClick={() => { if (calendarMonth === 1) { setCalendarYear((y) => y - 1); setCalendarMonth(12); } else setCalendarMonth((m) => m - 1); }} className="p-2 rounded-lg hover:bg-accent">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <span className="font-semibold text-foreground">
-              {new Date(calendarYear, calendarMonth - 1).toLocaleDateString("default", { month: "long", year: "numeric" })}
-            </span>
-            <button type="button" onClick={() => { if (calendarMonth === 12) { setCalendarYear((y) => y + 1); setCalendarMonth(1); } else setCalendarMonth((m) => m + 1); }} className="p-2 rounded-lg hover:bg-accent">
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="grid grid-cols-7 text-center text-xs font-medium text-muted-foreground border-b border-border">
-            {WEEKDAY_LABELS.map((l) => (
-              <div key={l} className="py-2">{l}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7">
-            {getCalendarGrid(calendarYear, calendarMonth).map((week, wi) => (
-              <React.Fragment key={wi}>
-                {week.map((cell, di) => {
-                  const ymd = toYMD(cell.date);
-                  const daySpaces = spacesByDay.get(ymd) ?? [];
-                  const visible = daySpaces.slice(0, MAX_EVENTS_PER_DAY);
-                  const more = daySpaces.length - MAX_EVENTS_PER_DAY;
-                  return (
-                    <div
-                      key={di}
-                      onClick={() => {
-                        if (me?.id) {
-                          setCreatePrefilledDate(ymd);
-                          setCreateScheduledAt(ymd + "T12:00");
-                          setShowCreate(true);
-                        }
-                      }}
-                      className={`min-h-[100px] p-1.5 border-b border-r border-border last:border-r-0 ${cell.isCurrentMonth ? "bg-card" : "bg-muted/30"} ${me?.id ? "cursor-pointer hover:bg-accent" : ""}`}
-                    >
-                      <div className={`text-sm font-medium mb-1 ${cell.isCurrentMonth ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400"}`}>
-                        {cell.date.getDate()}
-                      </div>
-                      {visible.map((s) => (
-                        <div
-                          key={s.id}
-                          onClick={(e) => { e.stopPropagation(); setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); }}
-                          className="text-xs truncate rounded px-1 py-0.5 bg-primary/10 text-primary dark:bg-primary/20 mb-0.5 cursor-pointer hover:bg-primary/20 dark:hover:bg-primary/30"
-                        >
-                          {s.title}
-                        </div>
-                      ))}
-                      {more > 0 && <div className="text-xs text-zinc-500 px-1">+{more} more</div>}
-                    </div>
-                  );
-                })}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {/* View content by mainNav */}
+        {mainNav === "home" && (
+          <HomeView
+            hostedCount={mySpaces.length}
+            spokenCount={undefined}
+            onAddEvent={() => { setCreatePrefilledDate(null); setCreateScheduledAt(""); setCreateError(null); setCreateJustDoneSpaceId(null); setShowCreate(true); }}
+            onNavToExplore={() => setMainNav("explore")}
+            eventListContent={loading ? <p className="text-muted-foreground">Loading spaces…</p> : homeEventListContent}
+            emptyStateMessage="No upcoming spaces yet."
+            showEmptyExploreCta={true}
+          />
+        )}
+        {mainNav === "explore" && (
+          <ExploreView
+            spaces={discoverSpaces as SpaceForCard[]}
+            onSpaceClick={(s) => { setDetailsSpace(s as Space); setEditTitle(s.title); setSpeakerRequestMessage(""); }}
+            onRequest={(s) => { setDetailsSpace(s as Space); setEditTitle(s.title); setSpeakerRequestMessage(""); }}
+          />
+        )}
+        {mainNav === "calendar" && (
+          <CalendarView
+            year={calendarYear}
+            month={calendarMonth}
+            onPrevMonth={() => { if (calendarMonth === 1) { setCalendarYear((y) => y - 1); setCalendarMonth(12); } else setCalendarMonth((m) => m - 1); }}
+            onNextMonth={() => { if (calendarMonth === 12) { setCalendarYear((y) => y + 1); setCalendarMonth(1); } else setCalendarMonth((m) => m + 1); }}
+            spacesByDay={spacesByDay as Map<string, SpaceForCalendar[]>}
+            onDateClick={me?.id ? (ymd) => { setCreatePrefilledDate(ymd); setCreateScheduledAt(ymd + "T12:00"); setShowCreate(true); } : undefined}
+            onEventClick={(s) => { setDetailsSpace(s as Space); setEditTitle(s.title); setSpeakerRequestMessage(""); }}
+          />
+        )}
 
       {showCreate && (
         <>
@@ -1336,14 +1223,21 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       {detailsSpace && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setDetailsSpace(null); setShowReplaceLinkConfirm(false); setReplaceLinkMode(false); setReplaceLinkSpaceId(null); setLinkXSpaceError(null); }} aria-hidden />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl border border-border bg-card p-6 z-50 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">Space details</h2>
-              <button type="button" onClick={() => setDetailsSpace(null)} className="p-1 rounded-lg hover:bg-accent">
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card p-6 z-50 shadow-xl">
+            <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+              {detailsSpace.x_space_url && (
+                <a href={detailsSpace.x_space_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">
+                  Open on X
+                </a>
+              )}
+              <button type="button" className="p-2 rounded-xl hover:bg-accent" title="Add to calendar"><Calendar className="w-4 h-4" /></button>
+              <button type="button" className="p-2 rounded-xl hover:bg-accent" title="Share"><Share2 className="w-4 h-4" /></button>
+              <button type="button" onClick={() => { setDetailsSpace(null); setShowReplaceLinkConfirm(false); setReplaceLinkMode(false); setReplaceLinkSpaceId(null); setLinkXSpaceError(null); }} className="p-2 rounded-xl hover:bg-accent" aria-label="Close">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="space-y-2 mb-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr,260px] gap-6 pr-24">
+              <div className="min-w-0 space-y-2 mb-4">
               {isHost(detailsSpace) ? (
                 <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               ) : (
@@ -1512,14 +1406,14 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                                 await fetch(`${base}/api/xspaces/speaker-request/resolve`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ request_id: sr.id, status: "approved" }) });
                                 setResolvingRequestId(null);
                                 loadDetailSpeakerRequests(detailsSpace.id);
-                              }} className="px-2 py-1 rounded bg-green-600 text-white text-xs disabled:opacity-50">Approve</button>
+                              }} className="px-2 py-1 rounded-lg bg-primary/20 text-primary border border-primary/30 text-xs disabled:opacity-50">Approve</button>
                               <button type="button" disabled={resolvingRequestId === sr.id} onClick={async () => {
                                 setResolvingRequestId(sr.id);
                                 const token = await getToken();
                                 await fetch(`${base}/api/xspaces/speaker-request/resolve`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ request_id: sr.id, status: "rejected" }) });
                                 setResolvingRequestId(null);
                                 loadDetailSpeakerRequests(detailsSpace.id);
-                              }} className="px-2 py-1 rounded bg-red-600 text-white text-xs disabled:opacity-50">Reject</button>
+                              }} className="px-2 py-1 rounded-lg border border-border text-muted-foreground text-xs disabled:opacity-50">Reject</button>
                             </div>
                           )}
                         </div>
@@ -1528,8 +1422,39 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   )}
                 </>
               )}
+              </div>
+              <div className="space-y-4 border-t lg:border-t-0 lg:border-l border-border lg:pl-6 pt-4 lg:pt-0">
+                {detailsSpace.scheduled_at && new Date(detailsSpace.scheduled_at) > new Date() && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Starts in</p>
+                    <CountdownTimers scheduledAt={detailsSpace.scheduled_at} />
+                  </div>
+                )}
+                {hostAndSpeakers && hostAndSpeakers.speakers.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Speakers</p>
+                    <div className="flex flex-wrap gap-2">
+                      {hostAndSpeakers.speakers.slice(0, 8).map((p) => (
+                        <div key={p.id}>
+                          {p.profile_image_url ? (
+                            <img src={p.profile_image_url} alt="" className="w-9 h-9 rounded-full object-cover border border-border" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
+                              {(p.display_name?.trim().slice(0, 2) || p.twitter_username?.slice(0, 2) || "?").toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Combined followers</p>
+                  <p className="text-sm font-medium text-foreground">—</p>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-end gap-2 flex-wrap">
+            <div className="flex justify-end gap-2 flex-wrap mt-4">
               {isHost(detailsSpace) ? (
                 <>
                   <button type="button" onClick={handleCancelSpace} disabled={editSaving} className="px-4 py-2 rounded-lg border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50">

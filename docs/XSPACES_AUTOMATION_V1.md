@@ -45,10 +45,15 @@ What is automated, what is fallback, and how detection works.
 - **RLS:** Only the owner can read/insert/update/delete their row:
   - `profile_id = auth.uid()` for SELECT, INSERT, UPDATE, DELETE.
 - **APIs:**
-  - `POST /api/x/connect` — starts OAuth, redirects to X; callback is `GET /api/x/callback`.
-  - `GET /api/x/callback` — exchanges code for tokens, fetches X user (e.g. `/2/users/me`), **upserts into `x_oauth_tokens` using the service role**, then re-selects the row to verify; on any failure redirects to `/xspaces?x_oauth_error=1` (no details in URL). Success redirects to `/xspaces?x_connected=1`.
+  - `POST /api/x/connect` — starts OAuth. Returns **200** with `{ url }` when configured; client does `window.location.href = url`. Returns **503** with `{ error, code: "X_OAUTH_NOT_CONFIGURED", missing: ["X_CLIENT_ID", ...] }` when required env is missing (variable names only, no secrets). Never fails silently.
+  - `GET /api/x/callback` — exchanges code for tokens, fetches X user (e.g. `/2/users/me`), **upserts into `x_oauth_tokens` using the service role**, then re-selects the row to verify; on any failure redirects to `/xspaces?x_oauth_error=1` (no details in URL). Success redirects to `/xspaces?x_connected=1`. If `SUPABASE_SERVICE_ROLE_KEY` is missing, redirects to `x_oauth_error=1`.
   - `GET /api/x/me` — **always returns 200** when the request is valid. Body: `{ connected: boolean, x_user_id: string|null, username: string|null, provider: 'supabase'|null }`. Never returns tokens; never returns 404 for “not connected” (use `connected: false`).
-- **Env:** `X_CLIENT_ID`, `X_CLIENT_SECRET`, `X_OAUTH_COOKIE_SECRET`, and **`SUPABASE_SERVICE_ROLE_KEY`** (required for the callback to write to `x_oauth_tokens`). Callback URL must be allowlisted in the X app (e.g. `https://your-domain.com/api/x/callback`).
+- **Required env (e.g. Vercel):** For Connect X to work you must set:
+  - `X_CLIENT_ID`
+  - `X_CLIENT_SECRET` (used by callback only)
+  - `X_OAUTH_COOKIE_SECRET`
+  - `SUPABASE_SERVICE_ROLE_KEY` (callback needs it to write to `x_oauth_tokens`)
+  Callback URL must be allowlisted in the X app (e.g. `https://your-domain.com/api/x/callback`).
 - **Security:** No API response must ever include `access_token` or `refresh_token`; they are stored only in `x_oauth_tokens` and used server-side. `/api/x/me` returns only `connected`, `x_user_id`, `username`, and `provider`.
 - **Rate limit (detect):** `POST /api/xspaces/detect-my-space` is limited to **10 requests per minute per profile_id**. When exceeded, the API returns **429** with body `{ error: "Too many detection requests. Try again in a minute.", code: "RATE_LIMITED", resetAt }`. Rate limiting is durable: Upstash Redis is used when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set; otherwise the Supabase `rate_limits` table (via `consume_rate_limit` RPC) is used. If both Upstash and Supabase service role are unavailable, the API returns **503** with body `{ error: "Rate limit service unavailable." }` (no bypass). Every response after the rate limit check includes safe debug headers: `X-RateLimit-Limit: 10`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` (ISO timestamp).
 
@@ -109,3 +114,14 @@ If `SELECT * FROM public.x_oauth_tokens` returns 0 rows in production, possible 
 - **UI (not connected):** When no row exists: top bar shows **“Connect X”**; “Detect my Space” is disabled until connected.
 
 - **Failure:** After a failed OAuth (e.g. user denies, or callback error), redirect goes to `/xspaces?x_oauth_error=1`. The page shows **“X connection failed, please try again.”** (and the param is removed from the URL).
+
+---
+
+## Ship-check: Connect X
+
+1. **Config:** Call `POST /api/x/connect` with a valid Bearer token.  
+   - If configured: response is **200** with body `{ url: "https://twitter.com/i/oauth2/authorize?..." }`.  
+   - If misconfigured: response is **503** with body `{ error: "X OAuth is not configured.", code: "X_OAUTH_NOT_CONFIGURED", missing: ["X_CLIENT_ID", ...] }`. Fix by setting the listed env vars.
+2. **E2E:** After a successful OAuth (user approves on X and returns to callback), run  
+   `SELECT profile_id, x_user_id, x_username, updated_at FROM public.x_oauth_tokens ORDER BY updated_at DESC LIMIT 5;`  
+   and confirm a row exists for the test user.

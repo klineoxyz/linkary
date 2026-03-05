@@ -177,6 +177,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [replaceLinkSpaceId, setReplaceLinkSpaceId] = useState<string | null>(null);
   const [linkXSpaceError, setLinkXSpaceError] = useState<string | null>(null);
   const [hostAndSpeakers, setHostAndSpeakers] = useState<{ host: HostProfile; speakers: HostProfile[] } | null>(null);
+  const [connectXError, setConnectXError] = useState<"not_configured" | "generic" | null>(null);
 
   const searchParams = useSearchParams();
   const debug = searchParams?.get("debug") === "1";
@@ -264,6 +265,22 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   useEffect(() => {
     fetchXMe();
   }, [fetchXMe]);
+
+  const handleConnectX = useCallback(async () => {
+    setConnectXError(null);
+    const token = await getToken();
+    const res = await fetch(`${base}/api/x/connect`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && typeof data?.url === "string") {
+      window.location.href = data.url;
+      return;
+    }
+    if (res.status === 503 && data?.code === "X_OAUTH_NOT_CONFIGURED") {
+      setConnectXError("not_configured");
+      return;
+    }
+    setConnectXError("generic");
+  }, [base, getToken]);
 
   const xConnectedFromRedirect = searchParams?.get("x_connected") === "1";
   const xOauthError = searchParams?.get("x_oauth_error") === "1";
@@ -718,34 +735,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               {xConnected === true ? (
                 <>
                   <span className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-muted text-muted-foreground text-sm font-medium cursor-default">Connected</span>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const token = await getToken();
-                      const res = await fetch(`${base}/api/x/connect`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, redirect: "manual" });
-                      if (res.status === 302) {
-                        const url = res.headers.get("Location");
-                        if (url) window.location.href = url;
-                      }
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent"
-                  >
+                  <button type="button" onClick={handleConnectX} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">
                     Reconnect
                   </button>
                 </>
               ) : xConnected === false ? (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const token = await getToken();
-                    const res = await fetch(`${base}/api/x/connect`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, redirect: "manual" });
-                    if (res.status === 302) {
-                      const url = res.headers.get("Location");
-                      if (url) window.location.href = url;
-                    }
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent"
-                >
+                <button type="button" onClick={handleConnectX} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">
                   Connect X
                 </button>
               ) : null}
@@ -799,6 +794,14 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         ))}
       </div>
 
+      {connectXError && (
+        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 text-sm flex items-center justify-between gap-2">
+          <p className="text-amber-800 dark:text-amber-200">
+            {connectXError === "not_configured" ? "X connection is not configured on this environment. Please contact support." : "Could not start X connection. Please try again."}
+          </p>
+          <button type="button" onClick={() => setConnectXError(null)} className="shrink-0 px-2 py-1 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-sm font-medium">Dismiss</button>
+        </div>
+      )}
       {showOAuthErrorBanner && (
         <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 text-sm flex items-center justify-between gap-2">
           <p className="text-amber-800 dark:text-amber-200">X connection failed, please try again.</p>
@@ -967,7 +970,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       <p className="text-sm text-muted-foreground">Not linked to X yet</p>
                       <div className="flex flex-wrap gap-2">
                         {xConnected === false && (
-                          <button type="button" onClick={async () => { const token = await getToken(); const res = await fetch(`${base}/api/x/connect`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, redirect: "manual" }); if (res.status === 302) { const url = res.headers.get("Location"); if (url) window.location.href = url; } }} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Connect X</button>
+                          <button type="button" onClick={handleConnectX} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Connect X</button>
                         )}
                         <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Open X</a>
                         <button type="button" onClick={() => { setCreateJustDoneSpaceId(s.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent disabled:opacity-50">Detect my Space</button>
@@ -1292,7 +1295,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   <p className="text-sm text-muted-foreground">Not linked to X yet</p>
                   <div className="flex flex-wrap gap-2">
                     {xConnected === false && (
-                      <button type="button" onClick={async () => { const token = await getToken(); const res = await fetch(`${base}/api/x/connect`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, redirect: "manual" }); if (res.status === 302) { const url = res.headers.get("Location"); if (url) window.location.href = url; } }} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Connect X</button>
+                      <button type="button" onClick={handleConnectX} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Connect X</button>
                     )}
                     <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Open X</a>
                     <button type="button" onClick={() => { setDetailsSpace(null); setCreateJustDoneSpaceId(detailsSpace.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent disabled:opacity-50">Detect my Space</button>

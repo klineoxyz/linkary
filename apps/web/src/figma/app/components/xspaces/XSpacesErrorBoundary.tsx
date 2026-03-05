@@ -26,8 +26,12 @@ export class XSpacesErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
     if (typeof console === "undefined") return;
     const safeMsg = sanitizeErrorMessage(error?.message);
+    if (isProd) {
+      console.error("[XSpacesErrorBoundary]", safeMsg);
+      return;
+    }
     console.error("[XSpacesErrorBoundary]", safeMsg);
-    if (!isProd && info?.componentStack) {
+    if (info?.componentStack) {
       console.error("[XSpacesErrorBoundary] componentStack:", info.componentStack);
     }
   }

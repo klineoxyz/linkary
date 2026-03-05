@@ -205,6 +205,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   ) {
     if (typeof document === "undefined") return;
     if (e.key === "Escape") {
+      if (e.nativeEvent?.isComposing) return;
+      const el = e.target as HTMLElement;
+      if (el?.tagName === "TEXTAREA") return;
       e.preventDefault();
       onClose();
       return;
@@ -214,9 +217,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
     );
     const list = Array.from(focusable);
+    if (list.length === 0) return;
     const first = list[0];
     const last = list[list.length - 1];
-    if (list.length === 0) return;
     if (e.shiftKey) {
       if (document.activeElement === first) {
         e.preventDefault();

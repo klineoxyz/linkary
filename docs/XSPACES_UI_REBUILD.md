@@ -266,8 +266,24 @@ pnpm run smoke:xspaces:full
 - **200** = page loaded; body must contain one of: `data-testid="xspaces-shell"`, `data-testid="xspaces-sidebar"`, `data-testid="xspaces-nav-calendar"`, or sidebar text (Home/Explore/Calendar), or `__NEXT_DATA__`/xspaces.
 - **302/307** = redirect to login; treated as pass (unauthenticated smoke).
 - Env (optional): `XSPACES_SMOKE_PORT`, `XSPACES_SMOKE_URL_BASE` (smoke external server), `XSPACES_SMOKE_PATH` (default `/xspaces`).
+- **Smoke with external staging:**  
+  `XSPACES_SMOKE_URL_BASE=https://staging.example.com XSPACES_SMOKE_PATH=/xspaces pnpm run smoke:xspaces`  
+  (No local server is spawned; script hits the given base + path and exits 0/1.)
+
+### Governance scan limitation
+
+- The forbidden-class scanner checks `className="..."` and `className='...'` (and backtick-quoted) only. Template literals with interpolation (e.g. `className={\`...${x}\`}`) are not fully parsed; tokens inside interpolated expressions are a known limitation. Scope remains XSpacesPage.tsx and xspaces/* only.
 
 ### Rollback
 
 - Revert the XSpaces deploy commit(s). No feature flag; routing and API unchanged.
 - If needed, revert list: XSpacesPage, xspaces/*, scripts/xspaces-*, docs/XSPACES_UI_REBUILD.md, package.json scripts (test:xspaces, smoke:xspaces, etc.).
+
+---
+
+## Production readiness sweep (final)
+
+- **Smoke:** When `XSPACES_SMOKE_URL_BASE` is set, no server is spawned; script exits 0/1 on fetch result. 302/307 responses log `Location` path only (query stripped, length capped). Exit uses child `on("exit")` + 2.5s fallback instead of fixed delay.
+- **Keyboard:** Modal ESC respects IME (`isComposing`) and does not close when focus is in `<textarea>`. Tab trap no-ops when there are zero focusables. Enter/Space on `role="button"` elements skip handling when target is a real `<button>` and call `preventDefault` to avoid double-trigger.
+- **Error boundary:** Prod logs only sanitized message; dev logs sanitized message + componentStack. "Try again" only resets boundary state (`setState({ error: null })`).
+- **Governance:** Scanner limitation (template literals with interpolation) documented; scope unchanged.

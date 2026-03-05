@@ -51,7 +51,12 @@ export function EventCard({
       role="button"
       tabIndex={0}
       onClick={onClick}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick?.()}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        if ((e.target as HTMLElement)?.tagName === "BUTTON") return;
+        e.preventDefault();
+        onClick?.();
+      }}
       className="p-4 sm:p-5 rounded-2xl border border-border bg-card hover:border-primary/20 hover:shadow-md transition-all cursor-pointer text-left"
     >
       <div className="flex flex-col sm:flex-row sm:items-start gap-3">

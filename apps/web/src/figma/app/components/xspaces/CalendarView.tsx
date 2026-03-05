@@ -166,10 +166,10 @@ export function CalendarView({
                         tabIndex={0}
                         onClick={() => onEventClick?.(space)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            onEventClick?.(space);
-                          }
+                          if (e.key !== "Enter" && e.key !== " ") return;
+                          if ((e.target as HTMLElement)?.tagName === "BUTTON") return;
+                          e.preventDefault();
+                          onEventClick?.(space);
                         }}
                         className="p-4 rounded-2xl border border-border bg-card hover:border-primary/20 hover:bg-accent/50 transition-colors cursor-pointer text-left flex items-start gap-3"
                         aria-label={`${space.title}, ${formatTime(space.scheduled_at)}`}
@@ -233,11 +233,11 @@ export function CalendarView({
                       onEventClick?.(s);
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onEventClick?.(s);
-                      }
+                      if (e.key !== "Enter" && e.key !== " ") return;
+                      if ((e.target as HTMLElement)?.tagName === "BUTTON") return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onEventClick?.(s);
                     }}
                     className="text-xs truncate rounded-lg px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 mb-0.5 cursor-pointer hover:bg-primary/20"
                     aria-label={s.title}

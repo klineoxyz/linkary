@@ -91,8 +91,16 @@ async function main(): Promise<number> {
   };
 
   const exit = (code: number) => {
+    const proc = child;
+    if (proc?.pid) {
+      const fallback = setTimeout(() => process.exit(code), 2500);
+      proc.on("exit", () => {
+        clearTimeout(fallback);
+        process.exit(code);
+      });
+    }
     kill();
-    setTimeout(() => process.exit(code), 400);
+    if (!proc?.pid) process.exit(code);
   };
 
   process.on("SIGINT", () => {
@@ -127,6 +135,14 @@ async function main(): Promise<number> {
     if (res.status !== 200 && res.status !== 302 && res.status !== 307) {
       console.error(`[xspaces-smoke] FAIL: Unexpected status ${res.status}`);
       return 1;
+    }
+    if (res.status === 302 || res.status === 307) {
+      const loc = res.headers.get("location");
+      if (loc) {
+        const pathOnly = loc.split("?")[0];
+        const capped = pathOnly.length > 120 ? pathOnly.slice(0, 120) + "…" : pathOnly;
+        console.log(`[xspaces-smoke] Redirect Location (path only): ${capped}`);
+      }
     }
     if (res.status === 200) {
       const html = await res.text();

@@ -12,7 +12,9 @@
     "check:reserved-collisions": "pnpm exec tsx scripts/checkReservedCollisions.ts",
     "verify:slug-routing-live": "tsx scripts/verifySlugRoutingLive.ts",
     "launch:check": "tsx scripts/launchCheck.ts",
-    "verify:rls": "tsx scripts/verifyRlsSafety.ts"
+    "verify:rls": "tsx scripts/verifyRlsSafety.ts",
+    "test:xspaces": "tsx scripts/xspaces-regression.ts",
+    "test:xspaces-dates": "tsx src/figma/app/components/xspaces/utils.test.ts"
   },
   "dependencies": {
     "@coinbase/cdp-core": "^0.0.85",

@@ -3,21 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Calendar, List, Clock } from "lucide-react";
 import { Button } from "../ui/button";
-
-function getDateLabel(ymd: string): string {
-  const d = new Date(ymd + "T12:00:00");
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  if (ymd === today.toISOString().slice(0, 10)) return "Today";
-  if (ymd === tomorrow.toISOString().slice(0, 10)) return "Tomorrow";
-  return d.toLocaleDateString("default", { weekday: "short", day: "numeric", month: "short" });
-}
-
-function formatTime(scheduledAt: string | null): string {
-  if (!scheduledAt) return "—";
-  return new Date(scheduledAt).toLocaleTimeString("default", { hour: "numeric", minute: "2-digit" });
-}
+import { getDateLabel, formatTime } from "./utils";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MAX_EVENTS_PER_DAY = 3;
@@ -179,8 +165,14 @@ export function CalendarView({
                         role="button"
                         tabIndex={0}
                         onClick={() => onEventClick?.(space)}
-                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onEventClick?.(space)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onEventClick?.(space);
+                          }
+                        }}
                         className="p-4 rounded-2xl border border-border bg-card hover:border-primary/20 hover:bg-accent/50 transition-colors cursor-pointer text-left flex items-start gap-3"
+                        aria-label={`${space.title}, ${formatTime(space.scheduled_at)}`}
                       >
                         <div className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
                           <Clock className="w-4 h-4" />
@@ -234,11 +226,21 @@ export function CalendarView({
                 {visible.map((s) => (
                   <div
                     key={s.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={(e) => {
                       e.stopPropagation();
                       onEventClick?.(s);
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onEventClick?.(s);
+                      }
+                    }}
                     className="text-xs truncate rounded-lg px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 mb-0.5 cursor-pointer hover:bg-primary/20"
+                    aria-label={s.title}
                   >
                     {s.title}
                   </div>

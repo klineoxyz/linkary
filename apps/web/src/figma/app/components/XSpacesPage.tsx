@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Calendar, List, Plus, Clock, AlertCircle, X, ChevronLeft, ChevronRight, Share2 } from "lucide-react";
 import { parseXSpaceId } from "@/lib/parseXSpaceId";
@@ -15,6 +15,7 @@ import {
   type SpaceForCard,
   type SpaceForCalendar,
 } from "./xspaces";
+import { toLocalYMD, sanitizeErrorMessage } from "./xspaces/utils";
 import { Button } from "./ui/button";
 
 type HostProfile = { id: string; display_name: string | null; twitter_username: string | null; profile_image_url: string | null };
@@ -143,32 +144,118 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [mainNav, setMainNav] = useState<MainNav>("home");
   const [discoverSpaces, setDiscoverSpaces] = useState<Space[]>([]);
 
+  const detailModalRef = useRef<HTMLDivElement>(null);
+  const createModalRef = useRef<HTMLDivElement>(null);
+  const addFromXModalRef = useRef<HTMLDivElement>(null);
+
   const searchParams = useSearchParams();
   const debug = searchParams?.get("debug") === "1";
   const base = typeof window !== "undefined" ? window.location.origin : "";
+
+  const closeDetailModal = useCallback(() => {
+    setDetailsSpace(null);
+    setShowReplaceLinkConfirm(false);
+    setReplaceLinkMode(false);
+    setReplaceLinkSpaceId(null);
+    setLinkXSpaceError(null);
+  }, []);
+
+  const handleOpenEventDetail = useCallback((s: Space | SpaceForCalendar) => {
+    setDetailsSpace(s as Space);
+    setEditTitle(s.title ?? "");
+    setSpeakerRequestMessage("");
+  }, []);
+
+  useEffect(() => {
+    if (!detailsSpace) return;
+    const t = requestAnimationFrame(() => {
+      const first = detailModalRef.current?.querySelector<HTMLElement>(
+        'button, a[href], input:not([type="hidden"])'
+      );
+      first?.focus();
+    });
+    return () => cancelAnimationFrame(t);
+  }, [detailsSpace]);
+  useEffect(() => {
+    if (!showCreate) return;
+    const t = requestAnimationFrame(() => {
+      const first = createModalRef.current?.querySelector<HTMLElement>(
+        'button, a[href], input:not([type="hidden"])'
+      );
+      first?.focus();
+    });
+    return () => cancelAnimationFrame(t);
+  }, [showCreate]);
+  useEffect(() => {
+    if (!showAddFromX) return;
+    const t = requestAnimationFrame(() => {
+      const first = addFromXModalRef.current?.querySelector<HTMLElement>(
+        'button, a[href], input:not([type="hidden"])'
+      );
+      first?.focus();
+    });
+    return () => cancelAnimationFrame(t);
+  }, [showAddFromX]);
+
+  function handleModalKeyDown(
+    e: React.KeyboardEvent,
+    onClose: () => void,
+    containerRef: React.RefObject<HTMLDivElement | null>
+  ) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+      return;
+    }
+    if (e.key !== "Tab" || !containerRef.current) return;
+    const focusable = containerRef.current.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    const list = Array.from(focusable);
+    const first = list[0];
+    const last = list[list.length - 1];
+    if (list.length === 0) return;
+    if (e.shiftKey) {
+      if (document.activeElement === first) {
+        e.preventDefault();
+        last?.focus();
+      }
+    } else {
+      if (document.activeElement === last) {
+        e.preventDefault();
+        first?.focus();
+      }
+    }
+  }
   const getToken = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token ?? "";
   }, []);
 
-  const loadSpaces = useCallback(async () => {
+  const loadSpaces = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
-    const token = await getToken();
-    const params = new URLSearchParams();
-    if (token) params.set("mine", "1");
-    else params.set("upcoming", "1");
-    const res = await fetch(`${base}/api/spaces?${params}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    const data = await res.json().catch(() => ({}));
-    setSpaces(data.spaces ?? []);
-    setLoading(false);
+    try {
+      const token = await getToken();
+      const params = new URLSearchParams();
+      if (token) params.set("mine", "1");
+      else params.set("upcoming", "1");
+      const res = await fetch(`${base}/api/spaces?${params}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, signal });
+      if (signal?.aborted) return;
+      const data = await res.json().catch(() => ({}));
+      if (signal?.aborted) return;
+      setSpaces(Array.isArray(data.spaces) ? data.spaces : []);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
   }, [base, getToken]);
 
-  const loadDiscover = useCallback(async () => {
+  const loadDiscover = useCallback(async (signal?: AbortSignal) => {
     const token = await getToken();
     const params = new URLSearchParams({ upcoming: "1" });
-    const res = await fetch(`${base}/api/spaces?${params}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const res = await fetch(`${base}/api/spaces?${params}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, signal });
+    if (signal?.aborted) return [];
     const data = await res.json().catch(() => ({}));
-    return data.spaces ?? [];
+    return Array.isArray(data.spaces) ? data.spaces : [];
   }, [base, getToken]);
 
   const loadPast = useCallback(async () => {
@@ -180,24 +267,29 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setPastLoading(false);
   }, [base]);
 
-  const loadSpacesForMonth = useCallback(async (year: number, month: number) => {
+  const loadSpacesForMonth = useCallback(async (year: number, month: number, signal?: AbortSignal) => {
     setLoading(true);
-    const token = await getToken();
-    const from = toYMD(getMonthStart(year, month));
-    const to = toYMD(getMonthEnd(year, month));
-    const params = new URLSearchParams({ from, to, scope: "public" });
-    if (token) params.set("mine", "1");
-    const res = await fetch(`${base}/api/spaces?${params}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    const data = await res.json().catch(() => ({}));
-    setSpaces(data.spaces ?? []);
-    setLoading(false);
+    try {
+      const token = await getToken();
+      const from = toYMD(getMonthStart(year, month));
+      const to = toYMD(getMonthEnd(year, month));
+      const params = new URLSearchParams({ from, to, scope: "public" });
+      if (token) params.set("mine", "1");
+      const res = await fetch(`${base}/api/spaces?${params}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, signal });
+      if (signal?.aborted) return;
+      const data = await res.json().catch(() => ({}));
+      if (signal?.aborted) return;
+      setSpaces(Array.isArray(data.spaces) ? data.spaces : []);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
   }, [base, getToken]);
 
   const spacesByDay = useMemo(() => {
     const map = new Map<string, Space[]>();
     for (const s of spaces) {
       if (!s.scheduled_at) continue;
-      const day = s.scheduled_at.slice(0, 10);
+      const day = toLocalYMD(new Date(s.scheduled_at));
       if (!map.has(day)) map.set(day, []);
       map.get(day)!.push(s);
     }
@@ -206,21 +298,26 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   }, [spaces]);
 
   useEffect(() => {
-    if (mainNav === "home") loadSpaces();
+    if (mainNav !== "home") return;
+    const ac = new AbortController();
+    loadSpaces(ac.signal);
+    return () => ac.abort();
   }, [mainNav, loadSpaces]);
 
   useEffect(() => {
-    if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth);
+    if (mainNav !== "calendar") return;
+    const ac = new AbortController();
+    loadSpacesForMonth(calendarYear, calendarMonth, ac.signal);
+    return () => ac.abort();
   }, [mainNav, calendarYear, calendarMonth, loadSpacesForMonth]);
 
   useEffect(() => {
-    if (mainNav === "explore") {
-      let cancelled = false;
-      loadDiscover().then((data) => {
-        if (!cancelled) setDiscoverSpaces(data);
-      });
-      return () => { cancelled = true; };
-    }
+    if (mainNav !== "explore") return;
+    const ac = new AbortController();
+    loadDiscover(ac.signal).then((data) => {
+      if (!ac.signal.aborted) setDiscoverSpaces(data);
+    });
+    return () => ac.abort();
   }, [mainNav, loadDiscover]);
 
   const fetchXMe = useCallback(async () => {
@@ -317,6 +414,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
   useEffect(() => {
     if (!detailsSpace) {
+      setEditTitle("");
       setSpaceRsvps(null);
       setSpaceSpeakerRequests([]);
       setHostAndSpeakers(null);
@@ -440,7 +538,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth);
       else loadSpaces();
     } else {
-      setCreateError(data.message || data.error || "Create failed");
+      setCreateError(sanitizeErrorMessage(data.message ?? data.error ?? "Create failed"));
     }
   };
 
@@ -585,7 +683,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setDetectingSpace(false);
     if (res.status === 429) {
       setDetectLinkedPolling(false);
-      setDetectError(data.error ?? "Too many attempts. Wait a minute and try again.");
+      setDetectError(sanitizeErrorMessage(data.error ?? "Too many attempts. Wait a minute and try again."));
       return;
     }
     if (res.status === 409 && data.code === "ALREADY_LINKED") {
@@ -636,7 +734,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     } else if (res.status === 409 && data.code === "ALREADY_LINKED") {
       setDetectError("This space is already linked. Use Replace in the space details to change it.");
     } else {
-      setDetectError(data.error ?? "Failed to link. Try paste fallback.");
+      setDetectError(sanitizeErrorMessage(data.error ?? "Failed to link. Try paste fallback."));
     }
   }, [base, createJustDoneSpaceId, getToken, clearCreateAndRefresh, updateSpaceLinkState, replaceLinkSpaceId]);
 
@@ -888,8 +986,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         {mainNav === "explore" && (
           <ExploreView
             spaces={discoverSpaces as SpaceForCard[]}
-            onSpaceClick={(s) => { setDetailsSpace(s as Space); setEditTitle(s.title); setSpeakerRequestMessage(""); }}
-            onRequest={(s) => { setDetailsSpace(s as Space); setEditTitle(s.title); setSpeakerRequestMessage(""); }}
+            onSpaceClick={handleOpenEventDetail}
+            onRequest={handleOpenEventDetail}
           />
         )}
         {mainNav === "calendar" && (
@@ -900,17 +998,24 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             onNextMonth={() => { if (calendarMonth === 12) { setCalendarYear((y) => y + 1); setCalendarMonth(1); } else setCalendarMonth((m) => m + 1); }}
             spacesByDay={spacesByDay as Map<string, SpaceForCalendar[]>}
             onDateClick={me?.id ? (ymd) => { setCreatePrefilledDate(ymd); setCreateScheduledAt(ymd + "T12:00"); setShowCreate(true); } : undefined}
-            onEventClick={(s) => { setDetailsSpace(s as Space); setEditTitle(s.title); setSpeakerRequestMessage(""); }}
+            onEventClick={handleOpenEventDetail}
           />
         )}
 
       {showCreate && (
         <>
           <div className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }} aria-hidden />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card backdrop-blur-xl p-6 z-50 shadow-xl">
+          <div
+            ref={createModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-modal-title"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card backdrop-blur-xl p-6 z-50 shadow-xl"
+            onKeyDown={(e) => handleModalKeyDown(e, () => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }, createModalRef)}
+          >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">Create X Space</h2>
-              <Button type="button" variant="ghost" size="icon" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }} className="rounded-lg">
+              <h2 id="create-modal-title" className="text-lg font-semibold text-foreground">Create X Space</h2>
+              <Button type="button" variant="ghost" size="icon" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }} className="rounded-lg" aria-label="Close">
                 <X className="w-5 h-5" />
               </Button>
             </div>
@@ -968,8 +1073,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                         setCreateJustDoneSpaceId(null); setShowCreate(false); setCreateTitle(""); setCreateDescription(""); setCreateScheduledAt(""); setCreatePrefilledDate(null); setCreateDurationMins(60); setCreateCohosts(""); setCreateXSpaceUrl(""); setCreateError(null);
                         if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces();
                       } else if (res.status === 409 && data.code === "ALREADY_IMPORTED") {
-                        setDetectError(data.error ?? "Already imported.");
-                      } else setDetectError(data.error ?? data.message ?? "Failed to link.");
+                        setDetectError(sanitizeErrorMessage(data.error ?? "Already imported."));
+                      } else setDetectError(sanitizeErrorMessage(data.error ?? data.message ?? "Failed to link."));
                     }} className="rounded-xl">Link pasted URL</Button>
                   )}
                 </div>
@@ -1042,10 +1147,17 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       {showAddFromX && (
         <>
           <div className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} aria-hidden />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card p-6 z-50 shadow-xl">
+          <div
+            ref={addFromXModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-from-x-modal-title"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card p-6 z-50 shadow-xl"
+            onKeyDown={(e) => handleModalKeyDown(e, () => { setShowAddFromX(false); setAddFromXError(null); }, addFromXModalRef)}
+          >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">Add Space from X</h2>
-              <Button type="button" variant="ghost" size="icon" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="rounded-xl">
+              <h2 id="add-from-x-modal-title" className="text-lg font-semibold text-foreground">Add Space from X</h2>
+              <Button type="button" variant="ghost" size="icon" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} className="rounded-xl" aria-label="Close">
                 <X className="w-5 h-5" />
               </Button>
             </div>
@@ -1088,9 +1200,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                               setAddFromXSuccess({ participants_count: typeof d.participants_count === "number" ? d.participants_count : 0, overlaps: [] });
                               if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces();
                             } else if (r.status === 409 && d.code === "ALREADY_IMPORTED") {
-                              setAddFromXError(d.error ?? "Already imported.");
+                              setAddFromXError(sanitizeErrorMessage(d.error ?? "Already imported."));
                             } else {
-                              setAddFromXError(d.error ?? d.message ?? "Failed to import.");
+                              setAddFromXError(sanitizeErrorMessage(d.error ?? d.message ?? "Failed to import."));
                             }
                           }}
                         >
@@ -1143,11 +1255,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     } catch {
                       // keep success panel
                     }
-                  } else if (res.status === 409 && data.code === "ALREADY_IMPORTED") {
-                    setAddFromXError(data.error ?? "Already imported.");
-                  } else {
-                    setAddFromXError(data.error ?? data.message ?? "Failed to sync Space");
-                  }
+} else if (res.status === 409 && data.code === "ALREADY_IMPORTED") {
+      setAddFromXError(sanitizeErrorMessage(data.error ?? "Already imported."));
+    } else {
+      setAddFromXError(sanitizeErrorMessage(data.error ?? data.message ?? "Failed to sync Space"));
+    }
                 }}
               >
                 {addFromXSaving ? "Syncing…" : "Add from X"}
@@ -1159,19 +1271,26 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
       {detailsSpace && (
         <>
-          <div className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40" onClick={() => { setDetailsSpace(null); setShowReplaceLinkConfirm(false); setReplaceLinkMode(false); setReplaceLinkSpaceId(null); setLinkXSpaceError(null); }} aria-hidden />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card z-50 shadow-xl flex flex-col">
+          <div className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40" onClick={closeDetailModal} aria-hidden />
+          <div
+            ref={detailModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="event-detail-modal-title"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card z-50 shadow-xl flex flex-col"
+            onKeyDown={(e) => handleModalKeyDown(e, closeDetailModal, detailModalRef)}
+          >
             <div className="flex items-center justify-between gap-4 p-4 border-b border-border shrink-0">
-              <h2 className="text-lg font-semibold text-foreground truncate pr-2">Space details</h2>
+              <h2 id="event-detail-modal-title" className="text-lg font-semibold text-foreground truncate pr-2">Space details</h2>
               <div className="flex items-center gap-2 shrink-0">
                 {detailsSpace.x_space_url && (
                   <Button size="sm" variant="outline" asChild>
                     <a href={detailsSpace.x_space_url} target="_blank" rel="noopener noreferrer">Open on X</a>
                   </Button>
                 )}
-                <Button type="button" variant="ghost" size="icon" className="rounded-xl" title="Add to calendar"><Calendar className="w-4 h-4" /></Button>
-                <Button type="button" variant="ghost" size="icon" className="rounded-xl" title="Share"><Share2 className="w-4 h-4" /></Button>
-                <Button type="button" variant="ghost" size="icon" className="rounded-xl" onClick={() => { setDetailsSpace(null); setShowReplaceLinkConfirm(false); setReplaceLinkMode(false); setReplaceLinkSpaceId(null); setLinkXSpaceError(null); }} aria-label="Close">
+                <Button type="button" variant="ghost" size="icon" className="rounded-xl" title="Add to calendar" aria-label="Add to calendar"><Calendar className="w-4 h-4" /></Button>
+                <Button type="button" variant="ghost" size="icon" className="rounded-xl" title="Share" aria-label="Share"><Share2 className="w-4 h-4" /></Button>
+                <Button type="button" variant="ghost" size="icon" className="rounded-xl" onClick={closeDetailModal} aria-label="Close">
                   <X className="w-5 h-5" />
                 </Button>
               </div>
@@ -1289,9 +1408,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                               setDetailsSpace({ ...detailsSpace, x_space_id: data.x_space_id, x_space_url: url });
                               setLinkXSpaceUrl(""); setShowLinkXSpace(false); setReplaceLinkMode(false); setReplaceLinkSpaceId(null);
                             } else if (res.status === 409) {
-                              setLinkXSpaceError(data.error ?? "This X Space is already linked to another space.");
+                              setLinkXSpaceError(sanitizeErrorMessage(data.error ?? "This X Space is already linked to another space."));
                             } else {
-                              setLinkXSpaceError(data.error ?? "Failed to link.");
+                              setLinkXSpaceError(sanitizeErrorMessage(data.error ?? "Failed to link."));
                             }
                           }} className="rounded-xl">Save link</Button>
                           <p className="text-xs font-medium text-muted-foreground pt-2 border-t border-border">Or detect replacement</p>
@@ -1317,9 +1436,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                           setDetailsSpace({ ...detailsSpace, x_space_id: data.x_space_id, x_space_url: url });
                           setLinkXSpaceUrl(""); setShowLinkXSpace(false); setReplaceLinkMode(false);
                         } else if (res.status === 409) {
-                          setLinkXSpaceError(data.error ?? "Already linked. Use Replace to change.");
+                          setLinkXSpaceError(sanitizeErrorMessage(data.error ?? "Already linked. Use Replace to change."));
                         } else {
-                          setLinkXSpaceError(data.error ?? "Failed to link.");
+                          setLinkXSpaceError(sanitizeErrorMessage(data.error ?? "Failed to link."));
                         }
                       }} className="rounded-xl">Save link</Button>
                         </>

@@ -134,3 +134,43 @@
 8. **No tokens in UI** — `access_token` and `refresh_token` never rendered or logged in UI/console.
 9. **Visual consistency** — Banners and cards match Linkary analytics UI (spacing, rounded-2xl, subtle borders).
 10. **Regression** — Auth, `/auth/callback`, persist-social, and API contracts/paths unchanged.
+
+---
+
+## F) Ship-it pass (release squad) — plan and regression
+
+### Plan of changes (executed)
+
+- **A) Runtime safety**
+  - `loadSpaces`, `loadSpacesForMonth`, `loadDiscover` accept optional `AbortSignal`; effects create `AbortController` and abort on cleanup so rapid mainNav toggles don’t apply stale responses.
+  - When `detailsSpace` becomes null, `editTitle` and link/Replace state are reset in the same effect.
+  - All API `spaces` responses normalized with `Array.isArray(data.spaces) ? data.spaces : []`.
+- **B) Timezone / date**
+  - `spacesByDay` keys use **local** date via `toLocalYMD(new Date(s.scheduled_at))` so calendar and list respect browser timezone (e.g. Europe/Berlin).
+  - `getDateLabel(ymd, now?)` and `formatTime(scheduled_at)` in `xspaces/utils.ts`; Today/Tomorrow use local date; optional `now` for tests.
+  - Unit tests in `xspaces/utils.test.ts` (Today/Tomorrow, formatTime, ordering, late-night UTC, DST boundary).
+- **C) Accessibility**
+  - All three modals (Create, Add from X, Event detail): `role="dialog"`, `aria-modal="true"`, `aria-labelledby`; initial focus on first focusable (close button); ESC closes; Tab focus trap inside dialog.
+  - Icon-only buttons have `aria-label` (Close, Add to calendar, Share).
+  - Calendar list rows and month event pills: `role="button"`, `tabIndex={0}`, Enter/Space with `preventDefault`; `aria-label` on list rows and pills.
+- **D) Performance**
+  - `handleOpenEventDetail` memoized with `useCallback` and passed to HomeView/ExploreView/CalendarView so children get stable props.
+  - `groupedByDateLabel` and `orderedDateLabels` already memoized in CalendarView.
+- **E) Observability**
+  - `xspaces/utils.ts`: `xspacesDebug()` (only logs when `?debug=1` and non-production); `sanitizeErrorMessage(raw)` strips token-like content and caps length; all user-facing error setters use `sanitizeErrorMessage()` so raw server payloads are never shown.
+- **F) Automated checks**
+  - **Date tests:** `pnpm --filter web run test:xspaces-dates` (or from `apps/web`: `pnpm run test:xspaces-dates`) runs `utils.test.ts`.
+  - **Governance + dates:** `pnpm --filter web run test:xspaces` runs date tests then checks `XSpacesPage.tsx` and `xspaces/*` for forbidden class **tokens** (zinc-, neutral-, amber-, red-, green-, blue-, slate-, gray-, bg-black, text-white, bg-white) so "translate" is not false-positive.
+
+### Final regression checklist (ship-it)
+
+1. **No crashes** — Open /xspaces; switch Home → Explore → Calendar quickly; open event from list; close with ESC; no runtime errors.
+2. **Empty states** — No spaces: empty state and CTAs; no discover: Explore shows empty or placeholder; no events in month: "No events this month" in list.
+3. **Dates** — Calendar and list show events on correct **local** day; Today/Tomorrow labels correct in list; no day drift in Europe/Berlin (or local TZ).
+4. **Modals** — Create, Add from X, Event detail: open → focus in dialog; Tab cycles inside; ESC closes; overlay click closes; no stuck state.
+5. **Connect X / Add from X / detect** — Flows work; 409 shows safe message; no token in UI or console.
+6. **Governance** — `pnpm --filter web run test:xspaces` passes (no forbidden palette tokens in XSpaces scope).
+7. **Auth / API** — No changes to `/auth/callback`, persist-social, or server endpoints/contracts.
+8. **Navigation** — Only `mainNav` state; CalendarView `viewMode` internal only.
+9. **Errors** — Banners show user-safe messages only (no stack traces or raw API bodies).
+10. **Manual smoke** — Create space, add from X, open event, approve/reject speaker (if host), RSVP, link X Space; all without errors.

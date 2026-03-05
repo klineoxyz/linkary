@@ -1,5 +1,25 @@
 # XSpaces UI Rebuild — Plan & Checklists
 
+## Implementation plan (governance pass — executed)
+
+1. **Bug:** Confirmed `loadMyXSpaces` is declared above its `useEffect`; no change needed.
+2. **Token sweep:** Replaced all `zinc`, `neutral`, `bg-black/50` in XSpacesPage and xspaces/* with Linkary tokens; overlays use `bg-foreground/50 backdrop-blur-sm`.
+3. **SharedComponents:** Option B — XSpaces uses only `StatCard` (light) and `Button`; no broad SharedComponents tokenization.
+4. **Navigation:** Removed `activeTab` and its effect; deleted `DiscoverTab`; removed `view` state and use `mainNav` for refresh logic; Month/List/Week toggle moved into CalendarView.
+5. **Buttons:** Create modal close and event detail header actions use `Button`; remaining raw buttons left for minimal scope.
+6. **Event modal:** Single “Open on X” in header; header row with title + actions; Combined followers “Not available”; no duplicate link in body.
+
+---
+
+## Implementation summary (governance pass)
+
+- **SharedComponents option:** **Option B** — XSpaces does not use SharedComponents except `StatCard` (via `StatCardsRow`) with `variant="light"`, which already uses only Linkary tokens. No broad tokenization of SharedComponents was done; app-shell pages use `Button` from `ui/button` and token-based Tailwind classes only.
+- **Token governance:** All XSpaces UI (XSpacesPage.tsx and `xspaces/*`) uses only theme tokens: `text-foreground`, `text-muted-foreground`, `bg-background`, `bg-card`, `bg-muted`, `bg-secondary`, `bg-accent`, `border-border`, `bg-primary`, `text-primary`, `text-primary-foreground`. Overlays use `bg-foreground/50 backdrop-blur-sm`. No `zinc`, `neutral`, `bg-black/50`, or ad-hoc palette classes.
+- **Navigation:** Single model `mainNav`: home | explore | calendar. Removed `activeTab` and `DiscoverTab`. Month/List/Week toggle lives inside `CalendarView` only.
+- **Event detail modal:** Single “Open on X” in header row; proper header row (title + actions) instead of absolute positioning; Combined followers shows “Not available” when no data.
+
+---
+
 ## A) Plan: Component breakdown and where each view lives
 
 ### Layout (single shell)
@@ -84,5 +104,18 @@
   - Left column: title, scheduled start, tags, host, follower count, description, agenda, main CTA.  
   - Right column: countdown (Days, Hours, Minutes, Seconds), co-hosts, speaker avatars carousel, combined followers.  
   - Top right: Open on X (if link exists), Add to calendar, Share, menu (optional).  
-  - Graceful "Not provided" for missing data.  
+  - Graceful "Not provided" for missing data; Combined followers shows "Not available" when no data.  
   - No access_token/refresh_token ever rendered.
+
+---
+
+## D) Final QA checklist (governance + regression)
+
+- [ ] **No reference-before-declare** — `loadMyXSpaces` is declared above any `useEffect` that uses it; TypeScript passes.
+- [ ] **No non-token palette classes** — XSpacesPage and all `xspaces/*` use only Linkary tokens (no `zinc`, `neutral`, `bg-black/50`, etc.). Overlays: `bg-foreground/50 backdrop-blur-sm`.
+- [ ] **Connect X** — Not connected: callout/button visible; click starts OAuth; return with `x_connected=1` updates state.
+- [ ] **Add from X** — Actions disabled until connected; paste URL or pick from past list; submit runs sync-from-x; 409 shows "Already imported".
+- [ ] **No token leaks** — No `access_token` or `refresh_token` in UI, logs, or DOM.
+- [ ] **Home / Explore / Calendar** — Sidebar switches views; Home loads spaces; Explore loads discover; Calendar loads month; data correct per view.
+- [ ] **Modal** — Event detail opens/closes cleanly; header has title + Open on X (if linked), Add to calendar, Share, Close; no duplicate Open on X in body; responsive.
+- [ ] **CalendarView** — Month/List/Week toggle in top bar; Month and List switch content; Week placeholder styled correctly.

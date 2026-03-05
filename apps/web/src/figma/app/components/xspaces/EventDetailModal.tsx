@@ -70,7 +70,7 @@ export function EventDetailModal({
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/50 z-40"
+        className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40"
         onClick={onClose}
         onKeyDown={(e) => e.key === "Escape" && onClose()}
         aria-hidden
@@ -137,7 +137,7 @@ export function EventDetailModal({
               )}
               <div>
                 <p className="text-sm font-medium text-foreground">{hostName}</p>
-                <p className="text-xs text-muted-foreground">{combinedFollowers ?? "—"} combined followers</p>
+                <p className="text-xs text-muted-foreground">{combinedFollowers ?? "Not available"} combined followers</p>
               </div>
             </div>
             {space.description && (
@@ -190,7 +190,7 @@ export function EventDetailModal({
             )}
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Combined followers</h4>
-              <p className="text-sm font-medium text-foreground">{combinedFollowers ?? "—"}</p>
+              <p className="text-sm font-medium text-foreground">{combinedFollowers ?? "Not available"}</p>
             </div>
           </div>
         </div>

@@ -48,55 +48,6 @@ type AudienceOverlap = {
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MAX_EVENTS_PER_DAY = 3;
 
-function DiscoverTab({
-  loadDiscover,
-  onSpaceClick,
-  hostRow,
-}: {
-  loadDiscover: () => Promise<Space[]>;
-  onSpaceClick: (s: Space) => void;
-  hostRow: (host: HostProfile) => React.ReactNode;
-}) {
-  const [list, setList] = useState<Space[]>([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    loadDiscover().then((data) => {
-      if (!cancelled) setList(data);
-      setLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [loadDiscover]);
-  if (loading) return <p className="text-zinc-500">Loading…</p>;
-  if (list.length === 0) return <p className="text-zinc-500">No public spaces yet. Invite others.</p>;
-  return (
-    <div className="space-y-3">
-      {list.map((s) => (
-        <div
-          key={s.id}
-          className="p-4 rounded-xl border border-border bg-card flex flex-col gap-2 cursor-pointer hover:border-primary/20 transition-all"
-          onClick={() => onSpaceClick(s)}
-          onKeyDown={(e) => e.key === "Enter" && onSpaceClick(s)}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="flex items-center gap-4">
-            <Clock className="w-5 h-5 text-zinc-400 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{s.title}</p>
-              <p className="text-sm text-zinc-500">
-                {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} · {s.status}
-              </p>
-            </div>
-          </div>
-          {s.host && <div className="pl-9">{hostRow(s.host)}</div>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function getMonthStart(year: number, month: number): Date {
   return new Date(year, month - 1, 1);
 }
@@ -138,7 +89,6 @@ function getCalendarGrid(year: number, month: number): { date: Date; isCurrentMo
 export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: string }) => void; me: { id: string } | null }) {
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"month" | "list">("list");
   const [calendarYear, setCalendarYear] = useState(() => new Date().getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().getMonth() + 1);
   const [showCreate, setShowCreate] = useState(false);
@@ -163,7 +113,6 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [myXSpacesLoading, setMyXSpacesLoading] = useState(false);
   const [audienceOverlapsBySpaceId, setAudienceOverlapsBySpaceId] = useState<Record<string, AudienceOverlap[]>>({});
   const [overlapsError, setOverlapsError] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"my" | "discover" | "past" | "overlap-alerts">("my");
   const [addFromXSuccess, setAddFromXSuccess] = useState<{ participants_count: number; overlaps: AudienceOverlap[] } | null>(null);
   const [createCohosts, setCreateCohosts] = useState("");
   const [createXSpaceUrl, setCreateXSpaceUrl] = useState("");
@@ -257,22 +206,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   }, [spaces]);
 
   useEffect(() => {
-    if (view === "list") loadSpaces();
-  }, [view, loadSpaces]);
-  useEffect(() => {
     if (mainNav === "home") loadSpaces();
   }, [mainNav, loadSpaces]);
 
   useEffect(() => {
-    if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
-  }, [view, calendarYear, calendarMonth, loadSpacesForMonth]);
-  useEffect(() => {
     if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth);
   }, [mainNav, calendarYear, calendarMonth, loadSpacesForMonth]);
-
-  useEffect(() => {
-    if (activeTab === "past") loadPast();
-  }, [activeTab, loadPast]);
 
   useEffect(() => {
     if (mainNav === "explore") {
@@ -498,7 +437,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         setCreateXSpaceUrl("");
         setCreateError(null);
       }
-      if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
+      if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth);
       else loadSpaces();
     } else {
       setCreateError(data.message || data.error || "Create failed");
@@ -537,7 +476,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setEditSaving(false);
     if (res.ok) {
       setDetailsSpace(null);
-      if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
+      if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth);
       else loadSpaces();
     }
   };
@@ -553,7 +492,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setEditSaving(false);
     if (res.ok) {
       setDetailsSpace(null);
-      if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
+      if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth);
       else loadSpaces();
     }
   };
@@ -570,9 +509,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setCreateError(null);
     setDetectCandidates([]);
     setDetectError(null);
-    if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
+    if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth);
     else loadSpaces();
-  }, [view, calendarYear, calendarMonth, loadSpaces, loadSpacesForMonth]);
+  }, [mainNav, calendarYear, calendarMonth, loadSpaces, loadSpacesForMonth]);
 
   const updateSpaceLinkState = useCallback((spaceId: string, x_space_id: string, x_space_url: string) => {
     setSpaces((prev) => prev.map((s) => (s.id === spaceId ? { ...s, x_space_id, x_space_url } : s)));
@@ -863,12 +802,6 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 <Button variant="outline" size="sm" onClick={() => { setAddFromXUrl(""); setAddFromXError(null); setAddFromXSuccess(null); setShowAddFromX(true); }}>Add from X</Button>
               </>
             )}
-            {mainNav === "calendar" && (
-              <Button variant="outline" size="sm" onClick={() => setView(view === "list" ? "month" : "list")}>
-                {view === "list" ? <Calendar className="w-4 h-4" /> : <List className="w-4 h-4" />}
-                {view === "list" ? "Month" : "List"}
-              </Button>
-            )}
           </div>
         </div>
 
@@ -897,14 +830,14 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             const overlaps = audienceOverlapsBySpaceId[s.id] ?? [];
             return (
               <div key={s.id} className="mb-3 pl-2 border-l-2 border-amber-300 dark:border-amber-700">
-                <p className="font-medium text-zinc-900 dark:text-zinc-100">{s.title}</p>
+                <p className="font-medium text-foreground">{s.title}</p>
                 {!s.x_space_id ? (
                   <p className="text-amber-700 dark:text-amber-300">Participants not synced</p>
                 ) : (
                   <>
-                    <p className="text-zinc-600 dark:text-zinc-400">x_space_id: {s.x_space_id}</p>
+                    <p className="text-muted-foreground">x_space_id: {s.x_space_id}</p>
                     {overlaps.length > 0 && (
-                      <ul className="mt-1 text-zinc-600 dark:text-zinc-400">
+                      <ul className="mt-1 text-muted-foreground">
                         {overlaps.slice(0, 5).map((o) => (
                           <li key={o.other_space_id}>
                             overlap_count={o.overlap_count}, min_audience_size={o.min_audience_size}, %={Number(o.overlap_percent).toFixed(1)}
@@ -971,13 +904,13 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
       {showCreate && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }} aria-hidden />
+          <div className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }} aria-hidden />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card backdrop-blur-xl p-6 z-50 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Create X Space</h2>
-              <button type="button" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+              <Button type="button" variant="ghost" size="icon" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }} className="rounded-lg">
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
             {createError && (
               <p className="mb-3 text-sm text-red-600 dark:text-red-400">{createError}</p>
@@ -1031,7 +964,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       if (data.space?.id && data.space?.x_space_id) {
                         updateSpaceLinkState(data.space.id, data.space.x_space_id, data.space.x_space_url ?? `https://x.com/i/spaces/${data.space.x_space_id}`);
                         setCreateJustDoneSpaceId(null); setShowCreate(false); setCreateTitle(""); setCreateDescription(""); setCreateScheduledAt(""); setCreatePrefilledDate(null); setCreateDurationMins(60); setCreateCohosts(""); setCreateXSpaceUrl(""); setCreateError(null);
-                        if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces();
+                        if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces();
                       } else if (res.status === 409 && data.code === "ALREADY_IMPORTED") {
                         setDetectError(data.error ?? "Already imported.");
                       } else setDetectError(data.error ?? data.message ?? "Failed to link.");
@@ -1049,28 +982,28 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 <p className="text-sm text-amber-600 dark:text-amber-400">Connect X first (button below) to grant X API access for import and auto-detect.</p>
               )}
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Title</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Title</label>
                 <input type="text" value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} placeholder="Space title" className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description (optional)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Description (optional)</label>
                 <textarea value={createDescription} onChange={(e) => setCreateDescription(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Scheduled at (required, local time)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Scheduled at (required, local time)</label>
                 <input type="datetime-local" value={createScheduledAt} onChange={(e) => setCreateScheduledAt(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Duration (mins)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Duration (mins)</label>
                 <input type="number" min={1} value={createDurationMins} onChange={(e) => setCreateDurationMins(parseInt(e.target.value, 10) || 60)} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Cohosts (optional)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Cohosts (optional)</label>
                 <input type="text" value={createCohosts} onChange={(e) => setCreateCohosts(e.target.value)} placeholder="@user1 @user2" className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               </div>
               {!createOnX && (
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">X Space URL (optional)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">X Space URL (optional)</label>
                 <input type="url" value={createXSpaceUrl} onChange={(e) => setCreateXSpaceUrl(e.target.value)} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
               </div>
               )}
@@ -1087,7 +1020,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   )}
                 </div>
               )}
-              <p className="text-xs text-zinc-500">Overlap: {overlaps.length ? "conflicts detected (±60 min)" : "unavailable (MVP)"}</p>
+              <p className="text-xs text-muted-foreground">Overlap: {overlaps.length ? "conflicts detected (±60 min)" : "unavailable (MVP)"}</p>
             </div>
             )}
             <div className="mt-4 flex justify-end gap-2">
@@ -1106,7 +1039,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
       {showAddFromX && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} aria-hidden />
+          <div className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40" onClick={() => { setShowAddFromX(false); setAddFromXError(null); }} aria-hidden />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl border border-border bg-card p-6 z-50 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Add Space from X</h2>
@@ -1149,7 +1082,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                             if (d.space) {
                               setShowAddFromX(false);
                               setAddFromXSuccess({ participants_count: typeof d.participants_count === "number" ? d.participants_count : 0, overlaps: [] });
-                              if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces();
+                              if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces();
                             } else if (r.status === 409 && d.code === "ALREADY_IMPORTED") {
                               setAddFromXError(d.error ?? "Already imported.");
                             } else {
@@ -1194,7 +1127,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     setAddFromXUrl("");
                     const participantsCount = typeof data.participants_count === "number" ? data.participants_count : 0;
                     setAddFromXSuccess({ participants_count: participantsCount, overlaps: [] });
-                    if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth);
+                    if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth);
                     else loadSpaces();
                     try {
                       const ovRes = await fetch(`${base}/api/spaces/audience-overlaps?space_id=${encodeURIComponent(data.space.id)}`, {
@@ -1222,21 +1155,24 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
       {detailsSpace && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setDetailsSpace(null); setShowReplaceLinkConfirm(false); setReplaceLinkMode(false); setReplaceLinkSpaceId(null); setLinkXSpaceError(null); }} aria-hidden />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card p-6 z-50 shadow-xl">
-            <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
-              {detailsSpace.x_space_url && (
-                <a href={detailsSpace.x_space_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">
-                  Open on X
-                </a>
-              )}
-              <button type="button" className="p-2 rounded-xl hover:bg-accent" title="Add to calendar"><Calendar className="w-4 h-4" /></button>
-              <button type="button" className="p-2 rounded-xl hover:bg-accent" title="Share"><Share2 className="w-4 h-4" /></button>
-              <button type="button" onClick={() => { setDetailsSpace(null); setShowReplaceLinkConfirm(false); setReplaceLinkMode(false); setReplaceLinkSpaceId(null); setLinkXSpaceError(null); }} className="p-2 rounded-xl hover:bg-accent" aria-label="Close">
-                <X className="w-5 h-5" />
-              </button>
+          <div className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40" onClick={() => { setDetailsSpace(null); setShowReplaceLinkConfirm(false); setReplaceLinkMode(false); setReplaceLinkSpaceId(null); setLinkXSpaceError(null); }} aria-hidden />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card z-50 shadow-xl flex flex-col">
+            <div className="flex items-center justify-between gap-4 p-4 border-b border-border shrink-0">
+              <h2 className="text-lg font-semibold text-foreground truncate pr-2">Space details</h2>
+              <div className="flex items-center gap-2 shrink-0">
+                {detailsSpace.x_space_url && (
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={detailsSpace.x_space_url} target="_blank" rel="noopener noreferrer">Open on X</a>
+                  </Button>
+                )}
+                <Button type="button" variant="ghost" size="icon" className="rounded-xl" title="Add to calendar"><Calendar className="w-4 h-4" /></Button>
+                <Button type="button" variant="ghost" size="icon" className="rounded-xl" title="Share"><Share2 className="w-4 h-4" /></Button>
+                <Button type="button" variant="ghost" size="icon" className="rounded-xl" onClick={() => { setDetailsSpace(null); setShowReplaceLinkConfirm(false); setReplaceLinkMode(false); setReplaceLinkSpaceId(null); setLinkXSpaceError(null); }} aria-label="Close">
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr,260px] gap-6 pr-24">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr,260px] gap-6 p-6 overflow-y-auto">
               <div className="min-w-0 space-y-2 mb-4">
               {isHost(detailsSpace) ? (
                 <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
@@ -1271,11 +1207,6 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 </div>
               )}
               {detailsSpace.description && <p className="text-sm text-muted-foreground">{detailsSpace.description}</p>}
-              {detailsSpace.x_space_url && (
-                <a href={detailsSpace.x_space_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">
-                  Open on X
-                </a>
-              )}
               {(audienceOverlapsBySpaceId[detailsSpace.id] ?? []).length > 0 && (
                 <div className="flex items-start gap-2 p-2 rounded-lg border border-border bg-card text-sm text-foreground">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -1314,7 +1245,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       const token = await getToken();
                       const res = await fetch(`${base}/api/spaces/${detailsSpace.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: "ended" }) });
                       setEditSaving(false);
-                      if (res.ok) { setDetailsSpace({ ...detailsSpace, status: "ended" }); if (view === "month") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces(); }
+                      if (res.ok) { setDetailsSpace({ ...detailsSpace, status: "ended" }); if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces(); }
                     }} disabled={editSaving} className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-accent disabled:opacity-50">Mark as ended</button>
                   )}
                   {detailsSpace.x_space_id ? (
@@ -1450,30 +1381,30 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 )}
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Combined followers</p>
-                  <p className="text-sm font-medium text-foreground">—</p>
+                  <p className="text-sm font-medium text-foreground">Not available</p>
                 </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 flex-wrap mt-4">
               {isHost(detailsSpace) ? (
                 <>
-                  <button type="button" onClick={handleCancelSpace} disabled={editSaving} className="px-4 py-2 rounded-lg border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50">
+                  <Button type="button" variant="outline" onClick={handleCancelSpace} disabled={editSaving} className="rounded-xl">
                     {editSaving ? "…" : "Cancel space"}
-                  </button>
-                  <button type="button" onClick={handleSaveEdit} disabled={editSaving || !editTitle.trim()} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
+                  </Button>
+                  <Button type="button" onClick={handleSaveEdit} disabled={editSaving || !editTitle.trim()} className="rounded-xl">
                     {editSaving ? "…" : "Save"}
-                  </button>
+                  </Button>
                 </>
               ) : me?.id ? (
                 <>
                   <div className="mb-2">
-                    <label className="block text-xs font-medium text-zinc-500 mb-1">Message to host (optional)</label>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Message to host (optional)</label>
                     <textarea
                       value={speakerRequestMessage}
                       onChange={(e) => setSpeakerRequestMessage(e.target.value)}
                       placeholder="Why you'd like to speak…"
                       rows={2}
-                      className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm"
                     />
                   </div>
                   <button
@@ -1488,7 +1419,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       const data = await res.json().catch(() => ({}));
                       if (res.ok && (data?.status === "interested" || data?.status === "going")) setRsvpStatus((prev) => ({ ...prev, [detailsSpace.id]: data.status }));
                     }}
-                    className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    className="px-4 py-2 rounded-lg border border-border text-foreground hover:bg-accent"
                   >
                     Interested
                   </button>

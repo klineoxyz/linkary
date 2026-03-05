@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { ChevronLeft, ChevronRight, Calendar, List } from "lucide-react";
+import { Button } from "../ui/button";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MAX_EVENTS_PER_DAY = 3;
@@ -73,48 +74,82 @@ export function CalendarView({
   onDateClick?: (ymd: string) => void;
   onEventClick?: (space: SpaceForCalendar) => void;
 }) {
+  const [viewMode, setViewMode] = useState<"month" | "list">("month");
   const grid = getCalendarGrid(year, month);
+  const flattenedSpaces = useMemo(() => {
+    const out: { space: SpaceForCalendar; ymd: string }[] = [];
+    spacesByDay.forEach((arr, ymd) => arr.forEach((s) => out.push({ space: s, ymd })));
+    out.sort((a, b) => (a.space.scheduled_at ?? "").localeCompare(b.space.scheduled_at ?? ""));
+    return out;
+  }, [spacesByDay]);
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        <button
-          type="button"
-          onClick={onPrevMonth}
-          className="p-2 rounded-xl hover:bg-accent text-foreground transition-colors"
-          aria-label="Previous month"
-        >
+      <div className="flex items-center justify-between p-4 border-b border-border flex-wrap gap-2">
+        <Button variant="ghost" size="icon" onClick={onPrevMonth} className="rounded-xl shrink-0" aria-label="Previous month">
           <ChevronLeft className="w-5 h-5" />
-        </button>
-        <div className="flex items-center gap-2">
+        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="font-semibold text-foreground">
             {new Date(year, month - 1).toLocaleDateString("default", {
               month: "long",
               year: "numeric",
             })}
           </span>
-          <button
-            type="button"
-            className="px-3 py-1.5 rounded-full text-xs font-medium bg-muted text-muted-foreground hover:bg-accent"
-          >
-            Month
-          </button>
-          <button
-            type="button"
-            className="px-3 py-1.5 rounded-full text-xs font-medium text-muted-foreground hover:bg-accent"
-          >
-            Week
-          </button>
+          <div className="flex rounded-full p-0.5 bg-muted">
+            <Button
+              type="button"
+              variant={viewMode === "month" ? "secondary" : "ghost"}
+              size="sm"
+              className="rounded-full text-xs h-7 px-3"
+              onClick={() => setViewMode("month")}
+            >
+              <Calendar className="w-3.5 h-3.5 mr-1" />
+              Month
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="rounded-full text-xs h-7 px-3"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="w-3.5 h-3.5 mr-1" />
+              List
+            </Button>
+            <Button type="button" variant="ghost" size="sm" className="rounded-full text-xs h-7 px-3 text-muted-foreground" disabled title="Coming soon">
+              Week
+            </Button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={onNextMonth}
-          className="p-2 rounded-xl hover:bg-accent text-foreground transition-colors"
-          aria-label="Next month"
-        >
+        <Button variant="ghost" size="icon" onClick={onNextMonth} className="rounded-xl shrink-0" aria-label="Next month">
           <ChevronRight className="w-5 h-5" />
-        </button>
+        </Button>
       </div>
+      {viewMode === "list" ? (
+        <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
+          {flattenedSpaces.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No events this month.</p>
+          ) : (
+            flattenedSpaces.map(({ space, ymd }) => (
+              <div
+                key={space.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => onEventClick?.(space)}
+                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onEventClick?.(space)}
+                className="p-3 rounded-xl border border-border bg-card hover:border-primary/20 hover:bg-accent/50 transition-colors cursor-pointer text-left"
+              >
+                <p className="font-medium text-foreground truncate">{space.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  {space.scheduled_at ? new Date(space.scheduled_at).toLocaleString() : ymd}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+        <>
       <div className="grid grid-cols-7 text-center text-xs font-medium text-muted-foreground border-b border-border">
         {WEEKDAY_LABELS.map((l) => (
           <div key={l} className="py-2">
@@ -164,6 +199,8 @@ export function CalendarView({
           })
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

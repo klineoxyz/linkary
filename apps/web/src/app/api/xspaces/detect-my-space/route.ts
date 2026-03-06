@@ -14,7 +14,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
 const X_API_BASE = "https://api.twitter.com/2";
-const X_API_TIMEOUT_MS = 15000;
+/** Keep below typical platform limit (e.g. 10s) so our timeout fires and we return 502 X_API_TIMEOUT instead of function kill. */
+const X_API_TIMEOUT_MS = 8000;
 
 const WINDOW_MS = 15 * 60 * 1000;
 const SCHEDULED_PROXIMITY_MS = 2 * 60 * 60 * 1000;
@@ -211,6 +212,7 @@ export async function POST(request: NextRequest) {
 
     if (!res.ok) {
       debugDetect("DETECT_STAGE_FAIL_X_API", String(res.status));
+      await res.text().catch(() => "");
       return NextResponse.json(
         { error: "Could not fetch Spaces from X", code: "X_API_FAILED" },
         { status: 502, headers: rateLimitHeaders }

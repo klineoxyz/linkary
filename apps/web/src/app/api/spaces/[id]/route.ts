@@ -31,9 +31,18 @@ export async function GET(
   if (!space) return NextResponse.json({ error: "Space not found" }, { status: 404 });
 
   const row = space as { host_profile_id: string };
+  const status = (space as { status: string }).status;
   const isHost = row.host_profile_id === user.id;
-  const isPublic = ["planned", "scheduled", "live"].includes((space as { status: string }).status);
-  if (!isHost && !isPublic) return NextResponse.json({ error: "Space not found" }, { status: 404 });
+  const isPublic = ["planned", "scheduled", "live"].includes(status);
+  if (!isHost && !isPublic) {
+    const { data: proposalList } = await supabase
+      .from("space_sponsor_proposals")
+      .select("id")
+      .eq("space_id", id)
+      .eq("project_profile_id", user.id)
+      .limit(1);
+    if (!(Array.isArray(proposalList) && proposalList.length > 0)) return NextResponse.json({ error: "Space not found" }, { status: 404 });
+  }
 
   const hostIds = [row.host_profile_id];
   const { data: profiles } = await supabase.from("profiles").select("id, display_name, twitter_username, avatar_url").in("id", hostIds);

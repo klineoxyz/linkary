@@ -1842,7 +1842,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                                   const data = await res.json().catch(() => ({}));
                                   if (data.default_payout_method === "saved_wallet" && typeof data.wallet_address === "string" && data.wallet_address.trim()) {
                                     setAcceptPayoutMethod("saved_wallet");
-                                    setAcceptPayoutAddress(data.wallet_address.trim());
+                                    setAcceptPayoutAddress((prev) => (prev === "" ? data.wallet_address.trim() : prev));
                                   }
                                 } catch {
                                   /* non-blocking */

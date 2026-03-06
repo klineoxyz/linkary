@@ -1164,6 +1164,8 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
     if (n.type === "speaker_request_created") return "Speaker request";
     if (n.type === "speaker_request_approved") return "Speaker request approved";
     if (n.type === "speaker_request_rejected") return "Speaker request declined";
+    if (n.type === "sponsor_proposal_accepted") return "Sponsor proposal accepted";
+    if (n.type === "sponsor_proposal_declined") return "Sponsor proposal declined";
     return n.type || "Notification";
   };
   const notifLink = (n) => {
@@ -1176,6 +1178,7 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
     if (n.type === "ambassador_invite" || n.type === "ambassador_invite_accepted" || n.type === "ambassador_removed") return (n.payload?.org_id ?? n.entity_id) ? `/org/${n.payload?.org_id ?? n.entity_id}?tab=ambassadors` : null;
     if (n.type === "affiliate_invite" || n.type === "affiliate_invite_accepted" || n.type === "affiliate_removed") return (n.payload?.org_id ?? n.entity_id) ? `/org/${n.payload?.org_id ?? n.entity_id}?tab=affiliates` : null;
     if (n.type === "speaker_request_created" || n.type === "speaker_request_approved" || n.type === "speaker_request_rejected") return "/xspaces";
+    if (n.type === "sponsor_proposal_accepted" || n.type === "sponsor_proposal_declined") return "/xspaces";
     return null;
   };
   return (

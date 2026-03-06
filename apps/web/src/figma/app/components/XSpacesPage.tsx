@@ -16,6 +16,7 @@ import {
   type SpaceForCard,
   type SpaceForCalendar,
   type XSpacesAnalytics,
+  type XSpacesReputation,
 } from "./xspaces";
 import { toLocalYMD, sanitizeErrorMessage, displayTitle } from "./xspaces/utils";
 import { Button } from "./ui/button";
@@ -202,6 +203,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [discoverSpaces, setDiscoverSpaces] = useState<Space[]>([]);
   const [xspacesAnalytics, setXspacesAnalytics] = useState<XSpacesAnalytics | null>(null);
   const [xspacesAnalyticsLoading, setXspacesAnalyticsLoading] = useState(false);
+  const [xspacesReputation, setXspacesReputation] = useState<XSpacesReputation | null>(null);
+  const [xspacesReputationLoading, setXspacesReputationLoading] = useState(false);
 
   const detailModalRef = useRef<HTMLDivElement>(null);
   const createModalRef = useRef<HTMLDivElement>(null);
@@ -437,6 +440,30 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         if ((e as { name?: string }).name !== "AbortError") setXspacesAnalytics(null);
       } finally {
         if (!ac.signal.aborted) setXspacesAnalyticsLoading(false);
+      }
+    });
+    return () => ac.abort();
+  }, [mainNav, me?.id, base, getToken]);
+
+  useEffect(() => {
+    if (mainNav !== "home" || !me?.id) return;
+    const ac = new AbortController();
+    setXspacesReputationLoading(true);
+    getToken().then(async (token) => {
+      if (!token) { setXspacesReputationLoading(false); return; }
+      try {
+        const res = await fetch(`${base}/api/xspaces/reputation`, { headers: { Authorization: `Bearer ${token}` }, signal: ac.signal });
+        const data = await res.json().catch(() => ({}));
+        if (ac.signal.aborted) return;
+        if (res.ok && data && typeof data.speaker === "object" && typeof data.sponsor === "object" && typeof data.host === "object") {
+          setXspacesReputation(data as XSpacesReputation);
+        } else {
+          setXspacesReputation(null);
+        }
+      } catch (e) {
+        if ((e as { name?: string }).name !== "AbortError") setXspacesReputation(null);
+      } finally {
+        if (!ac.signal.aborted) setXspacesReputationLoading(false);
       }
     });
     return () => ac.abort();
@@ -1131,6 +1158,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             showEmptyExploreCta={true}
             analytics={xspacesAnalytics}
             analyticsLoading={xspacesAnalyticsLoading}
+            reputation={xspacesReputation}
+            reputationLoading={xspacesReputationLoading}
           />
         )}
         {mainNav === "explore" && (

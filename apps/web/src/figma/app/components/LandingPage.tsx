@@ -1,5 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
+
+/** Date-seeded number for "today" stats (stable per day, varies by day). */
+function dailySeed(): number {
+  const d = new Date();
+  const s = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return (h % 45) + 8;
+}
 import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 import {
   ArrowRight,
@@ -158,6 +167,26 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
     },
   ];
 
+  const dailyDrops = useMemo(() => {
+    const n = dailySeed();
+    return [
+      { label: "New members today", value: n },
+      { label: "New projects today", value: Math.max(3, Math.floor(n / 2)) },
+      { label: "New drops today", value: n + 2 },
+      { label: "New verified profiles today", value: n + 6 },
+    ];
+  }, []);
+
+  const [dailyDropIndex, setDailyDropIndex] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setDailyDropIndex((i) => (i + 1) % dailyDrops.length);
+    }, 4000);
+    return () => clearInterval(id);
+  }, [dailyDrops.length]);
+
+  const currentDrop = dailyDrops[dailyDropIndex];
+
   return (
     <div className="min-h-screen relative z-10">
       {/* Daily Drop Banner */}
@@ -166,7 +195,18 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
           <div className="flex items-center justify-center gap-3">
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-primary/10 to-primary/10 border border-border text-sm font-medium text-gray-900">
               <Sparkles className="w-4 h-4 text-primary stroke-[1.75]" />
-              Daily drop: New verified profiles today: <span className="text-primary font-bold">24</span>
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={currentDrop.label}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.25 }}
+                  className="inline-flex items-center gap-1"
+                >
+                  Daily drop: {currentDrop.label}: <span className="text-primary font-bold">{currentDrop.value}</span>
+                </motion.span>
+              </AnimatePresence>
             </span>
             <button
               onClick={() => setRoute({ name: "overview" })}

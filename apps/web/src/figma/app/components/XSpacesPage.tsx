@@ -153,6 +153,37 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [speakerRequestPitch, setSpeakerRequestPitch] = useState("");
   const [withdrawingRequestId, setWithdrawingRequestId] = useState<string | null>(null);
   const [speakerResolveError, setSpeakerResolveError] = useState<string | null>(null);
+  type SponsorProposalRow = {
+    id: string;
+    space_id: string;
+    project_profile_id: string;
+    offer_amount: number;
+    currency: string;
+    sponsorship_type: string;
+    message: string | null;
+    requested_deliverables: string | null;
+    status: string;
+    display_name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+    created_at: string;
+  };
+  const [spaceSponsorProposals, setSpaceSponsorProposals] = useState<SponsorProposalRow[]>([]);
+  const [sponsorProposalSubmitting, setSponsorProposalSubmitting] = useState(false);
+  const [sponsorProposalError, setSponsorProposalError] = useState<string | null>(null);
+  const [sponsorApplyOffer, setSponsorApplyOffer] = useState("");
+  const [sponsorApplyCurrency, setSponsorApplyCurrency] = useState("USD");
+  const [sponsorApplyType, setSponsorApplyType] = useState("custom");
+  const [sponsorApplyMessage, setSponsorApplyMessage] = useState("");
+  const [sponsorApplyDeliverables, setSponsorApplyDeliverables] = useState("");
+  const [acceptPayoutProposalId, setAcceptPayoutProposalId] = useState<string | null>(null);
+  const [acceptPayoutMethod, setAcceptPayoutMethod] = useState<"saved_wallet" | "one_time_wallet" | "linkary_wallet">("one_time_wallet");
+  const [acceptPayoutAddress, setAcceptPayoutAddress] = useState("");
+  const [acceptPayoutSaving, setAcceptPayoutSaving] = useState(false);
+  const [resolvingSponsorId, setResolvingSponsorId] = useState<string | null>(null);
+  const [inboxProposals, setInboxProposals] = useState<Array<{ id: string; space_id: string; space_title: string | null; project_display_name: string | null; project_username: string | null; offer_amount: number; currency: string; sponsorship_type: string; status: string; created_at: string }>>([]);
+  const [inboxSpaces, setInboxSpaces] = useState<Array<{ id: string; title?: string; x_title?: string | null; linkary_title?: string | null; host_profile_id?: string }>>([]);
+  const [inboxLoading, setInboxLoading] = useState(false);
   const [linkXSpaceUrl, setLinkXSpaceUrl] = useState("");
   const [linkXSpaceSaving, setLinkXSpaceSaving] = useState(false);
   const [showLinkXSpace, setShowLinkXSpace] = useState(false);
@@ -346,6 +377,20 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     return () => ac.abort();
   }, [mainNav, loadDiscover]);
 
+  useEffect(() => {
+    if (mainNav !== "inbox" || !me?.id) return;
+    setInboxLoading(true);
+    getToken().then((token) => {
+      fetch(`${base}/api/xspaces/inbox`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+        .then((res) => res.json().catch(() => ({})))
+        .then((data) => {
+          setInboxProposals(Array.isArray(data?.proposals) ? data.proposals : []);
+          setInboxSpaces(Array.isArray(data?.spaces) ? data.spaces : []);
+        })
+        .finally(() => setInboxLoading(false));
+    });
+  }, [mainNav, me?.id, base, getToken]);
+
   const fetchXMe = useCallback(async () => {
     if (!me?.id || !base) return;
     const t = await getToken();
@@ -439,12 +484,23 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     else setHostAndSpeakers(null);
   }, [base, getToken]);
 
+  const loadDetailSponsorProposals = useCallback(async (spaceId: string) => {
+    const token = await getToken();
+    const res = await fetch(`${base}/api/spaces/${spaceId}/sponsor-proposals`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const data = await res.json().catch(() => ({}));
+    setSpaceSponsorProposals(Array.isArray(data?.proposals) ? data.proposals : []);
+  }, [base, getToken]);
+
   useEffect(() => {
     if (!detailsSpace) {
       setEditTitle("");
       setSpaceRsvps(null);
       setSpaceSpeakerRequests([]);
       setSpaceSpeakerApprovedCount(0);
+      setSpaceSponsorProposals([]);
+      setSponsorProposalError(null);
+      setAcceptPayoutProposalId(null);
+      setAcceptPayoutAddress("");
       setSpeakerRequestTopic("");
       setSpeakerRequestPitch("");
       setHostAndSpeakers(null);
@@ -464,8 +520,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setLinkXSpaceError(null);
     loadDetailRsvps(detailsSpace.id);
     loadHostAndSpeakers(detailsSpace.id);
-    if (me?.id) loadDetailSpeakerRequests(detailsSpace.id);
-  }, [detailsSpace?.id, detailsSpace?.host_profile_id, me?.id, loadDetailRsvps, loadDetailSpeakerRequests, loadHostAndSpeakers]);
+    if (me?.id) {
+      loadDetailSpeakerRequests(detailsSpace.id);
+      loadDetailSponsorProposals(detailsSpace.id);
+    }
+  }, [detailsSpace?.id, detailsSpace?.host_profile_id, me?.id, loadDetailRsvps, loadDetailSpeakerRequests, loadDetailSponsorProposals, loadHostAndSpeakers]);
 
   const loadAudienceOverlaps = useCallback(
     async (spaceIds: string[]) => {
@@ -1039,6 +1098,37 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             onEventClick={handleOpenEventDetail}
           />
         )}
+        {mainNav === "inbox" && (
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-2">Inbox</h2>
+            <p className="text-sm text-muted-foreground mb-4">Pending sponsor proposals for your spaces.</p>
+            {inboxLoading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : inboxProposals.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No sponsor proposals.</p>
+            ) : (
+              <ul className="space-y-3">
+                {inboxProposals.filter((p) => p.status === "pending").map((p) => (
+                  <li key={p.id} className="rounded-xl border border-border bg-card p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-medium text-foreground">{p.space_title ?? "Space"}</span>
+                      <span className="text-xs text-muted-foreground">{p.project_display_name || (p.project_username ? `@${p.project_username}` : "Project")}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{p.offer_amount} {p.currency} · {p.sponsorship_type.replace(/_/g, " ")}</p>
+                    <Button type="button" variant="outline" size="sm" className="mt-2 rounded-xl" onClick={() => {
+                      const fromInbox = inboxSpaces.find((s) => s.id === p.space_id);
+                      const fromList = spaces.find((s) => s.id === p.space_id) ?? mySpaces.find((s) => s.id === p.space_id);
+                      const space = fromList ?? (fromInbox && me?.id ? { id: fromInbox.id, title: fromInbox.title ?? fromInbox.linkary_title ?? fromInbox.x_title ?? p.space_title ?? "Space", host_profile_id: me.id, description: null, scheduled_at: null, duration_mins: null, status: "scheduled", created_at: "" } : null);
+                      if (space) setDetailsSpace(space as Space);
+                    }}>
+                      Open space
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
       {showCreate && (
         <>
@@ -1562,6 +1652,78 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     ))}
                     {speakerResolveError && <p className="text-xs text-destructive">{speakerResolveError}</p>}
                   </div>
+                  <div className="rounded-xl border border-border bg-card p-3 space-y-2 mt-3">
+                    <p className="text-xs font-medium text-muted-foreground">Sponsor proposals</p>
+                    {spaceSponsorProposals.filter((sp) => sp.status === "pending").length === 0 && spaceSponsorProposals.length > 0 && (
+                      <p className="text-xs text-muted-foreground">No pending proposals.</p>
+                    )}
+                    {spaceSponsorProposals.filter((sp) => sp.status === "pending").map((sp) => (
+                      <div key={sp.id} className="rounded-lg border border-border bg-card p-3 space-y-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          {sp.avatar_url ? (
+                            <img src={sp.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <span className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground shrink-0">
+                              {(sp.display_name?.trim().slice(0, 2) || sp.username?.slice(0, 2) || "?").toUpperCase()}
+                            </span>
+                          )}
+                          <span className="font-medium text-foreground">{sp.display_name?.trim() || (sp.username ? `@${sp.username}` : "Project")}</span>
+                        </div>
+                        <p className="text-foreground">{sp.offer_amount} {sp.currency} · {sp.sponsorship_type.replace(/_/g, " ")}</p>
+                        {sp.message && <p className="text-muted-foreground text-xs">{sp.message}</p>}
+                        {sp.requested_deliverables && <p className="text-muted-foreground text-xs">Deliverables: {sp.requested_deliverables}</p>}
+                        {acceptPayoutProposalId === sp.id ? (
+                          <div className="rounded-lg border border-border bg-card p-3 space-y-2 mt-2">
+                            <p className="text-xs font-medium text-muted-foreground">Record payout destination (payment is off-platform)</p>
+                            <p className="text-xs text-muted-foreground">Linkary records the payout destination only. Payment is arranged off-platform between sponsor and host.</p>
+                            <label className="block text-xs font-medium text-muted-foreground">Payout method</label>
+                            <div className="space-y-1">
+                              {(["one_time_wallet", "saved_wallet", "linkary_wallet"] as const).map((m) => (
+                                <label key={m} className="flex items-center gap-2 cursor-pointer">
+                                  <input type="radio" name="payoutMethod" checked={acceptPayoutMethod === m} onChange={() => { setAcceptPayoutMethod(m); if (m === "linkary_wallet") setAcceptPayoutAddress(""); }} className="rounded-full border-border text-primary" />
+                                  <span className="text-sm">{m.replace(/_/g, " ")}</span>
+                                </label>
+                              ))}
+                            </div>
+                            {(acceptPayoutMethod === "one_time_wallet" || acceptPayoutMethod === "saved_wallet") && (
+                              <input type="text" value={acceptPayoutAddress} onChange={(e) => setAcceptPayoutAddress(e.target.value)} placeholder="Wallet address" maxLength={200} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                            )}
+                            <div className="flex gap-2 flex-wrap">
+                              <Button type="button" size="sm" disabled={acceptPayoutSaving || (acceptPayoutMethod !== "linkary_wallet" && !acceptPayoutAddress.trim())} className="rounded-lg" onClick={async () => {
+                                setAcceptPayoutSaving(true);
+                                const token = await getToken();
+                                const res = await fetch(`${base}/api/spaces/${detailsSpace.id}/sponsor-proposals/${sp.id}`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                  body: JSON.stringify({ status: "accepted", payout_method: acceptPayoutMethod, payout_wallet_address: acceptPayoutMethod === "linkary_wallet" ? null : acceptPayoutAddress.trim() }),
+                                });
+                                setAcceptPayoutSaving(false);
+                                if (res.ok) {
+                                  setAcceptPayoutProposalId(null);
+                                  setAcceptPayoutAddress("");
+                                  loadDetailSponsorProposals(detailsSpace.id);
+                                  if (mainNav === "inbox") getToken().then((t) => fetch(`${base}/api/xspaces/inbox`, { headers: t ? { Authorization: `Bearer ${t}` } : {} }).then((r) => r.json()).then((d) => { setInboxProposals(Array.isArray(d?.proposals) ? d.proposals : []); setInboxSpaces(Array.isArray(d?.spaces) ? d.spaces : []); }));
+                                }
+                              }}>{acceptPayoutSaving ? "…" : "Confirm accept"}</Button>
+                              <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={() => { setAcceptPayoutProposalId(null); setAcceptPayoutAddress(""); }}>Cancel</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 flex-wrap">
+                            <Button type="button" size="sm" disabled={resolvingSponsorId === sp.id} className="rounded-lg text-xs bg-primary/20 text-primary border-primary/30" onClick={() => { setAcceptPayoutProposalId(sp.id); setAcceptPayoutMethod("one_time_wallet"); setAcceptPayoutAddress(""); }}>Accept</Button>
+                            <Button type="button" variant="outline" size="sm" disabled={resolvingSponsorId === sp.id} className="rounded-lg text-xs" onClick={async () => {
+                              setResolvingSponsorId(sp.id);
+                              const token = await getToken();
+                              await fetch(`${base}/api/spaces/${detailsSpace.id}/sponsor-proposals/${sp.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: "declined" }) });
+                              setResolvingSponsorId(null);
+                              loadDetailSponsorProposals(detailsSpace.id);
+                              if (mainNav === "inbox") getToken().then((t) => fetch(`${base}/api/xspaces/inbox`, { headers: t ? { Authorization: `Bearer ${t}` } : {} }).then((r) => r.json()).then((d) => { setInboxProposals(Array.isArray(d?.proposals) ? d.proposals : []); setInboxSpaces(Array.isArray(d?.spaces) ? d.spaces : []); }));
+                            }}>Decline</Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </>
               )}
               </div>
@@ -1636,14 +1798,69 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   ) : (
                     <div className="mb-2 space-y-2">
                       <label className="block text-xs font-medium text-muted-foreground">Apply as speaker</label>
-                      <input
-                        type="text"
-                        value={speakerRequestTopic}
-                        onChange={(e) => setSpeakerRequestTopic(e.target.value)}
-                        placeholder="Topic"
-                        maxLength={200}
-                        className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm"
-                      />
+                      <input type="text" value={speakerRequestTopic} onChange={(e) => setSpeakerRequestTopic(e.target.value)} placeholder="Topic" maxLength={200} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                      <textarea value={speakerRequestPitch} onChange={(e) => setSpeakerRequestPitch(e.target.value)} placeholder="Pitch (why you'd like to speak)" rows={2} maxLength={500} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                      <input type="text" value={speakerRequestMessage} onChange={(e) => setSpeakerRequestMessage(e.target.value)} placeholder="Message to host (optional)" maxLength={500} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                      <Button type="button" onClick={handleRequestSpeaker} disabled={speakerRequesting || !speakerRequestTopic.trim() || !speakerRequestPitch.trim()} className="rounded-xl">{speakerRequesting ? "…" : "Apply as speaker"}</Button>
+                    </div>
+                  )}
+                  {spaceSponsorProposals.length > 0 ? (
+                    <div className="mb-2 rounded-xl border border-border bg-card p-3">
+                      <p className="text-xs font-medium text-muted-foreground">Your sponsor proposal</p>
+                      <p className="text-sm text-foreground capitalize">{spaceSponsorProposals[0].status}</p>
+                    </div>
+                  ) : (
+                    <div className="mb-2 space-y-2">
+                      <label className="block text-xs font-medium text-muted-foreground">Apply to sponsor</label>
+                      <select value={sponsorApplyType} onChange={(e) => setSponsorApplyType(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm">
+                        <option value="title_sponsor">Title sponsor</option>
+                        <option value="co_sponsor">Co-sponsor</option>
+                        <option value="giveaway_sponsor">Giveaway sponsor</option>
+                        <option value="speaking_slot_sponsor">Speaking slot sponsor</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                      <input type="text" value={sponsorApplyOffer} onChange={(e) => setSponsorApplyOffer(e.target.value)} placeholder="Offer amount" className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                      <select value={sponsorApplyCurrency} onChange={(e) => setSponsorApplyCurrency(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm">
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="USDC">USDC</option>
+                      </select>
+                      <input type="text" value={sponsorApplyMessage} onChange={(e) => setSponsorApplyMessage(e.target.value)} placeholder="Message (optional)" maxLength={2000} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                      <input type="text" value={sponsorApplyDeliverables} onChange={(e) => setSponsorApplyDeliverables(e.target.value)} placeholder="Requested deliverables (optional)" maxLength={2000} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                      <Button type="button" disabled={sponsorProposalSubmitting || !sponsorApplyOffer.trim()} className="rounded-xl" onClick={async () => {
+                        if (!detailsSpace || !me?.id || isHost(detailsSpace)) return;
+                        const amount = parseFloat(sponsorApplyOffer.trim());
+                        if (!Number.isFinite(amount) || amount < 0) { setSponsorProposalError("Enter a valid offer amount."); return; }
+                        setSponsorProposalSubmitting(true);
+                        setSponsorProposalError(null);
+                        const token = await getToken();
+                        const res = await fetch(`${base}/api/spaces/${detailsSpace.id}/sponsor-proposals`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({
+                            offer_amount: amount,
+                            currency: sponsorApplyCurrency,
+                            sponsorship_type: sponsorApplyType,
+                            message: sponsorApplyMessage.trim() || undefined,
+                            requested_deliverables: sponsorApplyDeliverables.trim() || undefined,
+                          }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        setSponsorProposalSubmitting(false);
+                        if (res.ok) {
+                          setSponsorApplyOffer("");
+                          setSponsorApplyMessage("");
+                          setSponsorApplyDeliverables("");
+                          loadDetailSponsorProposals(detailsSpace.id);
+                        } else setSponsorProposalError(sanitizeErrorMessage(data.error ?? "Failed to submit."));
+                      }}>{sponsorProposalSubmitting ? "…" : "Submit proposal"}</Button>
+                      {sponsorProposalError && <p className="text-xs text-destructive">{sponsorProposalError}</p>}
+                    </div>
+                  )}
+                  {/* non-host: speaker + sponsor sections above */}
+                  {false && (
+                    <div className="hidden">
+                      <input type="text" placeholder="Topic" maxLength={200} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" readOnly />
                       <textarea
                         value={speakerRequestPitch}
                         onChange={(e) => setSpeakerRequestPitch(e.target.value)}

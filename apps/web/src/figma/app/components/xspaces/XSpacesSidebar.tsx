@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import { Home, Compass, CalendarDays } from "lucide-react";
+import { Home, Compass, CalendarDays, Inbox } from "lucide-react";
 
-export type MainNav = "home" | "explore" | "calendar";
+export type MainNav = "home" | "explore" | "calendar" | "inbox";
 
 export function XSpacesSidebar({
   mainNav,
@@ -16,6 +16,7 @@ export function XSpacesSidebar({
     { id: "home", label: "Home", icon: Home },
     { id: "explore", label: "Explore", icon: Compass },
     { id: "calendar", label: "Calendar", icon: CalendarDays },
+    { id: "inbox", label: "Inbox", icon: Inbox },
   ];
 
   return (

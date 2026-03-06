@@ -105,6 +105,8 @@ Product + Engineering plan for: dual title (X + Linkary), speaker applications (
 
 **Slice 2 implemented:** Speaker applications with pitch/topic, statuses (pending/approved/declined/withdrawn), max 10 approved (RPC), host approve/decline, applicant withdraw. See `docs/XSPACES_SLICE2_IMPLEMENTATION_PLAN.md`.
 
+**Slice 3 implemented:** Sponsor proposals (space_sponsor_proposals), create/list/PATCH accept|decline, host inbox (pending proposals), payout method + wallet on accept. No escrow. See `docs/XSPACES_SLICE3_IMPLEMENTATION_PLAN.md`.
+
 ---
 
 ## 5) Security / constraints

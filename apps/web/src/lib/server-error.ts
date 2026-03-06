@@ -36,6 +36,16 @@ export function debugSync(code: string, detail?: string): void {
   console.warn(msg);
 }
 
+const DEBUG_MY_X_SPACES = process.env.DEBUG_MY_X_SPACES === "1" || process.env.DEBUG_MY_X_SPACES === "true";
+
+/** Safe server-side debug log for my-x-spaces. Never logs tokens, headers, or PII. */
+export function debugMyXSpaces(code: string, detail?: string): void {
+  if (!DEBUG_MY_X_SPACES) return;
+  const msg = detail ? `[my-x-spaces] ${code}: ${detail}` : `[my-x-spaces] ${code}`;
+  // eslint-disable-next-line no-console
+  console.warn(msg);
+}
+
 /** Redact token/secret-like substrings from a response body before logging. Max length 500. */
 export function sanitizeResponseBody(body: string): string {
   if (typeof body !== "string") return "";

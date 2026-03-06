@@ -172,6 +172,20 @@ export async function POST(request: NextRequest) {
             { status: 403 }
           );
         }
+        if (result.xStatus === 429) {
+          debugSync("SYNC_STAGE_FAIL_X_RATE_LIMITED");
+          return NextResponse.json(
+            { error: "X rate limit reached. Try again later.", code: "X_RATE_LIMITED" },
+            { status: 429 }
+          );
+        }
+        if (result.xStatus === 404) {
+          debugSync("SYNC_STAGE_FAIL_SPACE_NOT_FOUND");
+          return NextResponse.json(
+            { error: "Space not found on X.", code: "SPACE_NOT_FOUND" },
+            { status: 404 }
+          );
+        }
         debugSync("SYNC_STAGE_FAIL_X_NO_DATA", result.xStatus ? String(result.xStatus) : undefined);
         return NextResponse.json(
           { error: "Could not fetch Space from X. Try again.", code: "X_API_FAILED" },
@@ -179,9 +193,13 @@ export async function POST(request: NextRequest) {
         );
       }
     } catch (v2Err) {
-      debugSync("SYNC_STAGE_FAIL_X_FETCH", sanitizeServerError(v2Err));
+      const isTimeout = (v2Err as { name?: string }).name === "AbortError";
+      debugSync(isTimeout ? "SYNC_STAGE_FAIL_X_API_TIMEOUT" : "SYNC_STAGE_FAIL_X_FETCH", sanitizeServerError(v2Err));
       return NextResponse.json(
-        { error: "Could not fetch Space from X. Try again.", code: "X_API_FAILED" },
+        {
+          error: isTimeout ? "X API request timed out. Try again." : "Could not fetch Space from X. Try again.",
+          code: isTimeout ? "X_API_TIMEOUT" : "X_API_FAILED",
+        },
         { status: 502 }
       );
     }

@@ -232,6 +232,12 @@ export async function POST(request: NextRequest) {
           { status: 403, headers: rateLimitHeaders }
         );
       }
+      if (res.status === 429) {
+        return NextResponse.json(
+          { error: "X rate limit reached. Try again in a moment.", code: "X_RATE_LIMITED" },
+          { status: 429, headers: rateLimitHeaders }
+        );
+      }
       return NextResponse.json(
         { error: "Could not fetch Spaces from X", code: "X_API_FAILED" },
         { status: 502, headers: rateLimitHeaders }
@@ -244,7 +250,7 @@ export async function POST(request: NextRequest) {
     } catch {
       debugDetect("DETECT_STAGE_FAIL_INVALID_RESPONSE", "X API response was not JSON");
       return NextResponse.json(
-        { error: "Invalid response from X. Try again.", code: "DETECT_INVALID_RESPONSE" },
+        { error: "Invalid response from X. Try again.", code: "INVALID_X_RESPONSE" },
         { status: 502, headers: rateLimitHeaders }
       );
     }

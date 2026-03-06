@@ -252,3 +252,49 @@ Verified against current code and migrations.
 **analytics / reputation / credibility:** Use the three indexes above via `xspaces-stats` and credibility route. No additional index justified by current queries.
 
 **Conclusion:** No new index added. Existing indexes are sufficient.
+
+---
+
+## 11. Unified X API incident (my-x-spaces + detect + sync)
+
+### Scope
+
+All three X-import routes hardened and unified:
+
+- **GET /api/xspaces/my-x-spaces** — list Past X Spaces (last 30 days)
+- **POST /api/xspaces/detect-my-space** — detect/link Space
+- **POST /api/spaces/sync-from-x** — import from X
+
+### Common failure layer
+
+- **x_oauth_tokens** read + **X API** call + **response handling**. my-x-spaces previously had no try/catch, no timeout, no body consumption on !res.ok, and generic 502 for any X non-200. All three now map X failures deterministically.
+
+### Deterministic error-code mapping (all 3 routes)
+
+| Upstream / situation | HTTP | Code | Message style |
+|----------------------|------|------|----------------|
+| Auth invalid / no session | 401 | AUTH_INVALID | Invalid session / sign in again |
+| No token row / connect X | 403 | X_NOT_CONNECTED | Connect X first |
+| access_token missing | 403 | X_ACCESS_TOKEN_MISSING | Reconnect X |
+| x_user_id missing | 403 | X_USER_ID_MISSING | Reconnect X |
+| X returns 401 or 403 | 403 | X_RECONNECT_NEEDED | X connection expired or invalid. Reconnect X. |
+| X returns 429 | 429 | X_RATE_LIMITED | X rate limit reached. Try again later. |
+| X returns 404 (sync only) | 404 | SPACE_NOT_FOUND | Space not found on X. |
+| X non-200 (other) | 502 | X_API_FAILED | Could not fetch Spaces from X. |
+| Fetch timeout | 502 | X_API_TIMEOUT | X API request timed out. |
+| Non-JSON / malformed body | 502 | INVALID_X_RESPONSE | Invalid response from X. |
+| Unexpected throw | 502 | MY_X_SPACES_INTERNAL_ERROR / DETECT_INTERNAL_ERROR / SYNC_INTERNAL_ERROR | Try again. |
+| Rate-limit service down (detect only) | 503 | RATE_LIMIT_UNAVAILABLE | Rate limit service unavailable. |
+
+### my-x-spaces hardening
+
+- Env-gated debug: **DEBUG_MY_X_SPACES=1**; stage markers: MY_X_SPACES_STAGE_AUTH_OK, TOKEN_ROW_FOUND, X_API_CALL_START, X_API_RESPONSE, PARSE_OK, RETURN_SUCCESS, FAIL_*.
+- Try/catch, 8s timeout, consume body on !res.ok, safe JSON parse, Array guard. Success shape unchanged: `{ spaces: items }`.
+
+### Shared helper change
+
+- **fetchXSpaceByIdV2** (x-analytics-server): 8s timeout (AbortController); throws on timeout so sync-from-x can return 502 X_API_TIMEOUT. Still returns `{ space: null, xStatus }` for X HTTP errors.
+
+### Index verification (this incident)
+
+- my-x-spaces uses only **x_oauth_tokens** (eq profile_id, provider) and **X API** (no extra tables). No new index added; existing indexes remain sufficient.

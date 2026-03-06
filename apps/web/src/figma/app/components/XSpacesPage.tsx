@@ -117,6 +117,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [addFromXError, setAddFromXError] = useState<string | null>(null);
   const [myXSpacesList, setMyXSpacesList] = useState<Array<{ id: string; title: string | null; state: string | null; started_at: string | null; scheduled_start: string | null; url: string }>>([]);
   const [myXSpacesLoading, setMyXSpacesLoading] = useState(false);
+  const [myXSpacesError, setMyXSpacesError] = useState<string | null>(null);
   const [audienceOverlapsBySpaceId, setAudienceOverlapsBySpaceId] = useState<Record<string, AudienceOverlap[]>>({});
   const [overlapsError, setOverlapsError] = useState<boolean>(false);
   const [addFromXSuccess, setAddFromXSuccess] = useState<{ participants_count: number; overlaps: AudienceOverlap[] } | null>(null);
@@ -525,8 +526,23 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
   const loadMyXSpaces = useCallback(async () => {
     const token = await getToken();
+    setMyXSpacesError(null);
     const res = await fetch(`${base}/api/xspaces/my-x-spaces`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
     const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setMyXSpacesList([]);
+      if (res.status === 401 && (data.code === "AUTH_INVALID" || data.error === "Invalid session" || data.error === "Unauthorized")) {
+        setMyXSpacesError("Your session may have expired. Please sign in again.");
+      } else if (res.status === 403 && (data.code === "X_RECONNECT_NEEDED" || data.code === "X_NOT_CONNECTED" || data.code === "X_USER_ID_MISSING" || data.code === "X_ACCESS_TOKEN_MISSING")) {
+        setMyXSpacesError(data.error ?? "Connect or reconnect X in Settings or XSpaces to see your Spaces.");
+      } else if (res.status === 429 && (data.code === "X_RATE_LIMITED" || data.code === "RATE_LIMITED")) {
+        setMyXSpacesError(data.error ?? "Rate limit reached. Try again later.");
+      } else {
+        setMyXSpacesError(data.error ?? "X or our service is temporarily unavailable. Try again later.");
+      }
+      return;
+    }
+    setMyXSpacesError(null);
     setMyXSpacesList(Array.isArray(data.spaces) ? data.spaces : []);
   }, [base, getToken]);
 
@@ -536,6 +552,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       loadMyXSpaces().finally(() => setMyXSpacesLoading(false));
     } else if (!showAddFromX) {
       setMyXSpacesList([]);
+      setMyXSpacesError(null);
     }
   }, [showAddFromX, xConnected, loadMyXSpaces]);
 
@@ -1365,8 +1382,10 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                         setDetectError(sanitizeErrorMessage(data.error ?? "Already imported."));
                       } else if (res.status === 401 && (data.code === "AUTH_INVALID" || data.error === "Invalid session" || data.error === "Unauthorized")) {
                         setDetectError("Your session may have expired. Please sign in again.");
+                      } else if (res.status === 429 && (data.code === "X_RATE_LIMITED" || data.code === "RATE_LIMITED")) {
+                        setDetectError(data.error ?? "X rate limit reached. Try again later.");
                       } else if ((res.status === 502 || res.status === 503 || res.status === 404) && !data.space) {
-                        setDetectError("X or our service is temporarily unavailable. Try again or paste the link below.");
+                        setDetectError(res.status === 404 && data.code === "SPACE_NOT_FOUND" ? (data.error ?? "Space not found on X.") : "X or our service is temporarily unavailable. Try again or paste the link below.");
                       } else if (res.status === 403 && (data.code === "X_NOT_CONNECTED" || data.code === "X_NOT_HOST" || data.code === "X_RECONNECT_NEEDED")) {
                         setDetectError(data.error ?? "Connect or reconnect X to link.");
                       } else {
@@ -1470,7 +1489,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             {xConnected === true && (
               <div className="mb-3">
                 <p className="text-xs font-medium text-muted-foreground mb-2">Past X Spaces (last 30 days)</p>
-                {myXSpacesLoading ? (
+                {myXSpacesError ? (
+                  <p className="text-sm text-destructive">{myXSpacesError}</p>
+                ) : myXSpacesLoading ? (
                   <p className="text-sm text-muted-foreground">Loading…</p>
                 ) : myXSpacesList.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No recent Spaces from X.</p>
@@ -1500,8 +1521,10 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                               setAddFromXError(sanitizeErrorMessage(d.error ?? "Already imported."));
                             } else if (r.status === 401 && (d.code === "AUTH_INVALID" || d.error === "Invalid session" || d.error === "Unauthorized")) {
                               setAddFromXError("Your session may have expired. Please sign in again.");
+                            } else if (r.status === 429 && (d.code === "X_RATE_LIMITED" || d.code === "RATE_LIMITED")) {
+                              setAddFromXError(d.error ?? "X rate limit reached. Try again later.");
                             } else if ((r.status === 502 || r.status === 503 || r.status === 404) && !d.space) {
-                              setAddFromXError("X or our service is temporarily unavailable. Try again.");
+                              setAddFromXError(r.status === 404 && d.code === "SPACE_NOT_FOUND" ? (d.error ?? "Space not found on X.") : "X or our service is temporarily unavailable. Try again.");
                             } else if (r.status === 403 && (d.code === "X_NOT_CONNECTED" || d.code === "X_NOT_HOST" || d.code === "X_RECONNECT_NEEDED")) {
                               setAddFromXError(d.error ?? "Connect or reconnect X to import Spaces.");
                             } else {
@@ -1572,8 +1595,10 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     setAddFromXError(sanitizeErrorMessage(data.error ?? "Already imported."));
                   } else if (res.status === 401 && (data.code === "AUTH_INVALID" || data.error === "Invalid session" || data.error === "Unauthorized")) {
                     setAddFromXError("Your session may have expired. Please sign in again.");
+                  } else if (res.status === 429 && (data.code === "X_RATE_LIMITED" || data.code === "RATE_LIMITED")) {
+                    setAddFromXError(data.error ?? "X rate limit reached. Try again later.");
                   } else if ((res.status === 502 || res.status === 503 || res.status === 404) && !data.space) {
-                    setAddFromXError("X or our service is temporarily unavailable. Try again or paste the link below.");
+                    setAddFromXError(res.status === 404 && data.code === "SPACE_NOT_FOUND" ? (data.error ?? "Space not found on X.") : "X or our service is temporarily unavailable. Try again or paste the link below.");
                   } else if (res.status === 403 && (data.code === "X_NOT_CONNECTED" || data.code === "X_NOT_HOST" || data.code === "X_RECONNECT_NEEDED")) {
                     setAddFromXError(data.error ?? "Connect or reconnect X to import Spaces.");
                   } else {

@@ -293,12 +293,13 @@ export type XSpaceDetail = {
 };
 
 const X_API_BASE = "https://api.twitter.com/2";
+const X_API_TIMEOUT_MS = 8000;
 
 export type FetchXSpaceByIdV2Result =
   | { space: { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] }; xStatus?: undefined }
   | { space: null; xStatus: number };
 
-/** Fetch Space by ID from X API v2 (Bearer token). Returns { space } on success or { space: null, xStatus } on X error so caller can map 401/403 to reconnect. */
+/** Fetch Space by ID from X API v2 (Bearer token). Returns { space } on success or { space: null, xStatus } on X error. Throws on network/timeout so caller can map to 502 X_API_TIMEOUT. */
 export async function fetchXSpaceByIdV2(
   spaceId: string,
   accessToken: string
@@ -309,10 +310,18 @@ export async function fetchXSpaceByIdV2(
   const url = `${X_API_BASE}/spaces/${encodeURIComponent(id)}?space.fields=${encodeURIComponent(fields)}`;
   const debugSyncFromX = process.env.DEBUG_SYNC_FROM_X === "1" || process.env.DEBUG_SYNC_FROM_X === "true";
   const t0 = Date.now();
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
+  const ac = new AbortController();
+  const timeoutId = setTimeout(() => ac.abort(), X_API_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+      signal: ac.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
   const ms = Date.now() - t0;
   if (debugSyncFromX) {
     debugSync("X_API_CALL_RESPONSE", JSON.stringify({ status: res.status }));

@@ -298,3 +298,51 @@ All three X-import routes hardened and unified:
 ### Index verification (this incident)
 
 - my-x-spaces uses only **x_oauth_tokens** (eq profile_id, provider) and **X API** (no extra tables). No new index added; existing indexes remain sufficient.
+
+---
+
+## 12. X OAuth refresh and shared X API client (incident fix)
+
+### Root cause confirmed
+
+- **Supabase auth refresh 200** proves app session is fine.
+- **XSpaces 502** is downstream: stored **X access_token** in `x_oauth_tokens` is **stale/expired** (X access tokens are short-lived).
+- **E:** We requested `offline.access` and **stored** `refresh_token` in the callback but **never used it** to refresh the X access token. So we relied on a one-time access token until it expired, then X returns 401/403 and we surfaced 502 or X_RECONNECT_NEEDED.
+
+### X refresh_token: stored and now used
+
+- **Stored:** Yes. `x_oauth_tokens` has `refresh_token`, `expires_at`; callback sets them when X returns them.
+- **Used (before):** No. No code called X token endpoint with `grant_type=refresh_token`.
+- **Used (after):** Yes. **refreshXAccessToken(profileId, supabaseService)** in `lib/x-token-refresh.ts`: reads `refresh_token` with service role, POSTs to `https://api.twitter.com/2/oauth2/token` with `grant_type=refresh_token`, updates `access_token` (and `refresh_token`/`expires_at` if X returns them), returns new access_token or null. All three routes on **401/403 from X**: try **one** refresh, persist new token, **retry once**; if still 401/403 or no refresh_token → return **403 X_RECONNECT_NEEDED**.
+
+### Shared X API client
+
+- **lib/x-api-client.ts:** `xApiFetch(url, accessToken, options?)` → normalized `XApiResult`: `{ ok, status, data?, bodyText?, code }`. Handles timeout (8s), body consumption on !res.ok, safe JSON parse. Codes: OK, X_RECONNECT_NEEDED, X_RATE_LIMITED, SPACE_NOT_FOUND, X_API_TIMEOUT, INVALID_X_RESPONSE, X_API_FAILED. `xApiFetchSafe` catches timeout and returns X_API_TIMEOUT instead of throwing.
+- **lib/x-analytics-server.ts:** `fetchSpacesByCreatorId(xUserId, accessToken, spaceFields)` uses `xApiFetchSafe` for GET /2/spaces/by/creator_ids (used by my-x-spaces and detect-my-space). `fetchXSpaceByIdV2(spaceId, accessToken)` uses `xApiFetchSafe` for GET /2/spaces/{id}; returns `{ space } | { space: null, xStatus, code }` for sync-from-x.
+
+### Routes updated
+
+- **my-x-spaces:** Selects `access_token, refresh_token, x_user_id`; uses `fetchSpacesByCreatorId`; on X_RECONNECT_NEEDED and refresh_token present, calls `refreshXAccessToken`, retries once; maps all codes to deterministic response. Debug: token_row_exists, access_token_exists, refresh_token_exists, x_user_id_exists, refresh_attempt, retry_attempt, final_code.
+- **detect-my-space:** Same pattern with `fetchSpacesByCreatorId`; refresh-and-retry on 401/403; same debug markers.
+- **sync-from-x:** Selects `access_token, refresh_token, x_user_id`; uses `fetchXSpaceByIdV2`; refresh-and-retry on 401/403; handles result.code X_API_TIMEOUT; same debug markers.
+
+### Final error-code mapping (all 3 routes)
+
+- 401/403 from X → after optional refresh+retry → 403 **X_RECONNECT_NEEDED** (or 502 if non-auth failure).
+- 429 from X → 429 **X_RATE_LIMITED**.
+- 404 from X (sync only) → 404 **SPACE_NOT_FOUND**.
+- Timeout → 502 **X_API_TIMEOUT**.
+- Non-JSON / bad body → 502 **INVALID_X_RESPONSE**.
+- Other non-200 → 502 **X_API_FAILED**.
+
+### Client UX
+
+- **X_RECONNECT_NEEDED** (403) → show `data.error` or "Connect or reconnect X in Settings or XSpaces" (my-x-spaces: "…to see your Spaces"; detect: "…to detect your Space"; sync: "…to import Spaces").
+- **X_RATE_LIMITED** (429) → rate limit message.
+- **SPACE_NOT_FOUND** (404) → "Space not found on X."
+- **X_API_TIMEOUT / X_API_FAILED / INVALID_X_RESPONSE** (502) → "X or our service is temporarily unavailable" + paste link where applicable.
+- Empty success (my-x-spaces) → "No recent Spaces from X."
+
+### Index
+
+- **No new index.** All three routes query `x_oauth_tokens` by `profile_id` (PK) and `provider`. PK lookup is sufficient.

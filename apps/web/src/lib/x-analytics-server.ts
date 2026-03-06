@@ -3,7 +3,8 @@
  * Use from API routes or cron only. Never expose TWITTERAPI_API_KEY to client.
  */
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { debugSync, sanitizeResponseBody } from "@/lib/server-error";
+import { debugSync } from "@/lib/server-error";
+import { xApiFetchSafe } from "@/lib/x-api-client";
 
 const TWITTERAPI_BASE = "https://api.twitterapi.io";
 
@@ -293,13 +294,12 @@ export type XSpaceDetail = {
 };
 
 const X_API_BASE = "https://api.twitter.com/2";
-const X_API_TIMEOUT_MS = 8000;
 
 export type FetchXSpaceByIdV2Result =
-  | { space: { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] }; xStatus?: undefined }
-  | { space: null; xStatus: number };
+  | { space: { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] }; xStatus?: undefined; code?: undefined }
+  | { space: null; xStatus: number; code?: "X_RECONNECT_NEEDED" | "X_RATE_LIMITED" | "SPACE_NOT_FOUND" | "X_API_TIMEOUT" | "INVALID_X_RESPONSE" | "X_API_FAILED" };
 
-/** Fetch Space by ID from X API v2 (Bearer token). Returns { space } on success or { space: null, xStatus } on X error. Throws on network/timeout so caller can map to 502 X_API_TIMEOUT. */
+/** Fetch Space by ID from X API v2 (Bearer token). Uses shared xApiFetchSafe. Returns { space } on success or { space: null, xStatus } on X error. */
 export async function fetchXSpaceByIdV2(
   spaceId: string,
   accessToken: string
@@ -308,34 +308,30 @@ export async function fetchXSpaceByIdV2(
   if (!id || !accessToken) return { space: null, xStatus: 0 };
   const fields = "title,state,created_at,scheduled_start,host_ids";
   const url = `${X_API_BASE}/spaces/${encodeURIComponent(id)}?space.fields=${encodeURIComponent(fields)}`;
+  const result = await xApiFetchSafe(url, accessToken);
   const debugSyncFromX = process.env.DEBUG_SYNC_FROM_X === "1" || process.env.DEBUG_SYNC_FROM_X === "true";
-  const t0 = Date.now();
-  const ac = new AbortController();
-  const timeoutId = setTimeout(() => ac.abort(), X_API_TIMEOUT_MS);
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      cache: "no-store",
-      signal: ac.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-  const ms = Date.now() - t0;
   if (debugSyncFromX) {
-    debugSync("X_API_CALL_RESPONSE", JSON.stringify({ status: res.status }));
-    debugSync("X_API_CALL_DURATION", JSON.stringify({ ms }));
+    debugSync("X_API_CALL_RESPONSE", JSON.stringify({ status: result.status, code: result.code }));
+    if (!result.ok && result.bodyText) debugSync("X_API_CALL_BODY", result.bodyText);
   }
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    if (debugSyncFromX && body) debugSync("X_API_CALL_BODY", sanitizeResponseBody(body));
-    return { space: null, xStatus: res.status };
+  if (!result.ok) {
+    const status = result.code === "X_API_TIMEOUT" ? 0 : result.status;
+    return { space: null, xStatus: status, code: result.code };
   }
-  const json = (await res.json()) as { data?: { id?: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } };
+  const json = result.data as { data?: { id?: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } };
   const data = json?.data;
-  if (!data || !data.id) return { space: null, xStatus: 0 };
+  if (!data || !data.id) return { space: null, xStatus: 0, code: "X_API_FAILED" };
   return { space: data as { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } };
+}
+
+/** Fetch Spaces by creator (X API v2 GET /2/spaces/by/creator_ids). Uses shared xApiFetchSafe. For my-x-spaces and detect-my-space. */
+export async function fetchSpacesByCreatorId(
+  xUserId: string,
+  accessToken: string,
+  spaceFields: string
+): Promise<import("@/lib/x-api-client").XApiResult> {
+  const url = `${X_API_BASE}/spaces/by/creator_ids?user_ids=${encodeURIComponent(xUserId)}&space.fields=${encodeURIComponent(spaceFields)}`;
+  return xApiFetchSafe(url, accessToken);
 }
 
 /** Fetch Space detail by ID from twitterapi.io. Returns null on error or missing data. */

@@ -15,9 +15,11 @@ import {
   spaceParticipantIds,
   type XSpaceDetail,
 } from "@/lib/x-analytics-server";
+import { refreshXAccessToken } from "@/lib/x-token-refresh";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
 const TWITTERAPI_API_KEY = process.env.TWITTERAPI_API_KEY;
 
 type SpaceRow = {
@@ -138,7 +140,7 @@ export async function POST(request: NextRequest) {
   if (!detail) {
     const { data: tokenRow, error: tokenError } = await supabase
       .from("x_oauth_tokens")
-      .select("access_token, x_user_id")
+      .select("access_token, refresh_token, x_user_id")
       .eq("profile_id", user.id)
       .eq("provider", "x")
       .maybeSingle();
@@ -146,8 +148,11 @@ export async function POST(request: NextRequest) {
       debugSync("SYNC_STAGE_FAIL_TOKEN_LOOKUP", tokenError.message);
       return NextResponse.json({ error: "Connect X first to import Spaces", code: "X_NOT_CONNECTED" }, { status: 403 });
     }
+    const hasTokenRow = !!tokenRow;
     const accessToken = (tokenRow as { access_token?: string } | null)?.access_token;
+    const refreshToken = (tokenRow as { refresh_token?: string | null } | null)?.refresh_token;
     const xUserId = (tokenRow as { x_user_id?: string | null } | null)?.x_user_id;
+    debugSync("SYNC_STAGE_TOKEN_ROW", JSON.stringify({ token_row_exists: hasTokenRow, access_token_exists: !!accessToken, refresh_token_exists: !!refreshToken, x_user_id_exists: !!xUserId }));
     if (!accessToken || !xUserId) {
       debugSync("SYNC_STAGE_FAIL_X_NOT_CONNECTED", tokenRow ? "missing access_token or x_user_id" : "no token row");
       return NextResponse.json({ error: "Connect X first to import Spaces", code: "X_NOT_CONNECTED" }, { status: 403 });
@@ -156,50 +161,59 @@ export async function POST(request: NextRequest) {
     const fields = "title,state,created_at,scheduled_start,host_ids";
     debugSync("X_API_CALL_START", JSON.stringify({
       endpoint: `https://api.twitter.com/2/spaces/${spaceId}?space.fields=${fields}`,
-      access_token_exists: !!accessToken,
-      x_user_id_exists: !!xUserId,
+      access_token_exists: true,
+      x_user_id_exists: true,
     }));
     let v2Space: { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } | null = null;
-    try {
-      const result = await fetchXSpaceByIdV2(spaceId, accessToken);
-      if (result.space) {
-        v2Space = result.space;
-      } else {
-        if (result.xStatus === 401 || result.xStatus === 403) {
-          debugSync("SYNC_STAGE_FAIL_X_AUTH", String(result.xStatus));
-          return NextResponse.json(
-            { error: "X connection expired or invalid. Reconnect X in Settings or XSpaces.", code: "X_RECONNECT_NEEDED" },
-            { status: 403 }
-          );
-        }
-        if (result.xStatus === 429) {
-          debugSync("SYNC_STAGE_FAIL_X_RATE_LIMITED");
-          return NextResponse.json(
-            { error: "X rate limit reached. Try again later.", code: "X_RATE_LIMITED" },
-            { status: 429 }
-          );
-        }
-        if (result.xStatus === 404) {
-          debugSync("SYNC_STAGE_FAIL_SPACE_NOT_FOUND");
-          return NextResponse.json(
-            { error: "Space not found on X.", code: "SPACE_NOT_FOUND" },
-            { status: 404 }
-          );
-        }
-        debugSync("SYNC_STAGE_FAIL_X_NO_DATA", result.xStatus ? String(result.xStatus) : undefined);
+    let currentAccessToken = accessToken;
+    let result = await fetchXSpaceByIdV2(spaceId, currentAccessToken);
+    const needsReconnect = !result.space && (result.xStatus === 401 || result.xStatus === 403);
+    if (needsReconnect && refreshToken && supabaseServiceKey && supabaseUrl) {
+      debugSync("SYNC_STAGE_REFRESH_ATTEMPT", "1");
+      const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+      const refreshed = await refreshXAccessToken(user.id, supabaseService);
+      if (refreshed?.access_token) {
+        debugSync("SYNC_STAGE_RETRY_ATTEMPT", "1");
+        currentAccessToken = refreshed.access_token;
+        result = await fetchXSpaceByIdV2(spaceId, currentAccessToken);
+      }
+    }
+    const finalCode = !result.space && result.code ? result.code : result.space ? "OK" : "X_API_FAILED";
+    debugSync("SYNC_STAGE_FINAL_CODE", finalCode);
+    if (result.space) {
+      v2Space = result.space;
+    } else {
+      if (result.xStatus === 401 || result.xStatus === 403 || result.code === "X_RECONNECT_NEEDED") {
+        debugSync("SYNC_STAGE_FAIL_X_AUTH", String(result.xStatus ?? result.code));
         return NextResponse.json(
-          { error: "Could not fetch Space from X. Try again.", code: "X_API_FAILED" },
+          { error: "X connection expired or invalid. Reconnect X in Settings or XSpaces.", code: "X_RECONNECT_NEEDED" },
+          { status: 403 }
+        );
+      }
+      if (result.xStatus === 429 || result.code === "X_RATE_LIMITED") {
+        debugSync("SYNC_STAGE_FAIL_X_RATE_LIMITED");
+        return NextResponse.json(
+          { error: "X rate limit reached. Try again later.", code: "X_RATE_LIMITED" },
+          { status: 429 }
+        );
+      }
+      if (result.xStatus === 404 || result.code === "SPACE_NOT_FOUND") {
+        debugSync("SYNC_STAGE_FAIL_SPACE_NOT_FOUND");
+        return NextResponse.json(
+          { error: "Space not found on X.", code: "SPACE_NOT_FOUND" },
+          { status: 404 }
+        );
+      }
+      if (result.code === "X_API_TIMEOUT") {
+        debugSync("SYNC_STAGE_FAIL_X_API_TIMEOUT");
+        return NextResponse.json(
+          { error: "X API request timed out. Try again.", code: "X_API_TIMEOUT" },
           { status: 502 }
         );
       }
-    } catch (v2Err) {
-      const isTimeout = (v2Err as { name?: string }).name === "AbortError";
-      debugSync(isTimeout ? "SYNC_STAGE_FAIL_X_API_TIMEOUT" : "SYNC_STAGE_FAIL_X_FETCH", sanitizeServerError(v2Err));
+      debugSync("SYNC_STAGE_FAIL_X_NO_DATA", result.xStatus ? String(result.xStatus) : result.code ?? undefined);
       return NextResponse.json(
-        {
-          error: isTimeout ? "X API request timed out. Try again." : "Could not fetch Space from X. Try again.",
-          code: isTimeout ? "X_API_TIMEOUT" : "X_API_FAILED",
-        },
+        { error: "Could not fetch Space from X. Try again.", code: "X_API_FAILED" },
         { status: 502 }
       );
     }

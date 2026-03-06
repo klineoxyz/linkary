@@ -8,14 +8,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { rateLimitXSpacesDetect, xSpacesDetectRateLimitHeaders } from "@/lib/rate-limit";
-import { sanitizeServerError, sanitizeResponseBody, debugDetect } from "@/lib/server-error";
+import { sanitizeServerError, debugDetect } from "@/lib/server-error";
+import { fetchSpacesByCreatorId } from "@/lib/x-analytics-server";
+import { refreshXAccessToken } from "@/lib/x-token-refresh";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
-const X_API_BASE = "https://api.twitter.com/2";
-/** Keep below typical platform limit (e.g. 10s) so our timeout fires and we return 502 X_API_TIMEOUT instead of function kill. */
-const X_API_TIMEOUT_MS = 8000;
 
 const WINDOW_MS = 15 * 60 * 1000;
 const SCHEDULED_PROXIMITY_MS = 2 * 60 * 60 * 1000;
@@ -155,7 +154,7 @@ export async function POST(request: NextRequest) {
 
     const { data: tokenRow, error: tokenError } = await supabase
       .from("x_oauth_tokens")
-      .select("access_token, x_user_id")
+      .select("access_token, refresh_token, x_user_id")
       .eq("profile_id", user.id)
       .eq("provider", "x")
       .maybeSingle();
@@ -167,6 +166,8 @@ export async function POST(request: NextRequest) {
         { status: 403, headers: rateLimitHeaders }
       );
     }
+    const hasTokenRow = !!tokenRow;
+    const hasRefreshToken = !!(tokenRow as { refresh_token?: string | null } | null)?.refresh_token;
     if (!tokenRow?.access_token) {
       debugDetect("DETECT_STAGE_FAIL_X_NOT_CONNECTED", "no access_token");
       return NextResponse.json(
@@ -174,7 +175,7 @@ export async function POST(request: NextRequest) {
         { status: 403, headers: rateLimitHeaders }
       );
     }
-    debugDetect("DETECT_STAGE_TOKEN_ROW_FOUND");
+    debugDetect("DETECT_STAGE_TOKEN_ROW", JSON.stringify({ token_row_exists: hasTokenRow, access_token_exists: true, refresh_token_exists: hasRefreshToken, x_user_id_exists: !!(tokenRow as { x_user_id?: string | null }).x_user_id }));
 
     const xUserId = (tokenRow as { x_user_id: string | null }).x_user_id;
     if (!xUserId || typeof xUserId !== "string") {
@@ -183,59 +184,50 @@ export async function POST(request: NextRequest) {
         { status: 403, headers: rateLimitHeaders }
       );
     }
+    debugDetect("DETECT_STAGE_TOKEN_ROW_FOUND");
 
-    const accessToken = (tokenRow as { access_token: string }).access_token;
+    let currentAccessToken = (tokenRow as { access_token: string }).access_token;
     const spaceFields = "created_at,state,title,id,scheduled_start";
-    const url = `${X_API_BASE}/spaces/by/creator_ids?user_ids=${encodeURIComponent(xUserId)}&space.fields=${encodeURIComponent(spaceFields)}`;
+    debugDetect("X_API_CALL_START", JSON.stringify({ endpoint: "GET /2/spaces/by/creator_ids", access_token_exists: true, x_user_id_exists: true }));
 
-    const debugDetectMySpace = process.env.DEBUG_DETECT_MY_SPACE === "1" || process.env.DEBUG_DETECT_MY_SPACE === "true";
-    if (debugDetectMySpace) {
-      const safeEndpoint = `${X_API_BASE}/spaces/by/creator_ids?user_ids=REDACTED&space.fields=${encodeURIComponent(spaceFields)}`;
-      debugDetect("X_API_CALL_START", JSON.stringify({ endpoint: safeEndpoint, access_token_exists: !!accessToken, x_user_id_exists: !!xUserId }));
+    let result = await fetchSpacesByCreatorId(xUserId, currentAccessToken, spaceFields);
+    if (!result.ok && result.code === "X_RECONNECT_NEEDED" && hasRefreshToken && supabaseServiceKey && supabaseUrl) {
+      debugDetect("DETECT_STAGE_REFRESH_ATTEMPT", "1");
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+      const refreshed = await refreshXAccessToken(user.id, supabaseAdmin);
+      if (refreshed?.access_token) {
+        debugDetect("DETECT_STAGE_RETRY_ATTEMPT", "1");
+        currentAccessToken = refreshed.access_token;
+        result = await fetchSpacesByCreatorId(xUserId, currentAccessToken, spaceFields);
+      }
     }
+    debugDetect("X_API_CALL_RESPONSE", JSON.stringify({ status: result.status, code: result.code }));
+    if (!result.ok && result.bodyText) debugDetect("X_API_CALL_BODY", result.bodyText);
+    debugDetect("DETECT_STAGE_FINAL_CODE", result.code);
 
-    let res: Response;
-    const t0 = Date.now();
-    try {
-      const ac = new AbortController();
-      const timeoutId = setTimeout(() => ac.abort(), X_API_TIMEOUT_MS);
-      res = await fetch(url, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        signal: ac.signal,
-        cache: "no-store",
-      });
-      clearTimeout(timeoutId);
-    } catch (fetchErr) {
-      const isTimeout = (fetchErr as { name?: string }).name === "AbortError";
-      debugDetect(isTimeout ? "X_API_TIMEOUT" : "X_API_FAILED", sanitizeServerError(fetchErr));
-      return NextResponse.json(
-        {
-          error: isTimeout ? "X API request timed out. Try again." : "Could not fetch Spaces from X.",
-          code: isTimeout ? "X_API_TIMEOUT" : "X_API_FAILED",
-        },
-        { status: 502, headers: rateLimitHeaders }
-      );
-    }
-
-    const xApiMs = Date.now() - t0;
-    if (debugDetectMySpace) {
-      debugDetect("X_API_CALL_RESPONSE", JSON.stringify({ status: res.status }));
-      debugDetect("X_API_CALL_DURATION", JSON.stringify({ ms: xApiMs }));
-    }
-    if (!res.ok) {
-      debugDetect("DETECT_STAGE_FAIL_X_API", String(res.status));
-      const body = await res.text().catch(() => "");
-      if (debugDetectMySpace && body) debugDetect("X_API_CALL_BODY", sanitizeResponseBody(body));
-      if (res.status === 401 || res.status === 403) {
+    if (!result.ok) {
+      if (result.code === "X_RECONNECT_NEEDED") {
         return NextResponse.json(
           { error: "X connection expired or invalid. Reconnect X in Settings or XSpaces.", code: "X_RECONNECT_NEEDED" },
           { status: 403, headers: rateLimitHeaders }
         );
       }
-      if (res.status === 429) {
+      if (result.code === "X_RATE_LIMITED") {
         return NextResponse.json(
           { error: "X rate limit reached. Try again in a moment.", code: "X_RATE_LIMITED" },
           { status: 429, headers: rateLimitHeaders }
+        );
+      }
+      if (result.code === "X_API_TIMEOUT") {
+        return NextResponse.json(
+          { error: "X API request timed out. Try again.", code: "X_API_TIMEOUT" },
+          { status: 502, headers: rateLimitHeaders }
+        );
+      }
+      if (result.code === "INVALID_X_RESPONSE") {
+        return NextResponse.json(
+          { error: "Invalid response from X. Try again.", code: "INVALID_X_RESPONSE" },
+          { status: 502, headers: rateLimitHeaders }
         );
       }
       return NextResponse.json(
@@ -244,16 +236,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let data: { data?: unknown };
-    try {
-      data = (await res.json()) as { data?: unknown };
-    } catch {
-      debugDetect("DETECT_STAGE_FAIL_INVALID_RESPONSE", "X API response was not JSON");
-      return NextResponse.json(
-        { error: "Invalid response from X. Try again.", code: "INVALID_X_RESPONSE" },
-        { status: 502, headers: rateLimitHeaders }
-      );
-    }
+    const data = result.data as { data?: unknown };
     debugDetect("DETECT_STAGE_X_API_RESPONSE", Array.isArray(data?.data) ? `items=${(data.data as unknown[]).length}` : "no array");
 
     const spaces = Array.isArray(data?.data) ? data.data : [];

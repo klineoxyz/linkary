@@ -1,17 +1,18 @@
 /**
  * GET /api/xspaces/my-x-spaces — list recent X Spaces for the connected user (X API v2 by creator).
  * Auth required; token from x_oauth_tokens. Returns normalized list (id, title, state, started_at, scheduled_start, url).
- * No tokens in response. Hardened: try/catch, timeout, deterministic codes, env-gated debug (DEBUG_MY_X_SPACES=1).
+ * No tokens in response. Uses shared x-api-client; refresh-and-retry on 401/403 when refresh_token present.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { sanitizeServerError, sanitizeResponseBody, debugMyXSpaces } from "@/lib/server-error";
+import { sanitizeServerError, debugMyXSpaces } from "@/lib/server-error";
+import { fetchSpacesByCreatorId } from "@/lib/x-analytics-server";
+import { refreshXAccessToken } from "@/lib/x-token-refresh";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-const X_API_BASE = "https://api.twitter.com/2";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
 const DAYS_AGO = 30;
-const X_API_TIMEOUT_MS = 8000;
 
 export type MyXSpaceItem = {
   id: string;
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     const { data: tokenRow, error: tokenError } = await supabase
       .from("x_oauth_tokens")
-      .select("access_token, x_user_id")
+      .select("access_token, refresh_token, x_user_id")
       .eq("profile_id", user.id)
       .eq("provider", "x")
       .maybeSingle();
@@ -64,19 +65,15 @@ export async function GET(request: NextRequest) {
         { status: 403 }
       );
     }
-    if (!tokenRow) {
-      debugMyXSpaces("MY_X_SPACES_STAGE_FAIL_X_NOT_CONNECTED", "no token row");
+    const hasTokenRow = !!tokenRow;
+    const hasAccessToken = !!(tokenRow as { access_token?: string } | null)?.access_token;
+    const hasRefreshToken = !!(tokenRow as { refresh_token?: string | null } | null)?.refresh_token;
+    const xUserId = (tokenRow as { x_user_id?: string | null } | null)?.x_user_id;
+    debugMyXSpaces("MY_X_SPACES_STAGE_TOKEN_ROW", JSON.stringify({ token_row_exists: hasTokenRow, access_token_exists: hasAccessToken, refresh_token_exists: hasRefreshToken, x_user_id_exists: !!xUserId }));
+    if (!tokenRow || !hasAccessToken) {
+      debugMyXSpaces("MY_X_SPACES_STAGE_FAIL_X_NOT_CONNECTED", !tokenRow ? "no token row" : "no access_token");
       return NextResponse.json(
         { error: "Connect X first to see your Spaces", code: "X_NOT_CONNECTED" },
-        { status: 403 }
-      );
-    }
-    const hasAccessToken = !!(tokenRow as { access_token?: string }).access_token;
-    const xUserId = (tokenRow as { x_user_id?: string | null }).x_user_id;
-    if (!hasAccessToken) {
-      debugMyXSpaces("MY_X_SPACES_STAGE_FAIL_X_ACCESS_TOKEN_MISSING");
-      return NextResponse.json(
-        { error: "X connection incomplete. Reconnect X in Settings or XSpaces.", code: "X_ACCESS_TOKEN_MISSING" },
         { status: 403 }
       );
     }
@@ -89,56 +86,48 @@ export async function GET(request: NextRequest) {
     }
     debugMyXSpaces("MY_X_SPACES_STAGE_TOKEN_ROW_FOUND");
 
-    const accessToken = (tokenRow as { access_token: string }).access_token;
+    let currentAccessToken = (tokenRow as { access_token: string }).access_token;
     const spaceFields = "id,title,state,created_at,scheduled_start";
-    const url = `${X_API_BASE}/spaces/by/creator_ids?user_ids=${encodeURIComponent(xUserId)}&space.fields=${encodeURIComponent(spaceFields)}`;
+    debugMyXSpaces("MY_X_SPACES_STAGE_X_API_CALL_START", JSON.stringify({ endpoint: "GET /2/spaces/by/creator_ids", access_token_exists: true, x_user_id_exists: true }));
 
-    const debugMyXSpacesEnv = process.env.DEBUG_MY_X_SPACES === "1" || process.env.DEBUG_MY_X_SPACES === "true";
-    if (debugMyXSpacesEnv) {
-      const safeEndpoint = `${X_API_BASE}/spaces/by/creator_ids?user_ids=REDACTED&space.fields=${encodeURIComponent(spaceFields)}`;
-      debugMyXSpaces("MY_X_SPACES_STAGE_X_API_CALL_START", JSON.stringify({ endpoint: safeEndpoint, access_token_exists: true, x_user_id_exists: true }));
+    let result = await fetchSpacesByCreatorId(xUserId, currentAccessToken, spaceFields);
+    if (!result.ok && result.code === "X_RECONNECT_NEEDED" && hasRefreshToken && supabaseServiceKey && supabaseUrl) {
+      debugMyXSpaces("MY_X_SPACES_STAGE_REFRESH_ATTEMPT", "1");
+      const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+      const refreshed = await refreshXAccessToken(user.id, supabaseService);
+      if (refreshed?.access_token) {
+        debugMyXSpaces("MY_X_SPACES_STAGE_RETRY_ATTEMPT", "1");
+        currentAccessToken = refreshed.access_token;
+        result = await fetchSpacesByCreatorId(xUserId, currentAccessToken, spaceFields);
+      }
     }
+    debugMyXSpaces("MY_X_SPACES_STAGE_X_API_RESPONSE", JSON.stringify({ status: result.status, code: result.code }));
+    if (!result.ok && result.bodyText) debugMyXSpaces("MY_X_SPACES_STAGE_X_API_BODY", result.bodyText);
+    debugMyXSpaces("MY_X_SPACES_STAGE_FINAL_CODE", result.code);
 
-    let res: Response;
-    const t0 = Date.now();
-    try {
-      const ac = new AbortController();
-      const timeoutId = setTimeout(() => ac.abort(), X_API_TIMEOUT_MS);
-      res = await fetch(url, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        signal: ac.signal,
-        cache: "no-store",
-      });
-      clearTimeout(timeoutId);
-    } catch (fetchErr) {
-      const isTimeout = (fetchErr as { name?: string }).name === "AbortError";
-      debugMyXSpaces(isTimeout ? "MY_X_SPACES_STAGE_FAIL_X_API_TIMEOUT" : "MY_X_SPACES_STAGE_FAIL_X_API", sanitizeServerError(fetchErr));
-      return NextResponse.json(
-        {
-          error: isTimeout ? "X API request timed out. Try again." : "Could not fetch Spaces from X.",
-          code: isTimeout ? "X_API_TIMEOUT" : "X_API_FAILED",
-        },
-        { status: 502 }
-      );
-    }
-
-    const ms = Date.now() - t0;
-    if (debugMyXSpacesEnv) {
-      debugMyXSpaces("MY_X_SPACES_STAGE_X_API_RESPONSE", JSON.stringify({ status: res.status, ms }));
-    }
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      if (debugMyXSpacesEnv && body) debugMyXSpaces("MY_X_SPACES_STAGE_X_API_BODY", sanitizeResponseBody(body));
-      if (res.status === 401 || res.status === 403) {
+    if (!result.ok) {
+      if (result.code === "X_RECONNECT_NEEDED") {
         return NextResponse.json(
           { error: "X connection expired or invalid. Reconnect X in Settings or XSpaces.", code: "X_RECONNECT_NEEDED" },
           { status: 403 }
         );
       }
-      if (res.status === 429) {
+      if (result.code === "X_RATE_LIMITED") {
         return NextResponse.json(
           { error: "X rate limit reached. Try again later.", code: "X_RATE_LIMITED" },
           { status: 429 }
+        );
+      }
+      if (result.code === "X_API_TIMEOUT") {
+        return NextResponse.json(
+          { error: "X API request timed out. Try again.", code: "X_API_TIMEOUT" },
+          { status: 502 }
+        );
+      }
+      if (result.code === "INVALID_X_RESPONSE") {
+        return NextResponse.json(
+          { error: "Invalid response from X. Try again.", code: "INVALID_X_RESPONSE" },
+          { status: 502 }
         );
       }
       return NextResponse.json(
@@ -146,19 +135,9 @@ export async function GET(request: NextRequest) {
         { status: 502 }
       );
     }
-
-    let data: { data?: unknown };
-    try {
-      data = (await res.json()) as { data?: unknown };
-    } catch {
-      debugMyXSpaces("MY_X_SPACES_STAGE_FAIL_INVALID_RESPONSE", "X API response was not JSON");
-      return NextResponse.json(
-        { error: "Invalid response from X. Try again.", code: "INVALID_X_RESPONSE" },
-        { status: 502 }
-      );
-    }
     debugMyXSpaces("MY_X_SPACES_STAGE_PARSE_OK");
 
+    const data = result.data as { data?: unknown };
     const rawSpaces = Array.isArray(data?.data) ? data.data : [];
     const since = new Date(Date.now() - DAYS_AGO * 24 * 60 * 60 * 1000).toISOString();
     const recent = rawSpaces.filter((s: unknown) => {

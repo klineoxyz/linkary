@@ -95,12 +95,21 @@ export async function rateLimitXSpacesDetect(
       };
     } catch {
       if (supabaseAdmin) {
-        return rateLimit({
-          key: XSPACES_DETECT_RL_KEY + profileId,
-          limit: XSPACES_DETECT_RL_LIMIT,
-          windowSeconds: XSPACES_DETECT_WINDOW_SEC,
-          supabaseAdmin,
-        });
+        try {
+          return await rateLimit({
+            key: XSPACES_DETECT_RL_KEY + profileId,
+            limit: XSPACES_DETECT_RL_LIMIT,
+            windowSeconds: XSPACES_DETECT_WINDOW_SEC,
+            supabaseAdmin,
+          });
+        } catch {
+          return {
+            allowed: false,
+            remaining: 0,
+            resetAt: new Date().toISOString(),
+            unavailable: true,
+          };
+        }
       }
       return {
         allowed: false,

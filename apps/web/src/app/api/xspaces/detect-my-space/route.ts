@@ -3,15 +3,18 @@
  * Body: { space_id: string, selected_x_space_id?: string }.
  * When multiple candidates pass threshold, returns candidates and require_selection; client calls link-space to link.
  * Rate limited: 10 requests per minute per profile_id (durable via Supabase rate_limits table).
+ * Hardened: safe 502 handling, timeout, safe JSON parse, no raw errors to Vercel.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { rateLimitXSpacesDetect, xSpacesDetectRateLimitHeaders } from "@/lib/rate-limit";
+import { sanitizeServerError, debugDetect } from "@/lib/server-error";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
 const X_API_BASE = "https://api.twitter.com/2";
+const X_API_TIMEOUT_MS = 15000;
 
 const WINDOW_MS = 15 * 60 * 1000;
 const SCHEDULED_PROXIMITY_MS = 2 * 60 * 60 * 1000;
@@ -45,12 +48,13 @@ function scoreCandidate(
   linkaryScheduledAt: string | null
 ): number {
   const created = xSpace.created_at ? new Date(xSpace.created_at).getTime() : 0;
-  if (Date.now() - created > WINDOW_MS) return 0;
+  if (Number.isNaN(created) || Date.now() - created > WINDOW_MS) return 0;
   const titleSim = titleSimilarity(xSpace.title ?? "", linkaryTitle ?? "");
   if (titleSim < MIN_TITLE_SIMILARITY) return 0;
   if (linkaryScheduledAt && xSpace.scheduled_start) {
     const linkaryTime = new Date(linkaryScheduledAt).getTime();
     const xTime = new Date(xSpace.scheduled_start).getTime();
+    if (Number.isNaN(linkaryTime) || Number.isNaN(xTime)) return 0;
     const diff = Math.abs(linkaryTime - xTime);
     if (diff > SCHEDULED_PROXIMITY_MS) return 0;
   }
@@ -59,240 +63,329 @@ function scoreCandidate(
   if (linkaryScheduledAt && xSpace.scheduled_start) {
     const linkaryTime = new Date(linkaryScheduledAt).getTime();
     const xTime = new Date(xSpace.scheduled_start).getTime();
-    const diff = Math.abs(linkaryTime - xTime);
-    score += 0.3 * (1 - diff / SCHEDULED_PROXIMITY_MS);
+    if (Number.isNaN(linkaryTime) || Number.isNaN(xTime)) {
+      score += 0.15;
+    } else {
+      const diff = Math.abs(linkaryTime - xTime);
+      score += 0.3 * (1 - diff / SCHEDULED_PROXIMITY_MS);
+    }
   } else {
     score += 0.15;
   }
   return score;
 }
 
+function emptyRateLimitHeaders(): Record<string, string> {
+  return {
+    "X-RateLimit-Limit": "10",
+    "X-RateLimit-Remaining": "0",
+    "X-RateLimit-Reset": new Date(Date.now() + 60 * 1000).toISOString(),
+  };
+}
+
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token || !supabaseUrl || !supabaseAnonKey) {
+  if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser(token);
-  if (userError || !user?.id) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 401 });
-  }
-
-  const supabaseAdmin = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : null;
-  const rl = await rateLimitXSpacesDetect(user.id, supabaseAdmin);
-
-  if ("unavailable" in rl && rl.unavailable) {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    debugDetect("DETECT_CONFIG_MISSING", "Supabase env not set");
     return NextResponse.json(
-      { error: "Rate limit service unavailable." },
-      { status: 503 }
+      { error: "Service configuration error.", code: "DETECT_INTERNAL_ERROR" },
+      { status: 502 }
     );
   }
 
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many detection requests. Try again in a minute.", code: "RATE_LIMITED", resetAt: rl.resetAt },
-      { status: 429, headers: xSpacesDetectRateLimitHeaders(rl) }
-    );
-  }
+  let rateLimitHeaders: Record<string, string> = emptyRateLimitHeaders();
 
-  const rateLimitHeaders = xSpacesDetectRateLimitHeaders(rl);
-
-  let body: { space_id?: string; selected_x_space_id?: string } = {};
   try {
-    body = await request.json();
-  } catch {
-    /* no body */
-  }
-  const linkarySpaceId = typeof body.space_id === "string" ? body.space_id.trim() : null;
-  const selectedXSpaceId = typeof body.selected_x_space_id === "string" ? body.selected_x_space_id.trim() : null;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser(token);
+    if (userError || !user?.id) {
+      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    }
 
-  const { data: tokenRow, error: tokenError } = await supabase
-    .from("x_oauth_tokens")
-    .select("access_token, x_user_id")
-    .eq("profile_id", user.id)
-    .eq("provider", "x")
-    .maybeSingle();
+    const supabaseAdmin = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : null;
+    let rl: Awaited<ReturnType<typeof rateLimitXSpacesDetect>>;
+    try {
+      rl = await rateLimitXSpacesDetect(user.id, supabaseAdmin);
+    } catch (rlErr) {
+      debugDetect("RATE_LIMIT_ERROR", sanitizeServerError(rlErr));
+      return NextResponse.json(
+        { error: "Detection temporarily unavailable.", code: "DETECT_INTERNAL_ERROR" },
+        { status: 502, headers: rateLimitHeaders }
+      );
+    }
 
-  if (tokenError || !tokenRow?.access_token) {
-    return NextResponse.json(
-      { error: "Connect X first (Settings or XSpaces) to detect your Space", code: "X_NOT_CONNECTED" },
-      { status: 403, headers: rateLimitHeaders }
-    );
-  }
+    if ("unavailable" in rl && rl.unavailable) {
+      return NextResponse.json(
+        { error: "Rate limit service unavailable." },
+        { status: 503 }
+      );
+    }
 
-  const xUserId = (tokenRow as { x_user_id: string | null }).x_user_id;
-  if (!xUserId) {
-    return NextResponse.json(
-      { error: "X user id not found. Reconnect X.", code: "X_NOT_CONNECTED" },
-      { status: 403, headers: rateLimitHeaders }
-    );
-  }
+    if (!rl.allowed) {
+      rateLimitHeaders = xSpacesDetectRateLimitHeaders(rl);
+      return NextResponse.json(
+        { error: "Too many detection requests. Try again in a minute.", code: "RATE_LIMITED", resetAt: rl.resetAt },
+        { status: 429, headers: rateLimitHeaders }
+      );
+    }
 
-  const spaceFields = "created_at,state,title,id,scheduled_start";
-  const url = `${X_API_BASE}/spaces/by/creator_ids?user_ids=${encodeURIComponent(xUserId)}&space.fields=${encodeURIComponent(spaceFields)}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${(tokenRow as { access_token: string }).access_token}` },
-  });
+    rateLimitHeaders = xSpacesDetectRateLimitHeaders(rl);
 
-  if (!res.ok) {
-    return NextResponse.json(
-      { error: "Could not fetch Spaces from X", code: "X_API_ERROR" },
-      { status: 502, headers: rateLimitHeaders }
-    );
-  }
+    let body: { space_id?: string; selected_x_space_id?: string } = {};
+    try {
+      body = await request.json();
+    } catch {
+      /* no body */
+    }
+    const linkarySpaceId = typeof body.space_id === "string" ? body.space_id.trim() : null;
+    const selectedXSpaceId = typeof body.selected_x_space_id === "string" ? body.selected_x_space_id.trim() : null;
 
-  const data = (await res.json()) as {
-    data?: Array<{ id: string; state?: string; title?: string; created_at?: string; scheduled_start?: string }>;
-  };
-  const spaces = data?.data ?? [];
-  const since = new Date(Date.now() - WINDOW_MS).toISOString();
-  const recent = spaces.filter((s) => s.created_at && s.created_at >= since);
-
-  let linkaryTitle = "";
-  let linkaryScheduledAt: string | null = null;
-  if (linkarySpaceId) {
-    const { data: space } = await supabase
-      .from("spaces")
-      .select("id, host_profile_id, title, scheduled_at")
-      .eq("id", linkarySpaceId)
+    const { data: tokenRow, error: tokenError } = await supabase
+      .from("x_oauth_tokens")
+      .select("access_token, x_user_id")
+      .eq("profile_id", user.id)
+      .eq("provider", "x")
       .maybeSingle();
-    const sp = space as { id: string; host_profile_id: string; title: string; scheduled_at: string | null } | null;
-    if (sp && sp.host_profile_id === user.id) {
-      linkaryTitle = sp.title ?? "";
-      linkaryScheduledAt = sp.scheduled_at ?? null;
+
+    if (tokenError) {
+      debugDetect("X_TOKEN_LOOKUP_ERROR", tokenError.message);
+      return NextResponse.json(
+        { error: "Connect X first (Settings or XSpaces) to detect your Space", code: "X_NOT_CONNECTED" },
+        { status: 403, headers: rateLimitHeaders }
+      );
     }
-  }
-
-  if (selectedXSpaceId && linkarySpaceId) {
-    const valid = recent.some((s) => s.id === selectedXSpaceId);
-    if (valid) {
-      const { data: space } = await supabase
-        .from("spaces")
-        .select("id, host_profile_id, x_space_id, x_space_url")
-        .eq("id", linkarySpaceId)
-        .maybeSingle();
-      const sp = space as { id: string; host_profile_id: string; x_space_id: string | null; x_space_url: string | null } | null;
-      if (sp && sp.host_profile_id === user.id) {
-        const alreadyLinked = !!(sp.x_space_id ?? sp.x_space_url);
-        if (alreadyLinked) {
-          return NextResponse.json(
-            {
-              error: "This space is already linked to an X Space. Use Replace to change it.",
-              code: "ALREADY_LINKED",
-              x_space_id: sp.x_space_id ?? null,
-              x_space_url: sp.x_space_url ?? null,
-            },
-            { status: 409, headers: rateLimitHeaders }
-          );
-        }
-        const xSpaceUrl = `https://x.com/i/spaces/${selectedXSpaceId}`;
-        await supabase
-          .from("spaces")
-          .update({
-            x_space_id: selectedXSpaceId,
-            x_space_url: xSpaceUrl,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", linkarySpaceId);
-        return NextResponse.json(
-          {
-            found: true,
-            linked: true,
-            x_space_id: selectedXSpaceId,
-            x_space_url: xSpaceUrl,
-            space_id: linkarySpaceId,
-          },
-          { headers: rateLimitHeaders }
-        );
-      }
+    if (!tokenRow?.access_token) {
+      return NextResponse.json(
+        { error: "Connect X first (Settings or XSpaces) to detect your Space", code: "X_NOT_CONNECTED" },
+        { status: 403, headers: rateLimitHeaders }
+      );
     }
-  }
 
-  const scored = recent
-    .map((s) => ({ space: s, score: scoreCandidate(s, linkaryTitle, linkaryScheduledAt) }))
-    .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score);
+    const xUserId = (tokenRow as { x_user_id: string | null }).x_user_id;
+    if (!xUserId || typeof xUserId !== "string") {
+      return NextResponse.json(
+        { error: "X user id not found. Reconnect X.", code: "X_USER_ID_MISSING" },
+        { status: 403, headers: rateLimitHeaders }
+      );
+    }
 
-  const candidates = scored.map((x) => ({
-    id: x.space.id,
-    title: x.space.title ?? null,
-    state: x.space.state ?? null,
-    created_at: x.space.created_at ?? null,
-    scheduled_start: x.space.scheduled_start ?? null,
-    score: Math.round(x.score * 100) / 100,
-  }));
+    const accessToken = (tokenRow as { access_token: string }).access_token;
+    const spaceFields = "created_at,state,title,id,scheduled_start";
+    const url = `${X_API_BASE}/spaces/by/creator_ids?user_ids=${encodeURIComponent(xUserId)}&space.fields=${encodeURIComponent(spaceFields)}`;
 
-  if (candidates.length === 0) {
-    return NextResponse.json(
-      {
-        found: false,
-        message: "No matching Space in the last 15 minutes. Check title and time, or paste the link below.",
-      },
-      { headers: rateLimitHeaders }
-    );
-  }
+    let res: Response;
+    try {
+      const ac = new AbortController();
+      const timeoutId = setTimeout(() => ac.abort(), X_API_TIMEOUT_MS);
+      res = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        signal: ac.signal,
+        cache: "no-store",
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchErr) {
+      const isTimeout = (fetchErr as { name?: string }).name === "AbortError";
+      debugDetect(isTimeout ? "X_API_TIMEOUT" : "X_API_FAILED", sanitizeServerError(fetchErr));
+      return NextResponse.json(
+        {
+          error: isTimeout ? "X API request timed out. Try again." : "Could not fetch Spaces from X.",
+          code: isTimeout ? "X_API_TIMEOUT" : "X_API_FAILED",
+        },
+        { status: 502, headers: rateLimitHeaders }
+      );
+    }
 
-  if (candidates.length === 1 && candidates[0].score >= 0.5) {
-    const picked = candidates[0];
-    const xSpaceUrl = `https://x.com/i/spaces/${picked.id}`;
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: "Could not fetch Spaces from X", code: "X_API_FAILED" },
+        { status: 502, headers: rateLimitHeaders }
+      );
+    }
+
+    let data: { data?: unknown };
+    try {
+      data = (await res.json()) as { data?: unknown };
+    } catch {
+      debugDetect("DETECT_INVALID_RESPONSE", "X API response was not JSON");
+      return NextResponse.json(
+        { error: "Invalid response from X. Try again.", code: "DETECT_INVALID_RESPONSE" },
+        { status: 502, headers: rateLimitHeaders }
+      );
+    }
+
+    const spaces = Array.isArray(data?.data) ? data.data : [];
+    const since = new Date(Date.now() - WINDOW_MS).toISOString();
+    const recent = spaces.filter((s: unknown) => {
+      if (s == null || typeof s !== "object" || !("created_at" in s)) return false;
+      const created = (s as { created_at: unknown }).created_at;
+      return typeof created === "string" && created >= since;
+    });
+
+    let linkaryTitle = "";
+    let linkaryScheduledAt: string | null = null;
     if (linkarySpaceId) {
       const { data: space } = await supabase
         .from("spaces")
-        .select("id, host_profile_id, x_space_id, x_space_url")
+        .select("id, host_profile_id, title, scheduled_at")
         .eq("id", linkarySpaceId)
         .maybeSingle();
-      const sp = space as { id: string; host_profile_id: string; x_space_id: string | null; x_space_url: string | null } | null;
+      const sp = space as { id: string; host_profile_id: string; title: string; scheduled_at: string | null } | null;
       if (sp && sp.host_profile_id === user.id) {
-        const alreadyLinked = !!(sp.x_space_id ?? sp.x_space_url);
-        if (alreadyLinked) {
-          return NextResponse.json(
-            {
-              error: "This space is already linked to an X Space. Use Replace to change it.",
-              code: "ALREADY_LINKED",
-              x_space_id: sp.x_space_id ?? null,
-              x_space_url: sp.x_space_url ?? null,
-            },
-            { status: 409, headers: rateLimitHeaders }
-          );
-        }
-        await supabase
-          .from("spaces")
-          .update({
-            x_space_id: picked.id,
-            x_space_url: xSpaceUrl,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", linkarySpaceId);
+        linkaryTitle = sp.title ?? "";
+        linkaryScheduledAt = sp.scheduled_at ?? null;
       }
     }
+
+    if (selectedXSpaceId && linkarySpaceId) {
+      const valid = recent.some((s: { id: string }) => s.id === selectedXSpaceId);
+      if (valid) {
+        const { data: space } = await supabase
+          .from("spaces")
+          .select("id, host_profile_id, x_space_id, x_space_url")
+          .eq("id", linkarySpaceId)
+          .maybeSingle();
+        const sp = space as { id: string; host_profile_id: string; x_space_id: string | null; x_space_url: string | null } | null;
+        if (sp && sp.host_profile_id === user.id) {
+          const alreadyLinked = !!(sp.x_space_id ?? sp.x_space_url);
+          if (alreadyLinked) {
+            return NextResponse.json(
+              {
+                error: "This space is already linked to an X Space. Use Replace to change it.",
+                code: "ALREADY_LINKED",
+                x_space_id: sp.x_space_id ?? null,
+                x_space_url: sp.x_space_url ?? null,
+              },
+              { status: 409, headers: rateLimitHeaders }
+            );
+          }
+          const xSpaceUrl = `https://x.com/i/spaces/${selectedXSpaceId}`;
+          await supabase
+            .from("spaces")
+            .update({
+              x_space_id: selectedXSpaceId,
+              x_space_url: xSpaceUrl,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", linkarySpaceId);
+          return NextResponse.json(
+            {
+              found: true,
+              linked: true,
+              x_space_id: selectedXSpaceId,
+              x_space_url: xSpaceUrl,
+              space_id: linkarySpaceId,
+            },
+            { headers: rateLimitHeaders }
+          );
+        }
+      }
+    }
+
+    type XSpaceItem = { id?: string; title?: string; created_at?: string; scheduled_start?: string; state?: string };
+    const scored = recent
+      .filter((s: unknown): s is XSpaceItem => s != null && typeof s === "object" && typeof (s as XSpaceItem).id === "string")
+      .map((s: XSpaceItem) => ({
+        space: s,
+        score: scoreCandidate(s, linkaryTitle, linkaryScheduledAt),
+      }))
+      .filter((x: { score: number }) => x.score > 0)
+      .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
+
+    const candidates = scored.map((x: { space: XSpaceItem; score: number }) => ({
+      id: x.space.id!,
+      title: x.space.title ?? null,
+      state: x.space.state ?? null,
+      created_at: x.space.created_at ?? null,
+      scheduled_start: x.space.scheduled_start ?? null,
+      score: Math.round(x.score * 100) / 100,
+    }));
+
+    if (candidates.length === 0) {
+      return NextResponse.json(
+        {
+          found: false,
+          message: "No matching Space in the last 15 minutes. Check title and time, or paste the link below.",
+        },
+        { headers: rateLimitHeaders }
+      );
+    }
+
+    if (candidates.length === 1 && candidates[0].score >= 0.5) {
+      const picked = candidates[0];
+      const xSpaceUrl = `https://x.com/i/spaces/${picked.id}`;
+      if (linkarySpaceId) {
+        const { data: space } = await supabase
+          .from("spaces")
+          .select("id, host_profile_id, x_space_id, x_space_url")
+          .eq("id", linkarySpaceId)
+          .maybeSingle();
+        const sp = space as { id: string; host_profile_id: string; x_space_id: string | null; x_space_url: string | null } | null;
+        if (sp && sp.host_profile_id === user.id) {
+          const alreadyLinked = !!(sp.x_space_id ?? sp.x_space_url);
+          if (alreadyLinked) {
+            return NextResponse.json(
+              {
+                error: "This space is already linked to an X Space. Use Replace to change it.",
+                code: "ALREADY_LINKED",
+                x_space_id: sp.x_space_id ?? null,
+                x_space_url: sp.x_space_url ?? null,
+              },
+              { status: 409, headers: rateLimitHeaders }
+            );
+          }
+          await supabase
+            .from("spaces")
+            .update({
+              x_space_id: picked.id,
+              x_space_url: xSpaceUrl,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", linkarySpaceId);
+        }
+      }
+      return NextResponse.json(
+        {
+          found: true,
+          linked: true,
+          x_space_id: picked.id,
+          x_space_url: xSpaceUrl,
+          title: picked.title,
+          state: picked.state,
+          space_id: linkarySpaceId ?? undefined,
+        },
+        { headers: rateLimitHeaders }
+      );
+    }
+
     return NextResponse.json(
       {
         found: true,
-        linked: true,
-        x_space_id: picked.id,
-        x_space_url: xSpaceUrl,
-        title: picked.title,
-        state: picked.state,
-        space_id: linkarySpaceId ?? undefined,
+        require_selection: true,
+        candidates,
+        message: "Multiple Spaces match. Choose the correct one below.",
       },
       { headers: rateLimitHeaders }
     );
+  } catch (err) {
+    let safeDetail: string;
+    try {
+      safeDetail = sanitizeServerError(err);
+    } catch {
+      safeDetail = "Detection failed.";
+    }
+    debugDetect("DETECT_INTERNAL_ERROR", safeDetail);
+    return NextResponse.json(
+      { error: "Detection failed. Try again.", code: "DETECT_INTERNAL_ERROR" },
+      { status: 502, headers: rateLimitHeaders }
+    );
   }
-
-  return NextResponse.json(
-    {
-      found: true,
-      require_selection: true,
-      candidates,
-      message: "Multiple Spaces match. Choose the correct one below.",
-    },
-    { headers: rateLimitHeaders }
-  );
 }

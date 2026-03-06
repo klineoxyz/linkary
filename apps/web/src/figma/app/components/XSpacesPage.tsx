@@ -15,6 +15,7 @@ import {
   type MainNav,
   type SpaceForCard,
   type SpaceForCalendar,
+  type XSpacesAnalytics,
 } from "./xspaces";
 import { toLocalYMD, sanitizeErrorMessage, displayTitle } from "./xspaces/utils";
 import { Button } from "./ui/button";
@@ -199,6 +200,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [connectXError, setConnectXError] = useState<{ type: "not_configured"; missing: string[] } | { type: "generic" } | null>(null);
   const [mainNav, setMainNav] = useState<MainNav>("home");
   const [discoverSpaces, setDiscoverSpaces] = useState<Space[]>([]);
+  const [xspacesAnalytics, setXspacesAnalytics] = useState<XSpacesAnalytics | null>(null);
+  const [xspacesAnalyticsLoading, setXspacesAnalyticsLoading] = useState(false);
 
   const detailModalRef = useRef<HTMLDivElement>(null);
   const createModalRef = useRef<HTMLDivElement>(null);
@@ -410,6 +413,30 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         if ((e as { name?: string }).name !== "AbortError") setMyProposals([]);
       } finally {
         if (!ac.signal.aborted) setMyProposalsLoading(false);
+      }
+    });
+    return () => ac.abort();
+  }, [mainNav, me?.id, base, getToken]);
+
+  useEffect(() => {
+    if (mainNav !== "home" || !me?.id) return;
+    const ac = new AbortController();
+    setXspacesAnalyticsLoading(true);
+    getToken().then(async (token) => {
+      if (!token) { setXspacesAnalyticsLoading(false); return; }
+      try {
+        const res = await fetch(`${base}/api/xspaces/analytics`, { headers: { Authorization: `Bearer ${token}` }, signal: ac.signal });
+        const data = await res.json().catch(() => ({}));
+        if (ac.signal.aborted) return;
+        if (res.ok && data && typeof data.host === "object" && typeof data.speaker === "object" && typeof data.project === "object") {
+          setXspacesAnalytics(data as XSpacesAnalytics);
+        } else {
+          setXspacesAnalytics(null);
+        }
+      } catch (e) {
+        if ((e as { name?: string }).name !== "AbortError") setXspacesAnalytics(null);
+      } finally {
+        if (!ac.signal.aborted) setXspacesAnalyticsLoading(false);
       }
     });
     return () => ac.abort();
@@ -1102,6 +1129,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             eventListContent={loading ? <p className="text-muted-foreground">Loading spaces…</p> : homeEventListContent}
             emptyStateMessage="No upcoming spaces yet."
             showEmptyExploreCta={true}
+            analytics={xspacesAnalytics}
+            analyticsLoading={xspacesAnalyticsLoading}
           />
         )}
         {mainNav === "explore" && (

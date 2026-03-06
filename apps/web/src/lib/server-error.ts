@@ -35,3 +35,15 @@ export function debugSync(code: string, detail?: string): void {
   // eslint-disable-next-line no-console
   console.warn(msg);
 }
+
+/** Redact token/secret-like substrings from a response body before logging. Max length 500. */
+export function sanitizeResponseBody(body: string): string {
+  if (typeof body !== "string") return "";
+  let out = body
+    .replace(/\bBearer\s+[^\s"']+/gi, "Bearer REDACTED")
+    .replace(/"access_token"\s*:\s*"[^"]*"/gi, '"access_token":"REDACTED"')
+    .replace(/"refresh_token"\s*:\s*"[^"]*"/gi, '"refresh_token":"REDACTED"')
+    .replace(/"authorization"\s*:\s*"[^"]*"/gi, '"authorization":"REDACTED"')
+    .trim();
+  return out.length > 500 ? out.slice(0, 500) + "..." : out;
+}

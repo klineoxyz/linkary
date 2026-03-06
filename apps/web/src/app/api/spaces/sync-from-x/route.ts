@@ -153,6 +153,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Connect X first to import Spaces", code: "X_NOT_CONNECTED" }, { status: 403 });
     }
     debugSync("SYNC_STAGE_TOKEN_ROW_FOUND");
+    const fields = "title,state,created_at,scheduled_start,host_ids";
+    debugSync("X_API_CALL_START", JSON.stringify({
+      endpoint: `https://api.twitter.com/2/spaces/${spaceId}?space.fields=${fields}`,
+      access_token_exists: !!accessToken,
+      x_user_id_exists: !!xUserId,
+    }));
     let v2Space: { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } | null = null;
     try {
       v2Space = await fetchXSpaceByIdV2(spaceId, accessToken);

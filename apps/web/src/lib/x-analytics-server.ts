@@ -3,6 +3,7 @@
  * Use from API routes or cron only. Never expose TWITTERAPI_API_KEY to client.
  */
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { debugSync, sanitizeResponseBody } from "@/lib/server-error";
 
 const TWITTERAPI_BASE = "https://api.twitterapi.io";
 
@@ -301,11 +302,23 @@ export async function fetchXSpaceByIdV2(
   const id = String(spaceId ?? "").trim();
   if (!id || !accessToken) return null;
   const fields = "title,state,created_at,scheduled_start,host_ids";
-  const res = await fetch(`${X_API_BASE}/spaces/${encodeURIComponent(id)}?space.fields=${encodeURIComponent(fields)}`, {
+  const url = `${X_API_BASE}/spaces/${encodeURIComponent(id)}?space.fields=${encodeURIComponent(fields)}`;
+  const debugSyncFromX = process.env.DEBUG_SYNC_FROM_X === "1" || process.env.DEBUG_SYNC_FROM_X === "true";
+  const t0 = Date.now();
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });
-  if (!res.ok) return null;
+  const ms = Date.now() - t0;
+  if (debugSyncFromX) {
+    debugSync("X_API_CALL_RESPONSE", JSON.stringify({ status: res.status }));
+    debugSync("X_API_CALL_DURATION", JSON.stringify({ ms }));
+  }
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    if (debugSyncFromX && body) debugSync("X_API_CALL_BODY", sanitizeResponseBody(body));
+    return null;
+  }
   const json = (await res.json()) as { data?: { id?: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } };
   const data = json?.data;
   if (!data || !data.id) return null;

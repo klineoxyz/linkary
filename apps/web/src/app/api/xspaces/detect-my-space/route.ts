@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { rateLimitXSpacesDetect, xSpacesDetectRateLimitHeaders } from "@/lib/rate-limit";
-import { sanitizeServerError, debugDetect } from "@/lib/server-error";
+import { sanitizeServerError, sanitizeResponseBody, debugDetect } from "@/lib/server-error";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -188,7 +188,14 @@ export async function POST(request: NextRequest) {
     const spaceFields = "created_at,state,title,id,scheduled_start";
     const url = `${X_API_BASE}/spaces/by/creator_ids?user_ids=${encodeURIComponent(xUserId)}&space.fields=${encodeURIComponent(spaceFields)}`;
 
+    const debugDetectMySpace = process.env.DEBUG_DETECT_MY_SPACE === "1" || process.env.DEBUG_DETECT_MY_SPACE === "true";
+    if (debugDetectMySpace) {
+      const safeEndpoint = `${X_API_BASE}/spaces/by/creator_ids?user_ids=REDACTED&space.fields=${encodeURIComponent(spaceFields)}`;
+      debugDetect("X_API_CALL_START", JSON.stringify({ endpoint: safeEndpoint, access_token_exists: !!accessToken, x_user_id_exists: !!xUserId }));
+    }
+
     let res: Response;
+    const t0 = Date.now();
     try {
       const ac = new AbortController();
       const timeoutId = setTimeout(() => ac.abort(), X_API_TIMEOUT_MS);
@@ -210,9 +217,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const xApiMs = Date.now() - t0;
+    if (debugDetectMySpace) {
+      debugDetect("X_API_CALL_RESPONSE", JSON.stringify({ status: res.status }));
+      debugDetect("X_API_CALL_DURATION", JSON.stringify({ ms: xApiMs }));
+    }
     if (!res.ok) {
       debugDetect("DETECT_STAGE_FAIL_X_API", String(res.status));
-      await res.text().catch(() => "");
+      const body = await res.text().catch(() => "");
+      if (debugDetectMySpace && body) debugDetect("X_API_CALL_BODY", sanitizeResponseBody(body));
       return NextResponse.json(
         { error: "Could not fetch Spaces from X", code: "X_API_FAILED" },
         { status: 502, headers: rateLimitHeaders }

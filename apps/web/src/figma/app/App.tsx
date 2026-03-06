@@ -3182,7 +3182,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
   const [csDescription, setCsDescription] = useState("");
   const [csProofUrl, setCsProofUrl] = useState("");
   const [csSubmitting, setCsSubmitting] = useState(false);
-  const [meStats, setMeStats] = useState<{ ethos: number | null; xscore: number | null; reputationIndex: number; repScore: number | null; socialPower: number; reviews: { avg: number; count: number } } | null>(null);
+  const [meStats, setMeStats] = useState<{ ethos: number | null; xscore: number | null; reputationIndex: number; repScore: number | null; socialPower: number; reviews: { avg: number; count: number }; completedGigsCount?: number } | null>(null);
   const [xHandle, setXHandle] = useState<string | null>(null);
   const [profileSearchQuery, setProfileSearchQuery] = useState("");
   const [profileSearchResults, setProfileSearchResults] = useState<Array<{ id: string; type: string; name: string; handleLabel?: string; handle?: string; url?: string; avatar?: string; verified?: boolean }>>([]);
@@ -3286,14 +3286,36 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
     if (!me?.id) return;
     getXConnection(me.id).then((conn) => setXHandle(conn?.username ?? null));
   }, [me?.id]);
-  const { data: meStatsSwr } = useSWR<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; repScore?: number | null; socialPower?: number; reviews?: { avg: number; count: number } }>(
+  const { data: meStatsSwr } = useSWR<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; repScore?: number | null; socialPower?: number; reviews?: { avg: number; count: number }; completedGigsCount?: number }>(
     me?.id ? "/api/profile/me-stats" : null,
-    authFetcher as (url: string) => Promise<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; repScore?: number | null; socialPower?: number; reviews?: { avg: number; count: number } }>,
+    authFetcher as (url: string) => Promise<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; repScore?: number | null; socialPower?: number; reviews?: { avg: number; count: number }; completedGigsCount?: number }>,
     { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS }
   );
   useEffect(() => {
-    if (meStatsSwr) setMeStats({ ethos: meStatsSwr.ethos ?? null, xscore: meStatsSwr.xscore ?? null, reputationIndex: meStatsSwr.reputationIndex ?? 0, repScore: meStatsSwr.repScore ?? null, socialPower: meStatsSwr.socialPower ?? 0, reviews: meStatsSwr.reviews ?? { avg: 0, count: 0 } });
+    if (meStatsSwr) setMeStats({ ethos: meStatsSwr.ethos ?? null, xscore: meStatsSwr.xscore ?? null, reputationIndex: meStatsSwr.reputationIndex ?? 0, repScore: meStatsSwr.repScore ?? null, socialPower: meStatsSwr.socialPower ?? 0, reviews: meStatsSwr.reviews ?? { avg: 0, count: 0 }, completedGigsCount: meStatsSwr.completedGigsCount ?? 0 });
   }, [meStatsSwr]);
+
+  const publicSlug = (me?.username || me?.twitter_username || xHandle || "").replace(/^@/, "").toLowerCase().trim();
+  const hasPublicSlug = publicSlug.length > 0;
+
+  const [publicProfilePayload, setPublicProfilePayload] = useState<{
+    links?: Array<{ title: string; url: string; icon?: string | null }>;
+    relations?: { ambassadorOf?: Array<{ id: string; username: string; display_name: string | null }>; affiliateOf?: Array<{ id: string; username: string; display_name: string | null }> };
+  } | null>(null);
+  useEffect(() => {
+    if (!me?.id || !publicSlug) {
+      setPublicProfilePayload(null);
+      return;
+    }
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    fetch(`${base}/api/public/profile?username=${encodeURIComponent(publicSlug)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && !data.error) setPublicProfilePayload({ links: data.links ?? [], relations: data.relations ?? {} });
+        else setPublicProfilePayload({ links: [], relations: {} });
+      })
+      .catch(() => setPublicProfilePayload({ links: [], relations: {} }));
+  }, [me?.id, publicSlug]);
 
   // Debounced profile search (people only)
   useEffect(() => {
@@ -3317,9 +3339,6 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
     }, 400);
     return () => clearTimeout(t);
   }, [profileSearchQuery]);
-
-  const publicSlug = (me?.username || me?.twitter_username || xHandle || "").replace(/^@/, "").toLowerCase().trim();
-  const hasPublicSlug = publicSlug.length > 0;
 
   const roleTags = profileProfessions.length > 0 ? profileProfessions.map((p) => p.name) : [];
   const emptyReviews = { avg: 0, count: 0 };
@@ -3466,7 +3485,11 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
                 <Stars value={u.reviews.avg} />
                 <span className="text-xs font-medium text-foreground">{u.reviews.avg} ({u.reviews.count})</span>
               </div>
-              <div className="text-xs font-medium text-foreground">{formatMoneyEUR(u.volume.current)} volume</div>
+              <div className="text-xs font-medium text-foreground">
+                {meStats?.completedGigsCount != null && meStats.completedGigsCount > 0
+                  ? `${meStats.completedGigsCount} completed gig${meStats.completedGigsCount !== 1 ? "s" : ""}`
+                  : "—"}
+              </div>
             </div>
 
             <p className="mt-4 text-sm font-medium text-foreground leading-relaxed">{u.bio}</p>
@@ -3483,12 +3506,16 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
               </div>
             </div>
 
-            {/* Ambassador Of */}
-            {u.ambassadorOf && u.ambassadorOf.length > 0 && (
+            {/* Ambassador Of — real data from profile relations */}
+            {(publicProfilePayload != null ? (publicProfilePayload.relations?.ambassadorOf?.length ?? 0) > 0 : (u.ambassadorOf ?? []).length > 0) && (
               <div className="mt-4">
                 <div className="text-xs font-semibold text-foreground mb-2">Ambassador Of</div>
                 <div className="flex flex-wrap gap-2">
-                  {u.ambassadorOf.map((proj) => (
+                  {publicProfilePayload?.relations?.ambassadorOf?.length ? publicProfilePayload.relations.ambassadorOf.map((r) => (
+                    <span key={r.id} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground">
+                      {r.display_name || r.username || ""}
+                    </span>
+                  )) : (u.ambassadorOf ?? []).map((proj) => (
                     <span key={proj} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground">
                       {proj}
                     </span>
@@ -3497,12 +3524,21 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
               </div>
             )}
 
-            {/* Partnerships */}
-            {u.partnerships && u.partnerships.length > 0 && (
+            {/* Partnerships — real data from profile relations (affiliate) */}
+            {(publicProfilePayload != null ? (publicProfilePayload.relations?.affiliateOf?.length ?? 0) > 0 : (u.partnerships ?? []).length > 0) && (
               <div className="mt-4">
                 <div className="text-xs font-semibold text-foreground mb-2">Partnerships</div>
                 <div className="space-y-2">
-                  {u.partnerships.map((p) => (
+                  {publicProfilePayload?.relations?.affiliateOf?.length ? publicProfilePayload.relations.affiliateOf.map((r) => (
+                    <div key={r.id} className="relative overflow-hidden rounded-lg border border-border px-4 py-3 bg-muted/50">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{r.display_name || r.username || ""}</p>
+                          <p className="text-xs text-muted-foreground">Affiliate</p>
+                        </div>
+                      </div>
+                    </div>
+                  )) : (u.partnerships ?? []).map((p) => (
                     <div key={p.name} className="relative overflow-hidden rounded-lg border-0 px-4 py-3 bg-cover bg-center" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)' }}>
                       <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70" />
                       <div className="relative z-10 flex items-center justify-between">
@@ -3518,18 +3554,18 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
               </div>
             )}
 
-            {/* Links */}
+            {/* Links — real data from profile_links when available (no fake clicks) */}
             <div className="mt-4 space-y-2">
-              {(u.links ?? []).map((l) => (
+              {(publicProfilePayload?.links != null ? publicProfilePayload.links : (u.links ?? [])).map((l, i) => (
                 <div
-                  key={l.label}
+                  key={"label" in l ? l.label : l.title || i}
                   className="flex items-center justify-between rounded-lg border border-border bg-muted px-4 py-3 hover:bg-secondary transition-colors"
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     <ExternalLink className="h-4 w-4 text-primary stroke-[1.75]" />
-                    <span className="truncate font-medium text-foreground">{l.label}</span>
+                    <a href={"url" in l ? l.url : "#"} target="_blank" rel="noopener noreferrer" className="truncate font-medium text-foreground hover:underline">{"label" in l ? l.label : l.title}</a>
                   </div>
-                  <span className="text-xs font-medium text-foreground">{l.clicks.toLocaleString()}</span>
+                  {"clicks" in l && l.clicks != null ? <span className="text-xs font-medium text-foreground">{l.clicks.toLocaleString()}</span> : null}
                 </div>
               ))}
             </div>
@@ -3599,23 +3635,34 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
 
         <div className="lg:col-span-2 space-y-6">
           <AffiliationAmbassadorSection />
-          {/* Featured Work */}
-          {u.featuredWork && u.featuredWork.length > 0 && (
+          {/* Featured Work — real data from case studies (work/gigs done) */}
+          {(displayCaseStudies.length > 0 || (u.featuredWork && u.featuredWork.length > 0)) && (
             <Card>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-foreground">Featured Work</h3>
-                <Button variant="outline" size="sm" className="text-foreground" onClick={() => setRoute({ name: "overview" })}>Add</Button>
+                {isMyProfile && <Button variant="outline" size="sm" className="text-foreground" onClick={() => setRoute({ name: "overview" })}>Add</Button>}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                {u.featuredWork.map((work, idx) => (
-                  <div key={idx} className="rounded-lg border border-border bg-muted p-4 hover:bg-secondary transition-colors">
-                    <p className="font-semibold text-foreground">{work.title}</p>
-                    <div className="mt-2 flex items-center gap-1 text-xs font-medium text-foreground">
-                      <Eye className="h-3 w-3 stroke-[1.75]" />
-                      {work.views.toLocaleString()} views
-                    </div>
-                  </div>
-                ))}
+                {displayCaseStudies.length > 0
+                  ? displayCaseStudies.map((work) => (
+                      <div key={work.id} className="rounded-lg border border-border bg-muted p-4 hover:bg-secondary transition-colors">
+                        <p className="font-semibold text-foreground">{(work as { title?: string | null }).title || "Case study"}</p>
+                        {(work as { metrics?: Record<string, unknown> }).metrics && Object.keys((work as { metrics?: Record<string, unknown> }).metrics || {}).length > 0 && (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {Object.entries((work as { metrics?: Record<string, unknown> }).metrics || {}).slice(0, 2).map(([k, v]) => `${k}: ${String(v)}`).join(" · ")}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  : (u.featuredWork ?? []).map((work, idx) => (
+                      <div key={idx} className="rounded-lg border border-border bg-muted p-4 hover:bg-secondary transition-colors">
+                        <p className="font-semibold text-foreground">{work.title}</p>
+                        <div className="mt-2 flex items-center gap-1 text-xs font-medium text-foreground">
+                          <Eye className="h-3 w-3 stroke-[1.75]" />
+                          {work.views.toLocaleString()} views
+                        </div>
+                      </div>
+                    ))}
               </div>
             </Card>
           )}

@@ -108,6 +108,13 @@ export async function GET(request: Request) {
     .eq("status", "completed");
   const verifiedGigs = typeof dealsCount === "number" ? dealsCount : 0;
 
+  const { count: gigDealsCount } = await supabase
+    .from("gig_deals")
+    .select("id", { count: "exact", head: true })
+    .eq("participant_profile_id", profile.id)
+    .in("status", ["active", "completed"]);
+  const completedGigsFromGigDeals = typeof gigDealsCount === "number" ? gigDealsCount : 0;
+
   // caseStudyDeltas not implemented (no schema): case_studies.metrics is jsonb with no defined numeric delta/improvement field.
   const caseStudyDeltas: number[] | undefined = undefined;
   const { score100, score1000 } = computeLinkaryPower({
@@ -130,6 +137,7 @@ export async function GET(request: Request) {
     repScore,
     socialPower: score1000,
     reviews: { avg: Math.round(avg * 10) / 10, count },
+    completedGigsCount: verifiedGigs + completedGigsFromGigDeals,
     verifiedGigsCount: verifiedGigs,
     scoresStatus: {
       ethos: { ok: ethosScore != null, last_updated_at: ethosLastUpdated ?? null, source: ethosSource },

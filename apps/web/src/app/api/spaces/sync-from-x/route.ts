@@ -161,16 +161,25 @@ export async function POST(request: NextRequest) {
     }));
     let v2Space: { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } | null = null;
     try {
-      v2Space = await fetchXSpaceByIdV2(spaceId, accessToken);
+      const result = await fetchXSpaceByIdV2(spaceId, accessToken);
+      if (result.space) {
+        v2Space = result.space;
+      } else {
+        if (result.xStatus === 401 || result.xStatus === 403) {
+          debugSync("SYNC_STAGE_FAIL_X_AUTH", String(result.xStatus));
+          return NextResponse.json(
+            { error: "X connection expired or invalid. Reconnect X in Settings or XSpaces.", code: "X_RECONNECT_NEEDED" },
+            { status: 403 }
+          );
+        }
+        debugSync("SYNC_STAGE_FAIL_X_NO_DATA", result.xStatus ? String(result.xStatus) : undefined);
+        return NextResponse.json(
+          { error: "Could not fetch Space from X. Try again.", code: "X_API_FAILED" },
+          { status: 502 }
+        );
+      }
     } catch (v2Err) {
       debugSync("SYNC_STAGE_FAIL_X_FETCH", sanitizeServerError(v2Err));
-      return NextResponse.json(
-        { error: "Could not fetch Space from X. Try again.", code: "X_API_FAILED" },
-        { status: 502 }
-      );
-    }
-    if (!v2Space) {
-      debugSync("SYNC_STAGE_FAIL_X_NO_DATA");
       return NextResponse.json(
         { error: "Could not fetch Space from X. Try again.", code: "X_API_FAILED" },
         { status: 502 }

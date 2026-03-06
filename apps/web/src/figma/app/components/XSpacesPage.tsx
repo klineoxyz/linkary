@@ -855,6 +855,16 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       setDetectError(sanitizeErrorMessage(data.error ?? "Too many attempts. Wait a minute and try again."));
       return;
     }
+    if (res.status === 401 && (data.code === "AUTH_INVALID" || data.error === "Invalid session" || data.error === "Unauthorized")) {
+      setDetectLinkedPolling(false);
+      setDetectError("Your session may have expired. Please sign in again.");
+      return;
+    }
+    if (res.status === 403 && (data.code === "X_RECONNECT_NEEDED" || data.code === "X_NOT_CONNECTED" || data.code === "X_USER_ID_MISSING")) {
+      setDetectLinkedPolling(false);
+      setDetectError(data.error ?? "Connect or reconnect X in Settings or XSpaces to detect your Space.");
+      return;
+    }
     if (res.status === 409 && data.code === "ALREADY_LINKED") {
       setDetectLinkedPolling(false);
       setDetectError("This space is already linked. Use Replace in the space details to change it.");
@@ -1357,8 +1367,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                         setDetectError("Your session may have expired. Please sign in again.");
                       } else if ((res.status === 502 || res.status === 503 || res.status === 404) && !data.space) {
                         setDetectError("X or our service is temporarily unavailable. Try again or paste the link below.");
-                      } else if (res.status === 403 && (data.code === "X_NOT_CONNECTED" || data.code === "X_NOT_HOST")) {
-                        setDetectError(data.error ?? "Connect X first to link.");
+                      } else if (res.status === 403 && (data.code === "X_NOT_CONNECTED" || data.code === "X_NOT_HOST" || data.code === "X_RECONNECT_NEEDED")) {
+                        setDetectError(data.error ?? "Connect or reconnect X to link.");
                       } else {
                         setDetectError(sanitizeErrorMessage(data.error ?? data.message ?? "Failed to link."));
                       }
@@ -1492,8 +1502,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                               setAddFromXError("Your session may have expired. Please sign in again.");
                             } else if ((r.status === 502 || r.status === 503 || r.status === 404) && !d.space) {
                               setAddFromXError("X or our service is temporarily unavailable. Try again.");
-                            } else if (r.status === 403 && (d.code === "X_NOT_CONNECTED" || d.code === "X_NOT_HOST")) {
-                              setAddFromXError(d.error ?? "Connect X first to import Spaces.");
+                            } else if (r.status === 403 && (d.code === "X_NOT_CONNECTED" || d.code === "X_NOT_HOST" || d.code === "X_RECONNECT_NEEDED")) {
+                              setAddFromXError(d.error ?? "Connect or reconnect X to import Spaces.");
                             } else {
                               setAddFromXError(sanitizeErrorMessage(d.error ?? d.message ?? "Failed to import."));
                             }
@@ -1564,8 +1574,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     setAddFromXError("Your session may have expired. Please sign in again.");
                   } else if ((res.status === 502 || res.status === 503 || res.status === 404) && !data.space) {
                     setAddFromXError("X or our service is temporarily unavailable. Try again or paste the link below.");
-                  } else if (res.status === 403 && (data.code === "X_NOT_CONNECTED" || data.code === "X_NOT_HOST")) {
-                    setAddFromXError(data.error ?? "Connect X first to import Spaces.");
+                  } else if (res.status === 403 && (data.code === "X_NOT_CONNECTED" || data.code === "X_NOT_HOST" || data.code === "X_RECONNECT_NEEDED")) {
+                    setAddFromXError(data.error ?? "Connect or reconnect X to import Spaces.");
                   } else {
                     setAddFromXError(sanitizeErrorMessage(data.error ?? data.message ?? "Failed to sync Space"));
                   }

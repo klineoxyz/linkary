@@ -226,6 +226,12 @@ export async function POST(request: NextRequest) {
       debugDetect("DETECT_STAGE_FAIL_X_API", String(res.status));
       const body = await res.text().catch(() => "");
       if (debugDetectMySpace && body) debugDetect("X_API_CALL_BODY", sanitizeResponseBody(body));
+      if (res.status === 401 || res.status === 403) {
+        return NextResponse.json(
+          { error: "X connection expired or invalid. Reconnect X in Settings or XSpaces.", code: "X_RECONNECT_NEEDED" },
+          { status: 403, headers: rateLimitHeaders }
+        );
+      }
       return NextResponse.json(
         { error: "Could not fetch Spaces from X", code: "X_API_FAILED" },
         { status: 502, headers: rateLimitHeaders }

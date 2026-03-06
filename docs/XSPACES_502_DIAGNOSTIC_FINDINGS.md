@@ -122,3 +122,85 @@ No changes to response shapes, status codes, or business logic.
 - [ ] **OAuth token scope valid for Spaces** — requested scope is `space.read` (§3); use status/body to confirm if 403 is scope-related.
 - [ ] **Stage that fails in detect-my-space** — use §4 (detect) and log sequence.
 - [ ] **Stage that fails in sync-from-x** — use §4 (sync) and log sequence.
+
+---
+
+## 7. Incident response: log interpretation → root cause → fix
+
+**Production logs required.** To get exact root cause, set DEBUG env vars, reproduce the 502, then paste from Vercel logs:
+
+- For **detect-my-space:** `X_API_CALL_START`, `X_API_CALL_RESPONSE`, `X_API_CALL_DURATION`, `X_API_CALL_BODY` (if present), and the last `DETECT_STAGE_*` line.
+- For **sync-from-x:** `X_API_CALL_START`, `X_API_CALL_RESPONSE`, `X_API_CALL_DURATION`, `X_API_CALL_BODY` (if present), and the last `SYNC_STAGE_*` line.
+
+### Interpretation matrix (exact root cause from logs)
+
+| Log pattern | Root cause (one sentence) | Smallest fix |
+|-------------|----------------------------|--------------|
+| `X_API_CALL_RESPONSE { "status": 401 }` | X returns 401 Unauthorized — stored token expired or revoked. | Return 403 with code `X_RECONNECT_NEEDED`; client shows "Reconnect X". |
+| `X_API_CALL_RESPONSE { "status": 403 }` | X returns 403 Forbidden — token invalid or insufficient scope. | Return 403 with code `X_RECONNECT_NEEDED`; client shows "Reconnect X". |
+| `X_API_CALL_RESPONSE { "status": 404 }` | X returns 404 — space not found or not accessible. | Map to 404 or 400 with code e.g. `SPACE_NOT_FOUND`; client shows paste fallback. |
+| `X_API_CALL_RESPONSE { "status": 429 }` | X rate limit. | Return 503 or 429 with code e.g. `X_RATE_LIMITED`; client shows try again later. |
+| `X_API_CALL_START` but no `X_API_CALL_RESPONSE` | Fetch threw (timeout/network) or process killed. | Keep 502; ensure timeout & body consumption; no UX change. |
+| `X_API_CALL_RESPONSE { "status": 200 }` then `DETECT_STAGE_FAIL_INVALID_RESPONSE` or `SYNC_STAGE_FAIL_X_NO_DATA` | X returned 200 but body not JSON or missing data. | Fix parser or handle empty X payload; keep 502 for true parse failure. |
+| `access_token_exists: false` or `x_user_id_exists: false` | Token row missing or incomplete (should not 502; we return 403 earlier). | If ever seen, fix data or order of checks. |
+
+### Applied fix (without guessing)
+
+When **X returns 401 or 403**, both routes now return **403** with code **`X_RECONNECT_NEEDED`** and a clear message so the client can show "Reconnect X" instead of a generic 502. This is the most common production cause (stale/revoked token). If logs show a different X status (404, 429, or 200 with bad body), apply the corresponding smallest fix from the matrix above.
+
+---
+
+## 8. Incident fix deliverables (applied)
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `apps/web/src/app/api/xspaces/detect-my-space/route.ts` | When X returns 401 or 403, return 403 with `code: "X_RECONNECT_NEEDED"` and message "X connection expired or invalid. Reconnect X in Settings or XSpaces." instead of 502. |
+| `apps/web/src/lib/x-analytics-server.ts` | `fetchXSpaceByIdV2` now returns `FetchXSpaceByIdV2Result`: `{ space }` on success or `{ space: null, xStatus: number }` on X error so sync-from-x can map 401/403 to reconnect. |
+| `apps/web/src/app/api/spaces/sync-from-x/route.ts` | Use new `fetchXSpaceByIdV2` result; when `xStatus === 401` or `403` return 403 `X_RECONNECT_NEEDED`; otherwise 502 `X_API_FAILED`. |
+| `apps/web/src/figma/app/components/XSpacesPage.tsx` | Detect flow: explicit 401 → session expired, 403 (X_RECONNECT_NEEDED / X_NOT_CONNECTED / X_USER_ID_MISSING) → connect/reconnect X. Sync flow (all three call sites): handle 403 with `X_RECONNECT_NEEDED` and show data.error or "Connect or reconnect X to import Spaces." |
+| `docs/XSPACES_502_DIAGNOSTIC_FINDINGS.md` | §7 Log interpretation → root cause → fix matrix; §8 this deliverables section. |
+
+### Root cause (confirmed after logs)
+
+- **detect-my-space:** If production logs show `X_API_CALL_RESPONSE { "status": 401 }` or `403`, root cause is **X returns 401/403 (token expired or invalid)**. Fix: return 403 X_RECONNECT_NEEDED and client reconnect copy. Applied.
+- **sync-from-x:** Same. If logs show 401/403 from X, root cause is **stale/invalid X token**. Fix: fetchXSpaceByIdV2 returns xStatus; route returns 403 X_RECONNECT_NEEDED; client shows reconnect. Applied.
+
+### Exact fix applied
+
+1. **detect-my-space:** On `!res.ok`, if `res.status === 401 || res.status === 403` → `NextResponse.json(403, { code: "X_RECONNECT_NEEDED", error: "X connection expired or invalid. Reconnect X in Settings or XSpaces." })`. Otherwise keep 502 X_API_FAILED.
+2. **sync-from-x:** `fetchXSpaceByIdV2` returns `{ space: null, xStatus }` when X fails. Route: if `xStatus === 401 || xStatus === 403` → 403 X_RECONNECT_NEEDED; else 502 X_API_FAILED. Success path unchanged (`result.space` used as before).
+
+### Client UX mapping summary
+
+| Route | Status/code | Client UX |
+|-------|-------------|-----------|
+| detect-my-space | 401 AUTH_INVALID | "Your session may have expired. Please sign in again." |
+| detect-my-space | 403 X_RECONNECT_NEEDED / X_NOT_CONNECTED / X_USER_ID_MISSING | data.error or "Connect or reconnect X in Settings or XSpaces to detect your Space." |
+| detect-my-space | 409 ALREADY_LINKED | Already linked; use Replace. |
+| detect-my-space | 429 | Rate limit message. |
+| detect-my-space | 502/503 | "X or our service is temporarily unavailable. Try again in a moment or paste the link below." |
+| detect-my-space | found: false | "No match found — paste the X Space link below." |
+| detect-my-space | require_selection: true | Candidates picker. |
+| sync-from-x | 401 AUTH_INVALID | "Your session may have expired. Please sign in again." |
+| sync-from-x | 403 X_NOT_CONNECTED / X_NOT_HOST / X_RECONNECT_NEEDED | data.error or "Connect or reconnect X to import Spaces." |
+| sync-from-x | 409 ALREADY_IMPORTED / SPACE_OWNED_BY_OTHER | Already imported / owned by other. |
+| sync-from-x | 502/503/404 and !data.space | "X or our service is temporarily unavailable. Try again or paste the link below." (no "route not found" interpretation) |
+
+### Manual QA checklist
+
+- [ ] **detect-my-space with valid X:** 200, found/linked or candidates or found:false.
+- [ ] **detect-my-space with expired X token (or mock X 401):** 403, code X_RECONNECT_NEEDED, client shows reconnect X message and paste fallback still visible.
+- [ ] **sync-from-x with valid X:** 200, space returned.
+- [ ] **sync-from-x with expired X token (or mock X 401):** 403, code X_RECONNECT_NEEDED, client shows reconnect X message.
+- [ ] **detect 401 (session):** Client shows "Your session may have expired. Please sign in again."
+- [ ] **detect 429:** Rate limit message; paste fallback available.
+- [ ] **Add from X session refresh:** Unchanged; refresh before sync still in place.
+- [ ] **Speaker applications, sponsor proposals, payout preferences, notifications, my-proposals, analytics, reputation, public credibility, profile/dashboard, GET /api/spaces/[id]:** No changes; verify unchanged behavior.
+
+### Confirmation
+
+- **Add from X and session refresh:** Not modified (only sync-from-x response for X 401/403 and client handling of X_RECONNECT_NEEDED added).
+- **sync-from-x / detect-my-space:** Success response shapes and success paths unchanged. Only error branch for X 401/403 now returns 403 with X_RECONNECT_NEEDED.
+- **Other XSpaces/profile systems:** No code changes. No auth flow, OAuth flow, or UI redesign. Token-based styling only. Safe, incremental change only.

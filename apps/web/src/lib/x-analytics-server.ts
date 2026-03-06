@@ -294,13 +294,17 @@ export type XSpaceDetail = {
 
 const X_API_BASE = "https://api.twitter.com/2";
 
-/** Fetch Space by ID from X API v2 (Bearer token). Returns null on error. host_ids used to verify ownership. */
+export type FetchXSpaceByIdV2Result =
+  | { space: { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] }; xStatus?: undefined }
+  | { space: null; xStatus: number };
+
+/** Fetch Space by ID from X API v2 (Bearer token). Returns { space } on success or { space: null, xStatus } on X error so caller can map 401/403 to reconnect. */
 export async function fetchXSpaceByIdV2(
   spaceId: string,
   accessToken: string
-): Promise<{ id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } | null> {
+): Promise<FetchXSpaceByIdV2Result> {
   const id = String(spaceId ?? "").trim();
-  if (!id || !accessToken) return null;
+  if (!id || !accessToken) return { space: null, xStatus: 0 };
   const fields = "title,state,created_at,scheduled_start,host_ids";
   const url = `${X_API_BASE}/spaces/${encodeURIComponent(id)}?space.fields=${encodeURIComponent(fields)}`;
   const debugSyncFromX = process.env.DEBUG_SYNC_FROM_X === "1" || process.env.DEBUG_SYNC_FROM_X === "true";
@@ -317,12 +321,12 @@ export async function fetchXSpaceByIdV2(
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     if (debugSyncFromX && body) debugSync("X_API_CALL_BODY", sanitizeResponseBody(body));
-    return null;
+    return { space: null, xStatus: res.status };
   }
   const json = (await res.json()) as { data?: { id?: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } };
   const data = json?.data;
-  if (!data || !data.id) return null;
-  return data as { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] };
+  if (!data || !data.id) return { space: null, xStatus: 0 };
+  return { space: data as { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } };
 }
 
 /** Fetch Space detail by ID from twitterapi.io. Returns null on error or missing data. */

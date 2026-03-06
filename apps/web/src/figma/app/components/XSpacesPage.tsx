@@ -1358,7 +1358,17 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   if (!parseXSpaceId(addFromXUrl.trim())) { setAddFromXError("Invalid X Space link."); return; }
                   setAddFromXError(null);
                   setAddFromXSaving(true);
+                  try {
+                    await supabase.auth.refreshSession();
+                  } catch {
+                    /* non-blocking */
+                  }
                   const token = await getToken();
+                  if (!token) {
+                    setAddFromXSaving(false);
+                    setAddFromXError("Please sign in to add a space from X.");
+                    return;
+                  }
                   const res = await fetch(`${base}/api/spaces/sync-from-x`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -1383,11 +1393,13 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     } catch {
                       // keep success panel
                     }
-} else if (res.status === 409 && data.code === "ALREADY_IMPORTED") {
-      setAddFromXError(sanitizeErrorMessage(data.error ?? "Already imported."));
-    } else {
-      setAddFromXError(sanitizeErrorMessage(data.error ?? data.message ?? "Failed to sync Space"));
-    }
+                  } else if (res.status === 409 && data.code === "ALREADY_IMPORTED") {
+                    setAddFromXError(sanitizeErrorMessage(data.error ?? "Already imported."));
+                  } else if (res.status === 401 && (data.error === "Invalid session" || data.error === "Unauthorized")) {
+                    setAddFromXError("Your session may have expired. Please sign in again.");
+                  } else {
+                    setAddFromXError(sanitizeErrorMessage(data.error ?? data.message ?? "Failed to sync Space"));
+                  }
                 }}
               >
                 {addFromXSaving ? "Syncing…" : "Add from X"}

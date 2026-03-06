@@ -878,7 +878,10 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     }
     if (!res.ok) {
       setDetectLinkedPolling(false);
-      setDetectError("Something went wrong. You can retry or paste the link below.");
+      const isServerError = res.status === 502 || res.status === 503;
+      setDetectError(isServerError
+        ? "X or our service is temporarily unavailable. Try again in a moment or paste the link below."
+        : sanitizeErrorMessage(data.error ?? "Something went wrong. You can retry or paste the link below."));
     }
   }, [base, createJustDoneSpaceId, getToken, clearCreateAndRefresh, updateSpaceLinkState]);
 

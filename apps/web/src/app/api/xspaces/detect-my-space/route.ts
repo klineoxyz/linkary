@@ -43,7 +43,7 @@ function titleSimilarity(a: string, b: string): number {
 }
 
 function scoreCandidate(
-  xSpace: { id: string; title?: string; created_at?: string; scheduled_start?: string },
+  xSpace: { id?: string; title?: string; created_at?: string; scheduled_start?: string },
   linkaryTitle: string,
   linkaryScheduledAt: string | null
 ): number {

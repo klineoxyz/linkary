@@ -167,18 +167,42 @@ export async function POST(request: NextRequest) {
     let v2Space: { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } | null = null;
     let currentAccessToken = accessToken;
     let result = await fetchXSpaceByIdV2(spaceId, currentAccessToken);
+    const xHttpStatusFirst = result.space ? 200 : (result.xStatus ?? 0);
+    let refreshAttempt = 0;
+    let refreshSuccess = false;
+    let tokenPersistSuccess = false;
+    let retryAttempt = 0;
+    let xHttpStatusRetry: number | null = null;
     const needsReconnect = !result.space && (result.xStatus === 401 || result.xStatus === 403);
     if (needsReconnect && refreshToken && supabaseServiceKey && supabaseUrl) {
+      refreshAttempt = 1;
       debugSync("SYNC_STAGE_REFRESH_ATTEMPT", "1");
       const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
       const refreshed = await refreshXAccessToken(user.id, supabaseService);
+      refreshSuccess = !!refreshed?.access_token;
+      tokenPersistSuccess = refreshSuccess;
       if (refreshed?.access_token) {
+        retryAttempt = 1;
         debugSync("SYNC_STAGE_RETRY_ATTEMPT", "1");
         currentAccessToken = refreshed.access_token;
         result = await fetchXSpaceByIdV2(spaceId, currentAccessToken);
+        xHttpStatusRetry = result.space ? 200 : (result.xStatus ?? 0);
       }
     }
     const finalCode = !result.space && result.code ? result.code : result.space ? "OK" : "X_API_FAILED";
+    debugSync("PRODUCTION_VERIFY", JSON.stringify({
+      token_row_exists: hasTokenRow,
+      access_token_exists: !!accessToken,
+      refresh_token_exists: !!refreshToken,
+      x_user_id_exists: !!xUserId,
+      x_http_status_first: xHttpStatusFirst,
+      refresh_attempt: refreshAttempt,
+      refresh_success: refreshSuccess,
+      token_persist_success: tokenPersistSuccess,
+      retry_attempt: retryAttempt,
+      x_http_status_retry: xHttpStatusRetry,
+      final_code: finalCode,
+    }));
     debugSync("SYNC_STAGE_FINAL_CODE", finalCode);
     if (result.space) {
       v2Space = result.space;

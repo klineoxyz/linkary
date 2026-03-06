@@ -91,19 +91,44 @@ export async function GET(request: NextRequest) {
     debugMyXSpaces("MY_X_SPACES_STAGE_X_API_CALL_START", JSON.stringify({ endpoint: "GET /2/spaces/by/creator_ids", access_token_exists: true, x_user_id_exists: true }));
 
     let result = await fetchSpacesByCreatorId(xUserId, currentAccessToken, spaceFields);
+    const xHttpStatusFirst = result.status;
+    let refreshAttempt = 0;
+    let refreshSuccess = false;
+    let tokenPersistSuccess = false;
+    let retryAttempt = 0;
+    let xHttpStatusRetry: number | null = null;
     if (!result.ok && result.code === "X_RECONNECT_NEEDED" && hasRefreshToken && supabaseServiceKey && supabaseUrl) {
+      refreshAttempt = 1;
       debugMyXSpaces("MY_X_SPACES_STAGE_REFRESH_ATTEMPT", "1");
       const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
       const refreshed = await refreshXAccessToken(user.id, supabaseService);
+      refreshSuccess = !!refreshed?.access_token;
+      tokenPersistSuccess = refreshSuccess;
       if (refreshed?.access_token) {
+        retryAttempt = 1;
         debugMyXSpaces("MY_X_SPACES_STAGE_RETRY_ATTEMPT", "1");
         currentAccessToken = refreshed.access_token;
         result = await fetchSpacesByCreatorId(xUserId, currentAccessToken, spaceFields);
+        xHttpStatusRetry = result.status;
       }
     }
+    const finalCode = result.code;
+    debugMyXSpaces("PRODUCTION_VERIFY", JSON.stringify({
+      token_row_exists: hasTokenRow,
+      access_token_exists: hasAccessToken,
+      refresh_token_exists: hasRefreshToken,
+      x_user_id_exists: !!xUserId,
+      x_http_status_first: xHttpStatusFirst,
+      refresh_attempt: refreshAttempt,
+      refresh_success: refreshSuccess,
+      token_persist_success: tokenPersistSuccess,
+      retry_attempt: retryAttempt,
+      x_http_status_retry: xHttpStatusRetry,
+      final_code: finalCode,
+    }));
     debugMyXSpaces("MY_X_SPACES_STAGE_X_API_RESPONSE", JSON.stringify({ status: result.status, code: result.code }));
     if (!result.ok && result.bodyText) debugMyXSpaces("MY_X_SPACES_STAGE_X_API_BODY", result.bodyText);
-    debugMyXSpaces("MY_X_SPACES_STAGE_FINAL_CODE", result.code);
+    debugMyXSpaces("MY_X_SPACES_STAGE_FINAL_CODE", finalCode);
 
     if (!result.ok) {
       if (result.code === "X_RECONNECT_NEEDED") {

@@ -346,3 +346,33 @@ All three X-import routes hardened and unified:
 ### Index
 
 - **No new index.** All three routes query `x_oauth_tokens` by `profile_id` (PK) and `provider`. PK lookup is sufficient.
+
+---
+
+## 13. Production verification pass (debug only)
+
+### Refresh flow verified
+
+- **x_oauth_tokens read:** All 3 routes select `access_token`, `refresh_token`, `x_user_id`.
+- **refreshXAccessToken:** Uses `https://api.twitter.com/2/oauth2/token`, `grant_type=refresh_token`, Basic client_id:client_secret; persists `access_token`; persists `refresh_token` if X returns it; updates `expires_at` if X returns `expires_in`.
+- **Retry:** Uses `refreshed.access_token` (new token); exactly one retry when refresh succeeds.
+
+### High-signal debug (env-gated)
+
+When `DEBUG_MY_X_SPACES=1`, `DEBUG_DETECT_MY_SPACE=1`, or `DEBUG_SYNC_FROM_X=1`, each route logs one **PRODUCTION_VERIFY** line with:
+
+- `token_row_exists`, `access_token_exists`, `refresh_token_exists`, `x_user_id_exists`
+- `x_http_status_first` (X response status from first call)
+- `refresh_attempt` (0 or 1), `refresh_success`, `token_persist_success`
+- `retry_attempt` (0 or 1), `x_http_status_retry` (null if no retry)
+- `final_code`
+
+No tokens, cookies, headers, or raw secrets are logged.
+
+### QA checklist for production verification
+
+- [ ] Set DEBUG_MY_X_SPACES=1, DEBUG_DETECT_MY_SPACE=1, DEBUG_SYNC_FROM_X=1 in Vercel.
+- [ ] Trigger my-x-spaces with a user whose X token is expired but refresh_token exists: expect `x_http_status_first` 401 or 403, `refresh_attempt` 1, `refresh_success` true, `retry_attempt` 1, `x_http_status_retry` 200, `final_code` OK.
+- [ ] Trigger with no refresh_token or refresh fails: expect `refresh_success` false, `final_code` X_RECONNECT_NEEDED.
+- [ ] Confirm X 429 → 429 X_RATE_LIMITED; X 404 on sync → 404 SPACE_NOT_FOUND; timeout → 502 X_API_TIMEOUT; invalid body → 502 INVALID_X_RESPONSE; other → 502 X_API_FAILED.
+- [ ] Confirm Add from X, speaker/sponsor, analytics/reputation/credibility, profile systems unchanged.

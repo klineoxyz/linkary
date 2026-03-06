@@ -4,6 +4,44 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+const SPACE_COLS = "id, host_profile_id, title, x_title, linkary_title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url, expect_x_link";
+
+/** GET /api/spaces/[id] — fetch single space (auth required; visible if host or space is scheduled/planned/live) */
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const id = (await params).id;
+  const authHeader = _request.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token || !supabaseUrl || !supabaseAnonKey) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: `Bearer ${token}` } } });
+  const { data: { user } } = await supabase.auth.getUser(token);
+  if (!user?.id) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+
+  const { data: space, error } = await supabase
+    .from("spaces")
+    .select(SPACE_COLS)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!space) return NextResponse.json({ error: "Space not found" }, { status: 404 });
+
+  const row = space as { host_profile_id: string };
+  const isHost = row.host_profile_id === user.id;
+  const isPublic = ["planned", "scheduled", "live"].includes((space as { status: string }).status);
+  if (!isHost && !isPublic) return NextResponse.json({ error: "Space not found" }, { status: 404 });
+
+  const hostIds = [row.host_profile_id];
+  const { data: profiles } = await supabase.from("profiles").select("id, display_name, twitter_username, avatar_url").in("id", hostIds);
+  const host = (profiles ?? [])[0] as { id: string; display_name: string | null; twitter_username: string | null; avatar_url: string | null } | undefined;
+  const out = { ...space, host: host ? { id: host.id, display_name: host.display_name, twitter_username: host.twitter_username, profile_image_url: host.avatar_url } : null };
+  return NextResponse.json(out);
+}
+
 /** PATCH /api/spaces/[id] — update or cancel (host only) */
 export async function PATCH(
   request: NextRequest,

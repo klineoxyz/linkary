@@ -34,12 +34,13 @@ export async function PATCH(
 
   const { data: proposal } = await supabase
     .from("space_sponsor_proposals")
-    .select("id, space_id, status")
+    .select("id, space_id, status, project_profile_id")
     .eq("id", proposalId)
     .eq("space_id", spaceId)
     .maybeSingle();
   if (!proposal) return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
   const currentStatus = (proposal as { status: string }).status;
+  const projectProfileId = (proposal as { project_profile_id?: string }).project_profile_id;
   if (currentStatus !== "pending") {
     if (currentStatus === "accepted") return NextResponse.json({ error: "This proposal was already accepted." }, { status: 400 });
     if (currentStatus === "declined") return NextResponse.json({ error: "This proposal was already declined." }, { status: 400 });
@@ -64,6 +65,18 @@ export async function PATCH(
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (projectProfileId) {
+      try {
+        const { createNotification } = await import("@/lib/notifications");
+        await createNotification(projectProfileId, "sponsor_proposal_declined", {
+          entity_type: "sponsor_proposal",
+          entity_id: proposalId,
+          payload: { space_id: spaceId },
+        });
+      } catch {
+        /* non-blocking */
+      }
+    }
     return NextResponse.json(data);
   }
 
@@ -96,5 +109,17 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (projectProfileId) {
+    try {
+      const { createNotification } = await import("@/lib/notifications");
+      await createNotification(projectProfileId, "sponsor_proposal_accepted", {
+        entity_type: "sponsor_proposal",
+        entity_id: proposalId,
+        payload: { space_id: spaceId, accepted_at: now },
+      });
+    } catch {
+      /* non-blocking */
+    }
+  }
   return NextResponse.json(data);
 }

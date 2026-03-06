@@ -23,7 +23,9 @@ export type NotificationType =
   | "deal_completed"
   | "speaker_request_created"
   | "speaker_request_approved"
-  | "speaker_request_rejected";
+  | "speaker_request_rejected"
+  | "sponsor_proposal_accepted"
+  | "sponsor_proposal_declined";
 
 const DEDUP_WINDOW_MINUTES = 5;
 

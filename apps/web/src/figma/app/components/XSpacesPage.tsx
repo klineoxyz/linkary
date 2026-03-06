@@ -179,6 +179,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [acceptPayoutProposalId, setAcceptPayoutProposalId] = useState<string | null>(null);
   const [acceptPayoutMethod, setAcceptPayoutMethod] = useState<"saved_wallet" | "one_time_wallet" | "linkary_wallet">("one_time_wallet");
   const [acceptPayoutAddress, setAcceptPayoutAddress] = useState("");
+  const [acceptPayoutSaveAsDefault, setAcceptPayoutSaveAsDefault] = useState(false);
   const [acceptPayoutSaving, setAcceptPayoutSaving] = useState(false);
   const [resolvingSponsorId, setResolvingSponsorId] = useState<string | null>(null);
   const [inboxProposals, setInboxProposals] = useState<Array<{ id: string; space_id: string; space_title: string | null; project_display_name: string | null; project_username: string | null; offer_amount: number; currency: string; sponsorship_type: string; status: string; created_at: string }>>([]);
@@ -1191,7 +1192,24 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                           <p className="text-xs text-muted-foreground mt-1 italic">Payment is arranged off-platform between sponsor and host.</p>
                         </>
                       )}
-                      <Button type="button" variant="outline" size="sm" className="mt-2 rounded-xl" onClick={() => setDetailsSpace(minimalSpace)}>
+                      <Button type="button" variant="outline" size="sm" className="mt-2 rounded-xl" onClick={async () => {
+                        if (spaceFromList) {
+                          setDetailsSpace(spaceFromList as Space);
+                          return;
+                        }
+                        const token = await getToken();
+                        if (!token || !base) { setDetailsSpace(minimalSpace); return; }
+                        try {
+                          const res = await fetch(`${base}/api/spaces/${p.space_id}`, { headers: { Authorization: `Bearer ${token}` } });
+                          if (res.ok) {
+                            const data = await res.json().catch(() => null);
+                            if (data && data.id) setDetailsSpace(data as Space);
+                            else setDetailsSpace(minimalSpace);
+                          } else setDetailsSpace(minimalSpace);
+                        } catch {
+                          setDetailsSpace(minimalSpace);
+                        }
+                      }}>
                         Open space
                       </Button>
                     </li>
@@ -1770,7 +1788,13 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                               ))}
                             </div>
                             {(acceptPayoutMethod === "one_time_wallet" || acceptPayoutMethod === "saved_wallet") && (
-                              <input type="text" value={acceptPayoutAddress} onChange={(e) => setAcceptPayoutAddress(e.target.value)} placeholder="Wallet address" maxLength={200} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                              <>
+                                <input type="text" value={acceptPayoutAddress} onChange={(e) => setAcceptPayoutAddress(e.target.value)} placeholder="Wallet address" maxLength={200} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
+                                <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground">
+                                  <input type="checkbox" checked={acceptPayoutSaveAsDefault} onChange={(e) => setAcceptPayoutSaveAsDefault(e.target.checked)} className="rounded border-border" />
+                                  Save as my default payout wallet
+                                </label>
+                              </>
                             )}
                             <div className="flex gap-2 flex-wrap">
                               <Button type="button" size="sm" disabled={acceptPayoutSaving || (acceptPayoutMethod !== "linkary_wallet" && !acceptPayoutAddress.trim())} className="rounded-lg" onClick={async () => {
@@ -1781,20 +1805,50 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                                   headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                                   body: JSON.stringify({ status: "accepted", payout_method: acceptPayoutMethod, payout_wallet_address: acceptPayoutMethod === "linkary_wallet" ? null : acceptPayoutAddress.trim() }),
                                 });
+                                if (res.ok && acceptPayoutSaveAsDefault && token && (acceptPayoutMethod === "saved_wallet" || acceptPayoutMethod === "one_time_wallet") && acceptPayoutAddress.trim()) {
+                                  try {
+                                    await fetch(`${base}/api/me/payout-preferences`, {
+                                      method: "PUT",
+                                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                      body: JSON.stringify({ default_payout_method: "saved_wallet", wallet_address: acceptPayoutAddress.trim() }),
+                                    });
+                                  } catch {
+                                    /* non-blocking */
+                                  }
+                                }
                                 setAcceptPayoutSaving(false);
                                 if (res.ok) {
                                   setAcceptPayoutProposalId(null);
                                   setAcceptPayoutAddress("");
+                                  setAcceptPayoutSaveAsDefault(false);
                                   loadDetailSponsorProposals(detailsSpace.id);
                                   if (mainNav === "inbox") getToken().then((t) => fetch(`${base}/api/xspaces/inbox`, { headers: t ? { Authorization: `Bearer ${t}` } : {} }).then((r) => r.json()).then((d) => { setInboxProposals(Array.isArray(d?.proposals) ? d.proposals : []); setInboxSpaces(Array.isArray(d?.spaces) ? d.spaces : []); }));
                                 }
                               }}>{acceptPayoutSaving ? "…" : "Confirm accept"}</Button>
-                              <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={() => { setAcceptPayoutProposalId(null); setAcceptPayoutAddress(""); }}>Cancel</Button>
+                              <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={() => { setAcceptPayoutProposalId(null); setAcceptPayoutAddress(""); setAcceptPayoutSaveAsDefault(false); }}>Cancel</Button>
                             </div>
                           </div>
                         ) : (
                           <div className="flex gap-2 flex-wrap">
-                            <Button type="button" size="sm" disabled={resolvingSponsorId === sp.id} className="rounded-lg text-xs bg-primary/20 text-primary border-primary/30" onClick={() => { setAcceptPayoutProposalId(sp.id); setAcceptPayoutMethod("one_time_wallet"); setAcceptPayoutAddress(""); }}>Accept</Button>
+                            <Button type="button" size="sm" disabled={resolvingSponsorId === sp.id} className="rounded-lg text-xs bg-primary/20 text-primary border-primary/30" onClick={() => {
+                              setAcceptPayoutProposalId(sp.id);
+                              setAcceptPayoutMethod("one_time_wallet");
+                              setAcceptPayoutAddress("");
+                              setAcceptPayoutSaveAsDefault(false);
+                              getToken().then(async (token) => {
+                                if (!token || !base) return;
+                                try {
+                                  const res = await fetch(`${base}/api/me/payout-preferences`, { headers: { Authorization: `Bearer ${token}` } });
+                                  const data = await res.json().catch(() => ({}));
+                                  if (data.default_payout_method === "saved_wallet" && typeof data.wallet_address === "string" && data.wallet_address.trim()) {
+                                    setAcceptPayoutMethod("saved_wallet");
+                                    setAcceptPayoutAddress(data.wallet_address.trim());
+                                  }
+                                } catch {
+                                  /* non-blocking */
+                                }
+                              });
+                            }}>Accept</Button>
                             <Button type="button" variant="outline" size="sm" disabled={resolvingSponsorId === sp.id} className="rounded-lg text-xs" onClick={async () => {
                               setResolvingSponsorId(sp.id);
                               const token = await getToken();

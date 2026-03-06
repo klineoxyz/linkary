@@ -3,11 +3,12 @@
  * Body: { space_id?: string, space_url?: string, url?: string }
  * Fetches Space detail (twitterapi.io or X API v2 from x_oauth_tokens), verifies user is host,
  * then creates or updates our space. Returns 409 ALREADY_IMPORTED with existing space when already owned by user.
- * Never returns tokens.
+ * Never returns tokens. Deterministic error codes; 502 for X API/upstream failures (not 404).
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { parseXSpaceId } from "@/lib/parseXSpaceId";
+import { sanitizeServerError, debugSync } from "@/lib/server-error";
 import {
   fetchXSpaceDetail,
   fetchXSpaceByIdV2,
@@ -15,8 +16,8 @@ import {
   type XSpaceDetail,
 } from "@/lib/x-analytics-server";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const TWITTERAPI_API_KEY = process.env.TWITTERAPI_API_KEY;
 
 type SpaceRow = {
@@ -41,13 +42,15 @@ function toScheduledAt(scheduledStart: string | null | undefined): string | null
 }
 
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token || !supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  debugSync("SYNC_STAGE_ROUTE_HIT");
+  try {
+    const authHeader = request.headers.get("authorization");
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token || !supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json({ error: "Unauthorized", code: "AUTH_INVALID" }, { status: 401 });
+    }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
   const {
@@ -55,15 +58,18 @@ export async function POST(request: NextRequest) {
     error: userError,
   } = await supabase.auth.getUser(token);
   if (userError || !user?.id) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    debugSync("SYNC_STAGE_FAIL_AUTH", sanitizeServerError(userError));
+    return NextResponse.json({ error: "Invalid session", code: "AUTH_INVALID" }, { status: 401 });
   }
+  debugSync("SYNC_STAGE_AUTH_OK", user.id);
 
   let body: { space_id?: string; space_url?: string; url?: string } = {};
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON", code: "SYNC_INVALID_INPUT" }, { status: 400 });
   }
+  debugSync("SYNC_STAGE_BODY_OK");
 
   const urlInput = typeof body.url === "string" ? body.url.trim() : typeof body.space_url === "string" ? body.space_url.trim() : "";
   let spaceId = typeof body.space_id === "string" ? body.space_id.trim() : null;
@@ -85,6 +91,7 @@ export async function POST(request: NextRequest) {
   const existingRow = existing as SpaceRow | null;
 
   if (existingRow && existingRow.host_profile_id === user.id) {
+    debugSync("SYNC_STAGE_ALREADY_IMPORTED");
     return NextResponse.json(
       { error: "This Space is already imported.", code: "ALREADY_IMPORTED", space: mapSpace(existingRow) },
       { status: 409 }
@@ -107,7 +114,7 @@ export async function POST(request: NextRequest) {
     if (detail) {
       const creatorHandle = (detail.creator?.userName ?? "").toString().trim().replace(/^@/, "").toLowerCase();
       if (!creatorHandle) {
-        return NextResponse.json({ error: "Space creator could not be determined" }, { status: 400 });
+        return NextResponse.json({ error: "Space creator could not be determined", code: "SYNC_INVALID_INPUT" }, { status: 400 });
       }
       const { data: social } = await supabase
         .from("social_accounts")
@@ -120,7 +127,7 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
       const myHandle = (social?.username ?? "").toString().trim().replace(/^@/, "").toLowerCase();
       if (myHandle !== creatorHandle) {
-        return NextResponse.json({ error: "You can only sync Spaces you host on X" }, { status: 403 });
+        return NextResponse.json({ error: "You can only sync Spaces you host on X", code: "X_NOT_HOST" }, { status: 403 });
       }
       title = typeof detail.title === "string" ? detail.title.trim() : title;
       scheduledAt = toScheduledAt(detail.scheduled_start ?? undefined);
@@ -129,24 +136,44 @@ export async function POST(request: NextRequest) {
   }
 
   if (!detail) {
-    const { data: tokenRow } = await supabase
+    const { data: tokenRow, error: tokenError } = await supabase
       .from("x_oauth_tokens")
       .select("access_token, x_user_id")
       .eq("profile_id", user.id)
       .eq("provider", "x")
       .maybeSingle();
+    if (tokenError) {
+      debugSync("SYNC_STAGE_FAIL_TOKEN_LOOKUP", tokenError.message);
+      return NextResponse.json({ error: "Connect X first to import Spaces", code: "X_NOT_CONNECTED" }, { status: 403 });
+    }
     const accessToken = (tokenRow as { access_token?: string } | null)?.access_token;
     const xUserId = (tokenRow as { x_user_id?: string | null } | null)?.x_user_id;
     if (!accessToken || !xUserId) {
+      debugSync("SYNC_STAGE_FAIL_X_NOT_CONNECTED", tokenRow ? "missing access_token or x_user_id" : "no token row");
       return NextResponse.json({ error: "Connect X first to import Spaces", code: "X_NOT_CONNECTED" }, { status: 403 });
     }
-    const v2Space = await fetchXSpaceByIdV2(spaceId, accessToken);
-    if (!v2Space) {
-      return NextResponse.json({ error: "Could not fetch Space from X" }, { status: 404 });
+    debugSync("SYNC_STAGE_TOKEN_ROW_FOUND");
+    let v2Space: { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } | null = null;
+    try {
+      v2Space = await fetchXSpaceByIdV2(spaceId, accessToken);
+    } catch (v2Err) {
+      debugSync("SYNC_STAGE_FAIL_X_FETCH", sanitizeServerError(v2Err));
+      return NextResponse.json(
+        { error: "Could not fetch Space from X. Try again.", code: "X_API_FAILED" },
+        { status: 502 }
+      );
     }
+    if (!v2Space) {
+      debugSync("SYNC_STAGE_FAIL_X_NO_DATA");
+      return NextResponse.json(
+        { error: "Could not fetch Space from X. Try again.", code: "X_API_FAILED" },
+        { status: 502 }
+      );
+    }
+    debugSync("SYNC_STAGE_X_FETCH_OK");
     const hostIds = Array.isArray(v2Space.host_ids) ? v2Space.host_ids : [];
     if (!hostIds.includes(xUserId)) {
-      return NextResponse.json({ error: "You can only import Spaces you host on X" }, { status: 403 });
+      return NextResponse.json({ error: "You can only import Spaces you host on X", code: "X_NOT_HOST" }, { status: 403 });
     }
     title = typeof v2Space.title === "string" && v2Space.title.trim() ? v2Space.title.trim() : title;
     scheduledAt = toScheduledAt(v2Space.scheduled_start);
@@ -172,9 +199,14 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (insertErr) {
-    return NextResponse.json({ error: insertErr.message }, { status: 500 });
+    debugSync("SYNC_STAGE_FAIL_INSERT", sanitizeServerError(insertErr));
+    return NextResponse.json(
+      { error: "Failed to create space. Try again.", code: "SYNC_INTERNAL_ERROR" },
+      { status: 502 }
+    );
   }
   const space = inserted as SpaceRow;
+  debugSync("SYNC_STAGE_INSERT_OK", space.id);
 
   if (useParticipantSync && detail) {
     const participantIds = spaceParticipantIds(detail);
@@ -202,6 +234,20 @@ export async function POST(request: NextRequest) {
     space: mapSpace(space),
     participants_count: useParticipantSync && detail ? spaceParticipantIds(detail).length : 0,
   });
+  } catch (err) {
+    const msg = (() => {
+      try {
+        return sanitizeServerError(err);
+      } catch {
+        return "Sync failed.";
+      }
+    })();
+    debugSync("SYNC_STAGE_FAIL_INTERNAL", msg);
+    return NextResponse.json(
+      { error: "Import failed. Try again.", code: "SYNC_INTERNAL_ERROR" },
+      { status: 502 }
+    );
+  }
 }
 
 function mapSpace(row: SpaceRow) {

@@ -1353,7 +1353,15 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                         if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces();
                       } else if (res.status === 409 && data.code === "ALREADY_IMPORTED") {
                         setDetectError(sanitizeErrorMessage(data.error ?? "Already imported."));
-                      } else setDetectError(sanitizeErrorMessage(data.error ?? data.message ?? "Failed to link."));
+                      } else if (res.status === 401 && (data.code === "AUTH_INVALID" || data.error === "Invalid session" || data.error === "Unauthorized")) {
+                        setDetectError("Your session may have expired. Please sign in again.");
+                      } else if ((res.status === 502 || res.status === 503 || res.status === 404) && !data.space) {
+                        setDetectError("X or our service is temporarily unavailable. Try again or paste the link below.");
+                      } else if (res.status === 403 && (data.code === "X_NOT_CONNECTED" || data.code === "X_NOT_HOST")) {
+                        setDetectError(data.error ?? "Connect X first to link.");
+                      } else {
+                        setDetectError(sanitizeErrorMessage(data.error ?? data.message ?? "Failed to link."));
+                      }
                     }} className="rounded-xl">Link pasted URL</Button>
                   )}
                 </div>
@@ -1480,6 +1488,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                               if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth); else loadSpaces();
                             } else if (r.status === 409 && d.code === "ALREADY_IMPORTED") {
                               setAddFromXError(sanitizeErrorMessage(d.error ?? "Already imported."));
+                            } else if (r.status === 401 && (d.code === "AUTH_INVALID" || d.error === "Invalid session" || d.error === "Unauthorized")) {
+                              setAddFromXError("Your session may have expired. Please sign in again.");
+                            } else if ((r.status === 502 || r.status === 503 || r.status === 404) && !d.space) {
+                              setAddFromXError("X or our service is temporarily unavailable. Try again.");
+                            } else if (r.status === 403 && (d.code === "X_NOT_CONNECTED" || d.code === "X_NOT_HOST")) {
+                              setAddFromXError(d.error ?? "Connect X first to import Spaces.");
                             } else {
                               setAddFromXError(sanitizeErrorMessage(d.error ?? d.message ?? "Failed to import."));
                             }
@@ -1546,8 +1560,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     }
                   } else if (res.status === 409 && data.code === "ALREADY_IMPORTED") {
                     setAddFromXError(sanitizeErrorMessage(data.error ?? "Already imported."));
-                  } else if (res.status === 401 && (data.error === "Invalid session" || data.error === "Unauthorized")) {
+                  } else if (res.status === 401 && (data.code === "AUTH_INVALID" || data.error === "Invalid session" || data.error === "Unauthorized")) {
                     setAddFromXError("Your session may have expired. Please sign in again.");
+                  } else if ((res.status === 502 || res.status === 503 || res.status === 404) && !data.space) {
+                    setAddFromXError("X or our service is temporarily unavailable. Try again or paste the link below.");
+                  } else if (res.status === 403 && (data.code === "X_NOT_CONNECTED" || data.code === "X_NOT_HOST")) {
+                    setAddFromXError(data.error ?? "Connect X first to import Spaces.");
                   } else {
                     setAddFromXError(sanitizeErrorMessage(data.error ?? data.message ?? "Failed to sync Space"));
                   }

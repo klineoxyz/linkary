@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized", code: "AUTH_INVALID" }, { status: 401 });
   }
   if (!supabaseUrl || !supabaseAnonKey) {
     debugDetect("DETECT_CONFIG_MISSING", "Supabase env not set");
@@ -108,8 +108,10 @@ export async function POST(request: NextRequest) {
       error: userError,
     } = await supabase.auth.getUser(token);
     if (userError || !user?.id) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+      debugDetect("DETECT_STAGE_FAIL_AUTH", sanitizeServerError(userError));
+      return NextResponse.json({ error: "Invalid session", code: "AUTH_INVALID" }, { status: 401 });
     }
+    debugDetect("DETECT_STAGE_AUTH_OK", user.id);
 
     const supabaseAdmin = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : null;
     let rl: Awaited<ReturnType<typeof rateLimitXSpacesDetect>>;
@@ -124,9 +126,10 @@ export async function POST(request: NextRequest) {
     }
 
     if ("unavailable" in rl && rl.unavailable) {
+      debugDetect("DETECT_STAGE_FAIL_RATE_LIMIT_UNAVAILABLE");
       return NextResponse.json(
-        { error: "Rate limit service unavailable." },
-        { status: 503 }
+        { error: "Rate limit service unavailable. Try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
+        { status: 503, headers: rateLimitHeaders }
       );
     }
 
@@ -157,18 +160,20 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (tokenError) {
-      debugDetect("X_TOKEN_LOOKUP_ERROR", tokenError.message);
+      debugDetect("DETECT_STAGE_FAIL_TOKEN_LOOKUP", tokenError.message);
       return NextResponse.json(
         { error: "Connect X first (Settings or XSpaces) to detect your Space", code: "X_NOT_CONNECTED" },
         { status: 403, headers: rateLimitHeaders }
       );
     }
     if (!tokenRow?.access_token) {
+      debugDetect("DETECT_STAGE_FAIL_X_NOT_CONNECTED", "no access_token");
       return NextResponse.json(
         { error: "Connect X first (Settings or XSpaces) to detect your Space", code: "X_NOT_CONNECTED" },
         { status: 403, headers: rateLimitHeaders }
       );
     }
+    debugDetect("DETECT_STAGE_TOKEN_ROW_FOUND");
 
     const xUserId = (tokenRow as { x_user_id: string | null }).x_user_id;
     if (!xUserId || typeof xUserId !== "string") {
@@ -205,6 +210,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!res.ok) {
+      debugDetect("DETECT_STAGE_FAIL_X_API", String(res.status));
       return NextResponse.json(
         { error: "Could not fetch Spaces from X", code: "X_API_FAILED" },
         { status: 502, headers: rateLimitHeaders }
@@ -215,12 +221,13 @@ export async function POST(request: NextRequest) {
     try {
       data = (await res.json()) as { data?: unknown };
     } catch {
-      debugDetect("DETECT_INVALID_RESPONSE", "X API response was not JSON");
+      debugDetect("DETECT_STAGE_FAIL_INVALID_RESPONSE", "X API response was not JSON");
       return NextResponse.json(
         { error: "Invalid response from X. Try again.", code: "DETECT_INVALID_RESPONSE" },
         { status: 502, headers: rateLimitHeaders }
       );
     }
+    debugDetect("DETECT_STAGE_X_API_RESPONSE", Array.isArray(data?.data) ? `items=${(data.data as unknown[]).length}` : "no array");
 
     const spaces = Array.isArray(data?.data) ? data.data : [];
     const since = new Date(Date.now() - WINDOW_MS).toISOString();
@@ -313,6 +320,7 @@ export async function POST(request: NextRequest) {
       scheduled_start: x.space.scheduled_start ?? null,
       score: Math.round(x.score * 100) / 100,
     }));
+    debugDetect("DETECT_STAGE_CANDIDATES_BUILT", String(candidates.length));
 
     if (candidates.length === 0) {
       return NextResponse.json(

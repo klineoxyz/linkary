@@ -25,3 +25,13 @@ export function debugDetect(code: string, detail?: string): void {
   // eslint-disable-next-line no-console
   console.warn(msg);
 }
+
+const DEBUG_SYNC = process.env.DEBUG_SYNC_FROM_X === "1" || process.env.DEBUG_SYNC_FROM_X === "true";
+
+/** Safe server-side debug log for sync-from-x. Never logs tokens, headers, or PII. */
+export function debugSync(code: string, detail?: string): void {
+  if (!DEBUG_SYNC) return;
+  const msg = detail ? `[sync-from-x] ${code}: ${detail}` : `[sync-from-x] ${code}`;
+  // eslint-disable-next-line no-console
+  console.warn(msg);
+}

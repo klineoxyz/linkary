@@ -204,3 +204,51 @@ When **X returns 401 or 403**, both routes now return **403** with code **`X_REC
 - **Add from X and session refresh:** Not modified (only sync-from-x response for X 401/403 and client handling of X_RECONNECT_NEEDED added).
 - **sync-from-x / detect-my-space:** Success response shapes and success paths unchanged. Only error branch for X 401/403 now returns 403 with X_RECONNECT_NEEDED.
 - **Other XSpaces/profile systems:** No code changes. No auth flow, OAuth flow, or UI redesign. Token-based styling only. Safe, incremental change only.
+
+---
+
+## 9. Production log template (paste from Vercel)
+
+**I do not have access to Vercel.** To get exact root cause, reproduce the 502 with DEBUG env vars set, then paste the following from Vercel logs.
+
+### detect-my-space — paste these lines from one failing request
+
+```
+[detect-my-space] X_API_CALL_START: ...
+[detect-my-space] X_API_CALL_RESPONSE: ...
+[detect-my-space] X_API_CALL_DURATION: ...
+[detect-my-space] X_API_CALL_BODY: ...   (only if X returned non-200)
+[detect-my-space] DETECT_STAGE_*: ...    (last stage line before 502)
+```
+
+From these, fill: (1) exact endpoint from START, (2) access_token_exists / x_user_id_exists from START, (3) X HTTP status from RESPONSE, (4) sanitized body from BODY, (5) last successful stage, (6) exact failing stage.
+
+### sync-from-x — paste these lines from one failing request
+
+```
+[sync-from-x] X_API_CALL_START: ...
+[sync-from-x] X_API_CALL_RESPONSE: ...
+[sync-from-x] X_API_CALL_DURATION: ...
+[sync-from-x] X_API_CALL_BODY: ...   (only if X returned non-200)
+[sync-from-x] SYNC_STAGE_*: ...      (last stage line before 502)
+```
+
+Same: endpoint, access_token_exists, x_user_id_exists, X status, body, last successful stage, failing stage.
+
+---
+
+## 10. Index / query verification (no new index needed)
+
+Verified against current code and migrations.
+
+| Index | Migration | Query usage | Verdict |
+|-------|-----------|-------------|---------|
+| `idx_space_sponsor_proposals_project_status` | 20260312000000 | `space_sponsor_proposals` by `project_profile_id` + status (xspaces-stats, analytics/reputation) | Matches; present. |
+| `idx_space_sponsor_proposals_space_status` | 20260312000000 | `space_sponsor_proposals` by `space_id` + status (credibility, host proposals) | Matches; present. |
+| `idx_speaker_requests_space_status` | 20260314000000 | `speaker_requests` by `space_id` + status (credibility) | Matches; present. |
+
+**detect-my-space / sync-from-x:** Use `x_oauth_tokens` (eq `profile_id`, `provider`) and `spaces` (eq `id` or `x_space_id`, select by host). No composite index required for these lookups; primary/key lookups suffice.
+
+**analytics / reputation / credibility:** Use the three indexes above via `xspaces-stats` and credibility route. No additional index justified by current queries.
+
+**Conclusion:** No new index added. Existing indexes are sufficient.

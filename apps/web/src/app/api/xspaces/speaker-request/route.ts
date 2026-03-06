@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-/** POST /api/xspaces/speaker-request — request to speak. Body: { space_id: string, message?: string }. Delegates to POST /api/spaces/[id]/speaker-request */
+/** POST /api/xspaces/speaker-request — request to speak. Body: { space_id: string, pitch?: string, topic?: string, message?: string }. Delegates to POST /api/spaces/[id]/speaker-request */
 export async function POST(request: NextRequest) {
-  let body: { space_id?: string; message?: string } = {};
+  let body: { space_id?: string; pitch?: string; topic?: string; message?: string } = {};
   try {
     body = await request.json();
   } catch {
@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const res = await fetch(`${base}/api/spaces/${encodeURIComponent(spaceId)}/speaker-request`, {
     method: "POST",
-    headers: authHeader ? { Authorization: authHeader } : {},
-    body: JSON.stringify({ message: body.message }),
+    headers: { "Content-Type": "application/json", ...(authHeader ? { Authorization: authHeader } : {}) },
+    body: JSON.stringify({ pitch: body.pitch, topic: body.topic, message: body.message }),
   });
   const data = await res.json().catch(() => ({}));
   return NextResponse.json(data, { status: res.status });

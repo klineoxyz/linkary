@@ -43,7 +43,7 @@ Product + Engineering plan for: dual title (X + Linkary), speaker applications (
 - **Option 1 (recommended):** Store payout method + address on `space_sponsor_proposals` (accepted row only) as above — no new table.
 - **Option 2:** Separate `host_payout_preferences` (profile_id, method, wallet_address) for saved/one-time; use for default when accepting. For v1, per-acceptance choice is enough; optional later.
 
-**Implementation order (schema):** (1) A — x_title, linkary_title. (2) B — speaker pitch/topic, status withdrawn/declined, app-level max 10. (3) C+D — space_sponsor_proposals with payout fields.
+**Implementation order (schema):** (1) A — x_title, linkary_title. (2) B — speaker pitch/topic, status withdrawn/declined, max 10 via RPC (done in Slice 2). (3) C+D — space_sponsor_proposals with payout fields.
 
 ---
 
@@ -102,6 +102,8 @@ Product + Engineering plan for: dual title (X + Linkary), speaker applications (
 2. **Slice 2:** Speaker applications: schema B (pitch, topic, withdrawn/declined); API POST/GET/PATCH; UI host section speaker applications + approve/decline + max 10; approved in speakers section.
 3. **Slice 3:** Sponsor proposals: schema C+D; API POST/GET/PATCH; host inbox (pending proposals); space detail host section "Sponsor proposals"; accept/decline with payout method + address.
 4. **Slice 4:** Project sponsor flow UI: "Apply to sponsor" form and success/status.
+
+**Slice 2 implemented:** Speaker applications with pitch/topic, statuses (pending/approved/declined/withdrawn), max 10 approved (RPC), host approve/decline, applicant withdraw. See `docs/XSPACES_SLICE2_IMPLEMENTATION_PLAN.md`.
 
 ---
 

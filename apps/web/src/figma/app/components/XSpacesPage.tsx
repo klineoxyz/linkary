@@ -16,7 +16,7 @@ import {
   type SpaceForCard,
   type SpaceForCalendar,
 } from "./xspaces";
-import { toLocalYMD, sanitizeErrorMessage } from "./xspaces/utils";
+import { toLocalYMD, sanitizeErrorMessage, displayTitle } from "./xspaces/utils";
 import { Button } from "./ui/button";
 
 type HostProfile = { id: string; display_name: string | null; twitter_username: string | null; profile_image_url: string | null };
@@ -37,11 +37,6 @@ type Space = {
   expect_x_link?: boolean;
   host?: HostProfile | null;
 };
-
-function spaceDisplayTitle(s: Space): string {
-  const lt = s.linkary_title?.trim();
-  return lt ? lt : s.title;
-}
 
 type Overlap = { id: string; title: string; scheduled_at: string; host_profile_id: string; duration_mins: number | null };
 
@@ -138,8 +133,26 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [xConnected, setXConnected] = useState<boolean | null>(null);
   const [spaceRsvps, setSpaceRsvps] = useState<{ total: number; going_count: number; interested_count: number; attendees?: Array<{ profile_id: string; status: string; username?: string | null }> } | null>(null);
   const [detectCandidates, setDetectCandidates] = useState<Array<{ id: string; title: string | null; state: string | null; created_at: string | null; scheduled_start: string | null; score: number }>>([]);
-  const [spaceSpeakerRequests, setSpaceSpeakerRequests] = useState<Array<{ id: string; requester_profile_id: string; status: string; message: string | null; created_at: string; updated_at: string | null; username: string | null }>>([]);
+  type SpeakerRequestRow = {
+    id: string;
+    requester_profile_id: string;
+    status: string;
+    pitch: string | null;
+    topic: string | null;
+    message: string | null;
+    created_at: string;
+    updated_at: string | null;
+    username: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
+  const [spaceSpeakerRequests, setSpaceSpeakerRequests] = useState<SpeakerRequestRow[]>([]);
+  const [spaceSpeakerApprovedCount, setSpaceSpeakerApprovedCount] = useState<number>(0);
   const [resolvingRequestId, setResolvingRequestId] = useState<string | null>(null);
+  const [speakerRequestTopic, setSpeakerRequestTopic] = useState("");
+  const [speakerRequestPitch, setSpeakerRequestPitch] = useState("");
+  const [withdrawingRequestId, setWithdrawingRequestId] = useState<string | null>(null);
+  const [speakerResolveError, setSpeakerResolveError] = useState<string | null>(null);
   const [linkXSpaceUrl, setLinkXSpaceUrl] = useState("");
   const [linkXSpaceSaving, setLinkXSpaceSaving] = useState(false);
   const [showLinkXSpace, setShowLinkXSpace] = useState(false);
@@ -415,6 +428,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     const res = await fetch(`${base}/api/xspaces/${spaceId}/speaker-requests`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
     const data = await res.json().catch(() => ({}));
     setSpaceSpeakerRequests(Array.isArray(data?.requests) ? data.requests : []);
+    setSpaceSpeakerApprovedCount(typeof data?.approved_count === "number" ? data.approved_count : 0);
   }, [base, getToken]);
 
   const loadHostAndSpeakers = useCallback(async (spaceId: string) => {
@@ -430,14 +444,19 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       setEditTitle("");
       setSpaceRsvps(null);
       setSpaceSpeakerRequests([]);
+      setSpaceSpeakerApprovedCount(0);
+      setSpeakerRequestTopic("");
+      setSpeakerRequestPitch("");
       setHostAndSpeakers(null);
       setShowLinkXSpace(false);
       setShowReplaceLinkConfirm(false);
       setReplaceLinkMode(false);
       setReplaceLinkSpaceId(null);
       setLinkXSpaceError(null);
+      setSpeakerResolveError(null);
       return;
     }
+    setSpeakerResolveError(null);
     setShowLinkXSpace(false);
     setShowReplaceLinkConfirm(false);
     setReplaceLinkMode(false);
@@ -445,7 +464,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setLinkXSpaceError(null);
     loadDetailRsvps(detailsSpace.id);
     loadHostAndSpeakers(detailsSpace.id);
-    if (me?.id && detailsSpace.host_profile_id === me.id) loadDetailSpeakerRequests(detailsSpace.id);
+    if (me?.id) loadDetailSpeakerRequests(detailsSpace.id);
   }, [detailsSpace?.id, detailsSpace?.host_profile_id, me?.id, loadDetailRsvps, loadDetailSpeakerRequests, loadHostAndSpeakers]);
 
   const loadAudienceOverlaps = useCallback(
@@ -753,9 +772,12 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
   const handleRequestSpeaker = async () => {
     if (!detailsSpace || !me?.id || isHost(detailsSpace)) return;
+    const pitch = speakerRequestPitch.trim().slice(0, 500);
+    const topic = speakerRequestTopic.trim().slice(0, 200);
+    if (!pitch || !topic) return;
     setSpeakerRequesting(true);
     const token = await getToken();
-    const body = speakerRequestMessage.trim() ? { message: speakerRequestMessage.trim().slice(0, 500) } : {};
+    const body = { pitch, topic, message: speakerRequestMessage.trim() ? speakerRequestMessage.trim().slice(0, 500) : undefined };
     const res = await fetch(`${base}/api/spaces/${detailsSpace.id}/speaker-request`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -763,8 +785,10 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     });
     setSpeakerRequesting(false);
     if (res.ok) {
+      setSpeakerRequestTopic("");
+      setSpeakerRequestPitch("");
       setSpeakerRequestMessage("");
-      setDetailsSpace(null);
+      loadDetailSpeakerRequests(detailsSpace.id);
     }
   };
 
@@ -846,7 +870,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   <div className="flex items-center gap-4">
                     <Clock className="w-5 h-5 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground truncate">{spaceDisplayTitle(s)}</p>
+                      <p className="font-medium text-foreground truncate">{displayTitle(s)}</p>
                       <p className="text-sm text-muted-foreground">
                         {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} {s.duration_mins ? ` · ${s.duration_mins} min` : ""}
                       </p>
@@ -944,7 +968,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             const overlaps = audienceOverlapsBySpaceId[s.id] ?? [];
             return (
               <div key={s.id} className="mb-3 pl-2 border-l-2 border-border">
-                <p className="font-medium text-foreground">{spaceDisplayTitle(s)}</p>
+                <p className="font-medium text-foreground">{displayTitle(s)}</p>
                 {!s.x_space_id ? (
                   <p className="text-muted-foreground">Participants not synced</p>
                 ) : (
@@ -1317,13 +1341,13 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     <p className="text-xs text-muted-foreground">Original X title: {detailsSpace.x_title ?? detailsSpace.title}</p>
                   )}
                   <label className="block text-xs font-medium text-muted-foreground mt-1">
-                    {detailsSpace.x_space_id ? "Linkary title (optional)" : "Title"}
+                    {detailsSpace.x_space_id ? "Linkary title" : "Title"}
                   </label>
                   <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
                 </>
               ) : (
                 <>
-                  <p className="font-medium text-foreground">{spaceDisplayTitle(detailsSpace)}</p>
+                  <p className="font-medium text-foreground">{displayTitle(detailsSpace)}</p>
                   {detailsSpace.x_space_id && (
                     <p className="text-xs text-muted-foreground">Original X title: {detailsSpace.x_title ?? detailsSpace.title}</p>
                   )}
@@ -1472,35 +1496,72 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       )}
                     </div>
                   )}
-                  {spaceSpeakerRequests.length > 0 && (
-                    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Speaker requests</p>
-                      {spaceSpeakerRequests.map((sr) => (
-                        <div key={sr.id} className="flex items-center justify-between gap-2 text-sm">
-                          <span className="text-foreground">@{sr.username ?? "user"}{sr.message ? `: ${sr.message.slice(0, 50)}${sr.message.length > 50 ? "…" : ""}` : ""}</span>
-                          <span className="text-muted-foreground">{sr.status}</span>
-                          {sr.status === "pending" && (
-                            <div className="flex gap-1">
-                              <Button type="button" size="sm" disabled={resolvingRequestId === sr.id} onClick={async () => {
-                                setResolvingRequestId(sr.id);
-                                const token = await getToken();
-                                await fetch(`${base}/api/xspaces/speaker-request/resolve`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ request_id: sr.id, status: "approved" }) });
-                                setResolvingRequestId(null);
-                                loadDetailSpeakerRequests(detailsSpace.id);
-                              }} className="rounded-lg text-xs bg-primary/20 text-primary border-primary/30 hover:bg-primary/30">Approve</Button>
-                              <Button type="button" variant="outline" size="sm" disabled={resolvingRequestId === sr.id} onClick={async () => {
-                                setResolvingRequestId(sr.id);
-                                const token = await getToken();
-                                await fetch(`${base}/api/xspaces/speaker-request/resolve`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ request_id: sr.id, status: "rejected" }) });
-                                setResolvingRequestId(null);
-                                loadDetailSpeakerRequests(detailsSpace.id);
-                              }} className="rounded-lg text-xs">Reject</Button>
-                            </div>
+                  <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Speaker applications · {spaceSpeakerApprovedCount} / 10 approved
+                    </p>
+                    {spaceSpeakerRequests.filter((sr) => sr.status === "pending").length === 0 && spaceSpeakerRequests.length > 0 && (
+                      <p className="text-xs text-muted-foreground">No pending applications.</p>
+                    )}
+                    {spaceSpeakerRequests.filter((sr) => sr.status === "pending").map((sr) => (
+                      <div key={sr.id} className="rounded-lg border border-border bg-card p-3 space-y-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          {sr.avatar_url ? (
+                            <img src={sr.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <span className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground shrink-0">
+                              {(sr.display_name?.trim().slice(0, 2) || sr.username?.slice(0, 2) || "?").toUpperCase()}
+                            </span>
                           )}
+                          <div className="min-w-0">
+                            <span className="font-medium text-foreground">{sr.display_name?.trim() || (sr.username ? `@${sr.username}` : "User")}</span>
+                            {sr.username && sr.display_name?.trim() && <span className="text-muted-foreground ml-1">@{sr.username}</span>}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        {sr.topic && <p className="text-foreground"><span className="text-muted-foreground">Topic:</span> {sr.topic}</p>}
+                        {sr.pitch && <p className="text-foreground"><span className="text-muted-foreground">Pitch:</span> {sr.pitch}</p>}
+                        {sr.message && <p className="text-muted-foreground text-xs">{sr.message}</p>}
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={resolvingRequestId === sr.id || spaceSpeakerApprovedCount >= 10}
+                            onClick={async () => {
+                              setResolvingRequestId(sr.id);
+                              const token = await getToken();
+                              const res = await fetch(`${base}/api/xspaces/speaker-request/resolve`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ request_id: sr.id, status: "approved" }) });
+                              const data = await res.json().catch(() => ({}));
+                              setResolvingRequestId(null);
+                              loadDetailSpeakerRequests(detailsSpace.id);
+                              loadHostAndSpeakers(detailsSpace.id);
+                              if (res.status === 409) setSpeakerResolveError(sanitizeErrorMessage(data.error ?? "Maximum speakers (10) reached."));
+                            }}
+                            className="rounded-lg text-xs bg-primary/20 text-primary border-primary/30 hover:bg-primary/30"
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={resolvingRequestId === sr.id}
+                            onClick={async () => {
+                              setResolvingRequestId(sr.id);
+                              const token = await getToken();
+                              await fetch(`${base}/api/xspaces/speaker-request/resolve`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ request_id: sr.id, status: "declined" }) });
+                              setResolvingRequestId(null);
+                              loadDetailSpeakerRequests(detailsSpace.id);
+                            }}
+                            className="rounded-lg text-xs"
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                        {spaceSpeakerApprovedCount >= 10 && <p className="text-xs text-muted-foreground">Maximum speakers (10) reached.</p>}
+                      </div>
+                    ))}
+                    {speakerResolveError && <p className="text-xs text-destructive">{speakerResolveError}</p>}
+                  </div>
                 </>
               )}
               </div>
@@ -1547,16 +1608,63 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 </>
               ) : me?.id ? (
                 <>
-                  <div className="mb-2">
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Message to host (optional)</label>
-                    <textarea
-                      value={speakerRequestMessage}
-                      onChange={(e) => setSpeakerRequestMessage(e.target.value)}
-                      placeholder="Why you'd like to speak…"
-                      rows={2}
-                      className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm"
-                    />
-                  </div>
+                  {spaceSpeakerRequests.length > 0 ? (
+                    <div className="mb-2 rounded-xl border border-border bg-card p-3 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Your speaker application</p>
+                      <p className="text-sm text-foreground capitalize">{spaceSpeakerRequests[0].status}</p>
+                      {spaceSpeakerRequests[0].status === "pending" && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={withdrawingRequestId === spaceSpeakerRequests[0].id}
+                          className="rounded-xl"
+                          onClick={async () => {
+                            const sr = spaceSpeakerRequests[0];
+                            setWithdrawingRequestId(sr.id);
+                            const token = await getToken();
+                            await fetch(`${base}/api/xspaces/speaker-request/withdraw`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ request_id: sr.id }) });
+                            setWithdrawingRequestId(null);
+                            loadDetailSpeakerRequests(detailsSpace.id);
+                            loadHostAndSpeakers(detailsSpace.id);
+                          }}
+                        >
+                          {withdrawingRequestId === spaceSpeakerRequests[0].id ? "…" : "Withdraw"}
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mb-2 space-y-2">
+                      <label className="block text-xs font-medium text-muted-foreground">Apply as speaker</label>
+                      <input
+                        type="text"
+                        value={speakerRequestTopic}
+                        onChange={(e) => setSpeakerRequestTopic(e.target.value)}
+                        placeholder="Topic"
+                        maxLength={200}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm"
+                      />
+                      <textarea
+                        value={speakerRequestPitch}
+                        onChange={(e) => setSpeakerRequestPitch(e.target.value)}
+                        placeholder="Pitch (why you’d like to speak)"
+                        rows={2}
+                        maxLength={500}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm"
+                      />
+                      <input
+                        type="text"
+                        value={speakerRequestMessage}
+                        onChange={(e) => setSpeakerRequestMessage(e.target.value)}
+                        placeholder="Message to host (optional)"
+                        maxLength={500}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm"
+                      />
+                      <Button type="button" onClick={handleRequestSpeaker} disabled={speakerRequesting || !speakerRequestTopic.trim() || !speakerRequestPitch.trim()} className="rounded-xl">
+                        {speakerRequesting ? "…" : "Apply as speaker"}
+                      </Button>
+                    </div>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
@@ -1590,9 +1698,6 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     className="rounded-xl border-primary text-primary hover:bg-primary/10"
                   >
                     Going
-                  </Button>
-                  <Button type="button" onClick={handleRequestSpeaker} disabled={speakerRequesting} className="rounded-xl">
-                    {speakerRequesting ? "…" : "Request speaker"}
                   </Button>
                 </>
               ) : null}

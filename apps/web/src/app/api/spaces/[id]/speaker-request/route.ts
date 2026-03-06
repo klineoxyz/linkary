@@ -25,21 +25,36 @@ export async function POST(
   const { data: space } = await supabase.from("spaces").select("id, host_profile_id").eq("id", spaceId).maybeSingle();
   if (!space) return NextResponse.json({ error: "Space not found" }, { status: 404 });
 
+  let pitch: string | null = null;
+  let topic: string | null = null;
   let message: string | null = null;
   try {
     const body = await _request.json();
+    if (typeof body?.pitch === "string" && body.pitch.trim()) pitch = body.pitch.trim().slice(0, 500);
+    if (typeof body?.topic === "string" && body.topic.trim()) topic = body.topic.trim().slice(0, 200);
     if (typeof body?.message === "string" && body.message.trim()) message = body.message.trim().slice(0, 500);
   } catch {
     /* no body or invalid */
+  }
+  if (!pitch || !topic) {
+    return NextResponse.json({ error: "pitch and topic are required", code: "PITCH_TOPIC_REQUIRED" }, { status: 400 });
   }
 
   const { data, error } = await supabase
     .from("speaker_requests")
     .upsert(
-      { space_id: spaceId, requester_profile_id: user.id, status: "pending", ...(message != null ? { message } : {}) },
+      {
+        space_id: spaceId,
+        requester_profile_id: user.id,
+        status: "pending",
+        pitch,
+        topic,
+        message: message || null,
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: "space_id,requester_profile_id" }
     )
-    .select("id, space_id, requester_profile_id, status, message, created_at")
+    .select("id, space_id, requester_profile_id, status, pitch, topic, message, created_at")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

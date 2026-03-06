@@ -72,3 +72,17 @@ export function formatTime(scheduledAt: string | null): string {
   if (!scheduledAt) return "—";
   return new Date(scheduledAt).toLocaleTimeString("default", { hour: "numeric", minute: "2-digit" });
 }
+
+/** Display title for a space: linkary_title (override) > x_title (source) > title (legacy). Use consistently across XSpaces UI. */
+export function displayTitle(space: {
+  linkary_title?: string | null;
+  x_title?: string | null;
+  title?: string | null;
+}): string {
+  const lt = space.linkary_title?.trim();
+  if (lt) return lt;
+  const xt = space.x_title?.trim();
+  if (xt) return xt;
+  const t = space.title?.trim();
+  return t ?? "";
+}

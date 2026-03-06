@@ -11,10 +11,13 @@ export type HostProfile = {
   profile_image_url: string | null;
 };
 
+import { displayTitle as getDisplayTitle } from "./utils";
+
 export type SpaceForCard = {
   id: string;
   title: string;
   linkary_title?: string | null;
+  x_title?: string | null;
   scheduled_at: string | null;
   duration_mins: number | null;
   status: string;
@@ -23,7 +26,7 @@ export type SpaceForCard = {
 };
 
 function displayTitle(space: SpaceForCard): string {
-  return (space.linkary_title?.trim() || space.title) ?? "";
+  return getDisplayTitle(space);
 }
 
 function formatTimeRange(scheduled_at: string | null, duration_mins: number | null) {

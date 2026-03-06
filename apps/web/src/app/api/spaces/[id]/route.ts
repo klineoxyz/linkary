@@ -36,7 +36,11 @@ export async function PATCH(
   }
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (typeof body.linkary_title === "string") updates.linkary_title = body.linkary_title.trim() || null;
+  if (typeof body.linkary_title === "string") {
+    const val = body.linkary_title.trim();
+    if (val.length > 120) return NextResponse.json({ error: "linkary_title must be at most 120 characters", code: "LINKARY_TITLE_TOO_LONG" }, { status: 400 });
+    updates.linkary_title = val || null;
+  }
   if (typeof body.title === "string") {
     if (spaceRow.x_space_id) {
       return NextResponse.json({ error: "Cannot change title for spaces synced from X; use linkary_title for internal title" }, { status: 400 });

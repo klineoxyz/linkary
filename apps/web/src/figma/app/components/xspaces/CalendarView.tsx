@@ -52,15 +52,18 @@ function getCalendarGrid(
   return weeks;
 }
 
+import { displayTitle as getDisplayTitle } from "./utils";
+
 export type SpaceForCalendar = {
   id: string;
   title: string;
   linkary_title?: string | null;
+  x_title?: string | null;
   scheduled_at: string | null;
 };
 
 function displayTitle(s: SpaceForCalendar): string {
-  return (s.linkary_title?.trim() || s.title) ?? "";
+  return getDisplayTitle(s);
 }
 
 export function CalendarView({

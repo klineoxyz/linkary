@@ -119,6 +119,7 @@ async function main(): Promise<void> {
   const webDir = cwd.endsWith("web") ? cwd : join(cwd, "apps", "web");
 
   let child: ChildProcess | null = null;
+  let muteChildOutput = false;
 
   process.on("SIGINT", () => {
     console.error("[xspaces-smoke] Interrupted (SIGINT)");
@@ -143,8 +144,8 @@ async function main(): Promise<void> {
       stdio: "pipe",
       env: { ...process.env, PORT: String(PORT) },
     });
-    child.stderr?.on("data", (d) => process.stderr.write(d));
-    child.stdout?.on("data", (d) => process.stdout.write(d));
+    child.stderr?.on("data", (d) => { if (!muteChildOutput) process.stderr.write(d); });
+    child.stdout?.on("data", (d) => { if (!muteChildOutput) process.stdout.write(d); });
   } else {
     console.log(`[xspaces-smoke] Using external base: ${URL_BASE}${PATH}`);
   }
@@ -199,6 +200,7 @@ async function main(): Promise<void> {
     child = null;
 
     if (proc?.pid) {
+      muteChildOutput = true;
       terminateChild(proc);
       await waitForChildExit(proc, CHILD_EXIT_WAIT_MS);
     }

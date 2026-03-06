@@ -300,8 +300,13 @@ export async function POST(request: NextRequest) {
       .filter((x: { score: number }) => x.score > 0)
       .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
 
-    const candidates = scored.map((x: { space: XSpaceItem; score: number }) => ({
-      id: x.space.id!,
+    // Only send candidates with a real string id to the UI (guard against malformed X API data).
+    type ScoredWithId = { space: XSpaceItem & { id: string }; score: number };
+    const safeScored = scored.filter(
+      (x): x is ScoredWithId => typeof x.space.id === "string" && x.space.id.length > 0
+    );
+    const candidates = safeScored.map((x: ScoredWithId) => ({
+      id: x.space.id,
       title: x.space.title ?? null,
       state: x.space.state ?? null,
       created_at: x.space.created_at ?? null,

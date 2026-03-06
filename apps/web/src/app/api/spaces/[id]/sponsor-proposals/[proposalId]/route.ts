@@ -39,7 +39,10 @@ export async function PATCH(
     .eq("space_id", spaceId)
     .maybeSingle();
   if (!proposal) return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
-  if ((proposal as { status: string }).status !== "pending") {
+  const currentStatus = (proposal as { status: string }).status;
+  if (currentStatus !== "pending") {
+    if (currentStatus === "accepted") return NextResponse.json({ error: "This proposal was already accepted." }, { status: 400 });
+    if (currentStatus === "declined") return NextResponse.json({ error: "This proposal was already declined." }, { status: 400 });
     return NextResponse.json({ error: "Proposal is not pending" }, { status: 400 });
   }
 
@@ -72,9 +75,9 @@ export async function PATCH(
   }
   let payoutWalletAddress: string | null = null;
   if (payoutMethod !== "linkary_wallet") {
-    const raw = typeof body.payout_wallet_address === "string" ? body.payout_wallet_address.trim() : "";
-    if (!raw) return NextResponse.json({ error: "payout_wallet_address required for saved_wallet and one_time_wallet" }, { status: 400 });
-    payoutWalletAddress = raw.slice(0, WALLET_ADDRESS_MAX_LEN);
+    const trimmed = typeof body.payout_wallet_address === "string" ? body.payout_wallet_address.trim() : "";
+    if (!trimmed) return NextResponse.json({ error: "payout_wallet_address required for saved_wallet and one_time_wallet" }, { status: 400 });
+    payoutWalletAddress = trimmed.slice(0, WALLET_ADDRESS_MAX_LEN) || null;
   }
 
   const now = new Date().toISOString();

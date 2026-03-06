@@ -92,8 +92,11 @@ export async function POST(
   }
 
   const offerAmount = typeof body.offer_amount === "number" ? body.offer_amount : Number(body.offer_amount);
-  if (!Number.isFinite(offerAmount) || offerAmount < 0) {
-    return NextResponse.json({ error: "offer_amount must be a non-negative number", code: "INVALID_OFFER" }, { status: 400 });
+  if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
+    return NextResponse.json({ error: "Offer amount must be greater than 0", code: "INVALID_OFFER" }, { status: 400 });
+  }
+  if (offerAmount >= 1_000_000) {
+    return NextResponse.json({ error: "Offer amount must be less than 1,000,000", code: "INVALID_OFFER" }, { status: 400 });
   }
   const currency = typeof body.currency === "string" && body.currency.trim() ? body.currency.trim().slice(0, 10) : "USD";
   const sponsorshipType = typeof body.sponsorship_type === "string" && SPONSORSHIP_TYPES.includes(body.sponsorship_type as typeof SPONSORSHIP_TYPES[number])

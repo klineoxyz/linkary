@@ -184,6 +184,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [inboxProposals, setInboxProposals] = useState<Array<{ id: string; space_id: string; space_title: string | null; project_display_name: string | null; project_username: string | null; offer_amount: number; currency: string; sponsorship_type: string; status: string; created_at: string }>>([]);
   const [inboxSpaces, setInboxSpaces] = useState<Array<{ id: string; title?: string; x_title?: string | null; linkary_title?: string | null; host_profile_id?: string }>>([]);
   const [inboxLoading, setInboxLoading] = useState(false);
+  type MyProposalRow = { id: string; space_id: string; space_display_title: string; host_profile_id: string | null; status: string; offer_amount: number; currency: string; sponsorship_type: string; message: string | null; requested_deliverables: string | null; payout_method: string | null; payout_wallet_address: string | null; accepted_at: string | null; created_at: string; updated_at: string; host_display_name: string | null; host_username: string | null };
+  const [myProposals, setMyProposals] = useState<MyProposalRow[]>([]);
+  const [myProposalsLoading, setMyProposalsLoading] = useState(false);
   const [linkXSpaceUrl, setLinkXSpaceUrl] = useState("");
   const [linkXSpaceSaving, setLinkXSpaceSaving] = useState(false);
   const [showLinkXSpace, setShowLinkXSpace] = useState(false);
@@ -389,6 +392,26 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         })
         .finally(() => setInboxLoading(false));
     });
+  }, [mainNav, me?.id, base, getToken]);
+
+  useEffect(() => {
+    if (mainNav !== "my-proposals" || !me?.id) return;
+    const ac = new AbortController();
+    setMyProposalsLoading(true);
+    getToken().then(async (token) => {
+      if (!token) { setMyProposalsLoading(false); return; }
+      try {
+        const res = await fetch(`${base}/api/xspaces/my-proposals`, { headers: { Authorization: `Bearer ${token}` }, signal: ac.signal });
+        const data = await res.json().catch(() => ({}));
+        if (ac.signal.aborted) return;
+        setMyProposals(Array.isArray(data?.proposals) ? data.proposals : []);
+      } catch (e) {
+        if ((e as { name?: string }).name !== "AbortError") setMyProposals([]);
+      } finally {
+        if (!ac.signal.aborted) setMyProposalsLoading(false);
+      }
+    });
+    return () => ac.abort();
   }, [mainNav, me?.id, base, getToken]);
 
   const fetchXMe = useCallback(async () => {
@@ -1130,6 +1153,55 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
           </div>
         )}
 
+        {mainNav === "my-proposals" && (
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-2">My sponsorship proposals</h2>
+            <p className="text-sm text-muted-foreground mb-4">Proposals you submitted as a sponsor.</p>
+            {myProposalsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : myProposals.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No sponsorship proposals yet.</p>
+            ) : (
+              <ul className="space-y-3">
+                {myProposals.map((p) => {
+                  const spaceFromList = spaces.find((s) => s.id === p.space_id) ?? discoverSpaces.find((s) => s.id === p.space_id);
+                  const minimalSpace: Space = spaceFromList ?? {
+                    id: p.space_id,
+                    host_profile_id: p.host_profile_id ?? "",
+                    title: p.space_display_title,
+                    description: null,
+                    scheduled_at: null,
+                    duration_mins: null,
+                    status: "scheduled",
+                    created_at: p.created_at,
+                  };
+                  return (
+                    <li key={p.id} className="rounded-xl border border-border bg-card p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-medium text-foreground">{p.space_display_title}</span>
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground capitalize">{p.status}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">{p.offer_amount} {p.currency} · {p.sponsorship_type.replace(/_/g, " ")}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Submitted {new Date(p.created_at).toLocaleDateString()}</p>
+                      {p.status === "accepted" && (
+                        <>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Payout: {p.payout_method === "linkary_wallet" ? "Linkary wallet" : (p.payout_wallet_address ? `${p.payout_wallet_address.slice(0, 12)}…` : "—")} · Accepted {p.accepted_at ? new Date(p.accepted_at).toLocaleDateString() : ""}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 italic">Payment is arranged off-platform between sponsor and host.</p>
+                        </>
+                      )}
+                      <Button type="button" variant="outline" size="sm" className="mt-2 rounded-xl" onClick={() => setDetailsSpace(minimalSpace)}>
+                        Open space
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
       {showCreate && (
         <>
           <div className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }} aria-hidden />
@@ -1820,6 +1892,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     <div className="mb-2 rounded-xl border border-border bg-card p-3">
                       <p className="text-xs font-medium text-muted-foreground">Your sponsor proposal</p>
                       <p className="text-sm text-foreground capitalize">{spaceSponsorProposals[0].status}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{spaceSponsorProposals[0].offer_amount} {spaceSponsorProposals[0].currency} · {spaceSponsorProposals[0].sponsorship_type.replace(/_/g, " ")}</p>
                     </div>
                   ) : (
                     <div className="mb-2 space-y-2">
@@ -1842,7 +1915,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       <Button type="button" disabled={sponsorProposalSubmitting || !sponsorApplyOffer.trim()} className="rounded-xl" onClick={async () => {
                         if (!detailsSpace || !me?.id || isHost(detailsSpace)) return;
                         const amount = parseFloat(sponsorApplyOffer.trim());
-                        if (!Number.isFinite(amount) || amount < 0) { setSponsorProposalError("Enter a valid offer amount."); return; }
+                        if (!Number.isFinite(amount) || amount <= 0) { setSponsorProposalError("Offer amount must be greater than 0."); return; }
+                        if (amount >= 1_000_000) { setSponsorProposalError("Offer amount must be less than 1,000,000."); return; }
                         setSponsorProposalSubmitting(true);
                         setSponsorProposalError(null);
                         const token = await getToken();

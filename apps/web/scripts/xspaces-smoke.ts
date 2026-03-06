@@ -6,12 +6,13 @@
  * Env:
  *   XSPACES_SMOKE_PORT     - port when spawning server (default 3001)
  *   XSPACES_SMOKE_URL_BASE - if set, smoke this base URL (no spawn); e.g. https://staging.example.com
- *   XSPACES_SMOKE_PATH    - path to request (default /xspaces)
+ *   XSPACES_SMOKE_PATH     - path to request (default /xspaces)
  *
  * Timeouts: boot 30s, request 5s per attempt, overall 60s.
- * Always kills child and exits with 0 or 1. CI-safe.
+ * Child is terminated gracefully (taskkill on Windows, SIGTERM then SIGKILL elsewhere); script exits
+ * only after child is confirmed terminated or timeout. External mode never spawns and exits immediately.
  */
-import { spawn, type ChildProcess } from "child_process";
+import { spawn, spawnSync, type ChildProcess } from "child_process";
 import { join } from "path";
 
 const PORT = Number(process.env.XSPACES_SMOKE_PORT) || 3001;
@@ -21,6 +22,7 @@ const BASE = URL_BASE || `http://localhost:${PORT}`;
 const BOOT_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 5_000;
 const OVERALL_TIMEOUT_MS = 60_000;
+const CHILD_EXIT_WAIT_MS = 4000;
 
 function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
   const ac = new AbortController();
@@ -73,43 +75,64 @@ function assertBody(html: string): { ok: boolean; msg?: string } {
   };
 }
 
-async function main(): Promise<number> {
+function terminateChild(proc: ChildProcess): void {
+  if (!proc?.pid) return;
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/PID", String(proc.pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true,
+    });
+  } else {
+    try {
+      proc.kill("SIGTERM");
+    } catch {
+      /* ignore */
+    }
+    setTimeout(() => {
+      try {
+        proc.kill("SIGKILL");
+      } catch {
+        /* ignore */
+      }
+    }, 1500);
+  }
+}
+
+function waitForChildExit(proc: ChildProcess, timeoutMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    if (!proc?.pid) {
+      resolve();
+      return;
+    }
+    const done = () => {
+      clearTimeout(t);
+      resolve();
+    };
+    proc.once("exit", done);
+    const t = setTimeout(done, timeoutMs);
+  });
+}
+
+async function main(): Promise<void> {
   const overallDeadline = Date.now() + OVERALL_TIMEOUT_MS;
   const cwd = process.cwd();
   const webDir = cwd.endsWith("web") ? cwd : join(cwd, "apps", "web");
 
   let child: ChildProcess | null = null;
-  const kill = () => {
-    if (child?.pid) {
-      try {
-        process.kill(child.pid, "SIGTERM");
-      } catch {
-        /* ignore */
-      }
-      child = null;
-    }
-  };
-
-  const exit = (code: number) => {
-    const proc = child;
-    if (proc?.pid) {
-      const fallback = setTimeout(() => process.exit(code), 2500);
-      proc.on("exit", () => {
-        clearTimeout(fallback);
-        process.exit(code);
-      });
-    }
-    kill();
-    if (!proc?.pid) process.exit(code);
-  };
 
   process.on("SIGINT", () => {
-    console.error("Smoke interrupted (SIGINT)");
-    exit(130);
+    console.error("[xspaces-smoke] Interrupted (SIGINT)");
+    if (child?.pid) {
+      terminateChild(child);
+      waitForChildExit(child, 2000).then(() => process.exit(130));
+    } else process.exit(130);
   });
   process.on("SIGTERM", () => {
-    console.error("Smoke interrupted (SIGTERM)");
-    exit(143);
+    console.error("[xspaces-smoke] Interrupted (SIGTERM)");
+    if (child?.pid) {
+      terminateChild(child);
+      waitForChildExit(child, 2000).then(() => process.exit(143));
+    } else process.exit(143);
   });
 
   if (!URL_BASE) {
@@ -127,7 +150,7 @@ async function main(): Promise<number> {
   }
 
   let exitCode = 0;
-  const run = async () => {
+  const run = async (): Promise<number> => {
     if (Date.now() >= overallDeadline) throw new Error("Overall timeout exceeded before starting");
     await waitForServer();
     if (Date.now() >= overallDeadline) throw new Error("Overall timeout exceeded after boot");
@@ -155,6 +178,7 @@ async function main(): Promise<number> {
     console.log("[xspaces-smoke] PASS: Page loads or redirects to login (200/302/307).");
     return 0;
   };
+
   let overallTimer: ReturnType<typeof setTimeout> | null = null;
   const overallTimeout = new Promise<number>((_, reject) => {
     overallTimer = setTimeout(
@@ -162,17 +186,25 @@ async function main(): Promise<number> {
       OVERALL_TIMEOUT_MS
     );
   });
+
   try {
     exitCode = await Promise.race([run(), overallTimeout]);
-    if (overallTimer) clearTimeout(overallTimer);
   } catch (e) {
-    if (overallTimer) clearTimeout(overallTimer);
     console.error("[xspaces-smoke] FAIL:", e instanceof Error ? e.message : e);
     exitCode = 1;
   } finally {
-    exit(exitCode);
+    if (overallTimer) clearTimeout(overallTimer);
+
+    const proc = child;
+    child = null;
+
+    if (proc?.pid) {
+      terminateChild(proc);
+      await waitForChildExit(proc, CHILD_EXIT_WAIT_MS);
+    }
+
+    process.exit(exitCode);
   }
-  return exitCode;
 }
 
 main();

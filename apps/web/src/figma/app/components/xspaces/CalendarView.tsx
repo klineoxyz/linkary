@@ -55,8 +55,13 @@ function getCalendarGrid(
 export type SpaceForCalendar = {
   id: string;
   title: string;
+  linkary_title?: string | null;
   scheduled_at: string | null;
 };
+
+function displayTitle(s: SpaceForCalendar): string {
+  return (s.linkary_title?.trim() || s.title) ?? "";
+}
 
 export function CalendarView({
   year,
@@ -172,14 +177,14 @@ export function CalendarView({
                           onEventClick?.(space);
                         }}
                         className="p-4 rounded-2xl border border-border bg-card hover:border-primary/20 hover:bg-accent/50 transition-colors cursor-pointer text-left flex items-start gap-3"
-                        aria-label={`${space.title}, ${formatTime(space.scheduled_at)}`}
+                        aria-label={`${displayTitle(space)}, ${formatTime(space.scheduled_at)}`}
                       >
                         <div className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
                           <Clock className="w-4 h-4" />
                           {formatTime(space.scheduled_at)}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium text-foreground truncate">{space.title}</p>
+                          <p className="font-medium text-foreground truncate">{displayTitle(space)}</p>
                           <span className="inline-flex mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
                             Planned
                           </span>
@@ -240,9 +245,9 @@ export function CalendarView({
                       onEventClick?.(s);
                     }}
                     className="text-xs truncate rounded-lg px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 mb-0.5 cursor-pointer hover:bg-primary/20"
-                    aria-label={s.title}
+                    aria-label={displayTitle(s)}
                   >
-                    {s.title}
+                    {displayTitle(s)}
                   </div>
                 ))}
                 {more > 0 && (

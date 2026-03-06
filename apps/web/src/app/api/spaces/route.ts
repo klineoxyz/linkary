@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, token ? { global: { headers: { Authorization: `Bearer ${token}` } } } : {});
 
-  const spaceCols = "id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url, expect_x_link";
-  type SpaceRow = { id: string; host_profile_id: string; title: string; description: string | null; scheduled_at: string | null; duration_mins: number | null; status: string; created_at: string; x_space_id?: string | null; x_space_url?: string | null; expect_x_link?: boolean };
+  const spaceCols = "id, host_profile_id, title, x_title, linkary_title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url, expect_x_link";
+  type SpaceRow = { id: string; host_profile_id: string; title: string; x_title?: string | null; linkary_title?: string | null; description: string | null; scheduled_at: string | null; duration_mins: number | null; status: string; created_at: string; x_space_id?: string | null; x_space_url?: string | null; expect_x_link?: boolean };
   const spaces: Array<SpaceRow & { host?: { id: string; display_name: string | null; twitter_username: string | null; profile_image_url: string | null } }> = [];
 
   const useRange = fromParam && toParam && scope === "public";

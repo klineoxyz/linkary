@@ -22,12 +22,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  const { data: space } = await supabase.from("spaces").select("id, host_profile_id").eq("id", id).maybeSingle();
-  if (!space || (space as { host_profile_id: string }).host_profile_id !== user.id) {
+  const { data: space } = await supabase.from("spaces").select("id, host_profile_id, x_space_id").eq("id", id).maybeSingle();
+  const spaceRow = space as { host_profile_id: string; x_space_id?: string | null } | null;
+  if (!spaceRow || spaceRow.host_profile_id !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: { title?: string; description?: string; scheduled_at?: string; duration_mins?: number; status?: string } = {};
+  let body: { title?: string; linkary_title?: string; description?: string; scheduled_at?: string; duration_mins?: number; status?: string } = {};
   try {
     body = await request.json();
   } catch {
@@ -35,7 +36,13 @@ export async function PATCH(
   }
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (typeof body.title === "string") updates.title = body.title.trim();
+  if (typeof body.linkary_title === "string") updates.linkary_title = body.linkary_title.trim() || null;
+  if (typeof body.title === "string") {
+    if (spaceRow.x_space_id) {
+      return NextResponse.json({ error: "Cannot change title for spaces synced from X; use linkary_title for internal title" }, { status: 400 });
+    }
+    updates.title = body.title.trim();
+  }
   if (typeof body.description === "string") updates.description = body.description.trim() || null;
   if (body.scheduled_at !== undefined) updates.scheduled_at = body.scheduled_at || null;
   if (typeof body.duration_mins === "number") updates.duration_mins = body.duration_mins;

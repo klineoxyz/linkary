@@ -14,12 +14,17 @@ export type HostProfile = {
 export type SpaceForCard = {
   id: string;
   title: string;
+  linkary_title?: string | null;
   scheduled_at: string | null;
   duration_mins: number | null;
   status: string;
   host?: HostProfile | null;
   description?: string | null;
 };
+
+function displayTitle(space: SpaceForCard): string {
+  return (space.linkary_title?.trim() || space.title) ?? "";
+}
 
 function formatTimeRange(scheduled_at: string | null, duration_mins: number | null) {
   if (!scheduled_at) return "—";
@@ -65,7 +70,7 @@ export function EventCard({
           <span>{formatTimeRange(space.scheduled_at, space.duration_mins)}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-foreground truncate">{space.title}</h3>
+          <h3 className="font-semibold text-foreground truncate">{displayTitle(space)}</h3>
           <div className="flex flex-wrap gap-1.5 mt-1.5">
             <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
               X Spaces

@@ -63,13 +63,14 @@ export async function GET(request: NextRequest) {
 
   const { data: otherSpaces } = await supabase
     .from("spaces")
-    .select("id, host_profile_id, title, scheduled_at, x_space_id")
+    .select("id, host_profile_id, title, linkary_title, scheduled_at, x_space_id")
     .neq("id", spaceId)
     .not("x_space_id", "is", null);
   const others = (otherSpaces ?? []) as Array<{
     id: string;
     host_profile_id: string;
     title: string;
+    linkary_title?: string | null;
     scheduled_at: string | null;
     x_space_id: string | null;
   }>;
@@ -112,7 +113,7 @@ export async function GET(request: NextRequest) {
       null;
     const item: (typeof overlaps)[number] = {
       other_space_id: other.id,
-      other_space_title: other.title,
+      other_space_title: (other.linkary_title?.trim() || other.title) ?? other.title,
       other_host_username: display,
       overlap_percent: pct,
       overlap_count: overlapCount,

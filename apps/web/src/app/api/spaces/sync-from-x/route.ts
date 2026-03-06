@@ -23,6 +23,8 @@ type SpaceRow = {
   id: string;
   host_profile_id: string;
   title: string;
+  x_title: string | null;
+  linkary_title: string | null;
   description: string | null;
   scheduled_at: string | null;
   duration_mins: number | null;
@@ -77,7 +79,7 @@ export async function POST(request: NextRequest) {
 
   const { data: existing } = await supabase
     .from("spaces")
-    .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url")
+    .select("id, host_profile_id, title, x_title, linkary_title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url")
     .eq("x_space_id", spaceId)
     .maybeSingle();
   const existingRow = existing as SpaceRow | null;
@@ -156,6 +158,8 @@ export async function POST(request: NextRequest) {
     .insert({
       host_profile_id: user.id,
       title,
+      x_title: title,
+      linkary_title: null,
       description: null,
       scheduled_at: scheduledAt,
       duration_mins: 60,
@@ -164,7 +168,7 @@ export async function POST(request: NextRequest) {
       x_space_url: xSpaceUrl,
       updated_at: now,
     })
-    .select("id, host_profile_id, title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url")
+    .select("id, host_profile_id, title, x_title, linkary_title, description, scheduled_at, duration_mins, status, created_at, x_space_id, x_space_url")
     .single();
 
   if (insertErr) {
@@ -205,6 +209,8 @@ function mapSpace(row: SpaceRow) {
     id: row.id,
     host_profile_id: row.host_profile_id,
     title: row.title,
+    x_title: row.x_title ?? row.title,
+    linkary_title: row.linkary_title ?? null,
     description: row.description,
     scheduled_at: row.scheduled_at,
     duration_mins: row.duration_mins,

@@ -25,6 +25,8 @@ type Space = {
   id: string;
   host_profile_id: string;
   title: string;
+  x_title?: string | null;
+  linkary_title?: string | null;
   description: string | null;
   scheduled_at: string | null;
   duration_mins: number | null;
@@ -35,6 +37,11 @@ type Space = {
   expect_x_link?: boolean;
   host?: HostProfile | null;
 };
+
+function spaceDisplayTitle(s: Space): string {
+  const lt = s.linkary_title?.trim();
+  return lt ? lt : s.title;
+}
 
 type Overlap = { id: string; title: string; scheduled_at: string; host_profile_id: string; duration_mins: number | null };
 
@@ -162,8 +169,9 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   }, []);
 
   const handleOpenEventDetail = useCallback((s: Space | SpaceForCalendar) => {
-    setDetailsSpace(s as Space);
-    setEditTitle(s.title ?? "");
+    const space = s as Space;
+    setDetailsSpace(space);
+    setEditTitle(space.x_space_id ? (space.linkary_title ?? "") : (space.title ?? ""));
     setSpeakerRequestMessage("");
   }, []);
 
@@ -838,7 +846,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   <div className="flex items-center gap-4">
                     <Clock className="w-5 h-5 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground truncate">{s.title}</p>
+                      <p className="font-medium text-foreground truncate">{spaceDisplayTitle(s)}</p>
                       <p className="text-sm text-muted-foreground">
                         {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : "—"} {s.duration_mins ? ` · ${s.duration_mins} min` : ""}
                       </p>
@@ -857,7 +865,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                           <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer">Open X</a>
                         </Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => { setCreateJustDoneSpaceId(s.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="rounded-xl">Detect my Space</Button>
-                        <Button type="button" variant="outline" size="sm" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); setShowLinkXSpace(true); }} className="rounded-xl">Paste link</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => { setDetailsSpace(s); setEditTitle(s.x_space_id ? (s.linkary_title ?? "") : (s.title ?? "")); setSpeakerRequestMessage(""); setShowLinkXSpace(true); }} className="rounded-xl">Paste link</Button>
                       </div>
                     </div>
                   )}
@@ -872,7 +880,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                     </div>
                   )}
                   <div className="pl-9 flex gap-2">
-                    <Button type="button" variant="link" size="sm" onClick={() => { setDetailsSpace(s); setEditTitle(s.title); setSpeakerRequestMessage(""); }}>Details</Button>
+                    <Button type="button" variant="link" size="sm" onClick={() => { setDetailsSpace(s); setEditTitle(s.x_space_id ? (s.linkary_title ?? "") : (s.title ?? "")); setSpeakerRequestMessage(""); }}>Details</Button>
                   </div>
                 </div>
               );
@@ -936,7 +944,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             const overlaps = audienceOverlapsBySpaceId[s.id] ?? [];
             return (
               <div key={s.id} className="mb-3 pl-2 border-l-2 border-border">
-                <p className="font-medium text-foreground">{s.title}</p>
+                <p className="font-medium text-foreground">{spaceDisplayTitle(s)}</p>
                 {!s.x_space_id ? (
                   <p className="text-muted-foreground">Participants not synced</p>
                 ) : (
@@ -1304,9 +1312,22 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
             <div className="grid grid-cols-1 lg:grid-cols-[1fr,260px] gap-6 p-6 overflow-y-auto">
               <div className="min-w-0 space-y-2 mb-4">
               {isHost(detailsSpace) ? (
-                <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
+                <>
+                  {detailsSpace.x_space_id && (
+                    <p className="text-xs text-muted-foreground">Original X title: {detailsSpace.x_title ?? detailsSpace.title}</p>
+                  )}
+                  <label className="block text-xs font-medium text-muted-foreground mt-1">
+                    {detailsSpace.x_space_id ? "Linkary title (optional)" : "Title"}
+                  </label>
+                  <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground" />
+                </>
               ) : (
-                <p className="font-medium text-foreground">{detailsSpace.title}</p>
+                <>
+                  <p className="font-medium text-foreground">{spaceDisplayTitle(detailsSpace)}</p>
+                  {detailsSpace.x_space_id && (
+                    <p className="text-xs text-muted-foreground">Original X title: {detailsSpace.x_title ?? detailsSpace.title}</p>
+                  )}
+                </>
               )}
               <p className="text-sm text-muted-foreground">
                 {detailsSpace.scheduled_at ? new Date(detailsSpace.scheduled_at).toLocaleString() : "—"}
@@ -1520,7 +1541,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   <Button type="button" variant="outline" onClick={handleCancelSpace} disabled={editSaving} className="rounded-xl">
                     {editSaving ? "…" : "Cancel space"}
                   </Button>
-                  <Button type="button" onClick={handleSaveEdit} disabled={editSaving || !editTitle.trim()} className="rounded-xl">
+                  <Button type="button" onClick={handleSaveEdit} disabled={editSaving || (!detailsSpace.x_space_id && !editTitle.trim())} className="rounded-xl">
                     {editSaving ? "…" : "Save"}
                   </Button>
                 </>

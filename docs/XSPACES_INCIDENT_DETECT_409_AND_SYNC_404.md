@@ -73,3 +73,34 @@
 ### 7. Add from X and unrelated systems not broken
 
 - Add from X session refresh fix, sync-from-x provider routing, detect-my-space credits handling (402 response), speaker applications, sponsor proposals, payout preferences, notifications, my-proposals, analytics, reputation, public credibility, profile/dashboard real-data behavior, and GET /api/spaces/[id] visibility rules were not modified. Only detect-my-space (remove linkary fallback return on 402) and sync-from-x (404 message text) were changed.
+
+---
+
+## Final production QA polish pass
+
+### Files changed (QA pass only)
+
+- **apps/web/src/figma/app/components/XSpacesPage.tsx** — Added URL-format helper under both paste fields: "Use a direct Space URL like x.com/i/spaces/ABC123" (Create modal link-to-X step; Add from X modal).
+- **docs/XSPACES_INCIDENT_DETECT_409_AND_SYNC_404.md** — This QA section.
+
+### Verification (no bugs found)
+
+1. **detect-my-space on X_CREDITS_DEPLETED** — Route returns only 402 with `error` + `code: "X_CREDITS_DEPLETED"`; no candidates block. Confirmed.
+2. **link-space not reachable from detect on credits-depleted** — link-space is only called when user selects a candidate (handleSelectDetectCandidate). Since 402 path returns no candidates, no list is shown and user cannot select; link-space is not reachable from that flow. Confirmed.
+3. **sync-from-x 404 from backend data.error** — All three UI entry points use backend message when present:
+   - Create modal paste (Link pasted URL): `res.status === 404 && data.code === "SPACE_NOT_FOUND" ? (data.error ?? "Space not found on X.")` — uses data.error.
+   - Add from X list item (Import): `r.status === 404 && d.code === "SPACE_NOT_FOUND" ? (d.error ?? "Space not found on X.")` — uses d.error.
+   - Add from X paste submit: `res.status === 404 && data.code === "SPACE_NOT_FOUND" ? (data.error ?? "Space not found on X.")` — uses data.error.
+   No change made; backend sends error and client displays it.
+
+### Final QA checklist
+
+- [ ] detect-my-space with X API credits depleted → 402 only; response has no `candidates`; UI shows paste guidance and no candidate list.
+- [ ] No way to trigger link-space from detect when credits depleted (no candidates to select).
+- [ ] Create modal: paste field has helper "Use a direct Space URL like x.com/i/spaces/ABC123"; sync-from-x 404 shows backend data.error.
+- [ ] Add from X modal: paste field has same helper; 404 from paste or from list-item Import shows backend data.error.
+- [ ] Auth, OAuth, analytics, reputation, speakers, sponsors, payouts, notifications, profile, visibility untouched.
+
+### Confirmation: no unrelated systems changed
+
+- Backend logic unchanged in this QA pass. Only client: added two lines of helper copy under the paste inputs. Auth, OAuth, analytics, reputation, speakers, sponsors, payouts, notifications, profile, visibility rules not touched.

@@ -894,7 +894,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     }
     if ((res.status === 402 || data.code === "X_CREDITS_DEPLETED")) {
       setDetectLinkedPolling(false);
-      setDetectError(data.error ?? "Automatic X Space detection is temporarily unavailable because the X API credits for this app are depleted. Paste the Space link below.");
+      setDetectError(data.error ?? "X API credits for this app are depleted. Paste the Space link below.");
       return;
     }
     if (res.status === 409 && data.code === "ALREADY_LINKED") {
@@ -950,6 +950,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       clearCreateAndRefresh();
     } else if (res.status === 409 && data.code === "ALREADY_LINKED") {
       setDetectError("This space is already linked. Use Replace in the space details to change it.");
+    } else if (res.status === 409 && data.code === "X_SPACE_ALREADY_CLAIMED") {
+      setDetectError(data.error ?? "That X Space is already linked to another Space. Paste your new Space link below.");
     } else {
       setDetectError(sanitizeErrorMessage(data.error ?? "Failed to link. Try paste fallback."));
     }

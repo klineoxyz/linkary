@@ -19,6 +19,8 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
 const WINDOW_MS = 15 * 60 * 1000;
 const SCHEDULED_PROXIMITY_MS = 2 * 60 * 60 * 1000;
 const MIN_TITLE_SIMILARITY = 0.3;
+/** Stricter threshold for local Linkary fallback only (reduce false matches). */
+const LINKARY_FALLBACK_MIN_SIMILARITY = 0.4;
 
 function tokenize(s: string): Set<string> {
   return new Set(
@@ -285,7 +287,7 @@ export async function POST(request: NextRequest) {
             }
             return { row: r, score };
           })
-          .filter((x: { score: number }) => x.score >= MIN_TITLE_SIMILARITY)
+          .filter((x: { score: number }) => x.score >= LINKARY_FALLBACK_MIN_SIMILARITY)
           .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
           .slice(0, 5);
         if (scored.length > 0) {
@@ -303,7 +305,7 @@ export async function POST(request: NextRequest) {
           );
         }
         return NextResponse.json(
-          { error: "Automatic X Space detection is temporarily unavailable because the X API credits for this app are depleted. Paste the Space link below.", code: "X_CREDITS_DEPLETED" },
+          { error: "X API credits for this app are depleted. Paste the Space link below.", code: "X_CREDITS_DEPLETED" },
           { status: 402, headers: rateLimitHeaders }
         );
       }

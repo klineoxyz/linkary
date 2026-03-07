@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
       final_code: finalCode,
     }));
     debugMyXSpaces("MY_X_SPACES_STAGE_X_API_RESPONSE", JSON.stringify({ status: result.status, code: result.code }));
-    if (!result.ok && result.bodyText) debugMyXSpaces("MY_X_SPACES_STAGE_X_API_BODY", result.bodyText);
+    if (!result.ok && "bodyText" in result && result.bodyText) debugMyXSpaces("MY_X_SPACES_STAGE_X_API_BODY", result.bodyText);
     debugMyXSpaces("MY_X_SPACES_STAGE_FINAL_CODE", finalCode);
 
     if (!result.ok) {

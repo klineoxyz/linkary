@@ -4,7 +4,7 @@
  */
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { debugSync } from "@/lib/server-error";
-import { xApiFetchSafe } from "@/lib/x-api-client";
+import { xApiFetchSafe, type XApiFailureCode } from "@/lib/x-api-client";
 
 const TWITTERAPI_BASE = "https://api.twitterapi.io";
 
@@ -312,11 +312,11 @@ export async function fetchXSpaceByIdV2(
   const debugSyncFromX = process.env.DEBUG_SYNC_FROM_X === "1" || process.env.DEBUG_SYNC_FROM_X === "true";
   if (debugSyncFromX) {
     debugSync("X_API_CALL_RESPONSE", JSON.stringify({ status: result.status, code: result.code }));
-    if (!result.ok && result.bodyText) debugSync("X_API_CALL_BODY", result.bodyText);
+    if (!result.ok && "bodyText" in result && result.bodyText) debugSync("X_API_CALL_BODY", result.bodyText);
   }
   if (!result.ok) {
     const status = result.code === "X_API_TIMEOUT" ? 0 : result.status;
-    return { space: null, xStatus: status, code: result.code };
+    return { space: null, xStatus: status, code: result.code as XApiFailureCode };
   }
   const json = result.data as { data?: { id?: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] } };
   const data = json?.data;

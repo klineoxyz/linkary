@@ -7,6 +7,14 @@ import { sanitizeResponseBody } from "@/lib/server-error";
 
 const DEFAULT_TIMEOUT_MS = 8000;
 
+export type XApiFailureCode =
+  | "X_RECONNECT_NEEDED"
+  | "X_RATE_LIMITED"
+  | "SPACE_NOT_FOUND"
+  | "X_API_TIMEOUT"
+  | "INVALID_X_RESPONSE"
+  | "X_API_FAILED";
+
 export type XApiResult =
   | { ok: true; status: 200; data: unknown; code: "OK" }
   | {
@@ -14,10 +22,10 @@ export type XApiResult =
       status: number;
       data?: undefined;
       bodyText?: string;
-      code: "X_RECONNECT_NEEDED" | "X_RATE_LIMITED" | "SPACE_NOT_FOUND" | "X_API_TIMEOUT" | "INVALID_X_RESPONSE" | "X_API_FAILED";
+      code: XApiFailureCode;
     };
 
-function codeFromStatus(status: number): XApiResult["code"] {
+function codeFromStatus(status: number): XApiFailureCode {
   if (status === 401 || status === 403) return "X_RECONNECT_NEEDED";
   if (status === 429) return "X_RATE_LIMITED";
   if (status === 404) return "SPACE_NOT_FOUND";

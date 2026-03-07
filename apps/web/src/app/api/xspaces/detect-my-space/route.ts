@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
       final_code: finalCode,
     }));
     debugDetect("X_API_CALL_RESPONSE", JSON.stringify({ status: result.status, code: result.code }));
-    if (!result.ok && result.bodyText) debugDetect("X_API_CALL_BODY", result.bodyText);
+    if (!result.ok && "bodyText" in result && result.bodyText) debugDetect("X_API_CALL_BODY", result.bodyText);
     debugDetect("DETECT_STAGE_FINAL_CODE", finalCode);
 
     if (!result.ok) {

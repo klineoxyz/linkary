@@ -115,6 +115,9 @@ export async function POST(request: NextRequest) {
   let useParticipantSync = false;
 
   if (isTwitterApiSpacesConfigured()) {
+    // Always-on production verification: proves which provider was used (no secrets logged).
+    // eslint-disable-next-line no-console
+    console.warn("[sync-from-x] PROVIDER_PATH=twitterapi.io");
     const providerResult = await fetchSpaceByIdFromTwitterApi(spaceId);
     const debugSyncFromX = process.env.DEBUG_SYNC_FROM_X === "1" || process.env.DEBUG_SYNC_FROM_X === "true";
     if (debugSyncFromX) {
@@ -168,6 +171,9 @@ export async function POST(request: NextRequest) {
   }
 
   if (!detail) {
+    // Always-on production verification: sync-from-x using X API when provider key not set.
+    // eslint-disable-next-line no-console
+    console.warn("[sync-from-x] PROVIDER_PATH=x_api");
     const { data: tokenRow, error: tokenError } = await supabase
       .from("x_oauth_tokens")
       .select("access_token, refresh_token, x_user_id")

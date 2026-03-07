@@ -186,6 +186,9 @@ export async function POST(request: NextRequest) {
     }
     debugDetect("DETECT_STAGE_TOKEN_ROW_FOUND");
 
+    // Always-on production verification: proves which provider was used (no secrets logged).
+    // eslint-disable-next-line no-console
+    console.warn("[detect-my-space] PROVIDER_PATH=x_api");
     let currentAccessToken = (tokenRow as { access_token: string }).access_token;
     const spaceFields = "created_at,state,title,id,scheduled_start";
     debugDetect("X_API_CALL_START", JSON.stringify({ endpoint: "GET /2/spaces/by/creator_ids", access_token_exists: true, x_user_id_exists: true }));

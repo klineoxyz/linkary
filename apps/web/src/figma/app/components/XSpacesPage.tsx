@@ -116,6 +116,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [addFromXSaving, setAddFromXSaving] = useState(false);
   const [addFromXError, setAddFromXError] = useState<string | null>(null);
   const [myXSpacesList, setMyXSpacesList] = useState<Array<{ id: string; title: string | null; state: string | null; started_at: string | null; scheduled_start: string | null; url: string }>>([]);
+  const [myXSpacesSource, setMyXSpacesSource] = useState<"x" | "linkary" | null>(null);
   const [myXSpacesLoading, setMyXSpacesLoading] = useState(false);
   const [myXSpacesError, setMyXSpacesError] = useState<string | null>(null);
   const [audienceOverlapsBySpaceId, setAudienceOverlapsBySpaceId] = useState<Record<string, AudienceOverlap[]>>({});
@@ -531,6 +532,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setMyXSpacesList([]);
+      setMyXSpacesSource(null);
       if (res.status === 401 && (data.code === "AUTH_INVALID" || data.error === "Invalid session" || data.error === "Unauthorized")) {
         setMyXSpacesError("Your session may have expired. Please sign in again.");
       } else if (res.status === 403 && (data.code === "X_RECONNECT_NEEDED" || data.code === "X_NOT_CONNECTED" || data.code === "X_USER_ID_MISSING" || data.code === "X_ACCESS_TOKEN_MISSING")) {
@@ -543,6 +545,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       return;
     }
     setMyXSpacesError(null);
+    setMyXSpacesSource(data.spaces_source === "linkary" ? "linkary" : "x");
     setMyXSpacesList(Array.isArray(data.spaces) ? data.spaces : []);
   }, [base, getToken]);
 
@@ -552,6 +555,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       loadMyXSpaces().finally(() => setMyXSpacesLoading(false));
     } else if (!showAddFromX) {
       setMyXSpacesList([]);
+      setMyXSpacesSource(null);
       setMyXSpacesError(null);
     }
   }, [showAddFromX, xConnected, loadMyXSpaces]);
@@ -1496,7 +1500,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 ) : myXSpacesList.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No recent Spaces from X.</p>
                 ) : (
-                  <ul className="space-y-2 max-h-48 overflow-y-auto">
+                  <>
+                    {myXSpacesSource === "linkary" && (
+                      <p className="text-xs text-muted-foreground mb-2">Showing your Linkary spaces (X list temporarily unavailable).</p>
+                    )}
+                    <ul className="space-y-2 max-h-48 overflow-y-auto">
                     {myXSpacesList.map((item) => (
                       <li key={item.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-border bg-card text-sm">
                         <span className="min-w-0 truncate font-medium text-foreground">{item.title || "Untitled Space"}</span>
@@ -1533,10 +1541,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                           }}
                         >
                           Import
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
+                            </Button>
+                          </li>
+                        ))}
+                    </ul>
+                  </>
                 )}
               </div>
             )}

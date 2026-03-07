@@ -1359,6 +1359,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   <p className="text-xs text-muted-foreground">Paste the link for reliable import. Detection may be unavailable when X API credits are limited.</p>
                   <input type="url" value={createXSpaceUrl} onChange={(e) => setCreateXSpaceUrl(e.target.value)} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
                   <p className="text-xs text-muted-foreground">Use a direct Space URL like x.com/i/spaces/ABC123</p>
+                  <p className="text-xs text-muted-foreground">Best results come from public/live Spaces and direct x.com/i/spaces/... links.</p>
                   {createXSpaceUrl.trim() && (
                     <Button type="button" onClick={async () => {
                       if (!parseXSpaceId(createXSpaceUrl.trim())) { setDetectError("Invalid X Space link."); return; }
@@ -1510,6 +1511,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground mb-2 disabled:opacity-50"
             />
             <p className="text-xs text-muted-foreground mb-2">Use a direct Space URL like x.com/i/spaces/ABC123</p>
+            <p className="text-xs text-muted-foreground mb-2">Best results come from public/live Spaces and direct x.com/i/spaces/... links.</p>
             {xConnected === true && (
               <div className="mb-3">
                 <p className="text-xs font-medium text-muted-foreground mb-2">Past X Spaces (last 30 days)</p>

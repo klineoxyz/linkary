@@ -119,6 +119,11 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line no-console
     console.warn("[sync-from-x] PROVIDER_PATH=twitterapi.io");
     const providerResult = await fetchSpaceByIdFromTwitterApi(spaceId);
+    // Temporary provider-verification: log parsed id and provider result only (no tokens/secrets).
+    const pStatus = "status" in providerResult ? providerResult.status : null;
+    const pCode = "code" in providerResult ? providerResult.code : null;
+    // eslint-disable-next-line no-console
+    console.warn("[sync-from-x] PROVIDER_VERIFY", JSON.stringify({ parsed_space_id: spaceId, provider_used: "twitterapi.io", provider_status: pStatus, provider_code: pCode }));
     const debugSyncFromX = process.env.DEBUG_SYNC_FROM_X === "1" || process.env.DEBUG_SYNC_FROM_X === "true";
     if (debugSyncFromX) {
       debugSync("SYNC_PROVIDER_USED", "twitterapi.io");

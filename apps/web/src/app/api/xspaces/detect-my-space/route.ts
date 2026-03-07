@@ -249,6 +249,8 @@ export async function POST(request: NextRequest) {
       }
       if (result.code === "X_CREDITS_DEPLETED") {
         // Do not return linkary fallback candidates: every such candidate is another space's x_space_id and would 409 (X_SPACE_ALREADY_CLAIMED) on link. Guide user to paste link instead.
+        // eslint-disable-next-line no-console
+        console.warn("[xspaces] detect_credits_depleted");
         return NextResponse.json(
           { error: "X API credits for this app are depleted. Paste the Space link below.", code: "X_CREDITS_DEPLETED" },
           { status: 402, headers: rateLimitHeaders }

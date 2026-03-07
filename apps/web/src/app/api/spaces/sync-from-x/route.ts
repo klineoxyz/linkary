@@ -152,6 +152,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Import from X is not configured. Try again later.", code: "PROVIDER_NOT_CONFIGURED" }, { status: 503 });
       }
       if (code === "SPACE_NOT_FOUND") {
+        // eslint-disable-next-line no-console
+        console.warn("[xspaces] sync_space_not_found");
         return NextResponse.json({ error: "This Space could not be found by the current X data provider. Check the link or paste the direct Space URL (x.com/i/spaces/...).", code: "SPACE_NOT_FOUND" }, { status: 404 });
       }
       if (code === "PROVIDER_AUTH_FAILED") {
@@ -260,6 +262,8 @@ export async function POST(request: NextRequest) {
       }
       if (result.xStatus === 404 || result.code === "SPACE_NOT_FOUND") {
         debugSync("SYNC_STAGE_FAIL_SPACE_NOT_FOUND");
+        // eslint-disable-next-line no-console
+        console.warn("[xspaces] sync_space_not_found");
         return NextResponse.json(
           { error: "Space not found on X.", code: "SPACE_NOT_FOUND" },
           { status: 404 }

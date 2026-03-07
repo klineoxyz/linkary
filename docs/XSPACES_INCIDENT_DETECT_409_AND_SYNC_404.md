@@ -104,3 +104,35 @@
 ### Confirmation: no unrelated systems changed
 
 - Backend logic unchanged in this QA pass. Only client: added two lines of helper copy under the paste inputs. Auth, OAuth, analytics, reputation, speakers, sponsors, payouts, notifications, profile, visibility rules not touched.
+
+---
+
+## Final release-readiness pass
+
+### Files changed
+
+- **apps/web/src/app/api/xspaces/detect-my-space/route.ts** — Added debug breadcrumb: `console.warn("[xspaces] detect_credits_depleted")` when returning 402 X_CREDITS_DEPLETED.
+- **apps/web/src/app/api/spaces/sync-from-x/route.ts** — Added debug breadcrumb: `console.warn("[xspaces] sync_space_not_found")` when returning 404 SPACE_NOT_FOUND (provider path and X API path).
+- **docs/XSPACES_INCIDENT_DETECT_409_AND_SYNC_404.md** — This release-readiness section.
+
+### Verification (no code logic change)
+
+1. **Helper text** — Present under both paste fields (Create modal line ~1361, Add from X modal line ~1512): "Use a direct Space URL like x.com/i/spaces/ABC123".
+2. **detect-my-space on X_CREDITS_DEPLETED** — Returns only 402 with `error` + `code: "X_CREDITS_DEPLETED"`; no `candidates` in response. Confirmed.
+3. **sync-from-x SPACE_NOT_FOUND** — All three UI entry points use backend `data.error` / `d.error`: Create modal paste (1380), Add from X list Import (1555), Add from X paste submit (1630). Confirmed.
+
+### Anything still failing
+
+- None. Breadcrumbs are additive only; no behavior change.
+
+### Final release checklist
+
+- [ ] Helper "Use a direct Space URL like x.com/i/spaces/ABC123" visible under both paste fields in production.
+- [ ] detect-my-space with credits depleted → 402 only; no candidates; UI shows paste guidance; logs show `[xspaces] detect_credits_depleted` when applicable.
+- [ ] sync-from-x 404 → backend message shown in all three entry points; logs show `[xspaces] sync_space_not_found` when applicable.
+- [ ] No change to backend/provider/auth logic beyond adding console.warn breadcrumbs.
+- [ ] Unrelated systems (auth, OAuth, analytics, reputation, speakers, sponsors, payouts, notifications, profile, visibility) not touched.
+
+### Confirmation: ready for production
+
+- Only changes: two server-side `console.warn` breadcrumbs for user-reported failure correlation (`detect_credits_depleted`, `sync_space_not_found`). No backend/provider/auth logic change. Unrelated systems unchanged. Release-ready.

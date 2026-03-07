@@ -165,8 +165,9 @@ export async function GET(request: NextRequest) {
           url: row.x_space_url ?? (row.x_space_id ? `https://x.com/i/spaces/${row.x_space_id}` : "#"),
         }));
         if (linkaryItems.length > 0) {
+          const fallbackPayload = { fallback_used: true, reason: finalCode, spaces_count: linkaryItems.length };
           // eslint-disable-next-line no-console
-          console.warn("[my-x-spaces] PROVIDER_PATH=linkary_fallback");
+          console.warn("[my-x-spaces] PROVIDER_PATH=linkary_fallback", JSON.stringify(fallbackPayload));
           return NextResponse.json({ spaces: linkaryItems, spaces_source: "linkary" });
         }
       }

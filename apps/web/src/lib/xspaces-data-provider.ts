@@ -69,12 +69,14 @@ export async function fetchSpaceByIdFromTwitterApi(spaceId: string): Promise<
     return { ok: false, provider: null, code: "PROVIDER_NOT_CONFIGURED", retryable: false };
   }
 
+  const endpointPath = "/twitter/spaces/detail";
+  const sanitizedQueryParams = { space_id: id };
   const ac = new AbortController();
   const timeoutId = setTimeout(() => ac.abort(), DEFAULT_TIMEOUT_MS);
   let res: Response;
   try {
     res = await fetch(
-      `${TWITTERAPI_BASE}/twitter/spaces/detail?space_id=${encodeURIComponent(id)}`,
+      `${TWITTERAPI_BASE}${endpointPath}?space_id=${encodeURIComponent(id)}`,
       {
         headers: { "X-API-Key": apiKey },
         signal: ac.signal,
@@ -84,6 +86,15 @@ export async function fetchSpaceByIdFromTwitterApi(spaceId: string): Promise<
   } catch (err) {
     clearTimeout(timeoutId);
     const isTimeout = (err as { name?: string }).name === "AbortError";
+    const payload = {
+      provider: "twitterapi.io",
+      endpoint_path: endpointPath,
+      sanitized_query_params: sanitizedQueryParams,
+      provider_status: 0,
+      provider_code: isTimeout ? "PROVIDER_TIMEOUT" : "PROVIDER_UNAVAILABLE",
+    };
+    // eslint-disable-next-line no-console
+    console.warn("[xspaces-provider]", JSON.stringify(payload));
     return {
       ok: false,
       provider: "twitterapi.io",
@@ -98,6 +109,15 @@ export async function fetchSpaceByIdFromTwitterApi(spaceId: string): Promise<
   try {
     bodyText = await res.text();
   } catch {
+    const payload = {
+      provider: "twitterapi.io",
+      endpoint_path: endpointPath,
+      sanitized_query_params: sanitizedQueryParams,
+      provider_status: res.status,
+      provider_code: "PROVIDER_INVALID_RESPONSE" as const,
+    };
+    // eslint-disable-next-line no-console
+    console.warn("[xspaces-provider]", JSON.stringify(payload));
     return {
       ok: false,
       provider: "twitterapi.io",
@@ -111,6 +131,15 @@ export async function fetchSpaceByIdFromTwitterApi(spaceId: string): Promise<
   try {
     json = bodyText ? (JSON.parse(bodyText) as { data?: unknown; status?: string; message?: string }) : {};
   } catch {
+    const payload = {
+      provider: "twitterapi.io",
+      endpoint_path: endpointPath,
+      sanitized_query_params: sanitizedQueryParams,
+      provider_status: res.status,
+      provider_code: "PROVIDER_INVALID_RESPONSE" as const,
+    };
+    // eslint-disable-next-line no-console
+    console.warn("[xspaces-provider]", JSON.stringify(payload));
     return {
       ok: false,
       provider: "twitterapi.io",
@@ -122,6 +151,16 @@ export async function fetchSpaceByIdFromTwitterApi(spaceId: string): Promise<
 
   if (!res.ok) {
     const code = codeFromStatus(res.status, json?.status);
+    const payload = {
+      provider: "twitterapi.io",
+      endpoint_path: endpointPath,
+      sanitized_query_params: sanitizedQueryParams,
+      provider_status: res.status,
+      provider_code: code,
+      provider_message: json?.message ?? undefined,
+    };
+    // eslint-disable-next-line no-console
+    console.warn("[xspaces-provider]", JSON.stringify(payload));
     return {
       ok: false,
       provider: "twitterapi.io",
@@ -133,6 +172,16 @@ export async function fetchSpaceByIdFromTwitterApi(spaceId: string): Promise<
   }
 
   if (json?.status === "error" || !json?.data) {
+    const payload = {
+      provider: "twitterapi.io",
+      endpoint_path: endpointPath,
+      sanitized_query_params: sanitizedQueryParams,
+      provider_status: 200,
+      provider_code: "PROVIDER_INVALID_RESPONSE" as const,
+      provider_message: json?.message ?? undefined,
+    };
+    // eslint-disable-next-line no-console
+    console.warn("[xspaces-provider]", JSON.stringify(payload));
     return {
       ok: false,
       provider: "twitterapi.io",
@@ -145,6 +194,15 @@ export async function fetchSpaceByIdFromTwitterApi(spaceId: string): Promise<
 
   const data = json.data as XSpaceDetail;
   if (!data?.id) {
+    const payload = {
+      provider: "twitterapi.io",
+      endpoint_path: endpointPath,
+      sanitized_query_params: sanitizedQueryParams,
+      provider_status: 200,
+      provider_code: "SPACE_NOT_FOUND" as const,
+    };
+    // eslint-disable-next-line no-console
+    console.warn("[xspaces-provider]", JSON.stringify(payload));
     return {
       ok: false,
       provider: "twitterapi.io",
@@ -154,6 +212,18 @@ export async function fetchSpaceByIdFromTwitterApi(spaceId: string): Promise<
     };
   }
 
+  const payload = {
+    provider: "twitterapi.io",
+    endpoint_path: endpointPath,
+    sanitized_query_params: sanitizedQueryParams,
+    provider_status: 200,
+    provider_code: "OK" as const,
+    data_id: data.id,
+    data_state: data.state ?? undefined,
+    data_scheduled_start: data.scheduled_start ?? undefined,
+  };
+  // eslint-disable-next-line no-console
+  console.warn("[xspaces-provider]", JSON.stringify(payload));
   return { ok: true, provider: "twitterapi.io", status: 200, code: "OK", data, retryable: false };
 }
 

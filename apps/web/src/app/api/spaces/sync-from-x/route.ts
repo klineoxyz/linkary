@@ -119,11 +119,35 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line no-console
     console.warn("[sync-from-x] PROVIDER_PATH=twitterapi.io");
     const providerResult = await fetchSpaceByIdFromTwitterApi(spaceId);
-    // Temporary provider-verification: log parsed id and provider result only (no tokens/secrets).
+    const normalizedPastedUrl = (() => {
+      if (!urlInput) return "space_id_only";
+      try {
+        const u = new URL(urlInput.trim().startsWith("http") ? urlInput.trim() : `https://${urlInput.trim()}`);
+        return `${u.hostname}${u.pathname}`;
+      } catch {
+        return "invalid_url";
+      }
+    })();
     const pStatus = "status" in providerResult ? providerResult.status : null;
     const pCode = "code" in providerResult ? providerResult.code : null;
+    const pMessage = "message" in providerResult ? providerResult.message : undefined;
+    const pData = providerResult.ok && providerResult.data ? providerResult.data : null;
+    const syncVerifyPayload = {
+      normalized_pasted_url: normalizedPastedUrl,
+      parsed_space_id: spaceId,
+      provider_used: "twitterapi.io",
+      endpoint_path: "/twitter/spaces/detail",
+      sanitized_query_params: { space_id: spaceId },
+      provider_status: pStatus,
+      provider_code: pCode,
+      provider_message: pMessage ?? undefined,
+      data_id: pData?.id ?? undefined,
+      data_state: pData?.state ?? undefined,
+      data_scheduled_start: pData?.scheduled_start ?? undefined,
+      fallback_used: false,
+    };
     // eslint-disable-next-line no-console
-    console.warn("[sync-from-x] PROVIDER_VERIFY", JSON.stringify({ parsed_space_id: spaceId, provider_used: "twitterapi.io", provider_status: pStatus, provider_code: pCode }));
+    console.warn("[sync-from-x] PROVIDER_VERIFY", JSON.stringify(syncVerifyPayload));
     const debugSyncFromX = process.env.DEBUG_SYNC_FROM_X === "1" || process.env.DEBUG_SYNC_FROM_X === "true";
     if (debugSyncFromX) {
       debugSync("SYNC_PROVIDER_USED", "twitterapi.io");

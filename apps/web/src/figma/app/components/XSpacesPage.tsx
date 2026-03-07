@@ -137,6 +137,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
   const [xConnected, setXConnected] = useState<boolean | null>(null);
   const [spaceRsvps, setSpaceRsvps] = useState<{ total: number; going_count: number; interested_count: number; attendees?: Array<{ profile_id: string; status: string; username?: string | null }> } | null>(null);
   const [detectCandidates, setDetectCandidates] = useState<Array<{ id: string; title: string | null; state: string | null; created_at: string | null; scheduled_start: string | null; score: number }>>([]);
+  const [detectCandidatesSource, setDetectCandidatesSource] = useState<"x" | "linkary" | null>(null);
   type SpeakerRequestRow = {
     id: string;
     requester_profile_id: string;
@@ -798,6 +799,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setCreateXSpaceUrl("");
     setCreateError(null);
     setDetectCandidates([]);
+    setDetectCandidatesSource(null);
     setDetectError(null);
     if (mainNav === "calendar") loadSpacesForMonth(calendarYear, calendarMonth);
     else loadSpaces();
@@ -825,6 +827,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
           setDetectLinkedPolling(false);
           setDetectError(null);
           setDetectCandidates([]);
+          setDetectCandidatesSource(null);
           clearCreateAndRefresh();
           return true;
         }
@@ -864,6 +867,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     setDetectingSpace(true);
     setDetectError(null);
     setDetectCandidates([]);
+    setDetectCandidatesSource(null);
     setDetectLinkedPolling(true);
     const token = await getToken();
     const res = await fetch(`${base}/api/xspaces/detect-my-space`, {
@@ -900,12 +904,14 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     }
     if (data.found && data.require_selection && Array.isArray(data.candidates)) {
       setDetectCandidates(data.candidates);
+      setDetectCandidatesSource((data as { candidates_source?: string }).candidates_source === "linkary" ? "linkary" : "x");
       setDetectError(null);
       return;
     }
     if (data.found && data.linked && data.x_space_id && spaceId) {
       setDetectLinkedPolling(false);
       setDetectCandidates([]);
+      setDetectCandidatesSource(null);
       updateSpaceLinkState(spaceId, data.x_space_id, data.x_space_url ?? `https://x.com/i/spaces/${data.x_space_id}`);
       clearCreateAndRefresh();
       return;
@@ -939,6 +945,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     if (res.ok && data.x_space_id) {
       setReplaceLinkSpaceId(null);
       setDetectCandidates([]);
+      setDetectCandidatesSource(null);
       updateSpaceLinkState(spaceId, data.x_space_id, data.x_space_url ?? `https://x.com/i/spaces/${data.x_space_id}`);
       clearCreateAndRefresh();
     } else if (res.status === 409 && data.code === "ALREADY_LINKED") {
@@ -1066,7 +1073,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                         <Button variant="outline" size="sm" asChild className="rounded-xl">
                           <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer">Open X</a>
                         </Button>
-                        <Button type="button" variant="outline" size="sm" onClick={() => { setCreateJustDoneSpaceId(s.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="rounded-xl">Detect my Space</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => { setCreateJustDoneSpaceId(s.id); setDetectError(null); setDetectCandidates([]); setDetectCandidatesSource(null); setShowCreate(true); }} disabled={xConnected !== true} className="rounded-xl">Detect my Space</Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => { setDetailsSpace(s); setEditTitle(s.x_space_id ? (s.linkary_title ?? "") : (s.title ?? "")); setSpeakerRequestMessage(""); setShowLinkXSpace(true); }} className="rounded-xl">Paste link</Button>
                       </div>
                     </div>
@@ -1321,18 +1328,18 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
 
       {showCreate && (
         <>
-          <div className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }} aria-hidden />
+          <div className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); setDetectCandidatesSource(null); }} aria-hidden />
           <div
             ref={createModalRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-modal-title"
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card backdrop-blur-xl p-6 z-50 shadow-xl"
-            onKeyDown={(e) => handleModalKeyDown(e, () => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }, createModalRef)}
+            onKeyDown={(e) => handleModalKeyDown(e, () => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); setDetectCandidatesSource(null); }, createModalRef)}
           >
             <div className="flex items-center justify-between mb-4">
               <h2 id="create-modal-title" className="text-lg font-semibold text-foreground">Create X Space</h2>
-              <Button type="button" variant="ghost" size="icon" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); }} className="rounded-lg" aria-label="Close">
+              <Button type="button" variant="ghost" size="icon" onClick={() => { setShowCreate(false); setCreatePrefilledDate(null); setCreateError(null); setCreateJustDoneSpaceId(null); setDetectError(null); setDetectCandidates([]); setDetectCandidatesSource(null); }} className="rounded-lg" aria-label="Close">
                 <X className="w-5 h-5" />
               </Button>
             </div>
@@ -1344,39 +1351,10 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 <p className="text-sm text-muted-foreground">Space created on Linkary. Now link it to X:</p>
                 <div className="rounded-xl border border-border bg-card p-4 space-y-3">
                   {xConnected !== true && (
-                    <p className="text-sm text-muted-foreground">1. Connect X first (button above) to grant X API access so we can detect your Space.</p>
+                    <p className="text-sm text-muted-foreground">Connect X first (button above) to grant access for import and detection.</p>
                   )}
-                  <p className="font-medium text-foreground">2. Open X and create your Space</p>
-                  <Button asChild className="rounded-xl">
-                    <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer">Open X Spaces</a>
-                  </Button>
-                  <p className="text-xs text-muted-foreground">Create a new Space on X, then return here.</p>
-                  <p className="font-medium text-foreground">3. Detect my Space</p>
-                  <Button type="button" variant="outline" onClick={handleDetectMySpace} disabled={detectingSpace || xConnected !== true} className="rounded-xl">
-                    {detectingSpace ? "Detecting…" : "Detect my Space"}
-                  </Button>
-                  {detectingSpace && <p className="text-sm text-muted-foreground">Checking your recent X Spaces…</p>}
-                  {!detectingSpace && detectCandidates.length > 0 && (
-                    <p className="text-sm text-muted-foreground">Found {detectCandidates.length} candidate{detectCandidates.length !== 1 ? "s" : ""} — pick the right one:</p>
-                  )}
-                  {detectCandidates.length > 0 ? (
-                    <div className="space-y-2">
-                      {detectCandidates.map((c) => (
-                        <Button key={c.id} type="button" variant="outline" onClick={() => handleSelectDetectCandidate(c.id)} disabled={detectingSpace} className="w-full justify-start rounded-xl">
-                          {c.title || c.id} {c.scheduled_start ? ` · ${new Date(c.scheduled_start).toLocaleString()}` : ""}
-                        </Button>
-                      ))}
-                    </div>
-                  ) : null}
-                  {detectError && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm text-destructive">{detectError}</p>
-                      <Button type="button" variant="outline" size="sm" onClick={() => { setDetectError(null); handleDetectMySpace(); }} disabled={detectingSpace || xConnected !== true} className="rounded-xl">
-                        Retry
-                      </Button>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground pt-2 border-t border-border">If detection fails, paste the X Space link below (fallback):</p>
+                  <p className="font-medium text-foreground">1. Paste your X Space link (recommended)</p>
+                  <p className="text-xs text-muted-foreground">Paste the link for reliable import. Detection may be unavailable when X API credits are limited.</p>
                   <input type="url" value={createXSpaceUrl} onChange={(e) => setCreateXSpaceUrl(e.target.value)} placeholder="https://x.com/i/spaces/..." className="w-full px-3 py-2 rounded-lg border border-border bg-input-background text-foreground text-sm" />
                   {createXSpaceUrl.trim() && (
                     <Button type="button" onClick={async () => {
@@ -1403,6 +1381,37 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                         setDetectError(sanitizeErrorMessage(data.error ?? data.message ?? "Failed to link."));
                       }
                     }} className="rounded-xl">Link pasted URL</Button>
+                  )}
+                  <p className="text-xs text-muted-foreground pt-2 border-t border-border">2. Or try automatic detection</p>
+                  <Button type="button" variant="outline" onClick={handleDetectMySpace} disabled={detectingSpace || xConnected !== true} className="rounded-xl">
+                    {detectingSpace ? "Detecting…" : "Detect my Space"}
+                  </Button>
+                  {detectingSpace && <p className="text-sm text-muted-foreground">Checking your recent X Spaces…</p>}
+                  {!detectingSpace && detectCandidates.length > 0 && (
+                    <>
+                      {detectCandidatesSource === "linkary" ? (
+                        <p className="text-sm text-muted-foreground">From your Linkary spaces (X detection unavailable). Pick the one that matches:</p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Found {detectCandidates.length} candidate{detectCandidates.length !== 1 ? "s" : ""} — pick the right one:</p>
+                      )}
+                    </>
+                  )}
+                  {detectCandidates.length > 0 ? (
+                    <div className="space-y-2">
+                      {detectCandidates.map((c) => (
+                        <Button key={c.id} type="button" variant="outline" onClick={() => handleSelectDetectCandidate(c.id)} disabled={detectingSpace} className="w-full justify-start rounded-xl">
+                          {c.title || c.id} {c.scheduled_start ? ` · ${new Date(c.scheduled_start).toLocaleString()}` : ""}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {detectError && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm text-destructive">{detectError}</p>
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setDetectError(null); handleDetectMySpace(); }} disabled={detectingSpace || xConnected !== true} className="rounded-xl">
+                        Retry
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1488,7 +1497,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 <X className="w-5 h-5" />
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground mb-3">Paste an X Space link you host. We’ll pull details using X API access (Connect X) and support audience overlap when both hosts are registered.</p>
+            <p className="text-sm text-muted-foreground mb-3">Paste a Space link to import (most reliable). We’ll pull details and support audience overlap when both hosts are registered.</p>
             <input
               type="url"
               value={addFromXUrl}
@@ -1509,7 +1518,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 ) : (
                   <>
                     {myXSpacesSource === "linkary" && (
-                      <p className="text-xs text-muted-foreground mb-2">Showing your Linkary spaces (X list temporarily unavailable).</p>
+                      <p className="text-xs text-muted-foreground mb-2">Showing your Linkary spaces (not a live X list — X API credits or list unavailable).</p>
                     )}
                     <ul className="space-y-2 max-h-48 overflow-y-auto">
                     {myXSpacesList.map((item) => (
@@ -1697,7 +1706,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       <button type="button" onClick={handleConnectX} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Connect X</button>
                     )}
                     <a href="https://x.com/i/spaces" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Open X</a>
-                    <button type="button" onClick={() => { setDetailsSpace(null); setCreateJustDoneSpaceId(detailsSpace.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent disabled:opacity-50">Detect my Space</button>
+                    <button type="button" onClick={() => { setDetailsSpace(null); setCreateJustDoneSpaceId(detailsSpace.id); setDetectError(null); setDetectCandidates([]); setDetectCandidatesSource(null); setShowCreate(true); }} disabled={xConnected !== true} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent disabled:opacity-50">Detect my Space</button>
                     <button type="button" onClick={() => setShowLinkXSpace(true)} className="px-3 py-1.5 rounded-lg border border-border bg-secondary text-foreground text-sm font-medium hover:bg-accent">Paste link</button>
                   </div>
                 </div>
@@ -1787,7 +1796,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                             }
                           }} className="rounded-xl">Save link</Button>
                           <p className="text-xs font-medium text-muted-foreground pt-2 border-t border-border">Or detect replacement</p>
-                          <Button type="button" variant="outline" size="sm" onClick={() => { setDetailsSpace(null); setCreateJustDoneSpaceId(detailsSpace.id); setReplaceLinkSpaceId(detailsSpace.id); setDetectError(null); setDetectCandidates([]); setShowCreate(true); }} disabled={xConnected !== true} className="rounded-xl">Detect my Space</Button>
+                          <Button type="button" variant="outline" size="sm" onClick={() => { setDetailsSpace(null); setCreateJustDoneSpaceId(detailsSpace.id); setReplaceLinkSpaceId(detailsSpace.id); setDetectError(null); setDetectCandidates([]); setDetectCandidatesSource(null); setShowCreate(true); }} disabled={xConnected !== true} className="rounded-xl">Detect my Space</Button>
                         </>
                       )}
                       {!replaceLinkMode && (

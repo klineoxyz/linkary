@@ -248,6 +248,60 @@ export async function POST(request: NextRequest) {
         );
       }
       if (result.code === "X_CREDITS_DEPLETED") {
+        // Local Linkary fallback only — not live X lookup. We suggest host's already-linked Spaces from DB (title/scheduled_at similarity). If no good match, return 402 and paste-link message.
+        let linkaryTitle = "";
+        let linkaryScheduledAt: string | null = null;
+        if (linkarySpaceId) {
+          const { data: linkarySpace } = await supabase
+            .from("spaces")
+            .select("id, host_profile_id, title, scheduled_at")
+            .eq("id", linkarySpaceId)
+            .maybeSingle();
+          const sp = linkarySpace as { id: string; host_profile_id: string; title: string; scheduled_at: string | null } | null;
+          if (sp && sp.host_profile_id === user.id) {
+            linkaryTitle = sp.title ?? "";
+            linkaryScheduledAt = sp.scheduled_at ?? null;
+          }
+        }
+        const { data: hostLinkedSpaces } = await supabase
+          .from("spaces")
+          .select("id, title, scheduled_at, x_space_id, x_space_url")
+          .eq("host_profile_id", user.id)
+          .not("x_space_id", "is", null)
+          .order("scheduled_at", { ascending: false })
+          .limit(20);
+        type HostRow = { id: string; title: string | null; scheduled_at: string | null; x_space_id: string | null; x_space_url: string | null };
+        const scored = (hostLinkedSpaces ?? [])
+          .filter((r: HostRow) => r.x_space_id && r.id !== linkarySpaceId)
+          .map((r: HostRow) => {
+            const sim = titleSimilarity(r.title ?? "", linkaryTitle);
+            let score = sim;
+            if (linkaryScheduledAt && r.scheduled_at) {
+              const linkaryTime = new Date(linkaryScheduledAt).getTime();
+              const rTime = new Date(r.scheduled_at).getTime();
+              if (!Number.isNaN(linkaryTime) && !Number.isNaN(rTime) && Math.abs(linkaryTime - rTime) <= SCHEDULED_PROXIMITY_MS) {
+                score += 0.2;
+              }
+            }
+            return { row: r, score };
+          })
+          .filter((x: { score: number }) => x.score >= MIN_TITLE_SIMILARITY)
+          .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
+          .slice(0, 5);
+        if (scored.length > 0) {
+          const candidates = scored.map((x: { row: HostRow; score: number }) => ({
+            id: x.row.x_space_id!,
+            title: x.row.title ?? null,
+            state: null,
+            created_at: null,
+            scheduled_start: x.row.scheduled_at ?? null,
+            score: Math.round(x.score * 100) / 100,
+          }));
+          return NextResponse.json(
+            { found: true, require_selection: true, candidates, candidates_source: "linkary" },
+            { headers: rateLimitHeaders }
+          );
+        }
         return NextResponse.json(
           { error: "Automatic X Space detection is temporarily unavailable because the X API credits for this app are depleted. Paste the Space link below.", code: "X_CREDITS_DEPLETED" },
           { status: 402, headers: rateLimitHeaders }

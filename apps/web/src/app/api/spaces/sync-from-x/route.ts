@@ -1,10 +1,10 @@
 /**
  * POST /api/spaces/sync-from-x
  * Body: { space_id?: string, space_url?: string, url?: string }
- * Fetches Space detail from the intended provider: twitterapi.io when configured (no X API fallback);
- * otherwise official X API v2 from x_oauth_tokens. Verifies user is host, then creates or updates our space.
- * Returns 409 ALREADY_IMPORTED with existing space when already owned by user.
- * Never returns tokens. Deterministic error codes; 502 for upstream failures (not 404).
+ * Fetches Space detail from twitterapi.io when configured; on provider 404, attempts official X API
+ * with user's token as narrow fallback (e.g. scheduled Space not in provider index). Otherwise uses
+ * official X API v2 from x_oauth_tokens when provider key not set. Verifies user is host, then creates
+ * or updates our space. Returns 409 ALREADY_IMPORTED when already owned by user. Never returns tokens.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
   let scheduledAt: string | null = null;
   let detail: XSpaceDetail | null = null;
   let useParticipantSync = false;
+  let provider404FallbackSucceeded = false;
 
   if (isTwitterApiSpacesConfigured()) {
     // Always-on production verification: proves which provider was used (no secrets logged).
@@ -181,12 +182,59 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Import from X is not configured. Try again later.", code: "PROVIDER_NOT_CONFIGURED" }, { status: 503 });
       }
       if (code === "SPACE_NOT_FOUND") {
-        // eslint-disable-next-line no-console
-        console.warn("[xspaces] sync_space_not_found");
-        return NextResponse.json({
-          error: "This Space could not be found by the current X data provider. It may be unavailable, private, deleted, or not yet indexed. If this is a scheduled Space, it may not be in the provider's index yet; try again closer to start time or after it has started.",
-          code: "SPACE_NOT_FOUND",
-        }, { status: 404 });
+        // Narrow fallback: try official X API when user has token (e.g. scheduled Space not in provider index).
+        const { data: fallbackTokenRow } = await supabase
+          .from("x_oauth_tokens")
+          .select("access_token, x_user_id")
+          .eq("profile_id", user.id)
+          .eq("provider", "x")
+          .maybeSingle();
+        const fallbackAccessToken = (fallbackTokenRow as { access_token?: string; x_user_id?: string } | null)?.access_token;
+        const fallbackXUserId = (fallbackTokenRow as { x_user_id?: string } | null)?.x_user_id;
+
+        if (fallbackAccessToken && fallbackXUserId) {
+          const fallbackResult = await fetchXSpaceByIdV2(spaceId, fallbackAccessToken);
+          const fallbackPayload = {
+            fallback_attempted: true,
+            x_api_fallback_status: fallbackResult.space ? 200 : (fallbackResult.xStatus ?? 0),
+            x_api_fallback_code: fallbackResult.space ? "OK" : (fallbackResult.code ?? "X_API_FAILED"),
+            fallback_succeeded: !!fallbackResult.space,
+          };
+          // eslint-disable-next-line no-console
+          console.warn("[sync-from-x] X_API_FALLBACK", JSON.stringify(fallbackPayload));
+
+          if (fallbackResult.space) {
+            const hostIds = Array.isArray(fallbackResult.space.host_ids) ? fallbackResult.space.host_ids : [];
+            if (hostIds.includes(fallbackXUserId)) {
+              title = typeof fallbackResult.space.title === "string" && fallbackResult.space.title.trim()
+                ? fallbackResult.space.title.trim()
+                : title;
+              scheduledAt = toScheduledAt(fallbackResult.space.scheduled_start);
+              provider404FallbackSucceeded = true;
+            } else {
+              // Fallback returned space but user is not host — do not use; return same 404.
+              // eslint-disable-next-line no-console
+              console.warn("[xspaces] sync_space_not_found");
+              return NextResponse.json({
+                error: "This Space could not be found by the current X data provider. It may be unavailable, private, deleted, or not yet indexed. If this is a scheduled Space, it may not be in the provider's index yet; try again closer to start time or after it has started.",
+                code: "SPACE_NOT_FOUND",
+              }, { status: 404 });
+            }
+          }
+        } else {
+          const noTokenPayload = { fallback_attempted: false, reason: "no_token" };
+          // eslint-disable-next-line no-console
+          console.warn("[sync-from-x] X_API_FALLBACK", JSON.stringify(noTokenPayload));
+        }
+
+        if (!provider404FallbackSucceeded) {
+          // eslint-disable-next-line no-console
+          console.warn("[xspaces] sync_space_not_found");
+          return NextResponse.json({
+            error: "This Space could not be found by the current X data provider. It may be unavailable, private, deleted, or not yet indexed. If this is a scheduled Space, it may not be in the provider's index yet; try again closer to start time or after it has started.",
+            code: "SPACE_NOT_FOUND",
+          }, { status: 404 });
+        }
       }
       if (code === "PROVIDER_AUTH_FAILED") {
         return NextResponse.json({ error: "The X data provider rejected the request. Try again later.", code: "PROVIDER_AUTH_FAILED" }, { status: 502 });
@@ -204,8 +252,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (!detail) {
-    // Always-on production verification: sync-from-x using X API when provider key not set.
+  if (!detail && !provider404FallbackSucceeded) {
+    // Always-on production verification: sync-from-x using X API when provider key not set (or fallback not used).
     // eslint-disable-next-line no-console
     console.warn("[sync-from-x] PROVIDER_PATH=x_api");
     const { data: tokenRow, error: tokenError } = await supabase

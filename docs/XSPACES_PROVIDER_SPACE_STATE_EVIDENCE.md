@@ -97,3 +97,35 @@ No other files modified. No changes to: analytics, reputation, dashboard, profil
 
 - **Unrelated product areas:** Not changed. Scope limited to sync-from-x SPACE_NOT_FOUND message (twitterapi.io path) and this evidence doc.
 - **Behavior change:** Users see one extra sentence when sync-from-x returns 404 from the provider, giving actionable guidance if the Space is scheduled.
+
+---
+
+## 8. X API fallback implementation (surgical)
+
+### Viability summary
+
+- **Auth:** User’s X OAuth token is available via existing `x_oauth_tokens` lookup (same table as primary X API path). No new auth flow.
+- **Credits:** Official X API can return 402 (X_CREDITS_DEPLETED). Fallback does not surface 402 to the user: on any non-success (402, 404, 401, 429, timeout) we log and return the same 404 SPACE_NOT_FOUND response. UX is unchanged or better (sync can succeed when X has the Space).
+- **Scope:** One extra call to `fetchXSpaceByIdV2` only when provider returns 404 and user has a token. No refresh in fallback (single attempt); no change to detect-my-space or my-x-spaces.
+
+**Conclusion:** Fallback is technically viable and implemented in sync-from-x only.
+
+### New structured logs (no secrets)
+
+When provider returns SPACE_NOT_FOUND we log one of:
+
+- **Fallback attempted with token:**  
+  `[sync-from-x] X_API_FALLBACK` with JSON:  
+  `fallback_attempted: true`, `x_api_fallback_status` (200 or X HTTP status), `x_api_fallback_code` ("OK" or X failure code), `fallback_succeeded: true | false`.
+
+- **Fallback not attempted (no token):**  
+  `[sync-from-x] X_API_FALLBACK` with JSON:  
+  `fallback_attempted: false`, `reason: "no_token"`.
+
+Existing `[xspaces] sync_space_not_found` and PROVIDER_VERIFY logging unchanged.
+
+### Fallback implementation — files and behavior
+
+- **File changed:** `apps/web/src/app/api/spaces/sync-from-x/route.ts` only.
+- **Behavior:** When twitterapi.io returns SPACE_NOT_FOUND we look up the user’s X token; if present we call official X API GET /2/spaces/{id}. On 200 and host check pass we set title/scheduledAt and complete sync (200). On 402/404/401/429/timeout or no token we return the same 404 SPACE_NOT_FOUND and message as before. Participant sync is not run for fallback path (X API v2 response has no participants list).
+- **Unrelated areas:** detect-my-space, my-x-spaces, analytics, reputation, dashboard, profile, notifications, proposals, payouts, speakers, sponsors, visibility, auth — unchanged.

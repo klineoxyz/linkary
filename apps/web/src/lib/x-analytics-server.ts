@@ -297,7 +297,7 @@ const X_API_BASE = "https://api.twitter.com/2";
 
 export type FetchXSpaceByIdV2Result =
   | { space: { id: string; title?: string; state?: string; created_at?: string; scheduled_start?: string; host_ids?: string[] }; xStatus?: undefined; code?: undefined }
-  | { space: null; xStatus: number; code?: "X_RECONNECT_NEEDED" | "X_RATE_LIMITED" | "SPACE_NOT_FOUND" | "X_API_TIMEOUT" | "INVALID_X_RESPONSE" | "X_API_FAILED" };
+  | { space: null; xStatus: number; code?: "X_RECONNECT_NEEDED" | "X_RATE_LIMITED" | "X_CREDITS_DEPLETED" | "SPACE_NOT_FOUND" | "X_API_TIMEOUT" | "INVALID_X_RESPONSE" | "X_API_FAILED" };
 
 /** Fetch Space by ID from X API v2 (Bearer token). Uses shared xApiFetchSafe. Returns { space } on success or { space: null, xStatus } on X error. */
 export async function fetchXSpaceByIdV2(

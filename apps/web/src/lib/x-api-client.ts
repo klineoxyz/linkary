@@ -10,6 +10,7 @@ const DEFAULT_TIMEOUT_MS = 8000;
 export type XApiFailureCode =
   | "X_RECONNECT_NEEDED"
   | "X_RATE_LIMITED"
+  | "X_CREDITS_DEPLETED"
   | "SPACE_NOT_FOUND"
   | "X_API_TIMEOUT"
   | "INVALID_X_RESPONSE"
@@ -28,6 +29,7 @@ export type XApiResult =
 function codeFromStatus(status: number): XApiFailureCode {
   if (status === 401 || status === 403) return "X_RECONNECT_NEEDED";
   if (status === 429) return "X_RATE_LIMITED";
+  if (status === 402) return "X_CREDITS_DEPLETED";
   if (status === 404) return "SPACE_NOT_FOUND";
   return "X_API_FAILED";
 }

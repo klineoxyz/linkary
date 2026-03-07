@@ -535,6 +535,8 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       setMyXSpacesSource(null);
       if (res.status === 401 && (data.code === "AUTH_INVALID" || data.error === "Invalid session" || data.error === "Unauthorized")) {
         setMyXSpacesError("Your session may have expired. Please sign in again.");
+      } else if (res.status === 402 && data.code === "X_CREDITS_DEPLETED") {
+        setMyXSpacesError(data.error ?? "X API credits for this app are depleted. Try again later.");
       } else if (res.status === 403 && (data.code === "X_RECONNECT_NEEDED" || data.code === "X_NOT_CONNECTED" || data.code === "X_USER_ID_MISSING" || data.code === "X_ACCESS_TOKEN_MISSING")) {
         setMyXSpacesError(data.error ?? "Connect or reconnect X in Settings or XSpaces to see your Spaces.");
       } else if (res.status === 429 && (data.code === "X_RATE_LIMITED" || data.code === "RATE_LIMITED")) {
@@ -884,6 +886,11 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
     if (res.status === 403 && (data.code === "X_RECONNECT_NEEDED" || data.code === "X_NOT_CONNECTED" || data.code === "X_USER_ID_MISSING")) {
       setDetectLinkedPolling(false);
       setDetectError(data.error ?? "Connect or reconnect X in Settings or XSpaces to detect your Space.");
+      return;
+    }
+    if ((res.status === 402 || data.code === "X_CREDITS_DEPLETED")) {
+      setDetectLinkedPolling(false);
+      setDetectError(data.error ?? "Automatic X Space detection is temporarily unavailable because the X API credits for this app are depleted. Paste the Space link below.");
       return;
     }
     if (res.status === 409 && data.code === "ALREADY_LINKED") {

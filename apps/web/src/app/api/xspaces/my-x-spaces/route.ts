@@ -147,6 +147,12 @@ export async function GET(request: NextRequest) {
           { status: 429 }
         );
       }
+      if (result.code === "X_CREDITS_DEPLETED") {
+        return NextResponse.json(
+          { error: "X API credits for this app are depleted. Try again later.", code: "X_CREDITS_DEPLETED" },
+          { status: 402 }
+        );
+      }
       // Fallback: when X API is unavailable (timeout/invalid/failed), return host's Linkary spaces so UI can show something useful.
       if (result.code === "X_API_TIMEOUT" || result.code === "INVALID_X_RESPONSE" || result.code === "X_API_FAILED") {
         const { data: dbSpaces } = await supabase

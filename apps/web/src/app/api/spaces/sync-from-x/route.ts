@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Import from X is not configured. Try again later.", code: "PROVIDER_NOT_CONFIGURED" }, { status: 503 });
       }
       if (code === "SPACE_NOT_FOUND") {
-        return NextResponse.json({ error: "Space not found.", code: "SPACE_NOT_FOUND" }, { status: 404 });
+        return NextResponse.json({ error: "This Space could not be found from the current X data provider. Please check the Space link or try another public/live Space.", code: "SPACE_NOT_FOUND" }, { status: 404 });
       }
       if (code === "PROVIDER_AUTH_FAILED") {
         return NextResponse.json({ error: "The X data provider rejected the request. Try again later.", code: "PROVIDER_AUTH_FAILED" }, { status: 502 });

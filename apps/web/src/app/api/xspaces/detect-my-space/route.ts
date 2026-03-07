@@ -247,6 +247,12 @@ export async function POST(request: NextRequest) {
           { status: 429, headers: rateLimitHeaders }
         );
       }
+      if (result.code === "X_CREDITS_DEPLETED") {
+        return NextResponse.json(
+          { error: "Automatic X Space detection is temporarily unavailable because the X API credits for this app are depleted. Paste the Space link below.", code: "X_CREDITS_DEPLETED" },
+          { status: 402, headers: rateLimitHeaders }
+        );
+      }
       if (result.code === "X_API_TIMEOUT") {
         return NextResponse.json(
           { error: "X API request timed out. Try again.", code: "X_API_TIMEOUT" },

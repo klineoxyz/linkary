@@ -1,0 +1,75 @@
+# XSpaces Incident: Detect 409 + Sync 404 — Root Cause and Fix Plan
+
+## Pre-coding
+
+### 1. Exact root cause of 409 after detect fallback
+
+- **What happens:** detect-my-space returns 200 with `candidates_source: "linkary"` and a list of candidates. Each candidate has `id: row.x_space_id` — i.e. the X Space ID of *another* Linkary space (another row in `spaces`). The user is trying to link the *new* space (`createJustDoneSpaceId`) to an X Space. So we're suggesting: "link your new space to this x_space_id." But that `x_space_id` is already stored on a different row (the "other" space we used for similarity). So when the user selects it, link-space correctly returns **409 X_SPACE_ALREADY_CLAIMED** because one X Space can only be linked to one Linkary space.
+- **Why already-claimed candidates are included:** The fallback was designed to suggest "similar" host spaces by title/scheduled_at. Every such space is another row with its own `x_space_id`. So every suggested candidate is by definition an x_space_id that is *already linked* to that other row. There are no "unclaimed" x_space_ids in the candidate set. So **all** linkary fallback candidates are unusable for the create/link flow.
+- **Conclusion:** For this flow we must not suggest any of these as selectable candidates. The only safe fix is to **stop returning linkary fallback candidates** when X_CREDITS_DEPLETED and always return 402 with paste-link guidance.
+
+### 2. Exact classification of sync-from-x 404
+
+- **URL parsing:** `parseXSpaceId` supports `x.com` and `twitter.com` (and www), path `i/spaces/<id>`, id `[A-Za-z0-9_-]{1,100}`, trailing slash and query params stripped. Same `spaceId` is passed to sync-from-x and then to `fetchSpaceByIdFromTwitterApi(spaceId)`. No truncation or wrong casing.
+- **Provider request:** `GET https://api.twitterapi.io/twitter/spaces/detail?space_id=${encodeURIComponent(id)}`. Parameter name and path match twitterapi.io docs. No malformed id in the request.
+- **Classification:** **A. Real provider 404** — The provider (twitterapi.io) returns HTTP 404 for the given Space ID. Possible reasons: Space deleted/private, not in provider's index, or provider limitation. No parsing or normalization bug found; request is correct.
+- **Action:** Keep provider path. Sharpen the 404 message so the user gets a clear, provider-specific message (no "temporary outage" wording).
+
+### 3. Smallest safe backend fix plan
+
+1. **detect-my-space:** On `result.code === "X_CREDITS_DEPLETED"`, remove the entire block that builds linkary candidates and returns 200. Always return 402 with `{ error: "X API credits for this app are depleted. Paste the Space link below.", code: "X_CREDITS_DEPLETED" }`. No new flags; preserve 402 response shape.
+2. **sync-from-x:** When provider returns SPACE_NOT_FOUND (404), keep status 404 and code. Change error message to: "This Space could not be found by the current X data provider. Check the link or paste the direct Space URL (x.com/i/spaces/...)." No change to routing or parsing.
+
+### 4. Smallest safe client/UX correction plan
+
+1. **Detect returns no usable candidates:** Already the case after backend change — we only return 402 with paste message; client already shows `data.error` and paste input is step 1. No client change required.
+2. **sync-from-x SPACE_NOT_FOUND:** Client already uses `data.error` for 404 + SPACE_NOT_FOUND. Backend message change is enough; no client copy change unless we want a fallback string — current fallback "Space not found on X." is replaced by backend message.
+3. **User selects already-claimed candidate:** Will no longer occur because we no longer return linkary candidates. No UI change.
+
+### 5. Risks / compatibility notes
+
+- **detect:** Removing linkary fallback means on 402 we never show a candidate list; users always see paste guidance. No breaking change to response shape for 402 (still 402 + error). Success path (X API returns data) unchanged.
+- **sync-from-x:** Message-only change; no behavior or routing change. Add from X session refresh, provider routing, and all other flows unchanged.
+
+---
+
+## Post-implementation deliverables
+
+### 1. Files changed
+
+- **apps/web/src/app/api/xspaces/detect-my-space/route.ts** — Removed local Linkary fallback candidate block when X_CREDITS_DEPLETED. On 402 we now always return paste-link message; no candidates returned. Removed unused `LINKARY_FALLBACK_MIN_SIMILARITY`.
+- **apps/web/src/app/api/spaces/sync-from-x/route.ts** — SPACE_NOT_FOUND error message updated to: "This Space could not be found by the current X data provider. Check the link or paste the direct Space URL (x.com/i/spaces/...)."
+- **docs/XSPACES_INCIDENT_DETECT_409_AND_SYNC_404.md** — Root cause, classification, fix plan, and deliverables.
+
+### 2. Exact bug fixed for detect fallback
+
+- **Bug:** We were returning as selectable candidates the host’s other Linkary spaces (each with its own `x_space_id`). Selecting one called link-space with that `x_space_id`, which is already linked to another row → 409 X_SPACE_ALREADY_CLAIMED. Every linkary fallback candidate was therefore unusable.
+- **Fix:** Do not return any linkary fallback candidates when X_CREDITS_DEPLETED. Always return 402 with "X API credits for this app are depleted. Paste the Space link below." so the user is guided to the paste flow only.
+
+### 3. Exact classification and fix for sync-from-x 404
+
+- **Classification:** Real provider 404. URL parsing (`parseXSpaceId`) and provider request (`GET .../twitter/spaces/detail?space_id=<id>`) were verified; parameter name and path are correct; no parsing or normalization bug found. twitterapi.io returns HTTP 404 for the given Space ID (e.g. Space not in provider index, deleted, or provider limitation).
+- **Fix:** Message-only. Sharper, truthful copy: "This Space could not be found by the current X data provider. Check the link or paste the direct Space URL (x.com/i/spaces/...)." No "temporary outage" wording; provider path and routing unchanged.
+
+### 4. Final route behavior
+
+- **detect-my-space:** On X API credits depleted (402), response is always 402 with `error` + `code: "X_CREDITS_DEPLETED"`. No candidates. Success path (X API returns data) and other error paths unchanged.
+- **link-space:** Unchanged. No longer receives selection from detect fallback candidates (none returned).
+- **sync-from-x:** Provider path unchanged; 404 SPACE_NOT_FOUND returns new error message. Parsing and `space_id` request unchanged.
+
+### 5. Final UX behavior
+
+- **Detect when credits depleted:** User sees "X API credits for this app are depleted. Paste the Space link below." and the paste input (step 1). No candidate list; no 409 from selecting a fallback candidate.
+- **Paste flow / sync-from-x 404:** User sees backend message: "This Space could not be found by the current X data provider. Check the link or paste the direct Space URL (x.com/i/spaces/...)." Client already uses `data.error` for 404 + SPACE_NOT_FOUND.
+
+### 6. Manual QA checklist
+
+- [ ] detect-my-space with credits depleted → 402 only; no candidates; UI shows paste guidance.
+- [ ] Paste link → sync-from-x; valid Space → success. Invalid/unknown Space → 404 with new provider message.
+- [ ] Add from X: paste URL and "Past X Spaces" list unchanged; session refresh and provider routing unchanged.
+- [ ] link-space not called with a detect fallback selection (no such candidates).
+- [ ] my-x-spaces, speaker/sponsor/payout/notifications/my-proposals/analytics/reputation/profile/dashboard and GET /api/spaces/[id] unchanged.
+
+### 7. Add from X and unrelated systems not broken
+
+- Add from X session refresh fix, sync-from-x provider routing, detect-my-space credits handling (402 response), speaker applications, sponsor proposals, payout preferences, notifications, my-proposals, analytics, reputation, public credibility, profile/dashboard real-data behavior, and GET /api/spaces/[id] visibility rules were not modified. Only detect-my-space (remove linkary fallback return on 402) and sync-from-x (404 message text) were changed.

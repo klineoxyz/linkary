@@ -214,6 +214,7 @@ export async function POST(request: NextRequest) {
     }
     const finalCode = result.code;
     debugDetect("PRODUCTION_VERIFY", JSON.stringify({
+      provider: "x_api",
       token_row_exists: hasTokenRow,
       access_token_exists: true,
       refresh_token_exists: hasRefreshToken,

@@ -114,6 +114,7 @@ export async function GET(request: NextRequest) {
     }
     const finalCode = result.code;
     debugMyXSpaces("PRODUCTION_VERIFY", JSON.stringify({
+      provider: "x_api",
       token_row_exists: hasTokenRow,
       access_token_exists: hasAccessToken,
       refresh_token_exists: hasRefreshToken,

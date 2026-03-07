@@ -1,26 +1,29 @@
 /**
  * POST /api/spaces/sync-from-x
  * Body: { space_id?: string, space_url?: string, url?: string }
- * Fetches Space detail (twitterapi.io or X API v2 from x_oauth_tokens), verifies user is host,
- * then creates or updates our space. Returns 409 ALREADY_IMPORTED with existing space when already owned by user.
- * Never returns tokens. Deterministic error codes; 502 for X API/upstream failures (not 404).
+ * Fetches Space detail from the intended provider: twitterapi.io when configured (no X API fallback);
+ * otherwise official X API v2 from x_oauth_tokens. Verifies user is host, then creates or updates our space.
+ * Returns 409 ALREADY_IMPORTED with existing space when already owned by user.
+ * Never returns tokens. Deterministic error codes; 502 for upstream failures (not 404).
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { parseXSpaceId } from "@/lib/parseXSpaceId";
 import { sanitizeServerError, debugSync } from "@/lib/server-error";
 import {
-  fetchXSpaceDetail,
   fetchXSpaceByIdV2,
   spaceParticipantIds,
   type XSpaceDetail,
 } from "@/lib/x-analytics-server";
 import { refreshXAccessToken } from "@/lib/x-token-refresh";
+import {
+  fetchSpaceByIdFromTwitterApi,
+  isTwitterApiSpacesConfigured,
+} from "@/lib/xspaces-data-provider";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
-const TWITTERAPI_API_KEY = process.env.TWITTERAPI_API_KEY;
 
 type SpaceRow = {
   id: string;
@@ -111,9 +114,15 @@ export async function POST(request: NextRequest) {
   let detail: XSpaceDetail | null = null;
   let useParticipantSync = false;
 
-  if (TWITTERAPI_API_KEY) {
-    detail = await fetchXSpaceDetail(spaceId, TWITTERAPI_API_KEY);
-    if (detail) {
+  if (isTwitterApiSpacesConfigured()) {
+    const providerResult = await fetchSpaceByIdFromTwitterApi(spaceId);
+    const debugSyncFromX = process.env.DEBUG_SYNC_FROM_X === "1" || process.env.DEBUG_SYNC_FROM_X === "true";
+    if (debugSyncFromX) {
+      debugSync("SYNC_PROVIDER_USED", "twitterapi.io");
+      debugSync("SYNC_PROVIDER_RESULT", JSON.stringify(providerResult.ok ? { ok: true } : { ok: false, code: providerResult.code, status: "status" in providerResult ? providerResult.status : null }));
+    }
+    if (providerResult.ok) {
+      detail = providerResult.data;
       const creatorHandle = (detail.creator?.userName ?? "").toString().trim().replace(/^@/, "").toLowerCase();
       if (!creatorHandle) {
         return NextResponse.json({ error: "Space creator could not be determined", code: "SYNC_INVALID_INPUT" }, { status: 400 });
@@ -134,6 +143,27 @@ export async function POST(request: NextRequest) {
       title = typeof detail.title === "string" ? detail.title.trim() : title;
       scheduledAt = toScheduledAt(detail.scheduled_start ?? undefined);
       useParticipantSync = true;
+    } else {
+      const code = "code" in providerResult ? providerResult.code : "PROVIDER_UNAVAILABLE";
+      if (code === "PROVIDER_NOT_CONFIGURED") {
+        return NextResponse.json({ error: "Import from X is not configured. Try again later.", code: "PROVIDER_NOT_CONFIGURED" }, { status: 503 });
+      }
+      if (code === "SPACE_NOT_FOUND") {
+        return NextResponse.json({ error: "Space not found.", code: "SPACE_NOT_FOUND" }, { status: 404 });
+      }
+      if (code === "PROVIDER_AUTH_FAILED") {
+        return NextResponse.json({ error: "The X data provider rejected the request. Try again later.", code: "PROVIDER_AUTH_FAILED" }, { status: 502 });
+      }
+      if (code === "PROVIDER_RATE_LIMITED" || code === "PROVIDER_QUOTA_EXHAUSTED") {
+        return NextResponse.json({ error: "The X data provider quota is currently exhausted. Try again later.", code }, { status: 429 });
+      }
+      if (code === "PROVIDER_TIMEOUT") {
+        return NextResponse.json({ error: "The X data provider is temporarily unavailable. Try again.", code: "PROVIDER_TIMEOUT" }, { status: 502 });
+      }
+      if (code === "PROVIDER_INVALID_RESPONSE") {
+        return NextResponse.json({ error: "Invalid response from X data provider. Try again.", code: "PROVIDER_INVALID_RESPONSE" }, { status: 502 });
+      }
+      return NextResponse.json({ error: "The X data provider is temporarily unavailable. Try again.", code: "PROVIDER_UNAVAILABLE" }, { status: 502 });
     }
   }
 
@@ -191,6 +221,7 @@ export async function POST(request: NextRequest) {
     }
     const finalCode = !result.space && result.code ? result.code : result.space ? "OK" : "X_API_FAILED";
     debugSync("PRODUCTION_VERIFY", JSON.stringify({
+      provider: "x_api",
       token_row_exists: hasTokenRow,
       access_token_exists: !!accessToken,
       refresh_token_exists: !!refreshToken,

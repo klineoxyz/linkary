@@ -1385,7 +1385,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       } else if (res.status === 429 && (data.code === "X_RATE_LIMITED" || data.code === "RATE_LIMITED")) {
                         setDetectError(data.error ?? "X rate limit reached. Try again later.");
                       } else if ((res.status === 502 || res.status === 503 || res.status === 404) && !data.space) {
-                        setDetectError(res.status === 404 && data.code === "SPACE_NOT_FOUND" ? (data.error ?? "Space not found on X.") : "X or our service is temporarily unavailable. Try again or paste the link below.");
+                        setDetectError(res.status === 404 && data.code === "SPACE_NOT_FOUND" ? (data.error ?? "Space not found on X.") : (data.error ?? "X or our service is temporarily unavailable. Try again or paste the link below."));
                       } else if (res.status === 403 && (data.code === "X_NOT_CONNECTED" || data.code === "X_NOT_HOST" || data.code === "X_RECONNECT_NEEDED")) {
                         setDetectError(data.error ?? "Connect or reconnect X to link.");
                       } else {
@@ -1524,7 +1524,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                             } else if (r.status === 429 && (d.code === "X_RATE_LIMITED" || d.code === "RATE_LIMITED")) {
                               setAddFromXError(d.error ?? "X rate limit reached. Try again later.");
                             } else if ((r.status === 502 || r.status === 503 || r.status === 404) && !d.space) {
-                              setAddFromXError(r.status === 404 && d.code === "SPACE_NOT_FOUND" ? (d.error ?? "Space not found on X.") : "X or our service is temporarily unavailable. Try again.");
+                              setAddFromXError(r.status === 404 && d.code === "SPACE_NOT_FOUND" ? (d.error ?? "Space not found on X.") : (d.error ?? "X or our service is temporarily unavailable. Try again."));
                             } else if (r.status === 403 && (d.code === "X_NOT_CONNECTED" || d.code === "X_NOT_HOST" || d.code === "X_RECONNECT_NEEDED")) {
                               setAddFromXError(d.error ?? "Connect or reconnect X to import Spaces.");
                             } else {
@@ -1598,7 +1598,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   } else if (res.status === 429 && (data.code === "X_RATE_LIMITED" || data.code === "RATE_LIMITED")) {
                     setAddFromXError(data.error ?? "X rate limit reached. Try again later.");
                   } else if ((res.status === 502 || res.status === 503 || res.status === 404) && !data.space) {
-                    setAddFromXError(res.status === 404 && data.code === "SPACE_NOT_FOUND" ? (data.error ?? "Space not found on X.") : "X or our service is temporarily unavailable. Try again or paste the link below.");
+                    setAddFromXError(res.status === 404 && data.code === "SPACE_NOT_FOUND" ? (data.error ?? "Space not found on X.") : (data.error ?? "X or our service is temporarily unavailable. Try again or paste the link below."));
                   } else if (res.status === 403 && (data.code === "X_NOT_CONNECTED" || data.code === "X_NOT_HOST" || data.code === "X_RECONNECT_NEEDED")) {
                     setAddFromXError(data.error ?? "Connect or reconnect X to import Spaces.");
                   } else {

@@ -376,3 +376,74 @@ No tokens, cookies, headers, or raw secrets are logged.
 - [ ] Trigger with no refresh_token or refresh fails: expect `refresh_success` false, `final_code` X_RECONNECT_NEEDED.
 - [ ] Confirm X 429 → 429 X_RATE_LIMITED; X 404 on sync → 404 SPACE_NOT_FOUND; timeout → 502 X_API_TIMEOUT; invalid body → 502 INVALID_X_RESPONSE; other → 502 X_API_FAILED.
 - [ ] Confirm Add from X, speaker/sponsor, analytics/reputation/credibility, profile systems unchanged.
+
+---
+
+## 14. Production verification: one failing request end-to-end
+
+### PART 1 — How to get and read PRODUCTION_VERIFY
+
+**Enable debug (Vercel env):**
+
+- `DEBUG_MY_X_SPACES=1` for GET /api/xspaces/my-x-spaces  
+- `DEBUG_DETECT_MY_SPACE=1` for POST /api/xspaces/detect-my-space  
+- `DEBUG_SYNC_FROM_X=1` for POST /api/spaces/sync-from-x  
+
+**Reproduce one failing request** (e.g. 502 or 403), then in Vercel logs:
+
+- **my-x-spaces:** Grep for `[my-x-spaces] PRODUCTION_VERIFY:`  
+- **detect-my-space:** Grep for `[detect-my-space] PRODUCTION_VERIFY:`  
+- **sync-from-x:** Grep for `[sync-from-x] PRODUCTION_VERIFY:`  
+
+The line is a single JSON object. Parse it and use the matrix below.
+
+**Field checklist (confirm each):**
+
+| Field | Meaning |
+|-------|--------|
+| token_row_exists | Row in x_oauth_tokens for this user + provider x. |
+| access_token_exists | access_token was non-empty when read. |
+| refresh_token_exists | refresh_token was non-empty (needed for refresh). |
+| x_user_id_exists | x_user_id was non-empty (needed for creator_ids call). |
+| x_http_status_first | HTTP status from X on the **first** request (before any refresh). |
+| refresh_attempt | 1 = we attempted refresh (first call was 401/403 and we had refresh_token). |
+| refresh_success | true = refreshXAccessToken returned a new access_token (and DB was updated). |
+| token_persist_success | true = same as refresh_success in this flow (we only return token after successful update). |
+| retry_attempt | 1 = we retried the X request (after a successful refresh). |
+| x_http_status_retry | HTTP status from X on the **retry** request; null if no retry. |
+| final_code | Code we returned: OK, X_RECONNECT_NEEDED, X_RATE_LIMITED, SPACE_NOT_FOUND, X_API_TIMEOUT, INVALID_X_RESPONSE, X_API_FAILED. |
+
+---
+
+### PART 2 — Root cause decision matrix
+
+Use this to interpret one failing request. **First** check `x_http_status_first`, **then** refresh/retry fields, **then** `final_code`.
+
+| # | Pattern | Interpretation | Action |
+|---|--------|----------------|--------|
+| 1 | **x_http_status_first = 401 or 403**, refresh_attempt = 1, **refresh_success = false** | Refresh failed: refresh_token invalid/expired, or X refresh config (client/secret/endpoint) wrong, or X rejected refresh. | Check X_CLIENT_ID / X_CLIENT_SECRET; have user reconnect X to get a new refresh_token. |
+| 2 | **x_http_status_first = 401 or 403**, refresh_success = true, **x_http_status_retry = 200** | **Fixed.** First call failed (expired token), refresh and retry succeeded. | No change. |
+| 3 | **x_http_status_first = 401 or 403**, refresh_success = true, **x_http_status_retry = 401 or 403** | Refreshed token still rejected by X. Possible: wrong token sent on retry, or X issue. | Verify in code that retry uses `refreshed.access_token` only (already verified). If code is correct, treat as X-side or reconnect. |
+| 4 | **token_persist_success = false** (with refresh_attempt = 1) | DB update failed after X returned new tokens. | Check RLS, service role, and x_oauth_tokens update in refreshXAccessToken. |
+| 5 | **x_http_status_first = 429** | X rate limit; not a token issue. | final_code should be X_RATE_LIMITED; back off or surface rate limit to user. |
+| 6 | **x_http_status_first = 200** but **final_code != OK** | First X response was 200 but we mapped to failure (parse or route logic). | Check INVALID_X_RESPONSE / empty data handling and response parsing. |
+| 7 | **x_http_status_first = 404** (sync-from-x only) | Space not found on X. | final_code should be SPACE_NOT_FOUND; not token issue. |
+| 8 | **x_http_status_first = 0** and final_code = X_API_TIMEOUT | Timeout or network before X responded. | Not token issue; timeout/network. |
+| 9 | **refresh_token_exists = false**, x_http_status_first = 401/403 | No refresh possible; user must reconnect X. | Expected; return 403 X_RECONNECT_NEEDED. |
+| 10 | **token_row_exists = false** or **access_token_exists = false** | No token row or empty access_token. | Route should return 403 X_NOT_CONNECTED before any X call; if you still see PRODUCTION_VERIFY, check order of checks. |
+
+**How to interpret combinations:**
+
+- **First** read `x_http_status_first`. If 401/403 → token problem; if 429/404/200/0 → use the row that matches.
+- **Then** if 401/403, read `refresh_attempt` and `refresh_success`. If refresh_attempt = 1 and refresh_success = false → row 1. If refresh_success = true → read `x_http_status_retry` → row 2 or 3.
+- **Then** read `final_code` to confirm what we returned (OK vs X_RECONNECT_NEEDED vs X_API_FAILED etc.).
+
+---
+
+### PART 3 — Highest-probability remaining failure after this patch
+
+- **Most likely:** Row 1 — **x_http_status_first 401/403, refresh_success = false.** Either refresh_token is invalid/expired (user connected long ago and X rotated refresh tokens), or env (X_CLIENT_ID / X_CLIENT_SECRET) is wrong or missing in production.
+- **Next:** Row 5 — X rate limit (429); not a bug, operational.
+- **Unlikely but possible:** Row 3 — refresh succeeds but retry still 401/403 (would require verifying in code that retry uses the new token; already verified).
+
+No code change was made in this verification pass; only this doc was added. If logs show row 1, the only fix is correct env and/or user reconnecting X. If logs show row 4, then investigate DB update in refreshXAccessToken.

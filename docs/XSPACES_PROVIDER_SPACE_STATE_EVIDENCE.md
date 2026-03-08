@@ -15,6 +15,8 @@ Determine from documentation and production evidence whether twitterapi.io suppo
 
 **Conclusion from docs:** twitterapi.io **documents** support for NotStarted (scheduled/upcoming), Live, and Ended. So by spec, upcoming Spaces are supported.
 
+**Doc consistency (corrected):** Section 5 now describes the official X API fallback as **implemented** (current behavior). Section 8 describes viability, logs, and implementation detail. Section 9 provides the production verification runbook and result template for one post-deploy test with a real upcoming Space URL.
+
 ---
 
 ## 2. Evidence table (fill from production logs or controlled tests)
@@ -65,20 +67,16 @@ For each test, paste the Space URL, call `POST /api/spaces/sync-from-x` with `{ 
 
 ---
 
-## 5. Second provider / fallback (proposal only — not implemented)
+## 5. Official X API fallback (implemented)
 
-If evidence shows that upcoming Spaces are routinely 404 from twitterapi.io and we need them:
+When **twitterapi.io** returns **SPACE_NOT_FOUND** (404), sync-from-x now attempts a narrow fallback before returning 404:
 
-- **Narrow fallback:** On sync-from-x, when **twitterapi.io** returns **SPACE_NOT_FOUND** (404), **before** returning 404 to the user:
-  1. If the user has a valid X OAuth token (same as today’s X API path): call **official X API** `GET /2/spaces/{id}` with that token.
-  2. If X returns 200 with a Space: use that payload to complete sync (host check, insert/update) and return 200.
-  3. If X returns 404 or other failure: return current 404 SPACE_NOT_FOUND and message as above.
+1. Look up the user’s X OAuth token in `x_oauth_tokens` (same table as the primary X API path).
+2. If a token exists: call **official X API** `GET /2/spaces/{id}` once with that token (no refresh in fallback).
+3. If X returns 200 and the user is host: use that payload (title, scheduled_start), run host check, then complete sync and return 200. Participant list is not synced on this path (X API v2 response has no participants).
+4. If X returns 404, 402, 401, 429, timeout, or no token: return the same 404 SPACE_NOT_FOUND and existing message; we do not surface 402 or other X errors to the user on fallback.
 
-- **Plug-in point:** In `apps/web/src/app/api/spaces/sync-from-x/route.ts`, inside the `if (isTwitterApiSpacesConfigured())` block, in the `else` branch where we handle `code === "SPACE_NOT_FOUND"`: instead of immediately returning 404, check for user’s X token; if present, call `fetchXSpaceByIdV2(spaceId, accessToken)` (existing helper); if result.space, continue with same host-check and insert logic as the current X API path (reuse existing code path), then return 200; otherwise return 404 as today.
-
-- **Scope:** Only sync-from-x; only on provider 404; no new env flags, no multi-provider abstraction. Optional: rate-limit or cap fallback calls to avoid burning X API credits for every 404.
-
-- **Not in scope:** Broad multi-provider system; changing detect-my-space or my-x-spaces; analytics/dashboard/profile/notifications/speakers/sponsors/payouts/visibility.
+**Location:** `apps/web/src/app/api/spaces/sync-from-x/route.ts`, inside the twitterapi.io branch, in the `code === "SPACE_NOT_FOUND"` handler. No new env flags; no change to detect-my-space or my-x-spaces. Unrelated areas (analytics, dashboard, profile, etc.) unchanged.
 
 ---
 
@@ -129,3 +127,39 @@ Existing `[xspaces] sync_space_not_found` and PROVIDER_VERIFY logging unchanged.
 - **File changed:** `apps/web/src/app/api/spaces/sync-from-x/route.ts` only.
 - **Behavior:** When twitterapi.io returns SPACE_NOT_FOUND we look up the user’s X token; if present we call official X API GET /2/spaces/{id}. On 200 and host check pass we set title/scheduledAt and complete sync (200). On 402/404/401/429/timeout or no token we return the same 404 SPACE_NOT_FOUND and message as before. Participant sync is not run for fallback path (X API v2 response has no participants list).
 - **Unrelated areas:** detect-my-space, my-x-spaces, analytics, reputation, dashboard, profile, notifications, proposals, payouts, speakers, sponsors, visibility, auth — unchanged.
+
+---
+
+## 9. Production verification (post-deploy test)
+
+One controlled test with a **real upcoming/scheduled** Space URL should be run after deploy. Execute in your environment (this doc cannot run production requests).
+
+### Test steps
+
+1. Deploy the sync-from-x route (with fallback and existing logging).
+2. As a user who **hosts** an upcoming/scheduled public X Space and has **X connected** in Linkary (so `x_oauth_tokens` has a row for that user), paste the direct Space URL into the sync-from-x flow (e.g. Create modal “Link pasted URL” or Add from X paste).  
+   Use a URL of the form `https://x.com/i/spaces/<id>` or `x.com/i/spaces/<id>`.
+3. Submit. Capture:
+   - The **exact pasted URL form** (as entered).
+   - From server logs: **PROVIDER_VERIFY** line → `parsed_space_id`, `provider_status`.
+   - From server logs: **X_API_FALLBACK** line(s) → `fallback_attempted`, `x_api_fallback_status`, `x_api_fallback_code`, `fallback_succeeded`.
+   - The **final HTTP status** and **response body** from sync-from-x.
+   - Whether the Space **appears in Linkary** (created/synced) for that user.
+
+### Result template (fill after the run)
+
+| Field | Value |
+|-------|--------|
+| Pasted URL form | *(e.g. https://x.com/i/spaces/1YpKkzwXQNjKj)* |
+| parsed_space_id | *(from PROVIDER_VERIFY)* |
+| provider_status (PROVIDER_VERIFY) | *(e.g. 404)* |
+| X_API_FALLBACK attempted? | yes / no |
+| x_api_fallback_status | *(if attempted)* |
+| x_api_fallback_code | *(if attempted)* |
+| fallback_succeeded | true / false |
+| Final sync-from-x HTTP status | *(e.g. 200 or 404)* |
+| Space created/synced in Linkary? | yes / no |
+
+**Success:** If provider returns 404 and X API fallback returns 200 and host check passes, sync-from-x returns 200 and the Space is created in Linkary.
+
+**If fallback fails, record why:** no token (`reason: "no_token"`), X credits depleted (402 / `X_CREDITS_DEPLETED`), X 404 (`SPACE_NOT_FOUND`), host check failed (fallback returned space but user not in host_ids), or other (log the code/status).

@@ -4,6 +4,13 @@
 
 Determine from documentation and production evidence whether twitterapi.io supports **upcoming/scheduled**, **live**, and **ended** X Spaces in our sync-from-x integration, and apply the smallest production-safe handling based on that evidence.
 
+## Current architecture (sync-from-x)
+
+- **`/api/spaces/sync-from-x`** uses **twitterapi.io only** to fetch X Space data from a pasted `x.com/i/spaces/<id>` link.
+- **No official X API** is used in this route (no `x_oauth_tokens` Space lookup, no `GET /2/spaces/{id}`).
+- **No fallback:** on provider 404 the route returns 404 with the existing message; it does not call another provider or the official X API.
+- One structured log per request: `[sync-from-x] SYNC_OUTCOME` (route, provider_used, parsed_space_id, provider_status, provider_code, final_app_status, final_app_code, fallback_used: false). See section 10.
+
 ---
 
 ## 1. Provider documentation (twitterapi.io)
@@ -15,7 +22,7 @@ Determine from documentation and production evidence whether twitterapi.io suppo
 
 **Conclusion from docs:** twitterapi.io **documents** support for NotStarted (scheduled/upcoming), Live, and Ended. So by spec, upcoming Spaces are supported.
 
-**Doc consistency (corrected):** Section 5 now describes the official X API fallback as **implemented** (current behavior). Section 8 describes viability, logs, and implementation detail. Section 9 provides the production verification runbook and result template for one post-deploy test with a real upcoming Space URL.
+**Current architecture (this doc):** sync-from-x uses **twitterapi.io only** for Space data. No official X API in this route. No fallback. Section 5 and Section 8 document this and note previous (removed) fallback behavior. Sections 9 and 10 provide the production verification runbook and final verification.
 
 ---
 
@@ -23,7 +30,7 @@ Determine from documentation and production evidence whether twitterapi.io suppo
 
 For each test, paste the Space URL, call `POST /api/spaces/sync-from-x` with `{ "url": "<pasted_url>" }`, then from server logs copy:
 
-- `[sync-from-x] PROVIDER_VERIFY` → normalized_pasted_url, parsed_space_id, endpoint_path, sanitized_query_params, provider_status, provider_code, provider_message, data_id, data_state, data_scheduled_start
+- `[sync-from-x] SYNC_OUTCOME` → route, provider_used, parsed_space_id, provider_status, provider_code, final_app_status, final_app_code, fallback_used (see section 10)
 - Final app response: status, code, error message shown to user
 
 | Space state (intended) | Pasted URL | parsed_space_id | endpoint_path | sanitized_query_params | provider_status | provider_code | provider_message | data.id | data.state | data.scheduled_start | Final app response |
@@ -33,7 +40,7 @@ For each test, paste the Space URL, call `POST /api/spaces/sync-from-x` with `{ 
 | Ended public (if available) | *(paste ended Space URL)* | *(from log)* | /twitter/spaces/detail | { space_id: "..." } | *(200 or 404)* | | | | *(e.g. Ended)* | | |
 | Invalid / private / unavailable | *(invalid or private link)* | *(from log)* | /twitter/spaces/detail | { space_id: "..." } | 404 | SPACE_NOT_FOUND | | — | — | — | 404, SPACE_NOT_FOUND |
 
-**How to fill:** Run sync-from-x for each row; read `PROVIDER_VERIFY` and `[xspaces-provider]` from server logs; record response and user-facing error.
+**How to fill:** Run sync-from-x for each row; read `[sync-from-x] SYNC_OUTCOME` (and optionally `[xspaces-provider]`) from server logs; record response and user-facing error.
 
 **Production evidence so far:**
 
@@ -67,66 +74,49 @@ For each test, paste the Space URL, call `POST /api/spaces/sync-from-x` with `{ 
 
 ---
 
-## 5. Official X API fallback (implemented)
+## 5. sync-from-x: twitterapi.io only (current behavior)
 
-When **twitterapi.io** returns **SPACE_NOT_FOUND** (404), sync-from-x now attempts a narrow fallback before returning 404:
+**Current behavior:** The route **does not** use the official X API and **does not** attempt any fallback.
 
-1. Look up the user’s X OAuth token in `x_oauth_tokens` (same table as the primary X API path).
-2. If a token exists: call **official X API** `GET /2/spaces/{id}` once with that token (no refresh in fallback).
-3. If X returns 200 and the user is host: use that payload (title, scheduled_start), run host check, then complete sync and return 200. Participant list is not synced on this path (X API v2 response has no participants).
-4. If X returns 404, 402, 401, 429, timeout, or no token: return the same 404 SPACE_NOT_FOUND and existing message; we do not surface 402 or other X errors to the user on fallback.
+- sync-from-x calls only **twitterapi.io** via `fetchSpaceByIdFromTwitterApi(spaceId)` → GET `/twitter/spaces/detail?space_id=<id>`.
+- When the provider returns **SPACE_NOT_FOUND** (404), the route returns 404 to the user with the existing message (including scheduled-Space guidance). No second provider and no official X API call.
+- When the provider key is not set, the route returns 503 PROVIDER_NOT_CONFIGURED.
 
-**Location:** `apps/web/src/app/api/spaces/sync-from-x/route.ts`, inside the twitterapi.io branch, in the `code === "SPACE_NOT_FOUND"` handler. No new env flags; no change to detect-my-space or my-x-spaces. Unrelated areas (analytics, dashboard, profile, etc.) unchanged.
-
----
-
-## 6. Exact files changed (this pass)
-
-| File | Change |
-|------|--------|
-| **docs/XSPACES_PROVIDER_SPACE_STATE_EVIDENCE.md** | New. Evidence table, doc vs practice conclusions, minimal handling rationale, fallback proposal. |
-| **apps/web/src/app/api/spaces/sync-from-x/route.ts** | SPACE_NOT_FOUND error message (twitterapi.io path only): add one sentence for scheduled Spaces (evidence-based). |
-
-No other files modified. No changes to: analytics, reputation, dashboard, profile, notifications, proposals, payouts, speakers, sponsors, visibility, auth flows, detect-my-space logic, my-x-spaces, xspaces-data-provider (beyond existing logging), or parseXSpaceId.
+**Previous behavior (removed):** An official X API fallback was once implemented (on provider 404, try X API with user token). That fallback was later removed so that sync-from-x uses twitterapi.io only. See section 8 for the historical description of the removed fallback.
 
 ---
 
-## 7. Confirmation
+## 6. Exact files changed (earlier pass — for context only)
 
-- **Unrelated product areas:** Not changed. Scope limited to sync-from-x SPACE_NOT_FOUND message (twitterapi.io path) and this evidence doc.
-- **Behavior change:** Users see one extra sentence when sync-from-x returns 404 from the provider, giving actionable guidance if the Space is scheduled.
+*The following describes an **earlier** doc/route pass. **Current** sync-from-x is twitterapi.io only (no X API, no fallback); see section 10.*
+
+| File | Change (in that pass) |
+|------|------------------------|
+| **docs/XSPACES_PROVIDER_SPACE_STATE_EVIDENCE.md** | New. Evidence table, doc vs practice conclusions, minimal handling rationale. |
+| **apps/web/src/app/api/spaces/sync-from-x/route.ts** | SPACE_NOT_FOUND error message: add one sentence for scheduled Spaces (evidence-based). |
+
+No other files modified in that pass. **Subsequently,** the route was changed to use twitterapi.io only and to remove all official X API usage and fallback (see section 10).
 
 ---
 
-## 8. X API fallback implementation (surgical)
+## 7. Confirmation (current state)
 
-### Viability summary
+- **Unrelated product areas:** Not changed. Only sync-from-x and this evidence doc were ever in scope for the XSpaces provider work.
+- **Current behavior:** sync-from-x uses twitterapi.io only. On 404 from the provider, users see the existing message (including the scheduled-Space sentence). No official X API and no fallback in this route.
 
-- **Auth:** User’s X OAuth token is available via existing `x_oauth_tokens` lookup (same table as primary X API path). No new auth flow.
-- **Credits:** Official X API can return 402 (X_CREDITS_DEPLETED). Fallback does not surface 402 to the user: on any non-success (402, 404, 401, 429, timeout) we log and return the same 404 SPACE_NOT_FOUND response. UX is unchanged or better (sync can succeed when X has the Space).
-- **Scope:** One extra call to `fetchXSpaceByIdV2` only when provider returns 404 and user has a token. No refresh in fallback (single attempt); no change to detect-my-space or my-x-spaces.
+---
 
-**Conclusion:** Fallback is technically viable and implemented in sync-from-x only.
+## 8. Official X API fallback — previous behavior (removed)
 
-### New structured logs (no secrets)
+**Current behavior:** sync-from-x **does not** use the official X API and **does not** implement any fallback. The route uses twitterapi.io only (see section 5 and section 10).
 
-When provider returns SPACE_NOT_FOUND we log one of:
+**Previous behavior (removed):** A narrow fallback was once implemented:
 
-- **Fallback attempted with token:**  
-  `[sync-from-x] X_API_FALLBACK` with JSON:  
-  `fallback_attempted: true`, `x_api_fallback_status` (200 or X HTTP status), `x_api_fallback_code` ("OK" or X failure code), `fallback_succeeded: true | false`.
+- On twitterapi.io 404, the route looked up the user’s X OAuth token and called official X API `GET /2/spaces/{id}` once.
+- If X returned 200 and the user was host, sync completed with that payload; otherwise the route returned 404.
+- Logs included `X_API_FALLBACK` (fallback_attempted, x_api_fallback_status, etc.).
 
-- **Fallback not attempted (no token):**  
-  `[sync-from-x] X_API_FALLBACK` with JSON:  
-  `fallback_attempted: false`, `reason: "no_token"`.
-
-Existing `[xspaces] sync_space_not_found` and PROVIDER_VERIFY logging unchanged.
-
-### Fallback implementation — files and behavior
-
-- **File changed:** `apps/web/src/app/api/spaces/sync-from-x/route.ts` only.
-- **Behavior:** When twitterapi.io returns SPACE_NOT_FOUND we look up the user’s X token; if present we call official X API GET /2/spaces/{id}. On 200 and host check pass we set title/scheduledAt and complete sync (200). On 402/404/401/429/timeout or no token we return the same 404 SPACE_NOT_FOUND and message as before. Participant sync is not run for fallback path (X API v2 response has no participants list).
-- **Unrelated areas:** detect-my-space, my-x-spaces, analytics, reputation, dashboard, profile, notifications, proposals, payouts, speakers, sponsors, visibility, auth — unchanged.
+That fallback was **removed** so that sync-from-x uses a single provider (twitterapi.io) only. The route no longer reads `x_oauth_tokens` for Space lookup and does not call `fetchXSpaceByIdV2`. Current logging is `[sync-from-x] SYNC_OUTCOME` only (section 10).
 
 ---
 

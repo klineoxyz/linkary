@@ -169,9 +169,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-// Revalidate: full page ISR 300s (profile view, links, skills, case studies, reviews, relations).
-// Gigs 120s / token 60s could be done via unstable_cache if needed; single revalidate keeps one round trip.
-export const revalidate = 300;
+// Revalidate: 0 so unpublish takes effect immediately (non-owners get 404); no stale published page from ISR.
+export const revalidate = 0;
 
 /**
  * Public URL: /[identifier] — slug, UUID, X handle, or wallet.

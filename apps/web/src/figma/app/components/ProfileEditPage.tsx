@@ -2441,7 +2441,7 @@ export default function ProfileEditPage({
                 const { error: err } = await updateMyProfile(me.id, { published: !published });
                 setSaving(false);
                 if (err) setError(err);
-                else setPublished(!published);
+                else { setPublished(!published); onSaved?.(); }
               }}
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border border-zinc-300 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${published ? "bg-primary" : "bg-zinc-200"}`}
             >
@@ -2466,7 +2466,7 @@ export default function ProfileEditPage({
                 const { error: err } = await updateMyProfile(me.id, { published: !published });
                 setSaving(false);
                 if (err) setError(err);
-                else setPublished(!published);
+                else { setPublished(!published); onSaved?.(); }
               }}
               className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${published ? "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50" : "border-primary bg-primary text-white hover:bg-primary/90"}`}
             >

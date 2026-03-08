@@ -129,8 +129,7 @@ One controlled test with a **real** pasted Space URL should be run after deploy.
 ### Test steps
 
 1. Deploy the sync-from-x route.
-2. As a user who **hosts** an upcoming/scheduled public X Space and has **X connected** in Linkary (so `x_oauth_tokens` has a row for that user), paste the direct Space URL into the sync-from-x flow (e.g. Create modal “Link pasted URL” or Add from X paste).  
-   Use a URL of the form `https://x.com/i/spaces/<id>` or `x.com/i/spaces/<id>`.
+2. As a user, paste the direct Space URL into the sync-from-x flow. Use a URL of the form `https://x.com/i/spaces/<id>` or `x.com/i/spaces/<id>`.
 3. Capture from server logs the **single** `[sync-from-x] SYNC_OUTCOME` line; final HTTP status and response body; and whether the Space was created in Linkary.
 
 ### Result template (fill after the run)

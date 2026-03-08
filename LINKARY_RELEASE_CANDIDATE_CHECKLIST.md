@@ -186,3 +186,254 @@ Final pre-launch QA and release checklist. Use after P0 work is complete.
 - [ ] Decision: **Go** = ship; **No-go** = fix blockers and re-run this checklist.
 
 **Signed off:** _________________ **Date:** _________
+
+---
+
+## 7. QA run order (fastest first)
+
+Run in this order to minimize account switching and back-and-forth.
+
+| Order | Scenario | Why this order |
+|-------|----------|----------------|
+| 1 | Sitemap validation | No login; one URL check. |
+| 2 | Routing & reserved path | No login; quick URL hits. |
+| 3 | Dashboard trust labeling | One logged-in account; single page. |
+| 4 | Public profile (published) | No login; need one known username. |
+| 5 | Public profile (unpublished) | Same; then test as owner. |
+| 6 | Public org page | No login; need one known org slug. |
+| 7 | Org creation (company) | Company account; creates org for later steps. |
+| 8 | Org creation (non-company) | Non-company account; expect no access. |
+| 9 | Org member/admin management | Use org from step 7; owner adds admin/member. |
+| 10 | Job creation | Org owner/admin; use org from step 7. |
+| 11 | Job application | Second account (profile); apply to job from step 10. |
+| 12 | Application acceptance | Back to org owner; accept application. |
+| 13 | Deal flow | Profile: mark delivered; org: mark accepted. |
+| 14 | Review eligibility | Same two accounts; leave review after deal completed. |
+| 15 | Gig creation | Project/company profile; create one gig. |
+| 16 | Gig application & gig_deal | Second profile; apply; gig owner accepts. |
+| 17 | P0-3 applications RLS | Manual in Supabase (can run anytime). |
+
+---
+
+## 8. QA scenario runbook
+
+For each scenario: account type, route, action, expected result, blocker (B) or non-blocker (N).
+
+**1. Sitemap validation**
+
+| | |
+|---|--|
+| **Account** | None (incognito or logged out). |
+| **Route** | `https://<production>/sitemap.xml` |
+| **Action** | Open URL; scan for homepage, profile URLs, org URLs. |
+| **Expected** | Homepage present; published profiles (by username); published orgs (by slug); no unpublished. |
+| **If fails** | **B** if sitemap missing/errors or exposes unpublished. **N** if only minor ordering/count. |
+
+**2. Routing & reserved path**
+
+| Step | Route | Action | Expected | B/N |
+|------|--------|--------|----------|-----|
+| 2a | `/work/requests` | Open. | Work requests page (inbox/sent). | B |
+| 2b | `/work` | Open (no trailing path). | Not a user profile (app shell, redirect, or 404). | B |
+| 2c | `/dashboard` | Open (logged in). | Dashboard with banner + “Sample analytics” section. | N |
+| 2d | `/analytics` | Open. | Analytics page (X charts). | N |
+| 2e | `/profile` | Open (logged in). | Own profile. | N |
+| 2f | `/overview` | Open. | Overview home. | N |
+
+**3. Dashboard trust labeling**
+
+| | |
+|---|--|
+| **Account** | Any logged-in user. |
+| **Route** | `/dashboard` |
+| **Action** | Load page; look for banner and “Sample analytics” heading; confirm My Orgs and Active Deals cards. |
+| **Expected** | Banner says chart metrics are sample/preview; section “Sample analytics (coming soon)”; real cards visible. |
+| **If fails** | **N** (cosmetic). **B** only if real data is mislabeled as sample or missing. |
+
+**4. Public profile (published)**
+
+| | |
+|---|--|
+| **Account** | None (incognito) or any. |
+| **Route** | `/{username}` (use a known **published** profile username). |
+| **Action** | Open URL. |
+| **Expected** | Profile one-pager (bio, links, case studies, reviews if on, gigs if applicable). No full analytics. |
+| **If fails** | **B** if 404 for valid published username. **N** if minor layout/copy. |
+
+**5. Public profile (unpublished)**
+
+| | |
+|---|--|
+| **Account** | None, then owner of an unpublished profile. |
+| **Route** | `/{username}` for an unpublished profile. |
+| **Action** | Open as non-owner; then open as owner. |
+| **Expected** | Non-owner: 404 or not-found. Owner: preview with “unpublished” notice. |
+| **If fails** | **B** if published profile 404s. **N** if only unpublished wording. |
+
+**6. Public org page**
+
+| | |
+|---|--|
+| **Account** | None or any. |
+| **Route** | `/{orgSlug}` (published org slug, not a profile username). Or `/org/{orgId}` when logged in. |
+| **Action** | Open URL. |
+| **Expected** | Org info (name, tagline, logo, jobs/case studies as designed). |
+| **If fails** | **N** unless org pages never load. |
+
+**7. Org creation (company)**
+
+| | |
+|---|--|
+| **Account** | Profile with **account_type = company**. |
+| **Route** | `/dashboard` or wherever “Create Org” lives. |
+| **Action** | Click Create Org; submit name + org_type (e.g. company); optional slug, tagline, website, Twitter. |
+| **Expected** | Org created; user is owner; org unpublished until X verified. |
+| **If fails** | **B** if company user cannot create. **N** if only UX. |
+
+**8. Org creation (non-company)**
+
+| | |
+|---|--|
+| **Account** | Profile with account_type **not** company (e.g. individual). |
+| **Route** | Same as step 7. |
+| **Action** | Try to open Create Org or submit. |
+| **Expected** | No access or 403. |
+| **If fails** | **B** if non-company can create org. |
+
+**9. Org member/admin management**
+
+| | |
+|---|--|
+| **Account** | Org owner (from step 7); second user for admin; third for member. |
+| **Route** | `/org/{orgId}` → Members tab (or equivalent). |
+| **Action** | Owner: add user as admin; add another as member. Log in as admin: add/remove (not owner). Log in as member: open org. |
+| **Expected** | Owner/admin can manage; member sees org only; admin cannot transfer/delete. |
+| **If fails** | **N** unless member can escalate or owner loses control. |
+
+**10. Job creation**
+
+| | |
+|---|--|
+| **Account** | Org owner or admin. |
+| **Route** | `/org/{orgId}` → Jobs tab. |
+| **Action** | Create job: type job or sprint, title; optional budget, duration, tags. |
+| **Expected** | Job appears open; visible where designed (org/market). |
+| **If fails** | **B** if jobs cannot be created. **N** if only visibility. |
+
+**11. Job application**
+
+| | |
+|---|--|
+| **Account** | Different user (profile, not org). |
+| **Route** | Market or org page where job is listed. |
+| **Action** | Open job; apply (message optional). |
+| **Expected** | Application submitted; appears in “My applications”; org sees it in job applications. Applicant can withdraw. |
+| **If fails** | **B** if apply is broken or org cannot see. **N** if only “My applications” location. |
+
+**12. Application acceptance**
+
+| | |
+|---|--|
+| **Account** | Org owner/admin. |
+| **Route** | Job applications list for the job from step 10. |
+| **Action** | Accept one application. |
+| **Expected** | One deal created; applicant and org both see deal (e.g. deal detail page). |
+| **If fails** | **B**. |
+
+**13. Deal flow**
+
+| | |
+|---|--|
+| **Account** | Profile (applicant) and org admin. |
+| **Route** | `/deal/{dealId}` (or deal detail from inbox). |
+| **Action** | Profile: Mark delivered. Org: Mark accepted. (Order may vary by product.) |
+| **Expected** | After both, deal status completed; completed_at set if applicable. |
+| **If fails** | **B** if deal never completes or parties cannot act. |
+
+**14. Review eligibility**
+
+| | |
+|---|--|
+| **Account** | Profile or org that is party to the completed deal. |
+| **Route** | Deal detail or review form. |
+| **Action** | Submit review (rating + optional text). Then try: review before completion; self-review. |
+| **Expected** | After completion: review saved, verified_deal true, shows on reviewee profile (if show_reviews). Before completion or self-review: rejected. |
+| **If fails** | **B** if unverified reviews possible or parties can’t review. **N** if only UI. |
+
+**15. Gig creation**
+
+| | |
+|---|--|
+| **Account** | Profile with **profile_type** project or company. |
+| **Route** | `/profile/edit` (or profile gigs section). |
+| **Action** | Create gig: title, description, gig_type, compensation_type; optional budget_text. Save as open/public. |
+| **Expected** | Gig appears open and on public profile. |
+| **If fails** | **N** unless project/company cannot create. |
+
+**16. Gig application & gig_deal**
+
+| | |
+|---|--|
+| **Account** | Second profile (applicant); gig owner (project/company). |
+| **Route** | Public profile with gig, or gig listing. |
+| **Action** | Applicant: apply. Owner: accept one application. |
+| **Expected** | gig_deal created; either party can complete; then either can leave profile-to-profile review. |
+| **If fails** | **B** if accept doesn’t create gig_deal. **N** if only completion wording. |
+
+**17. P0-3 Applications RLS (manual)**
+
+| | |
+|---|--|
+| **Account** | N/A (Supabase). |
+| **Route** | Supabase Dashboard → SQL / Policies / Migrations. |
+| **Action** | Confirm migration 20260239000000 applied; no public SELECT on applications; applications_select_private exists. Optionally: anon SELECT returns 0 rows. |
+| **Expected** | Applications readable only by applicant or job org admin. |
+| **If fails** | **B**. |
+
+---
+
+## 9. Bug logging template
+
+Copy per bug; fill and paste into your tracker.
+
+```
+[RC-QA] <Short title>
+
+Scenario: <e.g. 12. Application acceptance>
+Account: <e.g. org owner>
+Route: <e.g. /org/xxx → Jobs → Applications>
+Action: <e.g. Click Accept on first application>
+Expected: <e.g. Deal created; both parties see deal>
+Actual: <e.g. 500 error; no deal>
+Blocker? Y / N
+Notes: <optional>
+```
+
+---
+
+## 10. Launch status summary template
+
+Fill after QA pass. Then decide go / no-go.
+
+**Passed (list scenario numbers or names):**
+
+- 
+
+**Failed (list scenario numbers or names):**
+
+- 
+
+**Blocker failures (must fix before launch):**
+
+- 
+
+**Non-blocker failures (can ship; log for follow-up):**
+
+- 
+
+**Decision**
+
+- [ ] **Go** — No blockers; ship. Non-blockers logged.
+- [ ] **No-go** — At least one blocker. Fix and re-run QA.
+
+**Signed off:** _________________ **Date:** _________

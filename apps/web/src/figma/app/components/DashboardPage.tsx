@@ -575,6 +575,11 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
           onSuccess={handleOrgCreated}
         />
       )}
+      {/* Banner: chart metrics are sample / coming soon */}
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/50 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+        <p className="font-medium">Sample metrics</p>
+        <p className="mt-0.5 text-amber-800 dark:text-amber-300/90">The chart metrics below are sample preview data. Your real deals and brands are shown in the cards above. Full analytics are available in the Analytics page.</p>
+      </div>
       {/* Universal Search Bar */}
       <GlassCard>
         <div className="p-6">
@@ -1065,6 +1070,9 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               />
             </div>
             
+            {/* Sample analytics (coming soon) */}
+            <h2 className="text-xl font-bold text-gray-900 mt-2 mb-1">Sample analytics (coming soon)</h2>
+            <p className="text-sm text-gray-600 mb-6">The charts below use sample or placeholder data. Real metrics will appear here as we expand analytics.</p>
             {/* Charts Row 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
               {/* Earnings Trend */}

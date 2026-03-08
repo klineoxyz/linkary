@@ -33,6 +33,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
       });
     }
+
+    const { data: orgRows, error: orgError } = await supabase
+      .from("orgs")
+      .select("slug, updated_at")
+      .eq("published", true)
+      .not("slug", "is", null)
+      .order("slug", { ascending: true })
+      .limit(BATCH_SIZE);
+
+    if (!orgError && orgRows && orgRows.length > 0) {
+      const orgSlugs = (orgRows ?? []) as Array<{ slug: string | null; updated_at?: string }>;
+      for (const row of orgSlugs) {
+        const slug = row?.slug?.trim().toLowerCase();
+        if (!slug) continue;
+        entries.push({
+          url: `${BASE_URL}/${encodeURIComponent(slug)}`,
+          lastModified: row?.updated_at ? new Date(row.updated_at) : new Date(),
+          changeFrequency: "weekly" as const,
+          priority: 0.8,
+        });
+      }
+    }
   } catch {
     /* service client unavailable; return homepage only */
   }

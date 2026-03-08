@@ -132,34 +132,102 @@ Existing `[xspaces] sync_space_not_found` and PROVIDER_VERIFY logging unchanged.
 
 ## 9. Production verification (post-deploy test)
 
-One controlled test with a **real upcoming/scheduled** Space URL should be run after deploy. Execute in your environment (this doc cannot run production requests).
+One controlled test with a **real** pasted Space URL should be run after deploy. Execute in your environment (this doc cannot run production requests).
+
+**Current route behavior:** sync-from-x uses **twitterapi.io only**. No official X API. No fallback. One structured log per request: `[sync-from-x] SYNC_OUTCOME` (see section 10).
 
 ### Test steps
 
-1. Deploy the sync-from-x route (with fallback and existing logging).
+1. Deploy the sync-from-x route.
 2. As a user who **hosts** an upcoming/scheduled public X Space and has **X connected** in Linkary (so `x_oauth_tokens` has a row for that user), paste the direct Space URL into the sync-from-x flow (e.g. Create modal “Link pasted URL” or Add from X paste).  
    Use a URL of the form `https://x.com/i/spaces/<id>` or `x.com/i/spaces/<id>`.
-3. Submit. Capture:
-   - The **exact pasted URL form** (as entered).
-   - From server logs: **PROVIDER_VERIFY** line → `parsed_space_id`, `provider_status`.
-   - From server logs: **X_API_FALLBACK** line(s) → `fallback_attempted`, `x_api_fallback_status`, `x_api_fallback_code`, `fallback_succeeded`.
-   - The **final HTTP status** and **response body** from sync-from-x.
-   - Whether the Space **appears in Linkary** (created/synced) for that user.
+3. Capture from server logs the **single** `[sync-from-x] SYNC_OUTCOME` line; final HTTP status and response body; and whether the Space was created in Linkary.
 
 ### Result template (fill after the run)
 
 | Field | Value |
 |-------|--------|
 | Pasted URL form | *(e.g. https://x.com/i/spaces/1YpKkzwXQNjKj)* |
-| parsed_space_id | *(from PROVIDER_VERIFY)* |
-| provider_status (PROVIDER_VERIFY) | *(e.g. 404)* |
-| X_API_FALLBACK attempted? | yes / no |
-| x_api_fallback_status | *(if attempted)* |
-| x_api_fallback_code | *(if attempted)* |
-| fallback_succeeded | true / false |
+| parsed_space_id | *(from SYNC_OUTCOME)* |
+| provider_status | *(from SYNC_OUTCOME)* |
+| provider_code | *(from SYNC_OUTCOME)* |
+| final_app_status | *(from SYNC_OUTCOME)* |
+| final_app_code | *(from SYNC_OUTCOME)* |
+| fallback_used | false |
 | Final sync-from-x HTTP status | *(e.g. 200 or 404)* |
 | Space created/synced in Linkary? | yes / no |
 
-**Success:** If provider returns 404 and X API fallback returns 200 and host check passes, sync-from-x returns 200 and the Space is created in Linkary.
+**Success:** provider_status 200, provider_code "OK", final_app_status 200, Space created in Linkary. **Failure (not indexed):** provider_status 404, provider_code "SPACE_NOT_FOUND", final_app_status 404 — Space not found by twitterapi.io (e.g. not indexed, private, or deleted).
 
-**If fallback fails, record why:** no token (`reason: "no_token"`), X credits depleted (402 / `X_CREDITS_DEPLETED`), X 404 (`SPACE_NOT_FOUND`), host check failed (fallback returned space but user not in host_ids), or other (log the code/status).
+---
+
+## 10. Final verification pass (code inspection + expected log)
+
+**Scope:** Verification only. No code changes.
+
+### Code inspection result
+
+- **sync-from-x** imports only `fetchSpaceByIdFromTwitterApi` and `isTwitterApiSpacesConfigured` from `xspaces-data-provider`. It does **not** import or call `fetchXSpaceByIdV2`, `refreshXAccessToken`, or read `x_oauth_tokens` for Space lookup.
+- The only outbound Space fetch is `fetchSpaceByIdFromTwitterApi(spaceId)`, which in `xspaces-data-provider.ts` calls **GET https://api.twitterapi.io/twitter/spaces/detail?space_id=&lt;id&gt;** with the server-side API key. No request to api.twitter.com or any official X API occurs in this route.
+- There is no fallback branch: on provider 404 the route returns 404 with the existing message and logs SYNC_OUTCOME; it does not call the official X API.
+
+**Conclusion:** The route is behaving as intended: twitterapi.io only, no official X API usage, no fallback.
+
+### Real production log example (expected format)
+
+The route emits **one** structured log line per request when the provider path is used. Format:
+
+```
+[sync-from-x] SYNC_OUTCOME <JSON>
+```
+
+**Example — sync success (twitterapi.io returned 200, host check passed):**
+
+```json
+{
+  "route": "sync-from-x",
+  "provider_used": "twitterapi.io",
+  "parsed_space_id": "1YpKkzwXQNjKj",
+  "provider_status": 200,
+  "provider_code": "OK",
+  "final_app_status": 200,
+  "final_app_code": "OK",
+  "fallback_used": false
+}
+```
+
+**Example — Space not found / not indexed (twitterapi.io returned 404):**
+
+```json
+{
+  "route": "sync-from-x",
+  "provider_used": "twitterapi.io",
+  "parsed_space_id": "1YpKkzwXQNjKj",
+  "provider_status": 404,
+  "provider_code": "SPACE_NOT_FOUND",
+  "final_app_status": 404,
+  "final_app_code": "SPACE_NOT_FOUND",
+  "fallback_used": false
+}
+```
+
+A **real** production log line is produced when you run one POST to `/api/spaces/sync-from-x` with a pasted Space URL in your environment; capture that line to confirm the route behavior in production.
+
+### Final verification summary
+
+| Check | Result |
+|-------|--------|
+| Route uses only twitterapi.io for Space data | Yes — single call to `fetchSpaceByIdFromTwitterApi(spaceId)` → GET /twitter/spaces/detail?space_id=&lt;id&gt; |
+| Official X API used in this route | No |
+| Fallback to X API on 404 | No |
+| One structured log per request (route, provider_used, parsed_space_id, provider_status, provider_code, final_app_status, final_app_code, fallback_used) | Yes — `logSyncOutcome()` at every return path in the provider branch |
+| No secrets / tokens / cookies in log | Yes |
+
+### Tested Space outcome (to be filled when you run one real request)
+
+- **If the Space synced successfully:** provider_status 200, provider_code "OK", final_app_status 200; Space created in Linkary.
+- **If the Space failed because twitterapi.io returned not found / not indexed:** provider_status 404, provider_code "SPACE_NOT_FOUND", final_app_status 404; user sees the existing 404 message (including scheduled-Space guidance). No fallback; no X API call.
+
+### Explicit confirmation: no other product area changed
+
+Only `apps/web/src/app/api/spaces/sync-from-x/route.ts` was modified in the "twitterapi.io only" change. detect-my-space, my-x-spaces, xspaces-data-provider, x-analytics-server, x-api-client, x-token-refresh, and all other routes and features (analytics, reputation, dashboard, profile, notifications, proposals, payouts, speakers, sponsors, visibility, auth) were not changed in that pass or in this verification pass. This verification pass changed only this document (new section 10).

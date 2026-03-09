@@ -57,7 +57,7 @@
 | No open launch blockers (Section 1) | ⬜ Confirm |
 
 **Recommendation:**  
-- **Go** if P0-3 is verified in production and a single pass of critical E2E (routing, public profile/org, org create, job create → apply → accept → deal → review) shows no blockers.  
+- **Go** if P0-3 is verified in production and the critical E2E pass (see Section 3 and final sign-off sequence) shows no blockers.  
 - **No-go** if applications RLS is not verified or any critical path is broken.
 
 ---
@@ -65,9 +65,11 @@
 ## 3. Launch closeout checklist
 
 - [ ] **Migrations applied** — Production has: `20260239000000_applications_rls_and_job_admin`, `20260316000000_jobs_description_apply_url_objective_links`, `20260317000000_org_affiliations_ambassadors_insert_allow_owner`, and all prior migrations.
-- [ ] **Critical flows verified** — Routing (`/work`, `/work/requests`, `/dashboard`, `/analytics`); public profile (published/unpublished); public org; org create (company only); org members; job create → apply → accept → deal; deal complete → review; gig create → apply → gig_deal.
+- [ ] **Critical flows verified** — Routing (`/work`, `/work/requests`, `/dashboard`, `/analytics`); public profile (published/unpublished); public org; org create (any authenticated user); org members; job create → apply → accept → deal; deal complete → review; gig create → apply → gig_deal.
 - [ ] **Blockers cleared** — P0-3 verified; no public read on applications; sitemap returns homepage + profiles + published orgs; reserved path `work` behaves as expected.
 - [ ] **Deferred items listed** — Org public team, org cover/socials, gig draft, application stages, review reporting/moderation, dashboard real-KPI charts, org-scoped jobs API, robots.txt app-path disallow (see Launch Gap Checklist and Execution Plan).
+
+**Critical E2E pass (required before Go):** public profile → public org → org create → job create → apply → accept → deal → review.
 
 ---
 
@@ -100,9 +102,17 @@
 
 ---
 
-## 5. Sign-off
+## 5. Final sign-off sequence
 
-- [ ] Founder/lead review completed.  
-- [ ] P0-3 and closeout checklist completed.  
-- [ ] Decision: **Go** / **No-go** — _______________  
+Execute in this exact order before launch:
+
+1. **P0-3 verify** — In production Supabase: confirm migration `20260239000000_applications_rls_and_job_admin` applied; no SELECT policy with `USING (true)` on `applications`; policy `applications_select_private` active; anon SELECT returns no rows (or is denied).
+2. **Critical E2E run** — One full pass: public profile (published) → public org → org create (any authenticated user) → job create → apply → accept → deal → review. Log any failure.
+3. **Blocker check** — No open blockers: P0-3 verified; no critical path failures from step 2; sitemap and reserved path `work` as expected.
+4. **Go / No-go** — If step 3 clear: **Go**. Otherwise: fix blockers, re-verify, then **Go**. Sign below.
+
+- [ ] Step 1 (P0-3) completed.  
+- [ ] Step 2 (Critical E2E) completed.  
+- [ ] Step 3 (Blocker check) completed.  
+- **Decision:** **Go** / **No-go** — _______________  
 - **Signed:** _______________ **Date:** _______________

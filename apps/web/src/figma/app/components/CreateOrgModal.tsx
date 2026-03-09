@@ -84,11 +84,7 @@ export default function CreateOrgModal({
     });
     setLoading(false);
     if (err) {
-      const companyRequired = /ORG_COMPANY_REQUIRED|company accounts can create/i.test(String(err));
-      const displayMsg = companyRequired
-        ? "Only company accounts can create an organization. Switch to a Company account in Settings."
-        : String(err);
-      setError(displayMsg);
+      setError(String(err));
       onError?.(String(err));
       return;
     }
@@ -117,11 +113,6 @@ export default function CreateOrgModal({
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
               {error}
-              {(error.includes("company accounts can create") || error.includes("ORG_COMPANY_REQUIRED")) && (
-                <p className="mt-2">
-                  <a href="/onboarding" className="underline font-medium text-primary">Switch to Company account</a> or <a href="/settings" className="underline font-medium text-primary">Settings</a>.
-                </p>
-              )}
             </div>
           )}
 

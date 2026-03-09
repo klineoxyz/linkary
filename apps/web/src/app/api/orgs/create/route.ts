@@ -40,16 +40,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("account_type")
-    .eq("id", user.id)
-    .maybeSingle();
-  const accountType = (profile as { account_type?: string } | null)?.account_type;
-  if (accountType !== "company") {
-    return fail("ORG_COMPANY_REQUIRED", "Only company accounts can create an organization.", 403);
-  }
-
   let body: Record<string, unknown>;
   try {
     body = await request.json().catch(() => ({}));

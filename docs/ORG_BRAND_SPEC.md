@@ -4,13 +4,13 @@
 
 | Concept | Definition |
 |--------|------------|
-| **Personal profile** | One per user (`profiles`). The individual. `account_type`: `individual` or `company`. Only `company` can create orgs. |
+| **Personal profile** | One per user (`profiles`). The individual. `account_type`: `individual` or `company` (onboarding; does not restrict org creation). |
 | **Brand profile** | An org with `org_type = 'brand'`. Public page at linkary.xyz/@slug. Has name, handle, X verification, optional tagline/website. |
 | **Org** | Any non-person entity in `orgs`: `company`, `brand`, `project`, `agency`. One table; no separate brands table. |
 
 **Decisions:**
-- **Individual can create a brand/org directly:** Yes. They create an org; they become **owner** (creator = default owner/admin).
-- **Company account:** A user with `account_type = 'company'`. They can create and manage **multiple orgs** (brands, projects, agencies). No separate “company” entity; the user is the company and owns many orgs.
+- **Any user can create a brand/org:** Yes. No restriction by account_type. Creator becomes **owner** (default owner/admin).
+- **Company account:** A user with `account_type = 'company'`. can manage **multiple orgs** (brands, projects, agencies). Same org model; no separate “company” entity; the user is the company and owns many orgs.
 - **Same underlying model:** Orgs only. Brand = org with type `brand`. No second table.
 - **Owner on creation:** RPC `create_org_and_membership`: inserts org + one `org_members` row with role `owner`; `orgs.owner_profile_id = auth.uid()`.
 - **Official linking:** Create flow asks to connect official X (required for verification). Stored on org: `x_account_username`, `x_connected_at`, `is_x_verified`. Optional: website, twitter_username.

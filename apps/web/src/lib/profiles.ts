@@ -20,7 +20,7 @@ export type Profile = {
   /** Canonical DB truth: true when twitter_username or twitter_user_id is set. UI must use this, not identities. */
   x_connected?: boolean;
   onboarding_completed_at: string | null;
-  /** Set during onboarding: individual or company. Company can create orgs. */
+  /** Set during onboarding: individual or company. Any user can create orgs. */
   account_type?: 'individual' | 'company' | null;
   published: boolean;
   /** Controls whether analytics (followers_total, avg_engagement_rate, xscore) are exposed on public views. */
@@ -158,7 +158,7 @@ export async function updateMyProfile(
     published?: boolean;
     analytics_visibility?: 'public' | 'private';
     onboarding_completed_at?: string | null;
-    /** Set during onboarding: individual or company. Company can create orgs. */
+    /** Set during onboarding: individual or company. Any user can create orgs. */
     account_type?: 'individual' | 'company' | null;
     followers_total?: number;
     avg_engagement_rate?: number;

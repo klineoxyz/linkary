@@ -321,8 +321,12 @@ function BrandCard({ brand, onSelect }: { brand: Brand; onSelect: () => void }) 
       <GlassCard className="group">
         <div className="p-6">
           <div className="flex items-start gap-4 mb-4">
-            <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${brand.color} p-1 group-hover:scale-110 transition-transform duration-300`}>
-              <img src={brand.logo} alt={brand.name} className="w-full h-full object-cover rounded-xl" />
+            <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${brand.color} p-1 group-hover:scale-110 transition-transform duration-300 overflow-hidden flex items-center justify-center`}>
+              {brand.logo ? (
+                <img src={brand.logo} alt={brand.name} className="w-full h-full object-cover rounded-xl" />
+              ) : (
+                <Building2 className="w-8 h-8 text-primary/80 rounded-xl" />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-gray-900 text-lg mb-1">{brand.name}</h3>
@@ -393,10 +397,17 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
   const [profileSkills, setProfileSkills] = useState<{ name: string; level: number }[]>([]);
 
   const brandsFromOrgs = useMemo((): Brand[] => {
-    return myOrgs.map((org) => ({
+    return myOrgs.map((org) => {
+      const logoUrl =
+        org.logo_url && !isPrivateStorageUrl(org.logo_url)
+          ? org.logo_url
+          : (org as Org & { x_account_username?: string | null }).x_account_username
+            ? `https://unavatar.io/twitter/${encodeURIComponent((org as Org & { x_account_username: string }).x_account_username)}`
+            : "";
+      return {
       id: org.id,
       name: org.name,
-      logo: org.logo_url ?? "",
+      logo: logoUrl,
       color: "from-primary to-primary/80",
       category: org.org_type ?? "Project",
       created: "",
@@ -406,7 +417,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
       rating: 0,
       followers: 0,
       engagement: 0,
-    }));
+    };
+    });
   }, [myOrgs]);
 
   const personalStats = useMemo((): PersonalStats => {
@@ -993,8 +1005,12 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                       <GlassCard className="group">
                         <div className="p-6 space-y-5">
                           <div className="flex items-start gap-4">
-                            <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${brand.color} p-1 group-hover:scale-110 transition-transform duration-300 flex-shrink-0`}>
-                              <img src={brand.logo} alt={brand.name} className="w-full h-full object-cover rounded-xl" />
+                            <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${brand.color} p-1 group-hover:scale-110 transition-transform duration-300 flex-shrink-0 overflow-hidden flex items-center justify-center`}>
+                              {brand.logo ? (
+                                <img src={brand.logo} alt={brand.name} className="w-full h-full object-cover rounded-xl" />
+                              ) : (
+                                <Building2 className="w-8 h-8 text-primary/80 rounded-xl" />
+                              )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <h3 className="font-bold text-gray-900 text-lg mb-2">{brand.name}</h3>
@@ -1380,181 +1396,90 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
             
             {/* Brand Analytics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
-                  {/* Revenue Trend */}
+                  {/* Amount paid to users */}
                   <GlassCard>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                          <TrendingUp className="w-5 h-5 text-primary stroke-[1.75]" />
-                          Revenue Trend
+                          <Wallet className="w-5 h-5 text-primary stroke-[1.75]" />
+                          Amount paid to users
                         </h3>
-                        <span className="text-xs text-gray-600">Last 6 months</span>
                       </div>
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={[
-                            { month: "Sep", revenue: 980 },
-                            { month: "Oct", revenue: 1250 },
-                            { month: "Nov", revenue: 1580 },
-                            { month: "Dec", revenue: 1420 },
-                            { month: "Jan", revenue: 1890 },
-                            { month: "Feb", revenue: selectedBrand.totalRevenue / 5 },
-                          ]}>
-                            <defs>
-                              <linearGradient id="revenueGradientBrand" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                            <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
-                            <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "var(--card)",
-                                border: "1px solid var(--border)",
-                                borderRadius: "12px",
-                                backdropFilter: "blur(10px)",
-                              }}
-                              labelStyle={{ color: "var(--foreground)" }}
-                            />
-                            <Area type="monotone" dataKey="revenue" stroke="var(--chart-1)" strokeWidth={3} fill="url(#revenueGradientBrand)" />
-                          </AreaChart>
-                        </ResponsiveContainer>
+                      <div className="flex flex-col items-center justify-center py-8">
+                        <div className="text-4xl font-bold text-gray-900 mb-1">€0</div>
+                        <p className="text-sm text-gray-600">Total paid to creators via this org</p>
                       </div>
                     </div>
                   </GlassCard>
                   
-                  {/* Project Performance */}
+                  {/* Jobs & Gigs (Sprints) posted by org */}
                   <GlassCard>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                           <BarChart3 className="w-5 h-5 text-primary stroke-[1.75]" />
-                          Project Performance
+                          Jobs &amp; Gigs (Sprints) posted
                         </h3>
-                        <span className="text-xs text-gray-600">Monthly breakdown</span>
+                        <span className="text-xs text-gray-600">By this org</span>
                       </div>
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={[
-                            { month: "Sep", completed: 1, active: 2 },
-                            { month: "Oct", completed: 2, active: 2 },
-                            { month: "Nov", completed: 2, active: 3 },
-                            { month: "Dec", completed: 3, active: 2 },
-                            { month: "Jan", completed: 2, active: 3 },
-                            { month: "Feb", completed: selectedBrand.completedProjects % 3 || 2, active: selectedBrand.activeProjects },
-                          ]}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                            <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
-                            <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "var(--card)",
-                                border: "1px solid var(--border)",
-                                borderRadius: "12px",
-                                backdropFilter: "blur(10px)",
-                              }}
-                              labelStyle={{ color: "var(--foreground)" }}
-                            />
-                            <Bar dataKey="completed" fill="var(--chart-1)" radius={[8, 8, 0, 0]} />
-                            <Bar dataKey="active" fill="var(--chart-2)" radius={[8, 8, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="flex items-center justify-center gap-6 mt-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-primary"></div>
-                          <span className="text-xs text-gray-600">Completed</span>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 rounded-2xl bg-accent border border-border">
+                          <div className="text-xs text-gray-600 mb-1">Jobs</div>
+                          <div className="text-2xl font-bold text-gray-900">{selectedBrand.activeProjects + selectedBrand.completedProjects || 0}</div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-chart-2"></div>
-                          <span className="text-xs text-gray-600">Active</span>
+                        <div className="p-4 rounded-2xl bg-accent border border-border">
+                          <div className="text-xs text-gray-600 mb-1">Gigs (Sprints)</div>
+                          <div className="text-2xl font-bold text-gray-900">{selectedBrand.completedProjects || 0}</div>
                         </div>
                       </div>
+                      <p className="text-xs text-gray-500 mt-4">Total opportunities posted by this org. Connect org to see live counts.</p>
                     </div>
                   </GlassCard>
                   
-                  {/* Engagement Metrics */}
+                  {/* Average engagement on socials */}
                   <GlassCard>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                           <Activity className="w-5 h-5 text-primary stroke-[1.75]" />
-                          Engagement Metrics
+                          Engagement on socials
                         </h3>
                       </div>
-                      <div className="space-y-4">
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm text-gray-600">Profile Views</span>
-                            <span className="text-sm font-bold text-gray-900">12.4K</span>
-                          </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-primary to-primary/80" style={{ width: "78%" }}></div>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm text-gray-600">Click-through Rate</span>
-                            <span className="text-sm font-bold text-gray-900">{selectedBrand.engagement}%</span>
-                          </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-primary to-primary/90" style={{ width: `${selectedBrand.engagement}%` }}></div>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm text-gray-600">Conversion Rate</span>
-                            <span className="text-sm font-bold text-gray-900">34%</span>
-                          </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-primary to-primary/80" style={{ width: "34%" }}></div>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm text-gray-600">Response Time</span>
-                            <span className="text-sm font-bold text-gray-900">2.3 hrs</span>
-                          </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-primary" style={{ width: "92%" }}></div>
-                          </div>
+                      <div className="flex flex-col items-center justify-center py-6">
+                        <div className="text-3xl font-bold text-gray-900 mb-1">{selectedBrand.engagement || 0}%</div>
+                        <p className="text-sm text-gray-600">Average user engagement on socials</p>
+                        <div className="h-2 w-full max-w-xs bg-muted rounded-full overflow-hidden mt-4">
+                          <div className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full" style={{ width: `${Math.min(selectedBrand.engagement || 0, 100)}%` }}></div>
                         </div>
                       </div>
                     </div>
                   </GlassCard>
                   
-                  {/* Top Performing Projects */}
+                  {/* Top engaging accounts to the org */}
                   <GlassCard>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                           <Award className="w-5 h-5 text-primary stroke-[1.75]" />
-                          Top Projects
+                          Top engaging accounts
                         </h3>
                       </div>
+                      <p className="text-sm text-gray-600 mb-4">Accounts that engage most with this org (supporters, applicants, collaborators).</p>
                       <div className="space-y-3">
                         {[
-                          { name: "DeFi Integration", revenue: 2400, rating: 5.0, color: "from-primary to-primary/80" },
-                          { name: "NFT Marketplace", revenue: 1800, rating: 4.9, color: "from-primary to-primary/80" },
-                          { name: "Smart Contract Audit", revenue: 1600, rating: 4.8, color: "from-primary to-primary/90" },
-                        ].map((project, i) => (
-                          <div key={i} className="p-4 rounded-xl bg-card hover:bg-muted/50 transition-all border border-border">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${project.color}`}></div>
-                                <span className="font-semibold text-gray-900 text-sm">{project.name}</span>
+                          { name: "—", handle: "Connect org to see data", engagement: "—" },
+                        ].map((account, i) => (
+                          <div key={i} className="p-4 rounded-xl bg-card hover:bg-muted/50 transition-all border border-border flex items-center justify-between">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                <User className="w-5 h-5 text-gray-500" />
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Star className="w-3 h-3 text-primary fill-primary stroke-[1.75]" />
-                                <span className="text-sm text-gray-900 font-medium">{project.rating}</span>
+                              <div className="min-w-0">
+                                <span className="font-medium text-gray-900 text-sm block truncate">{account.name}</span>
+                                <span className="text-xs text-gray-500 truncate block">@{account.handle}</span>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-gray-600">Revenue</span>
-                              <span className="font-bold text-primary">€{project.revenue.toLocaleString()}</span>
-                            </div>
+                            <span className="text-xs text-gray-600 shrink-0">{account.engagement}</span>
                           </div>
                         ))}
                       </div>

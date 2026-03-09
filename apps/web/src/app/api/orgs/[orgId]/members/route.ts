@@ -34,7 +34,9 @@ export async function GET(
   if (list.length === 0) return ok({ members: [] });
 
   const userIds = [...new Set(list.map((m) => m.user_id))];
-  const { data: profiles } = await supabase
+  // Use service role so we get username/display_name for all members (RLS limits anon to published or own profile).
+  const profileClient = serviceKey ? createClient(supabaseUrl, serviceKey) : supabase;
+  const { data: profiles } = await profileClient
     .from("profiles")
     .select("id, username, display_name, avatar_url")
     .in("id", userIds);

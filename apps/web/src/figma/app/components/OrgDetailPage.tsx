@@ -862,7 +862,7 @@ export default function OrgDetailPage({
                         ) : (
                           <span className="text-xs px-2 py-1 rounded-full bg-accent text-primary">{m.role}</span>
                         )}
-                        {(admin || userId === m.user_id) && (
+                        {((admin && userId !== m.user_id) || (userId === m.user_id && m.role !== "owner")) && (
                           <button
                             type="button"
                             onClick={() => handleRemoveMember(m.user_id)}
@@ -1279,7 +1279,7 @@ export default function OrgDetailPage({
 
           {tab === "settings" && (
             <div className="space-y-6 max-w-lg">
-              {admin && org && !org.is_x_verified && data?.showConnectXBanner && !dismissConnectXBanner && (
+              {admin && org && !org.is_x_verified && !isOwner && data?.showConnectXBanner && !dismissConnectXBanner && (
                 <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 flex items-start justify-between gap-2">
                   <p className="text-sm text-zinc-700 dark:text-zinc-300">Org created. Connect X to verify before publishing.</p>
                   <button type="button" onClick={() => setDismissConnectXBanner(true)} className="text-zinc-500 hover:text-zinc-700 shrink-0" aria-label="Dismiss">×</button>

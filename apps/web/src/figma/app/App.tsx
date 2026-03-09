@@ -3438,7 +3438,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
                 <Wallet className="h-4 w-4 stroke-[1.75]" /> Wallet
               </Button>
               {hasPublicSlug ? (
-                <Button variant="outline" className="flex items-center gap-2" onClick={async () => { if (!publicSlug) return; await updateMyProfile(me.id, { published: true }); window.location.href = "/" + encodeURIComponent(publicSlug); }}>
+                <Button variant="outline" className="flex items-center gap-2" onClick={() => { if (!publicSlug) return; window.location.href = "/" + encodeURIComponent(publicSlug); }}>
                   <ExternalLink className="h-4 w-4 stroke-[1.75]" /> Public View
                 </Button>
               ) : (

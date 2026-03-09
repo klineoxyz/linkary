@@ -11,6 +11,7 @@ import type { PublicProfileApiPayload } from "@/app/api/public/profile/route";
 import { PublicProfileContent } from "./PublicProfileContent";
 import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
 import { NotFoundClaimView } from "./NotFoundClaimView";
+import { OwnerUnpublishedProfile } from "./OwnerUnpublishedProfile";
 
 /**
  * PUBLIC PROFILE FIELD MAPPING
@@ -297,6 +298,10 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
       if (user?.id != null && user.id === profileId) viewer_is_owner = true;
       if (!isPublished && !viewer_is_owner) {
         return <NotFoundClaimView requestedUsername={segmentLower} />;
+      }
+      if (!isPublished && viewer_is_owner) {
+        const displayUsername = (minimalRow.username ?? minimalRow.twitter_username ?? "").toString().trim().toLowerCase().replace(/^@/, "") || segmentLower;
+        return <OwnerUnpublishedProfile username={displayUsername} />;
       }
 
       const isUnpublished = !isPublished;

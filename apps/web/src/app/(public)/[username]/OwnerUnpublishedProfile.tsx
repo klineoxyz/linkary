@@ -10,9 +10,9 @@ export function OwnerUnpublishedProfile({ username }: Props) {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center px-4">
       <div className="max-w-md w-full rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
-        <h1 className="text-xl font-semibold text-foreground">This is your Linkary page</h1>
+        <h1 className="text-xl font-semibold text-foreground">The public profile is not available</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Not published yet. Only you can see this page.
+          This page is not published yet. Only you can see this message. Publish from the editor to make it public.
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           linkary.xyz/@{username}

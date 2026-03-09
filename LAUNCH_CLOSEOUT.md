@@ -111,7 +111,7 @@ Execute in this exact order before launch:
 3. **Blocker check** — No open blockers: P0-3 verified; no critical path failures from step 2; sitemap and reserved path `work` as expected.
 4. **Go / No-go** — If step 3 clear: **Go**. Otherwise: fix blockers, re-verify, then **Go**. Sign below.
 
-- [ ] Step 1 (P0-3) completed.  
+- [x] Step 1 (P0-3) completed.  
 - [ ] Step 2 (Critical E2E) completed.  
 - [ ] Step 3 (Blocker check) completed.  
 - **Decision:** **Go** / **No-go** — _______________  

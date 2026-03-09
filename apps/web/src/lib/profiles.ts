@@ -158,6 +158,8 @@ export async function updateMyProfile(
     published?: boolean;
     analytics_visibility?: 'public' | 'private';
     onboarding_completed_at?: string | null;
+    /** Set during onboarding: individual or company. Company can create orgs. */
+    account_type?: 'individual' | 'company' | null;
     followers_total?: number;
     avg_engagement_rate?: number;
     share_analytics_on_apply?: boolean;

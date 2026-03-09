@@ -161,7 +161,7 @@ import { getXConnection } from "@/lib/xAuth";
 import { getProfileProfessions } from "@/lib/profileProfessions";
 import { listJobs, type JobWithOrg } from "@/lib/jobs";
 import { listConversationsForUser, listMessages, sendMessageAsProfile, sendMessageAsOrg } from "@/lib/messages";
-import { listMyOrgs, type Org } from "@/lib/orgs";
+import { listMyOrgs } from "@/lib/orgs";
 import { listCaseStudiesForProfile, createCaseStudyForProfile } from "@/lib/caseStudies";
 import LandingPage from "./components/LandingPage";
 import PrivacyDataPage from "./components/PrivacyDataPage";
@@ -3195,7 +3195,6 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
   const [signedCaseStudyUrlsByPath, setSignedCaseStudyUrlsByPath] = useState<Record<string, string | null>>({});
   const signPathsCacheRef = useRef<Record<string, Record<string, string | null>>>({});
   const lastSignPathsKeyRef = useRef<string | null>(null);
-  const [profileOrgs, setProfileOrgs] = useState<Org[]>([]);
 
   const [coreDisplayName, setCoreDisplayName] = useState("");
   const [coreBio, setCoreBio] = useState("");
@@ -3240,10 +3239,6 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
     if (me?.id) getProfileProfessions(me.id).then(({ data }) => setProfileProfessions((data ?? []).map((p) => ({ id: p.id, name: p.name }))));
   }, [me?.id]);
   const accountType = (me as { account_type?: string } | null)?.account_type;
-  useEffect(() => {
-    if (me?.id && accountType === "company") listMyOrgs(me.id).then(setProfileOrgs);
-    else setProfileOrgs([]);
-  }, [me?.id, accountType]);
   useEffect(() => {
     if (me?.id) listCaseStudiesForProfile(me.id).then(setCaseStudies);
   }, [me?.id]);
@@ -3445,14 +3440,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
                 <Button
                   variant="outline"
                   className="flex items-center gap-2"
-                  onClick={async () => {
-                    const orgs = profileOrgs.length > 0 ? profileOrgs : await listMyOrgs(me.id);
-                    const profileHandle = (me.username || "").trim().toLowerCase().replace(/^@/, "");
-                    const matchingOrg = profileHandle && orgs.find((o) => (o.slug || "").trim().toLowerCase().replace(/^@/, "") === profileHandle);
-                    const targetOrg = matchingOrg ?? orgs[0];
-                    if (targetOrg) setRoute({ name: "orgDetail", data: { orgId: targetOrg.id, tab: "members" } });
-                    else setRoute({ name: "dashboard" });
-                  }}
+                  onClick={() => setRoute({ name: "dashboard" })}
                 >
                   <Users className="h-4 w-4 stroke-[1.75]" /> Admins &amp; team
                 </Button>
@@ -4645,7 +4633,7 @@ function LinkaryAppInner() {
                 )}
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}
                 {route.name === "dashboard" && <DashboardPage setRoute={setRoute} />}
-                {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} currentProfileUsername={me?.username} />}
+                {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "dealDetail" && <DealDetailPage setRoute={setRoute} dealId={route.data?.dealId} />}
                 {route.name === "analytics" && <AnalyticsPage setRoute={setRoute} />}
                 {(route.name === "calendar" || route.name === "xspaces") && <XSpacesPage setRoute={setRoute} me={me} />}

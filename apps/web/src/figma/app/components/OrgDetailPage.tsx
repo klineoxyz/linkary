@@ -50,18 +50,12 @@ function formatRelativeTime(iso: string): string {
   }
 }
 
-function norm(s: string): string {
-  return (s || "").trim().toLowerCase().replace(/^@/, "");
-}
-
 export default function OrgDetailPage({
   setRoute,
   data,
-  currentProfileUsername,
 }: {
   setRoute: (r: { name: string; data?: any }) => void;
   data?: { orgId?: string; slug?: string; showConnectXBanner?: boolean; tab?: string };
-  currentProfileUsername?: string | null;
 }) {
   const orgId = data?.orgId ?? data?.slug;
   const [org, setOrg] = useState<Org | null>(null);
@@ -764,17 +758,7 @@ export default function OrgDetailPage({
                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                   Managing: <span className="font-semibold">{org.name}</span> <span className="text-zinc-500 font-normal">@{org.slug}</span>
                 </p>
-                <p className="text-xs text-zinc-500 mt-1">Official org account. Only the owner and admins can add or remove members here.</p>
-                {currentProfileUsername && norm(org.slug) !== norm(currentProfileUsername) && (
-                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
-                    You&apos;re logged in as <strong>@{currentProfileUsername}</strong>. This org is <strong>@{org.slug}</strong>. To add admins for your brand profile, set this org&apos;s handle to <strong>{currentProfileUsername}</strong> in <button type="button" onClick={() => setTab("settings")} className="underline font-medium">Settings</button> so it matches your profile.
-                  </p>
-                )}
-                {!currentProfileUsername && ((org.name || "").trim().toLowerCase() === "my org" || (org.slug || "").startsWith("org-")) && (
-                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-2">
-                    Set your org&apos;s display name and @handle in <button type="button" onClick={() => setTab("settings")} className="underline font-medium">Settings</button> so your real brand is shown.
-                  </p>
-                )}
+                <p className="text-xs text-zinc-500 mt-1">Only the owner and admins can add or remove members here.</p>
               </div>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
                 Add team members and assign up to 3 <strong>Admins</strong>. Admins can post Gigs (Sprints) and jobs on behalf of the org, manage applications, and edit org content. <strong>Members</strong> can view the org and participate as needed.
@@ -1306,7 +1290,7 @@ export default function OrgDetailPage({
                 <>
                   <div>
                     <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3">Org name and handle</h3>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Set these to match your brand profile so &quot;Admins &amp; team&quot; from your profile opens this org.</p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Display name and handle for this org&apos;s public page.</p>
                     <div className="space-y-2 mb-2">
                       <label className="block text-xs font-medium text-zinc-500">Display name</label>
                       <input
@@ -1326,7 +1310,7 @@ export default function OrgDetailPage({
                         placeholder="e.g. desicryptoclub"
                         className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
                       />
-                      <p className="text-xs text-zinc-500">Use the same handle as your profile (@{currentProfileUsername || "yourprofile"}) to have &quot;Admins &amp; team&quot; open this org.</p>
+                      <p className="text-xs text-zinc-500">Public page: linkary.xyz/@{settingsOrgSlug || org.slug}</p>
                     </div>
                   </div>
                   <div>

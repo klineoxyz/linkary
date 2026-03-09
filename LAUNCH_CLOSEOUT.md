@@ -22,21 +22,16 @@
 | **QA 6** apply_url E2E: Apply opens external URL; modal shows "Open apply link" | ✅ Implemented |
 | **Profile case studies** Owner add/remove on Featured Work + Case Studies (App.tsx) | ✅ Implemented |
 | **Org case studies** Org detail tab: admin add (existing); list display | ✅ Present |
-
-### Pending / manual only
-
-| Item | Status |
-|------|--------|
-| **P0-3** Applications RLS in production | ⬜ **Manual verification required** (Supabase: confirm no public SELECT; policy `applications_select_private` active; migration `20260239000000` applied). |
+| **P0-3** Applications RLS in production | ✅ Verified in production (Step 1 complete) |
 
 ### Failed QA
 
 - None identified in code. Full E2E run (release candidate scenarios 2.1–2.14) should be executed once before go-live; any failure there would be logged as failed QA.
 
-### Blocker issues
+### Blocker issues (all cleared at sign-off)
 
-1. **Applications RLS (P0-3)** — If production has not verified that applications are not publicly readable, **do not launch** until verified or fixed.
-2. **Critical path break** — If any of: public profile 404 for published, deal creation on accept, review eligibility, sitemap wrong/missing, or reserved path `work` broken is found in final E2E, treat as blocker until fixed.
+1. **Applications RLS (P0-3)** — Cleared: verified in production (Step 1).
+2. **Critical path break** — Cleared: critical E2E pass completed with no failures (Step 2); blocker check passed (Step 3).
 
 ### Non-blocker issues
 
@@ -52,24 +47,22 @@
 | Condition | Required for Go |
 |-----------|------------------|
 | P0-1, P0-2, P0-4 | ✅ Done |
-| P0-3 (applications RLS in prod) | ⬜ Must be verified |
-| Critical paths (profile, org, job → apply → accept → deal → review) | ⬜ Run once before launch |
-| No open launch blockers (Section 1) | ⬜ Confirm |
+| P0-3 (applications RLS in prod) | ✅ Done (Step 1) |
+| Critical paths (profile, org, job → apply → accept → deal → review) | ✅ Done (Step 2) |
+| No open launch blockers (Section 1) | ✅ Done (Step 3) |
 
-**Recommendation:**  
-- **Go** if P0-3 is verified in production and the critical E2E pass (see Section 3 and final sign-off sequence) shows no blockers.  
-- **No-go** if applications RLS is not verified or any critical path is broken.
+**Outcome:** All conditions met. **Go** signed off (Section 5).
 
 ---
 
 ## 3. Launch closeout checklist
 
-- [ ] **Migrations applied** — Production has: `20260239000000_applications_rls_and_job_admin`, `20260316000000_jobs_description_apply_url_objective_links`, `20260317000000_org_affiliations_ambassadors_insert_allow_owner`, and all prior migrations.
-- [ ] **Critical flows verified** — Routing (`/work`, `/work/requests`, `/dashboard`, `/analytics`); public profile (published/unpublished); public org; org create (any authenticated user); org members; job create → apply → accept → deal; deal complete → review; gig create → apply → gig_deal.
-- [ ] **Blockers cleared** — P0-3 verified; no public read on applications; sitemap returns homepage + profiles + published orgs; reserved path `work` behaves as expected.
-- [ ] **Deferred items listed** — Org public team, org cover/socials, gig draft, application stages, review reporting/moderation, dashboard real-KPI charts, org-scoped jobs API, robots.txt app-path disallow (see Launch Gap Checklist and Execution Plan).
+Aligned with signed-off **Go** (Section 5).
 
-**Critical E2E pass (required before Go):** public profile → public org → org create → job create → apply → accept → deal → review.
+- [x] **Migrations applied** — Production has: `20260239000000_applications_rls_and_job_admin`, `20260316000000_jobs_description_apply_url_objective_links`, `20260317000000_org_affiliations_ambassadors_insert_allow_owner`, and all prior migrations.
+- [x] **Critical flows verified** — Routing (`/work`, `/work/requests`, `/dashboard`, `/analytics`); public profile (published/unpublished); public org; org create (any authenticated user); org members; job create → apply → accept → deal; deal complete → review; gig create → apply → gig_deal. (Step 2.)
+- [x] **Blockers cleared** — P0-3 verified; no public read on applications; sitemap returns homepage + profiles + published orgs; reserved path `work` behaves as expected. (Steps 1, 3.)
+- [x] **Deferred items listed** — Org public team, org cover/socials, gig draft, application stages, review reporting/moderation, dashboard real-KPI charts, org-scoped jobs API, robots.txt app-path disallow (see Launch Gap Checklist and Execution Plan).
 
 ---
 

@@ -68,8 +68,8 @@ export default function OrgDetailPage({
     if (t && validTabs.includes(t as typeof validTabs[number])) setTab(t as typeof validTabs[number]);
   }, [data?.tab]);
   const [members, setMembers] = useState<OrgMember[]>([]);
-  const [affiliations, setAffiliations] = useState<OrgAffiliation[]>([]);
-  const [ambassadors, setAmbassadors] = useState<OrgAmbassador[]>([]);
+  const [affiliations, setAffiliations] = useState<(OrgAffiliation & { profile?: { username: string | null; display_name: string | null; avatar_url: string | null } | null })[]>([]);
+  const [ambassadors, setAmbassadors] = useState<(OrgAmbassador & { profile?: { username: string | null; display_name: string | null; avatar_url: string | null } | null })[]>([]);
   const [metrics, setMetrics] = useState<{ combined_followers: number; avg_engagement_rate: number; potential_reach: number } | null>(null);
   const [orgJobs, setOrgJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
@@ -171,10 +171,16 @@ export default function OrgDetailPage({
         setSettingsOrgName(o.name ?? "");
         setSettingsOrgSlug((o.slug ?? "").replace(/^@/, ""));
         const base = typeof window !== "undefined" ? window.location.origin : "";
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
         const [m, a, am, met, jobsAll, cs, supportersRes, influenceRes, supportStatusRes, dashboardRes] = await Promise.all([
           listOrgMembers(o.id),
-          listOrgAffiliations(o.id),
-          listOrgAmbassadors(o.id),
+          token && base
+            ? fetch(`${base}/api/orgs/${o.id}/affiliates`, { headers: { Authorization: `Bearer ${token}` } }).then(async (r) => (r.ok ? ((await r.json()).affiliations ?? []) : await listOrgAffiliations(o.id)))
+            : listOrgAffiliations(o.id),
+          token && base
+            ? fetch(`${base}/api/orgs/${o.id}/ambassadors`, { headers: { Authorization: `Bearer ${token}` } }).then(async (r) => (r.ok ? ((await r.json()).ambassadors ?? []) : await listOrgAmbassadors(o.id)))
+            : listOrgAmbassadors(o.id),
           getOrgMetrics(o.id),
           listJobs(),
           listCaseStudiesForOrg(o.id),
@@ -469,12 +475,14 @@ export default function OrgDetailPage({
       setAffiliateHandle("");
       setSelectedAffiliateProfileId(null);
       setAffiliateSearchResults([]);
-      setAffiliations(await listOrgAffiliations(org.id));
+      const r = await fetch(`${origin}/api/orgs/${org.id}/affiliates`, { headers: { Authorization: `Bearer ${token}` } });
+      setAffiliations(r.ok ? ((await r.json()).affiliations ?? []) : await listOrgAffiliations(org.id));
     } else {
       setAmbassadorHandle("");
       setSelectedAmbassadorProfileId(null);
       setAmbassadorSearchResults([]);
-      setAmbassadors(await listOrgAmbassadors(org.id));
+      const r = await fetch(`${origin}/api/orgs/${org.id}/ambassadors`, { headers: { Authorization: `Bearer ${token}` } });
+      setAmbassadors(r.ok ? ((await r.json()).ambassadors ?? []) : await listOrgAmbassadors(org.id));
     }
     try {
       if (origin) {
@@ -996,9 +1004,16 @@ export default function OrgDetailPage({
               {affiliations.filter((a) => a.status !== "removed").length === 0 ? (
                 <p className="text-zinc-500 text-sm">No affiliates yet.</p>
               ) : (
-                affiliations.filter((a) => a.status !== "removed").map((a) => (
+                affiliations.filter((a) => a.status !== "removed").map((a) => {
+                  const profile = (a as { profile?: { display_name?: string | null; username?: string | null } }).profile;
+                  const display = profile?.display_name ?? profile?.username ?? a.profile_id;
+                  const handle = profile?.username ? `@${profile.username}` : null;
+                  return (
                   <div key={a.id} className="flex items-center justify-between gap-2 py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-                    <span className="font-mono text-sm truncate">{a.profile_id}</span>
+                    <div className="min-w-0">
+                      <span className="text-sm truncate font-medium text-zinc-900 dark:text-zinc-100 block">{display}</span>
+                      {handle && <span className="text-xs text-zinc-500 truncate block">{handle}</span>}
+                    </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-xs px-2 py-1 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{a.status}</span>
                       {a.status === "invited" && userId === a.profile_id && (
@@ -1017,7 +1032,10 @@ export default function OrgDetailPage({
                                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                                 body: JSON.stringify({ status: "active" }),
                               });
-                              if (res.ok) setAffiliations(await listOrgAffiliations(org.id));
+                              if (res.ok) {
+                                const r = await fetch(`${origin}/api/orgs/${org.id}/affiliates`, { headers: { Authorization: `Bearer ${token}` } });
+                                setAffiliations(r.ok ? ((await r.json()).affiliations ?? []) : await listOrgAffiliations(org.id));
+                              }
                             } finally {
                               setAcceptPartnerLoading(null);
                             }
@@ -1044,7 +1062,8 @@ export default function OrgDetailPage({
                                 body: JSON.stringify({ status: "removed" }),
                               });
                               if (res.ok) {
-                                setAffiliations(await listOrgAffiliations(org.id));
+                                const r = await fetch(`${origin}/api/orgs/${org.id}/affiliates`, { headers: { Authorization: `Bearer ${token}` } });
+                                setAffiliations(r.ok ? ((await r.json()).affiliations ?? []) : await listOrgAffiliations(org.id));
                               }
                             } finally {
                               setRemovePartnerLoading(null);
@@ -1057,7 +1076,8 @@ export default function OrgDetailPage({
                       )}
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
@@ -1113,9 +1133,16 @@ export default function OrgDetailPage({
               {ambassadors.filter((a) => a.status !== "removed").length === 0 ? (
                 <p className="text-zinc-500 text-sm">No ambassadors yet.</p>
               ) : (
-                ambassadors.filter((a) => a.status !== "removed").map((a) => (
+                ambassadors.filter((a) => a.status !== "removed").map((a) => {
+                  const profile = (a as { profile?: { display_name?: string | null; username?: string | null } }).profile;
+                  const display = profile?.display_name ?? profile?.username ?? a.profile_id;
+                  const handle = profile?.username ? `@${profile.username}` : null;
+                  return (
                   <div key={a.id} className="flex items-center justify-between gap-2 py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-                    <span className="font-mono text-sm truncate">{a.profile_id}</span>
+                    <div className="min-w-0">
+                      <span className="text-sm truncate font-medium text-zinc-900 dark:text-zinc-100 block">{display}</span>
+                      {handle && <span className="text-xs text-zinc-500 truncate block">{handle}</span>}
+                    </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-xs px-2 py-1 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{a.status}</span>
                       {a.status === "invited" && userId === a.profile_id && (
@@ -1134,7 +1161,10 @@ export default function OrgDetailPage({
                                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                                 body: JSON.stringify({ status: "active" }),
                               });
-                              if (res.ok) setAmbassadors(await listOrgAmbassadors(org.id));
+                              if (res.ok) {
+                                const r = await fetch(`${origin}/api/orgs/${org.id}/ambassadors`, { headers: { Authorization: `Bearer ${token}` } });
+                                setAmbassadors(r.ok ? ((await r.json()).ambassadors ?? []) : await listOrgAmbassadors(org.id));
+                              }
                             } finally {
                               setAcceptPartnerLoading(null);
                             }
@@ -1161,7 +1191,8 @@ export default function OrgDetailPage({
                                 body: JSON.stringify({ status: "removed" }),
                               });
                               if (res.ok) {
-                                setAmbassadors(await listOrgAmbassadors(org.id));
+                                const r = await fetch(`${origin}/api/orgs/${org.id}/ambassadors`, { headers: { Authorization: `Bearer ${token}` } });
+                                setAmbassadors(r.ok ? ((await r.json()).ambassadors ?? []) : await listOrgAmbassadors(org.id));
                               }
                             } finally {
                               setRemovePartnerLoading(null);
@@ -1174,7 +1205,8 @@ export default function OrgDetailPage({
                       )}
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}

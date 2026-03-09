@@ -163,13 +163,18 @@ export default function AuthCallbackPage() {
               setStatus("error");
               return;
             }
-            if (next === "/onboarding" || next?.includes("onboarding")) {
+            const isOnboardingNext = next === "/onboarding" || next?.includes("onboarding");
+            if (isOnboardingNext) {
               const bio = identity.description?.trim() || null;
               const displayName = identity.name?.trim() || null;
               await updateMyProfile(user.id, {
                 ...(bio != null ? { bio } : {}),
                 ...(displayName != null ? { display_name: displayName } : {}),
+                onboarding_completed_at: new Date().toISOString(),
+                account_type: "individual",
               });
+            } else {
+              await updateMyProfile(user.id, { onboarding_completed_at: new Date().toISOString() });
             }
             if (token) {
               const finishRes = await fetch(`${window.location.origin}/api/integrations/x/link/finish`, {
@@ -211,8 +216,10 @@ export default function AuthCallbackPage() {
             if (!cancelled) {
               setStatus("ok");
               setMessage("Redirecting…");
-              let redirectUrl =
-                next === "/settings/integrations" || next?.includes("integrations")
+              const skipOnboarding = isOnboardingNext && !!identity;
+              let redirectUrl = skipOnboarding
+                ? `${origin || SITE_URL.replace(/\/$/, "")}/profile`
+                : next === "/settings/integrations" || next?.includes("integrations")
                   ? redirectTo + (redirectTo.includes("?") ? "&" : "?") + "x_connected=1"
                   : redirectTo;
               try {
@@ -256,10 +263,18 @@ export default function AuthCallbackPage() {
                 setStatus("error");
                 return;
               }
-              if (next === "/onboarding" || next?.includes("onboarding")) {
+              const isOnboardingNextSession = next === "/onboarding" || next?.includes("onboarding");
+              if (isOnboardingNextSession) {
                 const bio = identity.description?.trim() || null;
                 const displayName = identity.name?.trim() || null;
-                await updateMyProfile(session.user.id, { ...(bio != null ? { bio } : {}), ...(displayName != null ? { display_name: displayName } : {}) });
+                await updateMyProfile(session.user.id, {
+                  ...(bio != null ? { bio } : {}),
+                  ...(displayName != null ? { display_name: displayName } : {}),
+                  onboarding_completed_at: new Date().toISOString(),
+                  account_type: "individual",
+                });
+              } else {
+                await updateMyProfile(session.user.id, { onboarding_completed_at: new Date().toISOString() });
               }
               const sess = session as { provider_token?: string; provider_refresh_token?: string };
               try {
@@ -308,7 +323,10 @@ export default function AuthCallbackPage() {
             if (!cancelled) {
               setStatus("ok");
               setMessage("Redirecting…");
-              window.location.href = redirectTo;
+              const originSession = typeof window !== "undefined" ? window.location.origin : "";
+              const skipOnboardingSession = isOnboardingNextSession && !!identity;
+              const finalUrl = skipOnboardingSession ? `${originSession || SITE_URL.replace(/\/$/, "")}/profile` : redirectTo;
+              window.location.href = finalUrl;
               return;
             }
           }

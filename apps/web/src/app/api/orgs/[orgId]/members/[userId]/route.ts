@@ -98,8 +98,8 @@ export async function PATCH(
         .select("id", { count: "exact", head: true })
         .eq("org_id", orgId)
         .eq("role", "admin");
-      if (typeof count === "number" && count >= 2) {
-        return fail("BAD_REQUEST", "This org already has 2 admins. Remove or demote an admin first.", 400);
+      if (typeof count === "number" && count >= 3) {
+        return fail("BAD_REQUEST", "This org already has 3 admins. Remove or demote an admin first.", 400);
       }
     }
   }

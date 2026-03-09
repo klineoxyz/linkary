@@ -598,6 +598,8 @@ function RelationsEditor({
   onOpenAddModal,
   onOpenEditModal,
   setError,
+  myOrgs,
+  setRoute,
 }: {
   relations: ProfileRelationRow[];
   relationsLoading: boolean;
@@ -607,6 +609,8 @@ function RelationsEditor({
   onOpenAddModal: (relationType: RelationType) => void;
   onOpenEditModal: (r: ProfileRelationRow) => void;
   setError: (s: string | null) => void;
+  myOrgs?: Array<{ id: string; name: string; slug: string }>;
+  setRoute?: (r: { name: string; data?: { orgId?: string; tab?: string } }) => void;
 }) {
   const base = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -712,7 +716,29 @@ function RelationsEditor({
     return (
       <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
         <label className="block text-sm font-medium text-zinc-700">Relations</label>
-        <p className="text-xs text-zinc-500 mb-3">Ambassadors, affiliates, subsidiaries.</p>
+        <p className="text-xs text-zinc-500 mb-3">Admins &amp; team, ambassadors, affiliates, subsidiaries.</p>
+        {myOrgs && myOrgs.length > 0 && setRoute && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <label className="text-sm font-medium text-zinc-700">Admins &amp; team</label>
+            </div>
+            <p className="text-xs text-zinc-500 mb-2">Up to 3 admins per org can post Gigs (Sprints) and jobs on behalf of the org. Add Linkary users as admins or members.</p>
+            <ul className="space-y-2">
+              {myOrgs.map((org) => (
+                <li key={org.id} className="flex items-center justify-between gap-2 py-2 border-b border-zinc-200 last:border-0">
+                  <span className="text-sm font-medium text-zinc-900 truncate">{org.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setRoute({ name: "orgDetail", data: { orgId: org.id, tab: "members" } })}
+                    className="shrink-0 px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90"
+                  >
+                    Manage admins &amp; team
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {relationsLoading ? <p className="text-sm text-zinc-500">Loading…</p> : (
           <>
             {renderList("ambassador", "Ambassadors")}
@@ -2541,29 +2567,6 @@ export default function ProfileEditPage({
           )}
         </div>
 
-        {(me as { account_type?: string } | null)?.account_type === "company" && myOrgs.length > 0 && (
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
-            <label className="block text-sm font-medium text-zinc-700">Org admins &amp; team</label>
-            <p className="text-xs text-zinc-500">
-              Add Linkary users as admins (up to 2) or members. Admins can create jobs and manage the org.
-            </p>
-            <ul className="space-y-2">
-              {myOrgs.map((org) => (
-                <li key={org.id} className="flex items-center justify-between gap-2 py-2 border-b border-zinc-200 last:border-0">
-                  <span className="text-sm font-medium text-zinc-900 truncate">{org.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => setRoute({ name: "orgDetail", data: { orgId: org.id, tab: "members" } })}
-                    className="shrink-0 px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90"
-                  >
-                    Manage admins &amp; team
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Roles</label>
           {loading ? (
@@ -2629,6 +2632,8 @@ export default function ProfileEditPage({
             setSelectedRelationTarget(r.target_profile ?? null);
           }}
           setError={setError}
+          myOrgs={profileType === "company" ? myOrgs : undefined}
+          setRoute={setRoute}
         />
 
         <PartnerProgramsEditor

@@ -4,7 +4,6 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { inviteAmbassador } from "@/lib/orgs";
 import { ok, fail } from "@/lib/api-response";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -91,12 +90,17 @@ export async function POST(
     }
   }
 
-  const { error: inviteErr } = await inviteAmbassador(orgId, profileId, user.id);
-  if (inviteErr) {
-    if (inviteErr.includes("duplicate") || inviteErr.includes("unique") || inviteErr.includes("already exists")) {
+  const { error: insertErr } = await supabase.from("org_ambassadors").insert({
+    org_id: orgId,
+    profile_id: profileId,
+    status: "invited",
+    invited_by: user.id,
+  });
+  if (insertErr) {
+    if (insertErr.code === "23505" || insertErr.message?.includes("duplicate") || insertErr.message?.includes("unique") || insertErr.message?.includes("already exists")) {
       return NextResponse.json(ok({ alreadyInvited: true }));
     }
-    return fail("INTERNAL", inviteErr, 500);
+    return fail("INTERNAL", insertErr.message, 500);
   }
 
   if (serviceKey) {

@@ -44,7 +44,8 @@ export async function GET() {
   try {
     const [
       creatorsRes,
-      projectsRes,
+      orgsRes,
+      companyProfilesRes,
       opportunitiesRes,
       doneRes,
       reviewsRes,
@@ -55,8 +56,14 @@ export async function GET() {
         .select("id", { count: "exact", head: true })
         .eq("published", true)
         .not("username", "is", null)
-        .neq("username", ""),
+        .neq("username", "")
+        .or("account_type.eq.individual,account_type.is.null"),
       supabase.from("orgs").select("id", { count: "exact", head: true }).eq("published", true),
+      supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("published", true)
+        .eq("account_type", "company"),
       supabase
         .from("collab_requests")
         .select("id", { count: "exact", head: true })
@@ -84,9 +91,10 @@ export async function GET() {
   if (c != null) stats.creators_total = c;
   else missing_sources.push("profiles");
 
-  const proj = countFrom(projectsRes);
-  if (proj != null) stats.projects_total = proj;
-  else missing_sources.push("orgs");
+  const orgCount = countFrom(orgsRes);
+  const companyCount = countFrom(companyProfilesRes);
+  stats.projects_total = (orgCount ?? 0) + (companyCount ?? 0);
+  if (orgCount == null && companyCount == null) missing_sources.push("orgs");
 
   const opp = countFrom(opportunitiesRes);
   if (opp != null) stats.opportunities_live = opp;

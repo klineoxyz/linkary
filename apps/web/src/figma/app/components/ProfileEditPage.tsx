@@ -1369,7 +1369,7 @@ export default function ProfileEditPage({
   me,
   onSaved,
 }: {
-  setRoute: (r: { name: string }) => void;
+  setRoute: (r: { name: string; data?: { orgId?: string; tab?: string } }) => void;
   me: Profile | null;
   onSaved?: () => void;
 }) {

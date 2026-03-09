@@ -9,7 +9,7 @@ import { ok, fail } from "@/lib/api-response";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY ?? null;
 
 export async function POST(
   request: NextRequest,
@@ -46,12 +46,13 @@ export async function POST(
     profileId = body.profile_id.trim();
   } else if (typeof body?.profile_handle === "string" && body.profile_handle.trim()) {
     const handle = body.profile_handle.trim().replace(/^@/, "").toLowerCase();
-    const { data: profile } = await supabase
+    const profileClient = serviceKey ? createClient(supabaseUrl, serviceKey) : supabase;
+    const { data: profile } = await profileClient
       .from("profiles")
       .select("id")
       .ilike("username", handle)
       .maybeSingle();
-    if (!profile) return fail("NOT_FOUND", "Profile not found for that handle", 404);
+    if (!profile) return fail("NOT_FOUND", "Profile not found for that handle. User must be registered on Linkary.", 404);
     profileId = (profile as { id: string }).id;
   }
   if (!profileId) return fail("BAD_REQUEST", "profile_handle or profile_id required", 400);

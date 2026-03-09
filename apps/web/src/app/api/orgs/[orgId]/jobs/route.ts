@@ -16,7 +16,7 @@ export async function GET(
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   const { data, error } = await supabase
     .from("jobs")
-    .select("id, org_id, type, title, budget, duration, tags, status, created_at, updated_at")
+    .select("id, org_id, type, title, budget, duration, tags, description, apply_url, objective, links, status, created_at, updated_at")
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });
 
@@ -51,7 +51,17 @@ export async function POST(
     return NextResponse.json({ error: "Only org owner or admin can create jobs" }, { status: 403 });
   }
 
-  let body: { type?: string; title?: string; budget?: string; duration?: string; tags?: string[] };
+  let body: {
+    type?: string;
+    title?: string;
+    budget?: string;
+    duration?: string;
+    tags?: string[];
+    description?: string;
+    apply_url?: string;
+    objective?: string;
+    links?: Array<{ label?: string; url: string }>;
+  };
   try {
     body = await request.json().catch(() => ({}));
   } catch {
@@ -62,6 +72,13 @@ export async function POST(
   const title = typeof body?.title === "string" ? body.title.trim() : "";
   if (!title) return NextResponse.json({ error: "title is required" }, { status: 400 });
 
+  const description = typeof body?.description === "string" ? body.description.trim() || null : null;
+  const applyUrl = typeof body?.apply_url === "string" ? body.apply_url.trim() || null : null;
+  const objective = typeof body?.objective === "string" ? body.objective.trim() || null : null;
+  const links = Array.isArray(body?.links)
+    ? body.links.filter((l) => l && typeof (l as { url?: string }).url === "string" && (l as { url: string }).url.trim())
+    : [];
+
   const { data: job, error: insertErr } = await supabase
     .from("jobs")
     .insert({
@@ -71,9 +88,13 @@ export async function POST(
       budget: typeof body?.budget === "string" ? body.budget.trim() || null : null,
       duration: typeof body?.duration === "string" ? body.duration.trim() || null : null,
       tags: Array.isArray(body?.tags) ? body.tags : [],
+      description,
+      apply_url: applyUrl,
+      objective,
+      links: links.length ? links : [],
       status: "open",
     })
-    .select("id, org_id, type, title, budget, duration, tags, status, created_at, updated_at")
+    .select("id, org_id, type, title, budget, duration, tags, description, apply_url, objective, links, status, created_at, updated_at")
     .single();
 
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });

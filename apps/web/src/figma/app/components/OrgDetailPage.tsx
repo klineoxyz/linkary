@@ -82,6 +82,12 @@ export default function OrgDetailPage({
   const [admin, setAdmin] = useState(false);
   const [affiliateHandle, setAffiliateHandle] = useState("");
   const [ambassadorHandle, setAmbassadorHandle] = useState("");
+  const [affiliateSearchResults, setAffiliateSearchResults] = useState<Array<{ id: string; name: string; handleLabel: string }>>([]);
+  const [ambassadorSearchResults, setAmbassadorSearchResults] = useState<Array<{ id: string; name: string; handleLabel: string }>>([]);
+  const [affiliateSearchLoading, setAffiliateSearchLoading] = useState(false);
+  const [ambassadorSearchLoading, setAmbassadorSearchLoading] = useState(false);
+  const [selectedAffiliateProfileId, setSelectedAffiliateProfileId] = useState<string | null>(null);
+  const [selectedAmbassadorProfileId, setSelectedAmbassadorProfileId] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [recomputeLoading, setRecomputeLoading] = useState(false);
   const [showCaseStudyModal, setShowCaseStudyModal] = useState(false);
@@ -95,6 +101,10 @@ export default function OrgDetailPage({
   const [jobBudget, setJobBudget] = useState("");
   const [jobDuration, setJobDuration] = useState("");
   const [jobTagsStr, setJobTagsStr] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [jobApplyUrl, setJobApplyUrl] = useState("");
+  const [jobObjective, setJobObjective] = useState("");
+  const [jobLinksStr, setJobLinksStr] = useState("");
   const [jobSaving, setJobSaving] = useState(false);
   const [isCryptoProject, setIsCryptoProject] = useState(false);
   const [hasToken, setHasToken] = useState(false);
@@ -253,6 +263,48 @@ export default function OrgDetailPage({
     fetchWatchlistList();
   }, [userId, org?.id]);
 
+  useEffect(() => {
+    const q = affiliateHandle.trim().replace(/^@/, "");
+    if (q.length < 2) {
+      setAffiliateSearchResults([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setAffiliateSearchLoading(true);
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      try {
+        const res = await fetch(`${origin}/api/search?q=${encodeURIComponent(q)}&filter=people`);
+        const data = await res.json().catch(() => ({}));
+        const list = (data.results ?? []).filter((r: { type: string }) => r.type === "person");
+        setAffiliateSearchResults(list.map((r: { id: string; name: string; handleLabel: string }) => ({ id: r.id, name: r.name, handleLabel: r.handleLabel })));
+      } finally {
+        setAffiliateSearchLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [affiliateHandle]);
+
+  useEffect(() => {
+    const q = ambassadorHandle.trim().replace(/^@/, "");
+    if (q.length < 2) {
+      setAmbassadorSearchResults([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setAmbassadorSearchLoading(true);
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      try {
+        const res = await fetch(`${origin}/api/search?q=${encodeURIComponent(q)}&filter=people`);
+        const data = await res.json().catch(() => ({}));
+        const list = (data.results ?? []).filter((r: { type: string }) => r.type === "person");
+        setAmbassadorSearchResults(list.map((r: { id: string; name: string; handleLabel: string }) => ({ id: r.id, name: r.name, handleLabel: r.handleLabel })));
+      } finally {
+        setAmbassadorSearchLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [ambassadorHandle]);
+
   const onWatchlistOrg = watchlistList && org ? watchlistList.orgs.some((o) => o.entity_id === org.id) : false;
   const handleToggleWatchlistOrg = async () => {
     if (!org?.id || watchlistToggling) return;
@@ -391,7 +443,8 @@ export default function OrgDetailPage({
 
   const handleInvite = async (type: "affiliate" | "ambassador") => {
     const handle = type === "affiliate" ? affiliateHandle.trim() : ambassadorHandle.trim();
-    if (!org || !handle) return;
+    const profileId = type === "affiliate" ? selectedAffiliateProfileId : selectedAmbassadorProfileId;
+    if (!org || (!handle && !profileId)) return;
     setInviteError(null);
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
@@ -401,10 +454,11 @@ export default function OrgDetailPage({
     }
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const path = type === "affiliate" ? "affiliates" : "ambassadors";
+    const body = profileId ? { profile_id: profileId } : { profile_handle: handle.replace(/^@/, "") };
     const res = await fetch(`${origin}/api/orgs/${org.id}/${path}/invite`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ profile_handle: handle }),
+      body: JSON.stringify(body),
     });
     const out = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -413,9 +467,13 @@ export default function OrgDetailPage({
     }
     if (type === "affiliate") {
       setAffiliateHandle("");
+      setSelectedAffiliateProfileId(null);
+      setAffiliateSearchResults([]);
       setAffiliations(await listOrgAffiliations(org.id));
     } else {
       setAmbassadorHandle("");
+      setSelectedAmbassadorProfileId(null);
+      setAmbassadorSearchResults([]);
       setAmbassadors(await listOrgAmbassadors(org.id));
     }
     try {
@@ -510,8 +568,8 @@ export default function OrgDetailPage({
             const logoUrl =
               org.logo_url && !isPrivateStorageUrl(org.logo_url)
                 ? org.logo_url
-                : org.x_account_username
-                  ? `https://unavatar.io/twitter/${encodeURIComponent(org.x_account_username)}`
+                : (org.x_account_username || org.slug)
+                  ? `https://unavatar.io/twitter/${encodeURIComponent(org.x_account_username || org.slug)}`
                   : null;
             return logoUrl ? (
               <img src={logoUrl} alt={org.name} className="w-14 h-14 rounded-xl object-cover" />
@@ -891,19 +949,43 @@ export default function OrgDetailPage({
             <div className="space-y-4">
               {admin && (
                 <div className="flex flex-wrap items-center gap-2 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
-                  <input
-                    type="text"
-                    value={affiliateHandle}
-                    onChange={(e) => {
-                      setAffiliateHandle(e.target.value);
-                      setInviteError(null);
-                    }}
-                    placeholder="Profile handle (e.g. alice)"
-                    className="flex-1 min-w-[160px] px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
-                  />
+                  <div className="flex-1 min-w-[200px] relative">
+                    <input
+                      type="text"
+                      value={affiliateHandle}
+                      onChange={(e) => {
+                        setAffiliateHandle(e.target.value);
+                        setSelectedAffiliateProfileId(null);
+                        setInviteError(null);
+                      }}
+                      placeholder="Search Linkary users by handle (e.g. alice)"
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
+                    />
+                    {affiliateSearchLoading && <p className="absolute left-3 top-full mt-1 text-xs text-zinc-500">Searching…</p>}
+                    {affiliateSearchResults.length > 0 && (
+                      <ul className="absolute z-10 left-0 right-0 top-full mt-1 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg max-h-48 overflow-y-auto">
+                        {affiliateSearchResults.map((r) => (
+                          <li key={r.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAffiliateHandle(r.handleLabel);
+                                setSelectedAffiliateProfileId(r.id);
+                                setAffiliateSearchResults([]);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-between gap-2"
+                            >
+                              <span className="font-medium truncate">{r.name}</span>
+                              <span className="text-zinc-500 truncate">{r.handleLabel}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                   <button
                     onClick={() => handleInvite("affiliate")}
-                    disabled={!affiliateHandle.trim()}
+                    disabled={!affiliateHandle.trim() && !selectedAffiliateProfileId}
                     className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm disabled:opacity-50"
                   >
                     Invite Affiliate
@@ -984,19 +1066,43 @@ export default function OrgDetailPage({
             <div className="space-y-4">
               {admin && (
                 <div className="flex flex-wrap items-center gap-2 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
-                  <input
-                    type="text"
-                    value={ambassadorHandle}
-                    onChange={(e) => {
-                      setAmbassadorHandle(e.target.value);
-                      setInviteError(null);
-                    }}
-                    placeholder="Profile handle (e.g. bob)"
-                    className="flex-1 min-w-[160px] px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
-                  />
+                  <div className="flex-1 min-w-[200px] relative">
+                    <input
+                      type="text"
+                      value={ambassadorHandle}
+                      onChange={(e) => {
+                        setAmbassadorHandle(e.target.value);
+                        setSelectedAmbassadorProfileId(null);
+                        setInviteError(null);
+                      }}
+                      placeholder="Search Linkary users by handle (e.g. bob)"
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
+                    />
+                    {ambassadorSearchLoading && <p className="absolute left-3 top-full mt-1 text-xs text-zinc-500">Searching…</p>}
+                    {ambassadorSearchResults.length > 0 && (
+                      <ul className="absolute z-10 left-0 right-0 top-full mt-1 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg max-h-48 overflow-y-auto">
+                        {ambassadorSearchResults.map((r) => (
+                          <li key={r.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAmbassadorHandle(r.handleLabel);
+                                setSelectedAmbassadorProfileId(r.id);
+                                setAmbassadorSearchResults([]);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-between gap-2"
+                            >
+                              <span className="font-medium truncate">{r.name}</span>
+                              <span className="text-zinc-500 truncate">{r.handleLabel}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                   <button
                     onClick={() => handleInvite("ambassador")}
-                    disabled={!ambassadorHandle.trim()}
+                    disabled={!ambassadorHandle.trim() && !selectedAmbassadorProfileId}
                     className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm disabled:opacity-50"
                   >
                     Invite Ambassador
@@ -1530,8 +1636,8 @@ export default function OrgDetailPage({
       )}
 
       {showCreateJobModal && org && admin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6 max-w-md w-full">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6 max-w-md w-full my-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Create job</h3>
             <select
               value={jobType}
@@ -1548,31 +1654,77 @@ export default function OrgDetailPage({
               onChange={(e) => setJobTitle(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
             />
-            <input
-              type="text"
-              placeholder="Budget (e.g. $500)"
-              value={jobBudget}
-              onChange={(e) => setJobBudget(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
-            />
-            <input
-              type="text"
-              placeholder="Duration (e.g. 2 weeks)"
-              value={jobDuration}
-              onChange={(e) => setJobDuration(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
-            />
-            <input
-              type="text"
-              placeholder="Tags (comma-separated)"
-              value={jobTagsStr}
-              onChange={(e) => setJobTagsStr(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-4"
-            />
+            {jobType === "job" ? (
+              <>
+                <textarea
+                  placeholder="Requirements and description"
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+                />
+                <input
+                  type="url"
+                  placeholder="Apply URL (optional — if job is posted elsewhere, users will open this link to apply)"
+                  value={jobApplyUrl}
+                  onChange={(e) => setJobApplyUrl(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+                />
+                <input
+                  type="text"
+                  placeholder="Tags (comma-separated, optional)"
+                  value={jobTagsStr}
+                  onChange={(e) => setJobTagsStr(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+                />
+              </>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  placeholder="Duration (e.g. 2 weeks)"
+                  value={jobDuration}
+                  onChange={(e) => setJobDuration(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+                />
+                <input
+                  type="text"
+                  placeholder="Total budget (e.g. 500 USDT or 1000 TOKEN)"
+                  value={jobBudget}
+                  onChange={(e) => setJobBudget(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+                />
+                <textarea
+                  placeholder="Objective of the campaign"
+                  value={jobObjective}
+                  onChange={(e) => setJobObjective(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+                />
+                <textarea
+                  placeholder="Links for creators (one per line: Label URL or just URL)"
+                  value={jobLinksStr}
+                  onChange={(e) => setJobLinksStr(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+                />
+              </>
+            )}
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => { setShowCreateJobModal(false); setJobTitle(""); setJobBudget(""); setJobDuration(""); setJobTagsStr(""); setJobType("job"); }}
+                onClick={() => {
+                  setShowCreateJobModal(false);
+                  setJobTitle("");
+                  setJobBudget("");
+                  setJobDuration("");
+                  setJobTagsStr("");
+                  setJobDescription("");
+                  setJobApplyUrl("");
+                  setJobObjective("");
+                  setJobLinksStr("");
+                  setJobType("job");
+                }}
                 className="flex-1 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
               >
                 Cancel
@@ -1583,20 +1735,37 @@ export default function OrgDetailPage({
                 onClick={async () => {
                   setJobSaving(true);
                   const tags = jobTagsStr.split(",").map((t) => t.trim()).filter(Boolean);
+                  const links = jobLinksStr
+                    .split("\n")
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .map((line) => {
+                      const parts = line.split(/\s+/);
+                      if (parts.length >= 2) return { label: parts[0], url: parts.slice(1).join(" ").trim() };
+                      return { url: line };
+                    });
                   const origin = typeof window !== "undefined" ? window.location.origin : "";
                   const { data: { session } } = await supabase.auth.getSession();
                   const token = session?.access_token;
+                  const payload: Record<string, unknown> = {
+                    type: jobType,
+                    title: jobTitle.trim(),
+                    tags,
+                  };
+                  if (jobType === "job") {
+                    if (jobDescription.trim()) payload.description = jobDescription.trim();
+                    if (jobApplyUrl.trim()) payload.apply_url = jobApplyUrl.trim();
+                  } else {
+                    if (jobDuration.trim()) payload.duration = jobDuration.trim();
+                    if (jobBudget.trim()) payload.budget = jobBudget.trim();
+                    if (jobObjective.trim()) payload.objective = jobObjective.trim();
+                    if (links.length) payload.links = links;
+                  }
                   const res = token
                     ? await fetch(`${origin}/api/orgs/${org.id}/jobs`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                        body: JSON.stringify({
-                          type: jobType,
-                          title: jobTitle.trim(),
-                          budget: jobBudget.trim() || undefined,
-                          duration: jobDuration.trim() || undefined,
-                          tags,
-                        }),
+                        body: JSON.stringify(payload),
                       })
                     : { ok: false };
                   setJobSaving(false);
@@ -1611,6 +1780,10 @@ export default function OrgDetailPage({
                     setJobBudget("");
                     setJobDuration("");
                     setJobTagsStr("");
+                    setJobDescription("");
+                    setJobApplyUrl("");
+                    setJobObjective("");
+                    setJobLinksStr("");
                     setJobType("job");
                   }
                 }}

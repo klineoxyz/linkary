@@ -750,6 +750,17 @@ export default function OrgDetailPage({
           )}
           {tab === "members" && (
             <div className="space-y-4">
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30 p-4">
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  Managing: <span className="font-semibold">{org.name}</span> <span className="text-zinc-500 font-normal">@{org.slug}</span>
+                </p>
+                <p className="text-xs text-zinc-500 mt-1">Official org account. Only the owner and admins can add or remove members here.</p>
+                {((org.name || "").trim().toLowerCase() === "my org" || (org.slug || "").startsWith("org-")) && (
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-2">
+                    Set your org&apos;s display name and @handle in <button type="button" onClick={() => setTab("settings")} className="underline font-medium">Settings</button> so your real brand (e.g. DESI Crypto CLUB) is shown.
+                  </p>
+                )}
+              </div>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
                 Add team members and assign up to 3 <strong>Admins</strong>. Admins can post Gigs (Sprints) and jobs on behalf of the org, manage applications, and edit org content. <strong>Members</strong> can view the org and participate as needed.
               </p>

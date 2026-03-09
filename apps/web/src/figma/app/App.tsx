@@ -3447,7 +3447,10 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
                   className="flex items-center gap-2"
                   onClick={async () => {
                     const orgs = profileOrgs.length > 0 ? profileOrgs : await listMyOrgs(me.id);
-                    if (orgs.length >= 1) setRoute({ name: "orgDetail", data: { orgId: orgs[0].id, tab: "members" } });
+                    const profileHandle = (me.username || "").trim().toLowerCase().replace(/^@/, "");
+                    const matchingOrg = profileHandle && orgs.find((o) => (o.slug || "").trim().toLowerCase().replace(/^@/, "") === profileHandle);
+                    const targetOrg = matchingOrg ?? orgs[0];
+                    if (targetOrg) setRoute({ name: "orgDetail", data: { orgId: targetOrg.id, tab: "members" } });
                     else setRoute({ name: "dashboard" });
                   }}
                 >
@@ -4642,7 +4645,7 @@ function LinkaryAppInner() {
                 )}
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}
                 {route.name === "dashboard" && <DashboardPage setRoute={setRoute} />}
-                {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
+                {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} currentProfileUsername={me?.username} />}
                 {route.name === "dealDetail" && <DealDetailPage setRoute={setRoute} dealId={route.data?.dealId} />}
                 {route.name === "analytics" && <AnalyticsPage setRoute={setRoute} />}
                 {(route.name === "calendar" || route.name === "xspaces") && <XSpacesPage setRoute={setRoute} me={me} />}

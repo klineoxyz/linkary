@@ -50,12 +50,18 @@ function formatRelativeTime(iso: string): string {
   }
 }
 
+function norm(s: string): string {
+  return (s || "").trim().toLowerCase().replace(/^@/, "");
+}
+
 export default function OrgDetailPage({
   setRoute,
   data,
+  currentProfileUsername,
 }: {
   setRoute: (r: { name: string; data?: any }) => void;
   data?: { orgId?: string; slug?: string; showConnectXBanner?: boolean; tab?: string };
+  currentProfileUsername?: string | null;
 }) {
   const orgId = data?.orgId ?? data?.slug;
   const [org, setOrg] = useState<Org | null>(null);
@@ -104,6 +110,8 @@ export default function OrgDetailPage({
   const [connectXLoading, setConnectXLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [settingsOrgName, setSettingsOrgName] = useState("");
+  const [settingsOrgSlug, setSettingsOrgSlug] = useState("");
   const [dismissConnectXBanner, setDismissConnectXBanner] = useState(false);
   const [membersWithProfiles, setMembersWithProfiles] = useState<Array<OrgMember & { profile?: { username: string | null; display_name: string | null; avatar_url: string | null } | null }>>([]);
   const [membersLoadError, setMembersLoadError] = useState<string | null>(null);
@@ -156,6 +164,8 @@ export default function OrgDetailPage({
         setTokenSymbol(o.token_symbol ?? "");
         setDexscreenerUrl(o.dexscreener_url ?? "");
         setPublished(!!o.published);
+        setSettingsOrgName(o.name ?? "");
+        setSettingsOrgSlug((o.slug ?? "").replace(/^@/, ""));
         const base = typeof window !== "undefined" ? window.location.origin : "";
         const [m, a, am, met, jobsAll, cs, supportersRes, influenceRes, supportStatusRes, dashboardRes] = await Promise.all([
           listOrgMembers(o.id),
@@ -755,9 +765,14 @@ export default function OrgDetailPage({
                   Managing: <span className="font-semibold">{org.name}</span> <span className="text-zinc-500 font-normal">@{org.slug}</span>
                 </p>
                 <p className="text-xs text-zinc-500 mt-1">Official org account. Only the owner and admins can add or remove members here.</p>
-                {((org.name || "").trim().toLowerCase() === "my org" || (org.slug || "").startsWith("org-")) && (
+                {currentProfileUsername && norm(org.slug) !== norm(currentProfileUsername) && (
+                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
+                    You&apos;re logged in as <strong>@{currentProfileUsername}</strong>. This org is <strong>@{org.slug}</strong>. To add admins for your brand profile, set this org&apos;s handle to <strong>{currentProfileUsername}</strong> in <button type="button" onClick={() => setTab("settings")} className="underline font-medium">Settings</button> so it matches your profile.
+                  </p>
+                )}
+                {!currentProfileUsername && ((org.name || "").trim().toLowerCase() === "my org" || (org.slug || "").startsWith("org-")) && (
                   <p className="text-xs text-amber-700 dark:text-amber-300 mt-2">
-                    Set your org&apos;s display name and @handle in <button type="button" onClick={() => setTab("settings")} className="underline font-medium">Settings</button> so your real brand (e.g. DESI Crypto CLUB) is shown.
+                    Set your org&apos;s display name and @handle in <button type="button" onClick={() => setTab("settings")} className="underline font-medium">Settings</button> so your real brand is shown.
                   </p>
                 )}
               </div>
@@ -1290,6 +1305,31 @@ export default function OrgDetailPage({
               ) : (
                 <>
                   <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3">Org name and handle</h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Set these to match your brand profile so &quot;Admins &amp; team&quot; from your profile opens this org.</p>
+                    <div className="space-y-2 mb-2">
+                      <label className="block text-xs font-medium text-zinc-500">Display name</label>
+                      <input
+                        type="text"
+                        value={settingsOrgName}
+                        onChange={(e) => setSettingsOrgName(e.target.value)}
+                        placeholder="e.g. DESI Crypto CLUB"
+                        className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-zinc-500">Handle (linkary.xyz/@handle)</label>
+                      <input
+                        type="text"
+                        value={settingsOrgSlug}
+                        onChange={(e) => setSettingsOrgSlug(e.target.value.replace(/^@/, "").toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                        placeholder="e.g. desicryptoclub"
+                        className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
+                      />
+                      <p className="text-xs text-zinc-500">Use the same handle as your profile (@{currentProfileUsername || "yourprofile"}) to have &quot;Admins &amp; team&quot; open this org.</p>
+                    </div>
+                  </div>
+                  <div>
                     <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3">X verification</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
                       {org.is_x_verified ? (
@@ -1405,7 +1445,11 @@ export default function OrgDetailPage({
                       if (!org) return;
                       setSettingsError(null);
                       setSettingsSaving(true);
+                      const newName = settingsOrgName.trim() || org.name;
+                      const newSlug = settingsOrgSlug.trim() || org.slug;
                       const { error } = await updateOrg(org.id, {
+                        name: newName,
+                        slug: newSlug || undefined,
                         published,
                         is_crypto_project: isCryptoProject,
                         has_token: hasToken ? true : false,
@@ -1414,9 +1458,11 @@ export default function OrgDetailPage({
                       });
                       setSettingsSaving(false);
                       if (error) {
-                        setSettingsError(error.includes("published") || error.includes("x_verified") ? "Connect the org X account first to enable public listing." : error);
+                        setSettingsError(error.includes("published") || error.includes("x_verified") ? "Connect the org X account first to enable public listing." : error.includes("unique") || error.includes("duplicate") ? "That handle is already taken. Try another." : error);
                         if (error.includes("published") || error.includes("x_verified")) setPublished(false);
-                      } else setOrg({ ...org, published, is_crypto_project: isCryptoProject, has_token: hasToken, token_symbol: tokenSymbol.trim() || null, dexscreener_url: dexscreenerUrl.trim() || null });
+                      } else {
+                        setOrg({ ...org, name: newName, slug: newSlug || org.slug, published, is_crypto_project: isCryptoProject, has_token: hasToken, token_symbol: tokenSymbol.trim() || null, dexscreener_url: dexscreenerUrl.trim() || null });
+                      }
                     }}
                     className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm disabled:opacity-50"
                   >

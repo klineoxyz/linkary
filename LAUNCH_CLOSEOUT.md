@@ -114,5 +114,16 @@ Execute in this exact order before launch:
 - [x] Step 1 (P0-3) completed.  
 - [x] Step 2 (Critical E2E) completed.  
 - [x] Step 3 (Blocker check) completed.  
-- **Decision:** **Go** / **No-go** — _______________  
-- **Signed:** _______________ **Date:** _______________
+- [x] Step 4 (Go / No-go) completed.  
+- **Decision:** **Go** / **No-go** — **Go**  
+- **Signed:** _______________ **Date:** 2026-03-08
+
+---
+
+## 6. Post-launch (first 24h + P1)
+
+**First 24 hours — monitor:** Error rate / 5xx; auth (login/signup); public profile and org pages loading; job apply and application accept; Supabase dashboard (connections, RLS). Check sitemap.xml and `/work` once.
+
+**Top 5 P1 next:** (1) Empty/error states (profile edit, org settings, job apply, deal flow). (2) Org-scoped jobs API or list filter (reduce OrgDetailPage payload). (3) Monitoring/readiness: alerts on 5xx, analytics queue; `/api/readiness` or ops check. (4) Dashboard KPIs from real APIs (deals count, applications count). (5) Permission-denied and mobile key flows (apply, accept, publish).
+
+**Production risks to watch:** Applications RLS remains strict (no policy drift). Analytics backfill/crons (x-analytics-daily, refresh) — confirm they run; queue depth and failures. Unpublished profile/org not leaking into sitemap or public read.

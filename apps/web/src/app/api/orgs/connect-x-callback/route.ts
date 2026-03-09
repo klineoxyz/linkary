@@ -4,11 +4,11 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-/** Extract X identity only from Supabase user.identities (and fallback user_metadata). No session guessing. */
+/** Extract X identity from Supabase user.identities (and fallback user_metadata). Includes profile image for org logo. */
 function extractXIdentityFromUser(user: {
   identities?: Array<{ provider?: string; identity_data?: Record<string, unknown> }>;
   user_metadata?: Record<string, unknown>;
-}): { username: string; provider_user_id: string } | null {
+}): { username: string; provider_user_id: string; profile_image_url?: string } | null {
   const identities = user.identities ?? [];
   const xIdentity = identities.find((i) => {
     const p = (i.provider ?? "").toLowerCase();
@@ -34,8 +34,18 @@ function extractXIdentityFromUser(user: {
     (typeof raw.sub === "string" && raw.sub) ||
     "";
 
+  const imageKeys = ["profile_image_url_https", "profile_image_url", "avatar_url", "picture", "image"];
+  let profile_image_url: string | undefined;
+  for (const k of imageKeys) {
+    const v = merged[k];
+    if (typeof v === "string" && v.trim() && (v.startsWith("http://") || v.startsWith("https://"))) {
+      profile_image_url = v.trim();
+      break;
+    }
+  }
+
   if (!username) return null;
-  return { username, provider_user_id };
+  return { username, provider_user_id, profile_image_url };
 }
 
 /** POST: Attach current session's X identity to an org. Caller must be org admin. Uses only Supabase user identities. */
@@ -85,17 +95,35 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const now = new Date().toISOString();
-  const { error: updateErr } = await supabase
+  const { data: existingOrg } = await supabase
     .from("orgs")
-    .update({
-      x_account_username: xIdentity.username,
-      x_account_user_id: xIdentity.provider_user_id || null,
-      x_connected_at: now,
-      is_x_verified: true,
-      updated_at: now,
-    })
-    .eq("id", orgId);
+    .select("logo_url, logo_file_path")
+    .eq("id", orgId)
+    .maybeSingle();
+  const hasLogo =
+    !!(existingOrg as { logo_url?: string | null; logo_file_path?: string | null } | null)?.logo_url?.trim() ||
+    !!(existingOrg as { logo_url?: string | null; logo_file_path?: string | null } | null)?.logo_file_path?.trim();
+
+  const now = new Date().toISOString();
+  const updatePayload: {
+    x_account_username: string;
+    x_account_user_id: string | null;
+    x_connected_at: string;
+    is_x_verified: boolean;
+    updated_at: string;
+    logo_url?: string;
+  } = {
+    x_account_username: xIdentity.username,
+    x_account_user_id: xIdentity.provider_user_id || null,
+    x_connected_at: now,
+    is_x_verified: true,
+    updated_at: now,
+  };
+  if (!hasLogo && xIdentity.profile_image_url) {
+    updatePayload.logo_url = xIdentity.profile_image_url;
+  }
+
+  const { error: updateErr } = await supabase.from("orgs").update(updatePayload).eq("id", orgId);
 
   if (updateErr) {
     return NextResponse.json({ error: updateErr.message }, { status: 500 });

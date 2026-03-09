@@ -154,7 +154,7 @@ import DealDetailPage from "./components/DealDetailPage";
 import AffiliationAmbassadorSection from "./components/AffiliationAmbassadorSection";
 import { EthosPill } from "@/components/EthosPill";
 import LoginPage from "./components/LoginPage";
-import OnboardingPage from "./components/OnboardingPage";
+import AccountTypePage from "./components/AccountTypePage";
 import { supabase } from "@/lib/supabase";
 import { ensureProfileForSession, getMyProfile, updateMyProfile } from "@/lib/profiles";
 import { getXConnection } from "@/lib/xAuth";
@@ -753,6 +753,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     privacy: "/privacy",
     login: "/login",
     onboarding: "/onboarding",
+    accountType: "/onboarding",
     profile: "/profile",
     profileEdit: "/profile/edit",
     profileDeals: "/profile/deals",
@@ -854,7 +855,7 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   if (RESERVED_PATHS.has(segment)) {
     const nameMap: Record<string, string> = {
       dashboard: "dashboard", explore: "explore", terms: "terms", "privacy-policy": "privacyPolicy",
-      privacy: "privacy", login: "login", onboarding: "profile", profile: "profile",
+      privacy: "privacy", login: "login", onboarding: "accountType", profile: "profile",
       overview: "overview", market: "market", messages: "messages", circles: "circles",
       analytics: "analytics", verification: "verification",
       plans: "plansBilling", billing: "billing", pricing: "pricing",
@@ -3966,12 +3967,17 @@ function LinkaryAppInner() {
     if (authEmail && profile?.id && !isWalletLikeEmail(authEmail)) {
       updateMyProfile(session.user.id, { email: authEmail }).catch((err) => console.error("[AUTH] updateMyProfile email", err));
     }
-    if (!profile?.onboarding_completed_at && profile?.id) {
-      updateMyProfile(session.user.id, { onboarding_completed_at: new Date().toISOString(), account_type: "individual" }).then(() => refreshMe()).catch(() => {});
+    const accountType = (profile as { account_type?: string | null } | null)?.account_type;
+    if (profile?.id && (accountType === undefined || accountType === null || accountType === "")) {
+      setRoute({ name: "accountType" });
+    } else {
+      if (!profile?.onboarding_completed_at && profile?.id) {
+        updateMyProfile(session.user.id, { onboarding_completed_at: new Date().toISOString() }).then(() => refreshMe()).catch(() => {});
+      }
+      const p = pathname ?? "/";
+      setRouteState((prev) => (prev.name === "login" ? { name: "overview" } : prev));
+      if (p === "/login") router.push("/overview");
     }
-    const p = pathname ?? "/";
-    setRouteState((prev) => (prev.name === "login" ? { name: "overview" } : prev));
-    if (p === "/login") router.push("/overview");
     // Post-login repair and analytics: ensure-social-x (repair from identity/profile), then ensure-backfill (today snapshot + 90d job). social_accounts is source of truth.
     if (session?.access_token && typeof window !== "undefined") {
       fetch(`${window.location.origin}/api/auth/ensure-social-x`, {
@@ -4022,7 +4028,7 @@ function LinkaryAppInner() {
   // Production route lockdown: only allowed routes are reachable; everything else redirects to Overview
   const ALLOWED_ROUTES = new Set([
     "landing", "overview", "dashboard", "profile", "profileEdit", "profileInsights", "userProfile", "userInsights", "market", "messages", "workRequests",
-    "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding",
+    "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding", "accountType",
     "orgDetail", "brandProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
     "circles", "circleDetail", "connections", "kolLists", "calendar", "xspaces", "capitalPartners", "watchlist",
   ]);
@@ -4426,7 +4432,7 @@ function LinkaryAppInner() {
 
       <div className="min-h-screen flex flex-col lg:flex-row relative z-[20]">
         {/* Mobile Sidebar Backdrop */}
-        {mobileOpen && !["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && (
+        {mobileOpen && !["publicCreator", "publicProject", "publicCompany", "login", "onboarding", "accountType"].includes(route.name) && (
           <div 
             className="fixed inset-0 bg-black/60 z-[90] lg:hidden"
             onClick={() => setMobileOpen(false)}
@@ -4434,7 +4440,7 @@ function LinkaryAppInner() {
         )}
         
         {/* Hide sidebar for public profile pages */}
-        {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && (
+        {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding", "accountType"].includes(route.name) && (
           <Sidebar
             route={route}
             setRoute={setRoute}
@@ -4446,9 +4452,9 @@ function LinkaryAppInner() {
           />
         )}
 
-        <main className={`flex-1 font-app text-base antialiased ${["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) ? "" : "p-6 lg:p-10"} overflow-y-auto relative min-h-screen`}>
+        <main className={`flex-1 font-app text-base antialiased ${["publicCreator", "publicProject", "publicCompany", "login", "onboarding", "accountType"].includes(route.name) ? "" : "p-6 lg:p-10"} overflow-y-auto relative min-h-screen`}>
           {/* Animated Mesh Gradient Background - hidden for public and for profile/dashboard/org to avoid haze */}
-          {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && !hideDecorativeLayers && (
+          {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding", "accountType"].includes(route.name) && !hideDecorativeLayers && (
           <>
             <div className="fixed inset-0 pointer-events-none z-[2]">
               <motion.div
@@ -4560,7 +4566,7 @@ function LinkaryAppInner() {
           {/* Content with elevated z-index */}
           <div className="relative z-[30]">
             {/* Hide topbar for public profile pages */}
-            {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding"].includes(route.name) && (
+            {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding", "accountType"].includes(route.name) && (
               <Topbar setMobileOpen={setMobileOpen} route={route} setRoute={setRoute} me={me} />
             )}
 
@@ -4583,14 +4589,13 @@ function LinkaryAppInner() {
                     onLoggedIn={runAuthGate}
                   />
                 )}
-                {route.name === "onboarding" && authUserId && (
-                  <OnboardingPage
+                {route.name === "accountType" && authUserId && (
+                  <AccountTypePage
                     userId={authUserId}
                     setRoute={setRoute}
                     onComplete={async () => {
                       const p = await getMyProfile(authUserId);
                       setMe(p ?? null);
-                      setRoute({ name: "overview" });
                     }}
                   />
                 )}

@@ -170,8 +170,6 @@ export default function AuthCallbackPage() {
               await updateMyProfile(user.id, {
                 ...(bio != null ? { bio } : {}),
                 ...(displayName != null ? { display_name: displayName } : {}),
-                onboarding_completed_at: new Date().toISOString(),
-                account_type: "individual",
               });
             } else {
               await updateMyProfile(user.id, { onboarding_completed_at: new Date().toISOString() });
@@ -270,8 +268,6 @@ export default function AuthCallbackPage() {
                 await updateMyProfile(session.user.id, {
                   ...(bio != null ? { bio } : {}),
                   ...(displayName != null ? { display_name: displayName } : {}),
-                  onboarding_completed_at: new Date().toISOString(),
-                  account_type: "individual",
                 });
               } else {
                 await updateMyProfile(session.user.id, { onboarding_completed_at: new Date().toISOString() });

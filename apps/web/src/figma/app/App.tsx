@@ -162,7 +162,7 @@ import { getProfileProfessions } from "@/lib/profileProfessions";
 import { listJobs, type JobWithOrg } from "@/lib/jobs";
 import { listConversationsForUser, listMessages, sendMessageAsProfile, sendMessageAsOrg } from "@/lib/messages";
 import { listMyOrgs } from "@/lib/orgs";
-import { listCaseStudiesForProfile, createCaseStudyForProfile } from "@/lib/caseStudies";
+import { listCaseStudiesForProfile, createCaseStudyForProfile, deleteCaseStudyForProfile } from "@/lib/caseStudies";
 import LandingPage from "./components/LandingPage";
 import PrivacyDataPage from "./components/PrivacyDataPage";
 import TermsOfServicePage from "./components/TermsOfServicePage";
@@ -3198,6 +3198,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
   const [csDescription, setCsDescription] = useState("");
   const [csProofUrl, setCsProofUrl] = useState("");
   const [csSubmitting, setCsSubmitting] = useState(false);
+  const [caseStudyRemovingId, setCaseStudyRemovingId] = useState<string | null>(null);
   const [meStats, setMeStats] = useState<{ ethos: number | null; xscore: number | null; reputationIndex: number; repScore: number | null; socialPower: number; reviews: { avg: number; count: number }; completedGigsCount?: number } | null>(null);
   const [xHandle, setXHandle] = useState<string | null>(null);
   const [profileSearchQuery, setProfileSearchQuery] = useState("");
@@ -3386,6 +3387,14 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
       setCsTitle(""); setCsDescription(""); setCsProofUrl("");
       listCaseStudiesForProfile(me.id).then(setCaseStudies);
     }
+  };
+
+  const handleRemoveCaseStudy = async (caseStudyId: string) => {
+    if (!me?.id || !confirm("Remove this case study?")) return;
+    setCaseStudyRemovingId(caseStudyId);
+    const { error } = await deleteCaseStudyForProfile(me.id, caseStudyId);
+    setCaseStudyRemovingId(null);
+    if (!error) listCaseStudiesForProfile(me.id).then(setCaseStudies);
   };
 
   const displayCaseStudies = caseStudies.length > 0 ? caseStudies : (u.caseStudies ?? []);
@@ -3666,17 +3675,27 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
             <Card>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-foreground">Featured Work</h3>
-                {isMyProfile && <Button variant="outline" size="sm" className="text-foreground" onClick={() => setRoute({ name: "overview" })}>Add</Button>}
+                {isMyProfile && <Button variant="outline" size="sm" className="text-foreground" onClick={() => setShowCaseStudyModal(true)}>Add Case study</Button>}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {displayCaseStudies.length > 0
                   ? displayCaseStudies.map((work) => (
-                      <div key={work.id} className="rounded-lg border border-border bg-muted p-4 hover:bg-secondary transition-colors">
-                        <p className="font-semibold text-foreground">{(work as { title?: string | null }).title || "Case study"}</p>
+                      <div key={work.id} className="rounded-lg border border-border bg-muted p-4 hover:bg-secondary transition-colors relative group">
+                        <p className="font-semibold text-foreground pr-16">{(work as { title?: string | null }).title || "Case study"}</p>
                         {(work as { metrics?: Record<string, unknown> }).metrics && Object.keys((work as { metrics?: Record<string, unknown> }).metrics || {}).length > 0 && (
                           <div className="mt-2 text-xs text-muted-foreground">
                             {Object.entries((work as { metrics?: Record<string, unknown> }).metrics || {}).slice(0, 2).map(([k, v]) => `${k}: ${String(v)}`).join(" · ")}
                           </div>
+                        )}
+                        {isMyProfile && (
+                          <button
+                            type="button"
+                            disabled={caseStudyRemovingId === work.id}
+                            onClick={() => handleRemoveCaseStudy(work.id)}
+                            className="absolute top-3 right-3 text-xs px-2 py-1 rounded border border-border text-muted-foreground hover:bg-destructive/10 hover:border-destructive hover:text-destructive disabled:opacity-50"
+                          >
+                            {caseStudyRemovingId === work.id ? "…" : "Remove"}
+                          </button>
                         )}
                       </div>
                     ))
@@ -3739,7 +3758,22 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
                 const path = (cs as CaseStudyRow).proof_file_path?.trim();
                 const imageUrl = path ? (signedCaseStudyUrlsByPath[path] ?? null) : null;
                 const props = toCaseStudyCardProps(cs as CaseStudyRow, { includeDetails: true, imageUrl });
-                return <CaseStudyCard key={cs.id} {...props} />;
+                return (
+                  <CaseStudyCard
+                    key={cs.id}
+                    {...props}
+                    actions={isMyProfile ? (
+                      <button
+                        type="button"
+                        disabled={caseStudyRemovingId === cs.id}
+                        onClick={() => handleRemoveCaseStudy(cs.id)}
+                        className="text-xs px-2 py-1 rounded border border-border text-muted-foreground hover:bg-destructive/10 hover:border-destructive hover:text-destructive disabled:opacity-50"
+                      >
+                        {caseStudyRemovingId === cs.id ? "…" : "Remove"}
+                      </button>
+                    ) : undefined}
+                  />
+                );
               })}
             </div>
           </Card>

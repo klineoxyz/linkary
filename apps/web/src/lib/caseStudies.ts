@@ -66,6 +66,16 @@ export async function createCaseStudyForProfile(
   return { data: { ...data, metrics: data.metrics ?? {} } as CaseStudy, error: null };
 }
 
+export async function deleteCaseStudyForProfile(profileId: string, caseStudyId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from(CASE_STUDIES)
+    .delete()
+    .eq("id", caseStudyId)
+    .eq("owner_type", "profile")
+    .eq("owner_profile_id", profileId);
+  return { error: error?.message ?? null };
+}
+
 export async function createCaseStudyForOrg(
   orgId: string,
   payload: { title?: string; description?: string; proof_url?: string; metrics?: Record<string, unknown> }

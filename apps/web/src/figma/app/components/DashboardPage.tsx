@@ -580,6 +580,82 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
         <p className="font-medium">Sample metrics</p>
         <p className="mt-0.5 text-amber-800 dark:text-amber-300/90">The chart metrics below are sample preview data. Your real deals and brands are shown in the cards above. Full analytics are available in the Analytics page.</p>
       </div>
+
+      {/* My Orgs first: add admins & team is the main action when user has orgs */}
+      <GlassCard>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-primary stroke-[1.75]" />
+              My Orgs
+            </h3>
+            {userId ? (
+              <button
+                onClick={() => setShowCreateOrg(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:opacity-90 text-primary-foreground text-sm font-medium"
+              >
+                <Plus className="w-4 h-4 stroke-[1.75]" />
+                Create Org
+              </button>
+            ) : (
+              <p className="text-sm text-gray-500">Sign in to create and manage orgs</p>
+            )}
+          </div>
+          {myOrgs.length === 0 ? (
+            <>
+              <p className="text-sm text-gray-600">For a project not yet on Linkary: create a company, brand, project, or agency. You&apos;ll connect the org&apos;s X account to verify during setup.</p>
+              <p className="text-sm text-gray-600 mt-2">After creating an org, open it and use <strong>Members</strong> to add admins and team.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-600 mb-4">Add admins (up to 3) and members. Admins can post Sprints and jobs on behalf of the org.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {myOrgs.map((org) => (
+                  <div
+                    key={org.id}
+                    className="p-4 rounded-xl border border-border bg-gradient-to-br bg-card hover:border-border transition-all flex flex-col gap-2"
+                  >
+                    <div
+                      onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id } })}
+                      className="flex items-center gap-3 cursor-pointer"
+                    >
+                      {org.logo_url && !isPrivateStorageUrl(org.logo_url) ? (
+                        <img src={org.logo_url} alt={org.name} className="w-10 h-10 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center shrink-0">
+                          <Building2 className="w-5 h-5 text-primary" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-gray-900 truncate">{org.name}</p>
+                        <p className="text-xs text-gray-500 truncate">@{org.slug} · {org.org_type}</p>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-gray-400 shrink-0" />
+                    </div>
+                    <div className="flex gap-2 pt-1 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id, tab: "members" } })}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-primary text-white font-medium hover:opacity-90"
+                      >
+                        Add admins &amp; team
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id } })}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-border bg-background text-foreground font-medium hover:bg-muted"
+                      >
+                        Open org
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </GlassCard>
+
       {/* Universal Search Bar */}
       <GlassCard>
         <div className="p-6">
@@ -686,76 +762,6 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-      </GlassCard>
-
-      {/* My Orgs (from Supabase) + Create Org */}
-      <GlassCard>
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-primary stroke-[1.75]" />
-              My Orgs
-            </h3>
-            {userId ? (
-              <button
-                onClick={() => setShowCreateOrg(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:opacity-90 text-primary-foreground text-sm font-medium"
-              >
-                <Plus className="w-4 h-4 stroke-[1.75]" />
-                Create Org
-              </button>
-            ) : (
-              <p className="text-sm text-gray-500">Sign in to create and manage orgs</p>
-            )}
-          </div>
-          {myOrgs.length === 0 && (
-            <>
-              <p className="text-sm text-gray-600">For a project not yet on Linkary: create a company, brand, project, or agency. You&apos;ll connect the org&apos;s X account to verify during setup.</p>
-            </>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-            {myOrgs.map((org) => (
-              <div
-                key={org.id}
-                className="p-4 rounded-xl border border-border bg-gradient-to-br bg-card hover:border-border transition-all flex flex-col gap-2"
-              >
-                <div
-                  onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id } })}
-                  className="flex items-center gap-3 cursor-pointer"
-                >
-                  {org.logo_url && !isPrivateStorageUrl(org.logo_url) ? (
-                    <img src={org.logo_url} alt={org.name} className="w-10 h-10 rounded-lg object-cover" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center shrink-0">
-                      <Building2 className="w-5 h-5 text-primary" />
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-gray-900 truncate">{org.name}</p>
-                    <p className="text-xs text-gray-500 truncate">@{org.slug} · {org.org_type}</p>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-gray-400 shrink-0" />
-                </div>
-                <div className="flex gap-2 pt-1 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id, tab: "members" } })}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-primary text-white font-medium hover:opacity-90"
-                  >
-                    Add admins &amp; team
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id } })}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-border bg-background text-foreground font-medium hover:bg-muted"
-                  >
-                    Open org
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </GlassCard>
 

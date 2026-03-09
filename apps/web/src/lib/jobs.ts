@@ -11,6 +11,10 @@ export type Job = {
   budget: string | null;
   duration: string | null;
   tags: string[];
+  description?: string | null;
+  apply_url?: string | null;
+  objective?: string | null;
+  links?: Array<{ label?: string; url: string }>;
   status: string;
   created_at: string;
   updated_at: string;

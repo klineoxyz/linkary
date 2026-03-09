@@ -2036,7 +2036,7 @@ function MarketplacePage({ setRoute }) {
                       <p className="text-xs text-white/80">{(j.org?.name ?? j.org)} · {j.budget ?? ""} · {j.type ?? "job"}</p>
                       <p className="mt-2 text-xs text-white/70">{j.applicants != null ? j.applicants + " applicants" : ""}</p>
                     </div>
-                    <Button size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => (j.org_id ? setApplyJob(j) : setRoute({ name: "overview" }))}>Apply</Button>
+                    <Button size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => { if (!j.org_id) { setRoute({ name: "overview" }); return; } if ((j as { apply_url?: string }).apply_url) { window.open((j as { apply_url: string }).apply_url, "_blank", "noopener,noreferrer"); return; } setApplyJob(j); }}>Apply</Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(Array.isArray(j.tags) ? j.tags : []).map((t) => (
@@ -2102,7 +2102,7 @@ function MarketplacePage({ setRoute }) {
                       <p className="text-xs text-white/80">{(s.org?.name ?? s.org)} · {s.budget ?? ""} · {s.duration ?? ""}</p>
                       <p className="mt-2 text-xs text-white/70">{s.applicants != null ? s.applicants + " applicants" : ""}</p>
                     </div>
-                    <Button size="sm" variant="outline" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => (s.org_id ? setApplyJob(s) : setRoute({ name: "overview" }))}>Apply</Button>
+                    <Button size="sm" variant="outline" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => { if (!s.org_id) { setRoute({ name: "overview" }); return; } if ((s as { apply_url?: string }).apply_url) { window.open((s as { apply_url: string }).apply_url, "_blank", "noopener,noreferrer"); return; } setApplyJob(s); }}>Apply</Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(Array.isArray(s.tags) ? s.tags : []).map((t) => (
@@ -2126,6 +2126,16 @@ function MarketplacePage({ setRoute }) {
           <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Apply to {applyJob.title}</h3>
             <p className="text-sm text-zinc-500 mb-4">{(applyJob.org?.name ?? applyJob.org_id)}</p>
+            {(applyJob as { apply_url?: string }).apply_url ? (
+              <>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">This job uses an external apply link. Click below to open it.</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setApplyJob(null); setApplyMessage(""); setApplyAsOrgId(null); setApplyError(null); }} className="flex-1 py-2 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
+                  <button type="button" onClick={() => { window.open((applyJob as { apply_url: string }).apply_url, "_blank", "noopener,noreferrer"); setApplyJob(null); setApplyMessage(""); setApplyAsOrgId(null); setApplyError(null); }} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90">Open apply link</button>
+                </div>
+              </>
+            ) : (
+              <>
             {applyError && <p className="text-sm text-destructive mb-3">{applyError}</p>}
             <textarea
               placeholder="Message (optional)"
@@ -2153,6 +2163,8 @@ function MarketplacePage({ setRoute }) {
               <button type="button" onClick={() => { setApplyJob(null); setApplyMessage(""); setApplyAsOrgId(null); setApplyError(null); }} className="flex-1 py-2 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
               <button type="button" disabled={applyLoading || !userId || !profileId} onClick={handleApplySubmit} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50">{applyLoading ? "Applying…" : "Apply"}</button>
             </div>
+              </>
+            )}
           </div>
         </div>
       )}

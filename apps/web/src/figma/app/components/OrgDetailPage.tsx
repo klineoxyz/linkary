@@ -25,6 +25,7 @@ import {
   recomputeOrgMetrics,
   isOrgAdmin,
   updateOrg,
+  ensureOrgOwnerMembership,
   type Org,
   type OrgMember,
   type OrgAffiliation,
@@ -147,6 +148,9 @@ export default function OrgDetailPage({
         : await getOrgBySlug(orgId as string);
       setOrg(o ?? null);
       if (o) {
+        if (userId && (o as Org & { owner_profile_id?: string }).owner_profile_id === userId) {
+          await ensureOrgOwnerMembership(o.id, userId);
+        }
         setIsCryptoProject(!!o.is_crypto_project);
         setHasToken(!!o.has_token);
         setTokenSymbol(o.token_symbol ?? "");

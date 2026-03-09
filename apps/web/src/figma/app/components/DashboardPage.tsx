@@ -718,10 +718,12 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
             {myOrgs.map((org) => (
               <div
                 key={org.id}
-                onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id } })}
-                className="p-4 rounded-xl border border-border bg-gradient-to-br bg-card hover:border-border cursor-pointer transition-all"
+                className="p-4 rounded-xl border border-border bg-gradient-to-br bg-card hover:border-border transition-all flex flex-col gap-2"
               >
-                <div className="flex items-center gap-3">
+                <div
+                  onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id } })}
+                  className="flex items-center gap-3 cursor-pointer"
+                >
                   {org.logo_url && !isPrivateStorageUrl(org.logo_url) ? (
                     <img src={org.logo_url} alt={org.name} className="w-10 h-10 rounded-lg object-cover" />
                   ) : (
@@ -734,6 +736,22 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                     <p className="text-xs text-gray-500 truncate">@{org.slug} · {org.org_type}</p>
                   </div>
                   <ArrowRight className="w-4 h-4 text-gray-400 shrink-0" />
+                </div>
+                <div className="flex gap-2 pt-1 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id, tab: "members" } })}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-primary text-white font-medium hover:opacity-90"
+                  >
+                    Add admins &amp; team
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id } })}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-border bg-background text-foreground font-medium hover:bg-muted"
+                  >
+                    Open org
+                  </button>
                 </div>
               </div>
             ))}

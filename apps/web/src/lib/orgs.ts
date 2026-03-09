@@ -155,15 +155,16 @@ export async function ensureOrgOwnerMembership(orgId: string, userId: string): P
   return { error: error?.message ?? null };
 }
 
-/** List orgs where the user is a member. */
+/** List orgs where the user is a member or owner (owner_profile_id). Ensures owned orgs appear even without org_members row. */
 export async function listOrgsForUser(userId: string): Promise<Org[]> {
-  const { data: members, error: me } = await supabase
-    .from(ORG_MEMBERS)
-    .select("org_id")
-    .eq("user_id", userId);
-  if (me || !members?.length) return [];
-
-  const ids = members.map((m) => m.org_id);
+  const [membersRes, ownedRes] = await Promise.all([
+    supabase.from(ORG_MEMBERS).select("org_id").eq("user_id", userId),
+    supabase.from(ORGS).select("id").eq("owner_profile_id", userId),
+  ]);
+  const memberIds = new Set((membersRes.data ?? []).map((m: { org_id: string }) => m.org_id));
+  const ownedIds = (ownedRes.data ?? []).map((r: { id: string }) => r.id);
+  const ids = [...new Set([...memberIds, ...ownedIds])];
+  if (ids.length === 0) return [];
   const { data: orgs, error } = await supabase
     .from(ORGS)
     .select("*")

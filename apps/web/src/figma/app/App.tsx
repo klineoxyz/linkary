@@ -854,7 +854,7 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   if (RESERVED_PATHS.has(segment)) {
     const nameMap: Record<string, string> = {
       dashboard: "dashboard", explore: "explore", terms: "terms", "privacy-policy": "privacyPolicy",
-      privacy: "privacy", login: "login", onboarding: "onboarding", profile: "profile",
+      privacy: "privacy", login: "login", onboarding: "profile", profile: "profile",
       overview: "overview", market: "market", messages: "messages", circles: "circles",
       analytics: "analytics", verification: "verification",
       plans: "plansBilling", billing: "billing", pricing: "pricing",
@@ -3966,14 +3966,12 @@ function LinkaryAppInner() {
     if (authEmail && profile?.id && !isWalletLikeEmail(authEmail)) {
       updateMyProfile(session.user.id, { email: authEmail }).catch((err) => console.error("[AUTH] updateMyProfile email", err));
     }
-    if (!profile?.onboarding_completed_at) {
-      setRoute({ name: "onboarding" });
-    } else {
-      const p = pathname ?? "/";
-      // Only redirect to Explore when coming from /login (post-login). Do NOT redirect when on "/" so Home stays on landing.
-      setRouteState((prev) => (prev.name === "login" ? { name: "overview" } : prev));
-      if (p === "/login") router.push("/overview");
+    if (!profile?.onboarding_completed_at && profile?.id) {
+      updateMyProfile(session.user.id, { onboarding_completed_at: new Date().toISOString(), account_type: "individual" }).then(() => refreshMe()).catch(() => {});
     }
+    const p = pathname ?? "/";
+    setRouteState((prev) => (prev.name === "login" ? { name: "overview" } : prev));
+    if (p === "/login") router.push("/overview");
     // Post-login repair and analytics: ensure-social-x (repair from identity/profile), then ensure-backfill (today snapshot + 90d job). social_accounts is source of truth.
     if (session?.access_token && typeof window !== "undefined") {
       fetch(`${window.location.origin}/api/auth/ensure-social-x`, {

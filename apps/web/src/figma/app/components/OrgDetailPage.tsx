@@ -217,7 +217,7 @@ export default function OrgDetailPage({
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      setMembersLoadError((err as { error?: string }).error ?? "Failed to load members");
+      setMembersLoadError((err as { message?: string }).message ?? (err as { error?: string }).error ?? "Failed to load members");
       setMembersWithProfiles(members);
       return;
     }
@@ -293,7 +293,7 @@ export default function OrgDetailPage({
     const out = await res.json().catch(() => ({}));
     setAddMemberLoading(false);
     if (!res.ok) {
-      setMembersError((out as { error?: string }).error ?? "Failed to add member");
+      setMembersError((out as { message?: string }).message ?? (out as { error?: string }).error ?? "Failed to add member");
       return;
     }
     setMemberUsername("");
@@ -321,7 +321,7 @@ export default function OrgDetailPage({
     const out = await res.json().catch(() => ({}));
     setRemoveLoading((prev) => ({ ...prev, [targetUserId]: false }));
     if (!res.ok) {
-      setMembersError((out as { error?: string }).error ?? "Failed to remove");
+      setMembersError((out as { message?: string }).message ?? (out as { error?: string }).error ?? "Failed to remove");
       return;
     }
     setMembersError(null);
@@ -349,7 +349,7 @@ export default function OrgDetailPage({
     const out = await res.json().catch(() => ({}));
     setRoleChangeLoading((prev) => ({ ...prev, [targetUserId]: false }));
     if (!res.ok) {
-      setMembersError((out as { error?: string }).error ?? "Failed to update role");
+      setMembersError((out as { message?: string }).message ?? (out as { error?: string }).error ?? "Failed to update role");
       return;
     }
     setMembersError(null);

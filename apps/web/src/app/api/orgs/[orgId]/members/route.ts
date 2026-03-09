@@ -4,6 +4,7 @@ import { ok, fail } from "@/lib/api-response";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY ?? null;
 
 /** GET: List org members (RLS). Optionally with profile info (username, display_name, avatar_url). */
 export async function GET(
@@ -104,12 +105,14 @@ export async function POST(
   } else if (body?.username && typeof body.username === "string") {
     const handle = body.username.trim().replace(/^@/, "").toLowerCase();
     if (!handle) return fail("BAD_REQUEST", "username or userId required", 400);
-    const { data: profile } = await supabase
+    // Resolve username → profile id. Use service role so we can find any registered user (RLS limits anon to published or own profile).
+    const profileClient = serviceKey ? createClient(supabaseUrl, serviceKey) : supabase;
+    const { data: profile } = await profileClient
       .from("profiles")
       .select("id")
       .ilike("username", handle)
       .maybeSingle();
-    if (!profile) return fail("NOT_FOUND", "Profile not found for that username", 404);
+    if (!profile) return fail("NOT_FOUND", "Profile not found for that username. The user must have a Linkary account with that handle.", 404);
     targetUserId = (profile as { id: string }).id;
   } else {
     return fail("BAD_REQUEST", "username or userId required", 400);

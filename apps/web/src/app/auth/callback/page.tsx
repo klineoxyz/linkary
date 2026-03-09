@@ -324,7 +324,7 @@ export default function AuthCallbackPage() {
               setStatus("ok");
               setMessage("Redirecting…");
               const originSession = typeof window !== "undefined" ? window.location.origin : "";
-              const skipOnboardingSession = isOnboardingNextSession && !!identity;
+              const skipOnboardingSession = (next === "/onboarding" || next?.includes("onboarding")) && !!identity;
               const finalUrl = skipOnboardingSession ? `${originSession || SITE_URL.replace(/\/$/, "")}/profile` : redirectTo;
               window.location.href = finalUrl;
               return;

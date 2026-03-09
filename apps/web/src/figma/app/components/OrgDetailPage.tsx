@@ -1006,7 +1006,7 @@ export default function OrgDetailPage({
               ) : (
                 affiliations.filter((a) => a.status !== "removed").map((a) => {
                   const profile = (a as { profile?: { display_name?: string | null; username?: string | null } }).profile;
-                  const display = profile?.display_name ?? profile?.username ?? a.profile_id;
+                  const display = profile?.display_name ?? profile?.username ?? "Unknown user";
                   const handle = profile?.username ? `@${profile.username}` : null;
                   return (
                   <div key={a.id} className="flex items-center justify-between gap-2 py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
@@ -1135,7 +1135,7 @@ export default function OrgDetailPage({
               ) : (
                 ambassadors.filter((a) => a.status !== "removed").map((a) => {
                   const profile = (a as { profile?: { display_name?: string | null; username?: string | null } }).profile;
-                  const display = profile?.display_name ?? profile?.username ?? a.profile_id;
+                  const display = profile?.display_name ?? profile?.username ?? "Unknown user";
                   const handle = profile?.username ? `@${profile.username}` : null;
                   return (
                   <div key={a.id} className="flex items-center justify-between gap-2 py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">

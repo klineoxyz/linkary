@@ -3445,8 +3445,9 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
                 <Button
                   variant="outline"
                   className="flex items-center gap-2"
-                  onClick={() => {
-                    if (profileOrgs.length === 1) setRoute({ name: "orgDetail", data: { orgId: profileOrgs[0].id, tab: "members" } });
+                  onClick={async () => {
+                    const orgs = profileOrgs.length > 0 ? profileOrgs : await listMyOrgs(me.id);
+                    if (orgs.length >= 1) setRoute({ name: "orgDetail", data: { orgId: orgs[0].id, tab: "members" } });
                     else setRoute({ name: "dashboard" });
                   }}
                 >

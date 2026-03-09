@@ -86,6 +86,18 @@ export async function POST(
     return fail("BAD_REQUEST", "Cannot add member as owner. Use transfer ownership to change owner.", 400);
   }
   const role = requestedRole;
+
+  if (role === "admin") {
+    const { count } = await supabase
+      .from("org_members")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", orgId)
+      .eq("role", "admin");
+    if (typeof count === "number" && count >= 2) {
+      return fail("BAD_REQUEST", "This org already has 2 admins. Remove or demote an admin to add another.", 400);
+    }
+  }
+
   let targetUserId: string | null = null;
   if (body?.userId && typeof body.userId === "string") {
     targetUserId = body.userId.trim();

@@ -746,6 +746,9 @@ export default function OrgDetailPage({
           )}
           {tab === "members" && (
             <div className="space-y-4">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Add team members and assign up to 2 <strong>Admins</strong>. Admins can create jobs, manage applications, and edit org content. <strong>Members</strong> can view the org and participate as needed.
+              </p>
               {membersLoadError && (
                 <p className="text-sm text-destructive">{membersLoadError}</p>
               )}
@@ -768,8 +771,8 @@ export default function OrgDetailPage({
                       onChange={(e) => setMemberRole(e.target.value as "member" | "admin")}
                       className="px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm"
                     >
-                      <option value="member">Member</option>
-                      <option value="admin">Admin</option>
+                      <option value="member">Member (view only)</option>
+                      <option value="admin">Admin (create jobs, manage org)</option>
                     </select>
                   </div>
                   <button

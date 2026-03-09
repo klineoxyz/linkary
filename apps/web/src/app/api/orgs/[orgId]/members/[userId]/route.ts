@@ -84,6 +84,26 @@ export async function PATCH(
     return fail("BAD_REQUEST", "role must be admin or member. Use transfer ownership to change owner.", 400);
   }
 
+  if (role === "admin") {
+    const { data: currentRow } = await supabase
+      .from("org_members")
+      .select("role")
+      .eq("org_id", orgId)
+      .eq("user_id", targetUserId)
+      .maybeSingle();
+    const wasAlreadyAdmin = (currentRow as { role?: string } | null)?.role === "admin";
+    if (!wasAlreadyAdmin) {
+      const { count } = await supabase
+        .from("org_members")
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", orgId)
+        .eq("role", "admin");
+      if (typeof count === "number" && count >= 2) {
+        return fail("BAD_REQUEST", "This org already has 2 admins. Remove or demote an admin first.", 400);
+      }
+    }
+  }
+
   const { error: updateErr } = await supabase
     .from("org_members")
     .update({ role })

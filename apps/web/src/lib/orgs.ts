@@ -431,8 +431,10 @@ export async function recomputeOrgMetricsClient(orgId: string): Promise<{ error:
   return { error: upsertError?.message ?? null };
 }
 
-/** Check if user is owner or admin of org. */
+/** Check if user is owner or admin of org (orgs.owner_profile_id or org_members role owner/admin). */
 export async function isOrgAdmin(userId: string, orgId: string): Promise<boolean> {
+  const org = await getOrgById(orgId);
+  if (org?.owner_profile_id && org.owner_profile_id === userId) return true;
   const { data } = await supabase
     .from(ORG_MEMBERS)
     .select("role")

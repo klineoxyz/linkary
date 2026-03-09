@@ -112,7 +112,7 @@ Execute in this exact order before launch:
 4. **Go / No-go** — If step 3 clear: **Go**. Otherwise: fix blockers, re-verify, then **Go**. Sign below.
 
 - [x] Step 1 (P0-3) completed.  
-- [ ] Step 2 (Critical E2E) completed.  
+- [x] Step 2 (Critical E2E) completed.  
 - [ ] Step 3 (Blocker check) completed.  
 - **Decision:** **Go** / **No-go** — _______________  
 - **Signed:** _______________ **Date:** _______________

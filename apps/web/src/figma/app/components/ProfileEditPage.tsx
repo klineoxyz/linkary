@@ -15,6 +15,7 @@ import { toCaseStudyCardProps } from "@/lib/caseStudyCardProps";
 import type { Profession } from "@/lib/professions";
 import type { Profile } from "@/lib/profiles";
 import { PRESET_DEFAULT_ORDER, PRESET_DEFAULT_HIDDEN, SECTION_KEYS, type PresetName } from "@/lib/publicLayoutPresets";
+import { listOrgsForUser } from "@/lib/orgs";
 
 type HeaderMediaType = "NONE" | "IMAGE" | "VIDEO";
 
@@ -1417,6 +1418,7 @@ export default function ProfileEditPage({
   const [myGigs, setMyGigs] = useState<GigRow[]>([]);
   const [gigsLoading, setGigsLoading] = useState(false);
   const [gigModal, setGigModal] = useState<{ open: true; edit?: GigRow } | { open: false }>({ open: false });
+  const [myOrgs, setMyOrgs] = useState<Array<{ id: string; name: string; slug: string }>>([]);
   const [gigForm, setGigForm] = useState({
     title: "",
     description: "",
@@ -1724,6 +1726,17 @@ export default function ProfileEditPage({
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const accountType = (me as { account_type?: string } | null)?.account_type;
+    if (me?.id && accountType === "company") {
+      listOrgsForUser(me.id).then((orgs) =>
+        setMyOrgs(orgs.map((o) => ({ id: o.id, name: o.name, slug: o.slug })))
+      );
+    } else {
+      setMyOrgs([]);
+    }
+  }, [me?.id, (me as { account_type?: string } | null)?.account_type]);
 
   useEffect(() => {
     if (!partnerModal.open) return;
@@ -2527,6 +2540,30 @@ export default function ProfileEditPage({
             <p className="text-xs text-amber-700">Set a username or connect X to get a public URL.</p>
           )}
         </div>
+
+        {(me as { account_type?: string } | null)?.account_type === "company" && myOrgs.length > 0 && (
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+            <label className="block text-sm font-medium text-zinc-700">Org admins &amp; team</label>
+            <p className="text-xs text-zinc-500">
+              Add Linkary users as admins (up to 2) or members. Admins can create jobs and manage the org.
+            </p>
+            <ul className="space-y-2">
+              {myOrgs.map((org) => (
+                <li key={org.id} className="flex items-center justify-between gap-2 py-2 border-b border-zinc-200 last:border-0">
+                  <span className="text-sm font-medium text-zinc-900 truncate">{org.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setRoute({ name: "orgDetail", data: { orgId: org.id, tab: "members" } })}
+                    className="shrink-0 px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90"
+                  >
+                    Manage admins &amp; team
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Roles</label>
           {loading ? (

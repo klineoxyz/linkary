@@ -710,7 +710,9 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
             )}
           </div>
           {myOrgs.length === 0 && (
-            <p className="text-sm text-gray-600">No orgs yet. Create a company, brand, project, or agency above.</p>
+            <>
+              <p className="text-sm text-gray-600">For a project not yet on Linkary: create a company, brand, project, or agency. You&apos;ll connect the org&apos;s X account to verify during setup.</p>
+            </>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
             {myOrgs.map((org) => (

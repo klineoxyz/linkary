@@ -9,6 +9,8 @@ export type PublicProfileDTO = {
   type: "profile";
   display_name: string | null;
   username: string | null;
+  /** Contact email from Public 1-Pager; shown once on public page when set. */
+  contact_email: string | null;
   bio: string | null;
   avatar_url: string | null;
   website: string | null;
@@ -104,6 +106,7 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
       type: "profile",
       display_name: p.display_name ?? null,
       username: p.username ?? null,
+      contact_email: (p as { email?: string | null }).email?.trim() || null,
       bio: p.bio ?? null,
       avatar_url: sanitizeUrl(p.avatar_url) ?? null,
       website: sanitizeUrl(p.website) ?? null,
@@ -236,6 +239,7 @@ export type PublicEntityView = {
   profile?: {
     display_name: string | null;
     username: string | null;
+    contact_email: string | null;
     bio: string | null;
     avatar_url: string | null;
     website: string | null;
@@ -285,6 +289,7 @@ export function dtoToEntityView(dto: PublicPageDTO): PublicEntityView {
       profile: {
         display_name: dto.display_name,
         username: dto.username,
+        contact_email: dto.contact_email ?? null,
         bio: dto.bio,
         avatar_url: dto.avatar_url,
         website: dto.website,

@@ -15,6 +15,8 @@ export type PublicProfile = {
   id: string;
   username: string | null;
   display_name: string | null;
+  /** Contact email (from Public 1-Pager). Shown on public page when set. */
+  email?: string | null;
   bio: string | null;
   avatar_url: string | null;
   website: string | null;

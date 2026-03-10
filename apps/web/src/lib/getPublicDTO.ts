@@ -1,6 +1,6 @@
 /**
  * Server-only: resolve username to public DTO or unpublished state. Single source for public page data.
- * Never returns email, user_id, or internal fields.
+ * Returns only public/display fields; contact_email is the profile contact set in Public 1-Pager (shown once on public page).
  * When serviceSupabase is provided, file_path media is resolved to signed URLs before DTO mapping.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";

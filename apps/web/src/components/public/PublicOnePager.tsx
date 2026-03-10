@@ -399,6 +399,16 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
               {profile?.location && (
                 <p className="mt-1 text-xs text-muted-foreground">{profile.location}</p>
               )}
+              {isProfile && entity.profile && "contact_email" in entity.profile && (entity.profile as { contact_email: string | null }).contact_email && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  <a
+                    href={`mailto:${(entity.profile as { contact_email: string }).contact_email}`}
+                    className="text-primary hover:underline"
+                  >
+                    Contact
+                  </a>
+                </p>
+              )}
             </div>
           </div>
 

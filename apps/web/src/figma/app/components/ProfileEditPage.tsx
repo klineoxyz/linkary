@@ -610,7 +610,7 @@ function RelationsEditor({
   onOpenEditModal: (r: ProfileRelationRow) => void;
   setError: (s: string | null) => void;
   myOrgs?: Array<{ id: string; name: string; slug: string }>;
-  setRoute?: (r: { name: string; data?: { orgId?: string; tab?: string } }) => void;
+  setRoute?: (r: { name: string; data?: { orgId?: string; slug?: string; tab?: string } }) => void;
 }) {
   const base = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -1369,7 +1369,7 @@ export default function ProfileEditPage({
   me,
   onSaved,
 }: {
-  setRoute: (r: { name: string; data?: { orgId?: string; tab?: string } }) => void;
+  setRoute: (r: { name: string; data?: { orgId?: string; slug?: string; tab?: string } }) => void;
   me: Profile | null;
   onSaved?: () => void;
 }) {

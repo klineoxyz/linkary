@@ -4090,8 +4090,8 @@ function LinkaryAppInner() {
   const ALLOWED_ROUTES = new Set([
     "landing", "overview", "dashboard", "profile", "profileEdit", "profileInsights", "userProfile", "userInsights", "market", "messages", "workRequests",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding", "accountType",
-    "orgDetail", "brandProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
-    "circles", "circleDetail", "connections", "kolLists", "calendar", "xspaces", "capitalPartners", "watchlist",
+    "orgDetail", "brandProfile", "creatorProfile", "agencyProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
+    "circles", "circleDetail", "connections", "kolLists", "calendar", "xspaces", "capitalPartners", "watchlist", "explore",
   ]);
   useEffect(() => {
     if (!ALLOWED_ROUTES.has(route.name)) {
@@ -4684,6 +4684,9 @@ function LinkaryAppInner() {
                   />
                 )}
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}
+                {route.name === "creatorProfile" && <CreatorProfilePage setRoute={setRoute} />}
+                {route.name === "agencyProfile" && <AgencyProfilePage setRoute={setRoute} />}
+                {route.name === "explore" && <ExplorePage setRoute={setRoute} />}
                 {route.name === "dashboard" && <DashboardPage setRoute={setRoute} />}
                 {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "dealDetail" && <DealDetailPage setRoute={setRoute} dealId={route.data?.dealId} />}

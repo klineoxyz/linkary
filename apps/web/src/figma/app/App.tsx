@@ -3411,6 +3411,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
 
   return (
     <div className="font-app text-foreground space-y-6">
+      <p className="text-xs text-muted-foreground -mb-1" aria-hidden>Your profile — only you see this workspace. Use Public View to see what others see.</p>
       <div className="mb-4 flex gap-2 border-b border-border pb-2">
         <button
           type="button"

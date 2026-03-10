@@ -163,6 +163,10 @@ export async function buildPublicProfilePayloadFromEntity(
     const layoutObj = dto.publicLayout && typeof dto.publicLayout === "object" ? (dto.publicLayout as { preset?: string; order?: string[]; hidden?: string[]; featured_case_study_id?: string | null; featured_review_id?: string | null; featured_gig_id?: string | null }) : null;
     const layoutPreset: "classic" | "spotlight" | "showcase" | "compact" =
       layoutObj?.preset && ["spotlight", "showcase", "compact"].includes(layoutObj.preset) ? (layoutObj.preset as "spotlight" | "showcase" | "compact") : "classic";
+    const profileRow = entity.type === "profile" ? (entity.profile as { ethos_score?: number | null; xscore?: number | null; rep_score?: number | null } | undefined) : undefined;
+    const ethosFromView = profileRow?.ethos_score ?? null;
+    const xscoreFromView = profileRow?.xscore ?? null;
+    const repScoreFromView = profileRow?.rep_score ?? null;
     return {
       profile: {
         username: dto.username,
@@ -172,10 +176,10 @@ export async function buildPublicProfilePayloadFromEntity(
         location: dto.location,
         roles: [],
         is_verified: false,
-        ethos_score: dto.ethosScore ?? null,
-        xscore: dto.xscore ?? null,
+        ethos_score: dto.ethosScore ?? ethosFromView,
+        xscore: dto.xscore ?? xscoreFromView,
         reputation_index: dto.linkaryPower ?? null,
-        rep_score: dto.rep_score ?? null,
+        rep_score: dto.rep_score ?? repScoreFromView,
         public_layout: layoutPreset,
         layout_order: Array.isArray(layoutObj?.order) ? layoutObj.order : null,
         layout_hidden: Array.isArray(layoutObj?.hidden) ? layoutObj.hidden : null,

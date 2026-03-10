@@ -99,6 +99,8 @@
 
 **Goal:** No user and no org may ever share the same name/slug. One global namespace enforced at DB, API, and UI.
 
+**Entity-bound ownership:** Slug ownership is bound to the entity type (profile or org) that claimed it; it does not change with session or login. Transfer between profile and org is allowed only through a manual admin migration. See **`LINKARY_ENTITY_BOUND_SLUG_OWNERSHIP.md`** for the full rule, resolver/claim behavior, and transfer policy.
+
 ### 3.1 Source of truth: usernames table
 
 - **usernames** is the single source of truth: one row per claimed slug; `owner_type` ('profile' | 'org'), `owner_id` (profile id or org id).

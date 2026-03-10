@@ -7,8 +7,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 /**
  * POST: Create a review.
- * v1: Only verified_deal = true allowed. Body: { reviewee_profile_id, rating (1-5), body?, title?, verified_deal: true }
- * Requires an active or completed gig_deal between reviewer and reviewee.
+ * v1: Only verified reviews. Two paths:
+ * - Gig deal: body { reviewee_profile_id, rating, body?, title?, verified_deal: true }. Uses gig_deals.
+ * - Org deal: body { deal_id, rating, body?, title?, verified_deal: true }. Caller must be profile or org party; DB trigger enforces completed deal and parties.
  */
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -37,25 +38,85 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "rating must be 1–5" }, { status: 400 });
   }
 
-  // v1: only allow verified reviews (gig-deal gated)
   if (body.verified_deal !== true) {
     return NextResponse.json(
-      { error: "Only verified reviews are allowed right now. Verified review requires a deal." },
+      { error: "Only verified reviews are allowed. Pass verified_deal: true and either reviewee_profile_id (gig) or deal_id (org deal)." },
       { status: 400 }
     );
   }
 
-  const revieweeProfileId = typeof body.reviewee_profile_id === "string" ? body.reviewee_profile_id.trim() : null;
-  if (!revieweeProfileId) {
-    return NextResponse.json({ error: "reviewee_profile_id is required for verified reviews" }, { status: 400 });
+  const reviewerProfileId = getProfileIdForAuthUser(user.id);
+
+  // Path 1: Org deal — body.deal_id provided
+  const orgDealId = typeof body.deal_id === "string" ? body.deal_id.trim() || null : null;
+  if (orgDealId) {
+    const { data: deal, error: dealErr } = await supabase
+      .from("deals")
+      .select("id, profile_id, org_id, status")
+      .eq("id", orgDealId)
+      .maybeSingle();
+    if (dealErr || !deal) {
+      return NextResponse.json({ error: "Deal not found" }, { status: 404 });
+    }
+    const d = deal as { id: string; profile_id: string; org_id: string; status: string };
+    if (d.status !== "completed") {
+      return NextResponse.json({ error: "Reviews only allowed for completed deals" }, { status: 400 });
+    }
+    const { data: membership } = await supabase
+      .from("org_members")
+      .select("role")
+      .eq("org_id", d.org_id)
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    const isOrgParty = !!membership && ["owner", "admin"].includes((membership as { role: string }).role);
+    const isProfileParty = d.profile_id === reviewerProfileId;
+    if (!isProfileParty && !isOrgParty) {
+      return NextResponse.json({ error: "Only a party to this deal can leave a review" }, { status: 403 });
+    }
+    const reviewer_type = isProfileParty ? "profile" : "org";
+    const reviewer_profile_id = isProfileParty ? reviewerProfileId : null;
+    const reviewer_org_id = isOrgParty ? d.org_id : null;
+    const reviewee_type = isProfileParty ? "org" : "profile";
+    const reviewee_profile_id = isProfileParty ? null : d.profile_id;
+    const reviewee_org_id = isProfileParty ? d.org_id : null;
+    const { data: review, error: insertErr } = await supabase
+      .from("reviews")
+      .insert({
+        deal_id: d.id,
+        gig_deal_id: null,
+        reviewer_type,
+        reviewer_profile_id,
+        reviewer_org_id,
+        reviewee_type,
+        reviewee_profile_id,
+        reviewee_org_id,
+        rating: Math.round(rating),
+        body: typeof body.body === "string" ? body.body.trim() || null : null,
+        title: typeof body.title === "string" ? body.title.trim() || null : null,
+        verified_deal: true,
+      })
+      .select("id, deal_id, rating, body, title, created_at")
+      .single();
+    if (insertErr) {
+      const msg = insertErr.message ?? "";
+      if (msg.includes("unique") || msg.includes("duplicate") || insertErr.code === "23505") {
+        return NextResponse.json({ error: "You have already submitted a review for this deal" }, { status: 409 });
+      }
+      return NextResponse.json({ error: msg || "Failed to create review" }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, review });
   }
 
-  const reviewerProfileId = getProfileIdForAuthUser(user.id);
+  // Path 2: Gig deal — reviewee_profile_id
+  const revieweeProfileId = typeof body.reviewee_profile_id === "string" ? body.reviewee_profile_id.trim() : null;
+  if (!revieweeProfileId) {
+    return NextResponse.json({ error: "reviewee_profile_id (gig) or deal_id (org deal) is required" }, { status: 400 });
+  }
   if (revieweeProfileId === reviewerProfileId) {
     return NextResponse.json({ error: "Self-review is not allowed" }, { status: 400 });
   }
 
-  // Require an active or completed gig_deal between reviewer and reviewee (either direction)
   const { data: gigDeal, error: dealErr } = await supabase
     .from("gig_deals")
     .select("id, status")

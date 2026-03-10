@@ -27,6 +27,8 @@ export interface InsightsSnapshotProps {
   me: { id: string; username?: string | null; display_name?: string | null; bio?: string | null; avatar_url?: string | null; followers_total?: number | null; avg_engagement_rate?: number | null; created_at?: string | null; twitter_username?: string | null } | null;
   username?: string;
   getAuthHeaders?: () => Promise<HeadersInit>;
+  /** When true, show only score/snapshot and link to /analytics (no duplicate deep analytics). */
+  snapshotOnly?: boolean;
 }
 
 interface MeStatsResponse {
@@ -131,7 +133,7 @@ async function publicFetcher(path: string): Promise<unknown> {
   return res.json();
 }
 
-export default function InsightsSnapshot({ setRoute, me, username, getAuthHeaders }: InsightsSnapshotProps) {
+export default function InsightsSnapshot({ setRoute, me, username, getAuthHeaders, snapshotOnly = false }: InsightsSnapshotProps) {
   const isOwn = !username || (me && (me.username?.toLowerCase() === username.toLowerCase() || me.twitter_username?.toLowerCase().replace(/^@/, "") === username.toLowerCase().replace(/^@/, "")));
   const targetUsername = isOwn ? (me?.username ?? me?.twitter_username ?? "").replace(/^@/, "").toLowerCase() : username?.replace(/^@/, "").toLowerCase();
 
@@ -324,6 +326,43 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
   const xHandleForStrip = isOwn && me?.twitter_username?.trim()
     ? `@${me.twitter_username.replace(/^@/, "")}`
     : (publicDto && targetUsername ? `@${targetUsername}` : null);
+
+  if (snapshotOnly) {
+    return (
+      <div className="space-y-6 pb-10">
+        <ProfileHeaderCard
+          variant="light"
+          displayName={displayName ?? null}
+          username={targetUsername ? `@${targetUsername}` : "@"}
+          bio={bio}
+          avatarUrl={avatarUrl}
+          followers={insightsProfile?.followers ?? me?.followers_total ?? null}
+          following={insightsProfile?.following ?? null}
+          tweets={insightsProfile?.tweets ?? null}
+          joinedAt={insightsProfile?.joinedAt ?? me?.created_at ?? null}
+          onWatchlist={me && profileEntityId ? onWatchlist : undefined}
+          onToggleWatchlist={me && profileEntityId ? handleToggleWatchlist : undefined}
+        />
+        <TrustStrip
+          score={reputationIndex ?? null}
+          tierLabel={tierLabel || null}
+          verifiedGigsCount={isOwn ? verifiedGigsCount : undefined}
+          reviewsAvg={isOwn && meStats?.reviews?.count ? (meStats.reviews.avg ?? null) : undefined}
+          reviewsCount={isOwn && meStats?.reviews ? meStats.reviews.count : undefined}
+          xHandle={xHandleForStrip}
+          variant="insights"
+        />
+        <div className={`${island} p-6`}>
+          <h3 className="text-sm font-semibold text-foreground mb-2">Credibility snapshot</h3>
+          <p className="text-sm text-muted-foreground mb-4">Score and key stats above. For full X analytics, time-series, top followers, and backfill, use the Analytics page.</p>
+          <a href="/analytics" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+            <BarChart3 className="h-4 w-4" />
+            See full analytics
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-10">

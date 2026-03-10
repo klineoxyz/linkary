@@ -67,9 +67,6 @@ import {
   Area,
   BarChart,
   Bar,
-  PieChart as RePieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -152,112 +149,7 @@ function last6MonthLabels(): string[] {
   return labels;
 }
 
-const categoryDistribution = [
-  { name: "Marketing", value: 35, color: "var(--chart-1)" },
-  { name: "Development", value: 25, color: "var(--chart-2)" },
-  { name: "Design", value: 20, color: "var(--chart-3)" },
-  { name: "Content", value: 15, color: "var(--chart-4)" },
-  { name: "Other", value: 5, color: "var(--chart-5)" },
-];
-
-// Brands shown are derived from myOrgs in the component (no hardcoded list)
-
-const brandPerformanceData = [
-  { month: "Sep", revenue: 800, projects: 2, engagement: 60 },
-  { month: "Oct", revenue: 1200, projects: 3, engagement: 64 },
-  { month: "Nov", revenue: 1600, projects: 4, engagement: 66 },
-  { month: "Dec", revenue: 1400, projects: 3, engagement: 68 },
-  { month: "Jan", revenue: 2200, projects: 5, engagement: 70 },
-  { month: "Feb", revenue: 2800, projects: 6, engagement: 72 },
-];
-
-const brandAudienceData = [
-  { source: "Organic", value: 45, color: "var(--chart-1)" },
-  { source: "Referral", value: 30, color: "var(--chart-2)" },
-  { source: "Social", value: 20, color: "var(--chart-3)" },
-  { source: "Direct", value: 5, color: "var(--chart-4)" },
-];
-
-// Social Growth Data
-const profileViewsData = [
-  { month: "Sep", projects: 120, founders: 80, users: 45 },
-  { month: "Oct", projects: 180, founders: 110, users: 65 },
-  { month: "Nov", projects: 240, founders: 145, users: 90 },
-  { month: "Dec", projects: 210, founders: 130, users: 75 },
-  { month: "Jan", projects: 310, founders: 185, users: 115 },
-  { month: "Feb", projects: 385, founders: 235, users: 145 },
-];
-
-const socialPowerGrowth = [
-  { month: "Sep", power: 1250, milestone: null },
-  { month: "Oct", power: 1450, milestone: null },
-  { month: "Nov", power: 1720, milestone: null },
-  { month: "Dec", power: 1850, milestone: null },
-  { month: "Jan", power: 2180, milestone: "Top 500" },
-  { month: "Feb", power: 2520, milestone: "Top 300" },
-];
-
-const xSpacesData = [
-  {
-    id: "1",
-    title: "Web3 Marketing Strategies for 2026",
-    date: "Feb 10, 2026",
-    duration: "1h 45m",
-    peakListeners: 487,
-    avgConcurrent: 312,
-    totalListeners: 1240,
-    engagement: 78,
-  },
-  {
-    id: "2",
-    title: "Building Trust in Decentralized Communities",
-    date: "Feb 3, 2026",
-    duration: "2h 10m",
-    peakListeners: 523,
-    avgConcurrent: 385,
-    totalListeners: 1580,
-    engagement: 82,
-  },
-  {
-    id: "3",
-    title: "The Future of Creator Economy in Web3",
-    date: "Jan 27, 2026",
-    duration: "1h 30m",
-    peakListeners: 392,
-    avgConcurrent: 268,
-    totalListeners: 980,
-    engagement: 71,
-  },
-];
-
-const xSpacesStats = {
-  totalSpaces: 12,
-  totalListeners: 14850,
-  avgListeners: 1238,
-  avgConcurrent: 342,
-  peakConcurrent: 523,
-  avgEngagement: 76,
-};
-
-const credibilityGrowth = [
-  { month: "Sep", jobs: 3, testimonials: 5, rating: 4.6 },
-  { month: "Oct", jobs: 5, testimonials: 9, rating: 4.7 },
-  { month: "Nov", jobs: 8, testimonials: 14, rating: 4.8 },
-  { month: "Dec", jobs: 7, testimonials: 12, rating: 4.7 },
-  { month: "Jan", jobs: 10, testimonials: 18, rating: 4.8 },
-  { month: "Feb", jobs: 12, testimonials: 22, rating: 4.9 },
-];
-
-const popularityMetrics = [
-  { month: "Sep", mentions: 45, shares: 120, saves: 65 },
-  { month: "Oct", mentions: 72, shares: 185, saves: 98 },
-  { month: "Nov", mentions: 94, shares: 240, saves: 132 },
-  { month: "Dec", mentions: 88, shares: 210, saves: 115 },
-  { month: "Jan", mentions: 125, shares: 305, saves: 172 },
-  { month: "Feb", mentions: 158, shares: 380, saves: 215 },
-];
-
-// Search results come from GET /api/search when user types (see state below)
+// All chart data is backend-driven or empty state. No mock/sample datasets (launch-credibility remediation).
 
 // Helper Components - Use shared components from SharedComponents.tsx
 // Note: Using SharedGlassCard and SharedStatCard aliases since we imported them with those names
@@ -344,24 +236,24 @@ function BrandCard({ brand, onSelect }: { brand: Brand; onSelect: () => void }) 
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <div className="text-xs text-gray-600 mb-1">Revenue</div>
-              <div className="font-bold text-gray-900">€{brand.totalRevenue.toLocaleString()}</div>
+              <div className="font-bold text-gray-900">{brand.totalRevenue > 0 ? `€${brand.totalRevenue.toLocaleString()}` : "—"}</div>
             </div>
             <div>
               <div className="text-xs text-gray-600 mb-1">Projects</div>
-              <div className="font-bold text-gray-900">{brand.completedProjects + brand.activeProjects}</div>
+              <div className="font-bold text-gray-900">{brand.completedProjects + brand.activeProjects > 0 ? brand.completedProjects + brand.activeProjects : "—"}</div>
             </div>
             <div>
               <div className="text-xs text-gray-600 mb-1">Followers</div>
-              <div className="font-bold text-gray-900">{brand.followers.toLocaleString()}</div>
+              <div className="font-bold text-gray-900">{brand.followers > 0 ? brand.followers.toLocaleString() : "—"}</div>
             </div>
           </div>
           
           <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-border backdrop-blur-xl">
             <div className="flex items-center gap-2 text-sm text-gray-700">
               <Activity className="w-4 h-4 text-primary stroke-[1.75]" />
-              Engagement Rate
+              Engagement
             </div>
-            <div className="font-bold text-gray-900">{brand.engagement}%</div>
+            <div className="font-bold text-gray-900">{brand.engagement > 0 ? `${brand.engagement}%` : "—"}</div>
           </div>
         </div>
       </GlassCard>
@@ -491,25 +383,12 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
     }));
   }, [myDeals]);
 
-  const defaultSkillLabels = ["Marketing", "Strategy", "Content", "Community", "Analytics", "Growth"];
-  const defaultIndustry: Record<string, number> = { Marketing: 70, Strategy: 65, Content: 75, Community: 60, Analytics: 55, Growth: 68 };
   const skillsRadarData = useMemo(() => {
-    const fromProfile = profileSkills.slice(0, 6).map((s) => ({
+    if (profileSkills.length === 0) return [];
+    return profileSkills.slice(0, 6).map((s) => ({
       skill: s.name.length > 12 ? s.name.slice(0, 11) + "…" : s.name,
-      personal: Math.min(100, (s.level ?? 1) * 20),
-      industry: defaultIndustry[s.name] ?? 65,
+      value: Math.min(100, (s.level ?? 1) * 20),
     }));
-    if (fromProfile.length >= 6) return fromProfile;
-    const used = new Set(fromProfile.map((r) => r.skill));
-    const padded = [...fromProfile];
-    for (const label of defaultSkillLabels) {
-      if (padded.length >= 6) break;
-      if (!used.has(label)) {
-        padded.push({ skill: label, personal: 0, industry: defaultIndustry[label] ?? 65 });
-        used.add(label);
-      }
-    }
-    return padded;
   }, [profileSkills]);
 
   useEffect(() => {
@@ -587,10 +466,10 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
           onSuccess={handleOrgCreated}
         />
       )}
-      {/* Banner: chart metrics are sample / coming soon */}
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/50 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
-        <p className="font-medium">Sample metrics</p>
-        <p className="mt-0.5 text-amber-800 dark:text-amber-300/90">The chart metrics below are sample preview data. Your real deals and brands are shown in the cards above. Full analytics are available in the Analytics page.</p>
+      {/* Banner: only real data or empty states */}
+      <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground">
+        <p className="font-medium">Your dashboard</p>
+        <p className="mt-0.5 text-muted-foreground">Numbers below are from your deals and profile. For full X analytics and backfill, go to <a href="/analytics" className="text-primary hover:underline">Analytics</a>.</p>
       </div>
 
       {/* My Orgs first: add admins & team is the main action when user has orgs */}
@@ -824,8 +703,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
         <div className="p-6">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <Eye className="w-5 h-5 text-primary stroke-[1.75]" />
-            Profile Showcase
-            <span className="text-xs px-2 py-1 rounded-full bg-accent text-primary border border-border font-medium ml-2">Demo</span>
+            Example profile types
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <button onClick={() => setRoute && setRoute({ name: "overview" })} className="p-5 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
@@ -1028,15 +906,15 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                           <div className="grid grid-cols-3 gap-4">
                             <div className="p-3.5 rounded-xl bg-gradient-to-br bg-accent border border-border">
                               <div className="text-xs text-gray-600 mb-1.5">Revenue</div>
-                              <div className="font-bold text-gray-900 text-sm">€{brand.totalRevenue.toLocaleString()}</div>
+                              <div className="font-bold text-gray-900 text-sm">{brand.totalRevenue > 0 ? `€${brand.totalRevenue.toLocaleString()}` : "—"}</div>
                             </div>
                             <div className="p-3.5 rounded-xl bg-gradient-to-br bg-accent border border-border">
                               <div className="text-xs text-gray-600 mb-1.5">Projects</div>
-                              <div className="font-bold text-gray-900 text-sm">{brand.completedProjects + brand.activeProjects}</div>
+                              <div className="font-bold text-gray-900 text-sm">{brand.completedProjects + brand.activeProjects > 0 ? brand.completedProjects + brand.activeProjects : "—"}</div>
                             </div>
                             <div className="p-3.5 rounded-xl bg-gradient-to-br bg-accent border border-border">
                               <div className="text-xs text-gray-600 mb-1.5">Engagement</div>
-                              <div className="font-bold text-gray-900 text-sm">{brand.engagement}%</div>
+                              <div className="font-bold text-gray-900 text-sm">{brand.engagement > 0 ? `${brand.engagement}%` : "—"}</div>
                             </div>
                           </div>
                           
@@ -1102,7 +980,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                     icon={MessageSquare}
                     label="Total Reviews"
                     value={personalStats.totalReviews}
-                    change={8.3}
+                    change={personalStats.totalReviews > 0 ? 0 : 0}
                   />
                 }
                 backTitle="Review Insights"
@@ -1112,9 +990,9 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               />
             </div>
             
-            {/* Sample analytics (coming soon) */}
-            <h2 className="text-xl font-bold text-gray-900 mt-2 mb-1">Sample analytics (coming soon)</h2>
-            <p className="text-sm text-gray-600 mb-6">The charts below use sample or placeholder data. Real metrics will appear here as we expand analytics.</p>
+            {/* Charts: real data only (volume from deals, reputation from me-stats, activity from deals) */}
+            <h2 className="text-xl font-bold text-gray-900 mt-2 mb-1">Activity & reputation</h2>
+            <p className="text-sm text-gray-600 mb-6">Charts below use your deal activity and profile stats. For full X analytics and time-series, go to <a href="/analytics" className="text-primary hover:underline">Analytics</a>.</p>
             {/* Charts Row 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
               {/* Earnings Trend */}
@@ -1247,33 +1125,43 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 </GlassCard>
               </div>
               
-              {/* Category Distribution */}
+              {/* Category distribution: no backend data — empty state */}
               <GlassCard>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">Categories</h3>
-                      <p className="text-sm text-gray-600">Project Distribution</p>
-                    </div>
-                    <div className="p-2 rounded-xl bg-accent border border-border">
-                      <PieChart className="w-5 h-5 text-primary stroke-[1.75]" />
-                    </div>
+                <div className="p-6 flex flex-col items-center justify-center min-h-[250px]">
+                  <div className="p-2 rounded-xl bg-muted border border-border mb-3">
+                    <PieChart className="w-5 h-5 text-muted-foreground stroke-[1.75]" />
                   </div>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <RePieChart>
-                      <Pie
-                        data={categoryDistribution}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {categoryDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">Categories</h3>
+                  <p className="text-sm text-gray-600 text-center mb-4">No category data yet. Add roles and skills on your profile to see a breakdown.</p>
+                  <a href="/analytics" className="text-sm font-medium text-primary hover:underline">See full analytics →</a>
+                </div>
+              </GlassCard>
+            </div>
+            
+            {/* Skills: only real profile skills or empty state */}
+            <GlassCard>
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Your Skills</h3>
+                    <p className="text-sm text-gray-600">From your profile (roles/skills)</p>
+                  </div>
+                  <div className="p-2 rounded-xl bg-accent border border-border">
+                    <Zap className="w-5 h-5 text-primary stroke-[1.75]" />
+                  </div>
+                </div>
+                {skillsRadarData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <p className="text-sm text-gray-600 mb-2">No skills added yet.</p>
+                    <a href="/profile/edit" className="text-sm font-medium text-primary hover:underline">Add roles & skills in Profile edit →</a>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={350}>
+                    <RadarChart data={skillsRadarData}>
+                      <PolarGrid stroke="var(--border)" />
+                      <PolarAngleAxis dataKey="skill" stroke="var(--muted-foreground)" style={{ fontSize: "12px" }} />
+                      <PolarRadiusAxis angle={90} domain={[0, 100]} stroke="var(--muted-foreground)" tick={false} />
+                      <Radar name="Your level" dataKey="value" stroke="var(--chart-1)" fill="var(--chart-1)" fillOpacity={0.6} />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: "var(--card)",
@@ -1282,50 +1170,9 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                           color: "var(--foreground)",
                         }}
                       />
-                    </RePieChart>
+                    </RadarChart>
                   </ResponsiveContainer>
-                  <div className="grid grid-cols-2 gap-2 mt-4">
-                    {categoryDistribution.map((cat) => (
-                      <div key={cat.name} className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
-                        <span className="text-xs text-gray-600">{cat.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </GlassCard>
-            </div>
-            
-            {/* Skills Radar */}
-            <GlassCard>
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">Skills Comparison</h3>
-                    <p className="text-sm text-gray-600">Your Performance vs Industry Average</p>
-                  </div>
-                  <div className="p-2 rounded-xl bg-accent border border-border">
-                    <Zap className="w-5 h-5 text-primary stroke-[1.75]" />
-                  </div>
-                </div>
-                <ResponsiveContainer width="100%" height={350}>
-                  <RadarChart data={skillsRadarData}>
-                    <PolarGrid stroke="var(--border)" />
-                    <PolarAngleAxis dataKey="skill" stroke="var(--muted-foreground)" style={{ fontSize: "12px" }} />
-                    <PolarRadiusAxis angle={90} domain={[0, 100]} stroke="var(--muted-foreground)" tick={false} />
-                    <Radar name="Your Skills" dataKey="personal" stroke="var(--chart-1)" fill="var(--chart-1)" fillOpacity={0.6} />
-                    <Radar name="Industry Avg" dataKey="industry" stroke="var(--chart-2)" fill="var(--chart-2)" fillOpacity={0.3} />
-                    <Legend />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "var(--card)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "12px",
-                        color: "var(--foreground)",
-                      }}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
+                )}
               </div>
             </GlassCard>
           </motion.div>
@@ -1360,10 +1207,10 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                           <span>•</span>
                           <span className="flex items-center gap-1">
                             <Star className="w-4 h-4 text-primary fill-primary stroke-[1.75]" />
-                            {selectedBrand.rating} Rating
+                            {selectedBrand.rating > 0 ? `${selectedBrand.rating} Rating` : "—"}
                           </span>
                           <span>•</span>
-                          <span>{selectedBrand.followers.toLocaleString()} Followers</span>
+                          <span>{selectedBrand.followers > 0 ? `${selectedBrand.followers.toLocaleString()} Followers` : "—"}</span>
                         </div>
                       </div>
                       <button className="px-6 py-3 rounded-2xl bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-medium hover:opacity-90 transition-all shadow-lg">
@@ -1374,19 +1221,19 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                     <div className="grid grid-cols-4 gap-6 lg:gap-8">
                       <div className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border backdrop-blur-xl hover:border-border transition-all duration-300">
                         <div className="text-xs text-gray-600 mb-1">Total Revenue</div>
-                        <div className="text-2xl font-bold text-gray-900">€{selectedBrand.totalRevenue.toLocaleString()}</div>
+                        <div className="text-2xl font-bold text-gray-900">{selectedBrand.totalRevenue > 0 ? `€${selectedBrand.totalRevenue.toLocaleString()}` : "—"}</div>
                       </div>
                       <div className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border backdrop-blur-xl hover:border-border transition-all duration-300">
                         <div className="text-xs text-gray-600 mb-1">Active Projects</div>
-                        <div className="text-2xl font-bold text-gray-900">{selectedBrand.activeProjects}</div>
+                        <div className="text-2xl font-bold text-gray-900">{selectedBrand.activeProjects > 0 ? selectedBrand.activeProjects : "—"}</div>
                       </div>
                       <div className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border backdrop-blur-xl hover:border-border transition-all duration-300">
                         <div className="text-xs text-gray-600 mb-1">Completed</div>
-                        <div className="text-2xl font-bold text-gray-900">{selectedBrand.completedProjects}</div>
+                        <div className="text-2xl font-bold text-gray-900">{selectedBrand.completedProjects > 0 ? selectedBrand.completedProjects : "—"}</div>
                       </div>
                       <div className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border backdrop-blur-xl hover:border-border transition-all duration-300">
                         <div className="text-xs text-gray-600 mb-1">Engagement</div>
-                        <div className="text-2xl font-bold text-gray-900">{selectedBrand.engagement}%</div>
+                        <div className="text-2xl font-bold text-gray-900">{selectedBrand.engagement > 0 ? `${selectedBrand.engagement}%` : "—"}</div>
                       </div>
                     </div>
                   </div>
@@ -1446,11 +1293,13 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                         </h3>
                       </div>
                       <div className="flex flex-col items-center justify-center py-6">
-                        <div className="text-3xl font-bold text-gray-900 mb-1">{selectedBrand.engagement || 0}%</div>
-                        <p className="text-sm text-gray-600">Average user engagement on socials</p>
-                        <div className="h-2 w-full max-w-xs bg-muted rounded-full overflow-hidden mt-4">
-                          <div className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full" style={{ width: `${Math.min(selectedBrand.engagement || 0, 100)}%` }}></div>
-                        </div>
+                        <div className="text-3xl font-bold text-gray-900 mb-1">{selectedBrand.engagement > 0 ? `${selectedBrand.engagement}%` : "—"}</div>
+                        <p className="text-sm text-gray-600">Connect org analytics to see engagement</p>
+                        {selectedBrand.engagement > 0 && (
+                          <div className="h-2 w-full max-w-xs bg-muted rounded-full overflow-hidden mt-4">
+                            <div className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full" style={{ width: `${Math.min(selectedBrand.engagement, 100)}%` }}></div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </GlassCard>

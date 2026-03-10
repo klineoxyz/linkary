@@ -166,9 +166,13 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/50 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+        <p className="font-semibold">Coming soon</p>
+        <p className="mt-0.5">Circles are not saved yet. Data below is for preview only. Save and reuse of creator lists will be available in a future update.</p>
+      </div>
       <SectionTitle
         title="Circles"
-        subtitle="Build and manage your creator networks and KOL lists"
+        subtitle="Build and manage your creator networks (preview — not saved)"
         right={
           <Button variant="primary" icon={Plus} onClick={handleCreateCircle}>
             Create Circle

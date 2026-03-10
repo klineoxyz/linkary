@@ -168,6 +168,10 @@ export default function KOLListsPage({ setRoute }: any) {
 
   return (
     <div className="min-h-screen bg-zinc-50">
+      <div className="border-b border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/50 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+        <p className="font-semibold">Coming soon</p>
+        <p className="mt-0.5">KOL lists are not saved yet. Data shown is for preview only. Save and reuse will be available in a future update.</p>
+      </div>
       {/* Header */}
       <div className="border-b border-zinc-200 bg-white">
         <div className="max-w-[1600px] mx-auto px-8 py-6">
@@ -182,7 +186,7 @@ export default function KOLListsPage({ setRoute }: any) {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold text-zinc-900 mb-2">KOL Lists</h1>
-              <p className="text-zinc-600">Build creator lists for campaigns and gigs</p>
+              <p className="text-zinc-600">Build creator lists for campaigns and gigs (preview — lists are not saved)</p>
             </div>
           </div>
         </div>

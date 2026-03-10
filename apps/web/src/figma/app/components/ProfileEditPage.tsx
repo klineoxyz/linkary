@@ -1960,7 +1960,7 @@ export default function ProfileEditPage({
         ← Back to profile
       </button>
       <h1 className="text-2xl font-bold text-zinc-900 mb-2">Public 1-Pager</h1>
-      <p className="text-zinc-600 text-sm mb-6">Private editor — control what appears on your public page (linkary.xyz/{me.username || "you"}). The public page uses this and your profile Overview as the single source; each field appears once, no duplicates.</p>
+      <p className="text-zinc-600 text-sm mb-6">Private editor — control what appears on your public page (linkary.xyz/{me.username || "you"}). Changes here are the single source of truth: they appear on your public URL and on your logged-in profile (Overview and Public preview) after you save.</p>
 
       {toast && (
         <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm">

@@ -3192,7 +3192,7 @@ function WorkRequestsPage({ setRoute, route, me }) {
   );
 }
 
-function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
+function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshProfilePayloadTrigger = 0 }) {
   const router = useRouter();
   const tab = (route?.data?.tab ?? "overview") as string;
   const viewUsername = route?.data?.username as string | undefined;
@@ -3331,14 +3331,14 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
       return;
     }
     const base = typeof window !== "undefined" ? window.location.origin : "";
-    fetch(`${base}/api/public/profile?username=${encodeURIComponent(publicSlug)}`)
+    fetch(`${base}/api/public/profile?username=${encodeURIComponent(publicSlug)}&_t=${refreshProfilePayloadTrigger}`, { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && !data.error) setPublicProfilePayload({ links: data.links ?? [], relations: data.relations ?? {} });
         else setPublicProfilePayload({ links: [], relations: {} });
       })
       .catch(() => setPublicProfilePayload({ links: [], relations: {} }));
-  }, [me?.id, publicSlug]);
+  }, [me?.id, publicSlug, refreshProfilePayloadTrigger]);
 
   // Debounced profile search (people only)
   useEffect(() => {
@@ -3445,7 +3445,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
       {tab === "publicPreview" ? (
         hasPublicSlug ? (
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-sm text-muted-foreground mb-3">This is how your public profile appears. Changes in Builder (section order, visibility, featured) are reflected after you save and refresh.</p>
+            <p className="text-sm text-muted-foreground mb-3">This is how your public profile appears at linkary.xyz/{publicSlug}. Edits in the Public 1-Pager (Advanced editor) appear here and on your public URL after you save; reload this iframe or open your public link to see the latest.</p>
             <iframe
               title="Public profile preview"
               src={`/${encodeURIComponent(publicSlug)}`}
@@ -3930,6 +3930,7 @@ function LinkaryAppInner() {
   const [analyticsSessionExpired, setAnalyticsSessionExpired] = useState(false);
   const [analyticsRateLimitResetAt, setAnalyticsRateLimitResetAt] = useState<string | null>(null);
   const [headerMedia, setHeaderMedia] = useState<{ header_media_type: string; header_media_url: string | null; header_media_file_path?: string | null } | null>(null);
+  const [profilePayloadRefreshTrigger, setProfilePayloadRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const fromPath = routeFromPathname(pathname ?? "/", searchParams);
@@ -4667,9 +4668,9 @@ function LinkaryAppInner() {
                   />
                 )}
                 {route.name === "landing" && <LandingPage setRoute={setRoute} />}
-                {route.name === "profile" && <ProfilePage setRoute={setRoute} me={me} route={route} getAuthHeaders={getAuthHeaders} refreshMe={refreshMe} />}
+                {route.name === "profile" && <ProfilePage setRoute={setRoute} me={me} route={route} getAuthHeaders={getAuthHeaders} refreshMe={refreshMe} refreshProfilePayloadTrigger={profilePayloadRefreshTrigger} />}
                 {route.name === "profileEdit" && (
-                  <ProfileEditPage setRoute={setRoute} me={me} onSaved={() => { refreshMe(); refreshHeaderMedia(); }} />
+                  <ProfileEditPage setRoute={setRoute} me={me} onSaved={() => { refreshMe(); refreshHeaderMedia(); setProfilePayloadRefreshTrigger((t) => t + 1); }} />
                 )}
                 {route.name === "userProfile" && (
                   <UserProfilePage

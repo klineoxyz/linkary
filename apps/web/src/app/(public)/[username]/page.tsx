@@ -4,6 +4,7 @@ import { getIdentifierKind, normalizeIdentifier, resolvePublicEntity } from "@/l
 import { isReservedPath } from "@/lib/reservedPaths";
 import { dtoToEntityView, entityToPublicDTO } from "@/lib/publicProfileDTO";
 import { resolveEntityMediaToSignedUrls } from "@/lib/resolveEntityMediaUrls";
+import { buildPublicProfilePayloadFromEntity } from "@/lib/buildPublicProfilePayload";
 import AppWithProviders from "../../AppWithProviders";
 import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
 import { PublicProfileContent } from "./PublicProfileContent";
@@ -225,22 +226,14 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
             : (entity.org?.slug ?? "").toLowerCase();
 
         if (!viewBrochure) {
-          try {
-            const base = baseUrl();
-            const res = await fetch(`${base}/api/public/profile?username=${encodeURIComponent(canonicalSlug || segmentLower)}`, { cache: "no-store" });
-            if (res.ok) {
-              const data = await res.json();
-              return (
-                <PublicProfileContent
-                  data={data}
-                  username={data.profile?.username ?? data.profile?.display_name ?? canonicalSlug ?? segmentLower}
-                  profileUrl={`${canonicalBaseUrl()}/${encodeURIComponent(canonicalSlug || segmentLower)}`}
-                />
-              );
-            }
-          } catch {
-            /* fallback to one-pager */
-          }
+          const data = await buildPublicProfilePayloadFromEntity(entity, serviceSupabase);
+          return (
+            <PublicProfileContent
+              data={data}
+              username={data.profile?.username ?? data.profile?.display_name ?? canonicalSlug ?? segmentLower}
+              profileUrl={`${canonicalBaseUrl()}/${encodeURIComponent(canonicalSlug || segmentLower)}`}
+            />
+          );
         }
         return (
           <PublicOnePagerWrapper

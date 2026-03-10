@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
       seen.add(key);
       const name = p.display_name || p.username || "Creator";
       const handleLabel = `@${p.username}`;
-      const url = `/${p.username}`;
+      const url = `/u/${p.username}`;
       const rank = [p.username, p.display_name, p.twitter_username].some(
         (f) => f != null && f.toLowerCase().startsWith(termLower)
       )

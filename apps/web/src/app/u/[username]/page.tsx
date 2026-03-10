@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { PublicProfileContent } from "@/app/(public)/[username]/PublicProfileContent";
 import { NotFoundClaimView } from "@/app/(public)/[username]/NotFoundClaimView";
+import { LeaveReviewBlock } from "./LeaveReviewBlock";
 
 type Props = {
   params: Promise<{ username: string }>;
@@ -125,6 +126,9 @@ export default async function AppProfilePage({ params, searchParams }: Props) {
           data={data}
           username={data.profile?.username ?? slug}
         />
+        <div className="mt-6 max-w-2xl">
+          <LeaveReviewBlock username={slug} />
+        </div>
       </>
     );
   }

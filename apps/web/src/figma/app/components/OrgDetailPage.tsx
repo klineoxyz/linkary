@@ -25,6 +25,7 @@ import {
   recomputeOrgMetrics,
   isOrgAdmin,
   updateOrg,
+  claimOrgSlug,
   ensureOrgOwnerMembership,
   type Org,
   type OrgMember,
@@ -1576,10 +1577,19 @@ export default function OrgDetailPage({
                       setSettingsError(null);
                       setSettingsSaving(true);
                       const newName = settingsOrgName.trim() || org.name;
-                      const newSlug = settingsOrgSlug.trim() || org.slug;
+                      const newSlug = (settingsOrgSlug.trim() || org.slug || "").replace(/^@/, "");
+                      const slugChanged = newSlug && newSlug !== (org.slug || "").replace(/^@/, "");
+                      if (slugChanged) {
+                        const claimErr = await claimOrgSlug(org.id, newSlug);
+                        if (claimErr.error) {
+                          setSettingsSaving(false);
+                          setSettingsError(claimErr.error.includes("USERNAME_TAKEN") || claimErr.error.includes("SLUG_TAKEN") ? "That handle is already taken by a user or another org. Try another." : claimErr.error);
+                          return;
+                        }
+                      }
                       const { error } = await updateOrg(org.id, {
                         name: newName,
-                        slug: newSlug || undefined,
+                        ...(slugChanged ? {} : { slug: newSlug || undefined }),
                         published,
                         is_crypto_project: isCryptoProject,
                         has_token: hasToken ? true : false,

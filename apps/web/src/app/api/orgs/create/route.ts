@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
 import { rateLimit } from "@/lib/rate-limit";
+import { isReservedPath } from "@/lib/reservedPaths";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -56,7 +57,11 @@ export async function POST(request: NextRequest) {
     return fail("INVALID_ORG_TYPE", "org_type must be one of: company, brand, project, agency", 400);
   }
 
-  const slug = typeof body?.slug === "string" ? body.slug.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "") : undefined;
+  const slugRaw = typeof body?.slug === "string" ? body.slug.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "") : undefined;
+  const slug = slugRaw && slugRaw.length >= 2 ? slugRaw : undefined;
+  if (slug && isReservedPath(slug)) {
+    return fail("SLUG_RESERVED", "That handle is reserved. Choose another.", 400);
+  }
   const tagline = typeof body?.tagline === "string" ? body.tagline.trim() || undefined : undefined;
   const website = typeof body?.website === "string" ? body.website.trim() || undefined : undefined;
   const twitter_username = typeof body?.twitter_username === "string" ? body.twitter_username.trim().replace(/^@/, "") || undefined : undefined;
@@ -67,7 +72,7 @@ export async function POST(request: NextRequest) {
     payload: {
       name,
       org_type,
-      slug: slug && slug.length >= 2 ? slug : undefined,
+      slug: slug ?? undefined,
       tagline,
       website,
       twitter_username,
@@ -77,8 +82,11 @@ export async function POST(request: NextRequest) {
   });
 
   if (error) {
-    const code = error.code ?? "PGRST301";
     const message = error.message ?? "Create failed";
+    if (message === "SLUG_TAKEN" || message.includes("USERNAME_TAKEN")) {
+      return fail("SLUG_TAKEN", "That handle is already taken by a user or another org. Choose another.", 400);
+    }
+    const code = error.code ?? "PGRST301";
     return fail(code, message, code === "42501" || message.toLowerCase().includes("policy") ? 403 : 400);
   }
 

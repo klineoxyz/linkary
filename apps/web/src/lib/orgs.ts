@@ -3,6 +3,7 @@
  * Used by figma app (Dashboard, OrgDetail, Profile).
  */
 import { supabase } from "./supabase";
+import { isReservedPath } from "./reservedPaths";
 
 export type OrgType = "company" | "brand" | "project" | "agency";
 
@@ -76,6 +77,7 @@ const ORG_AFFILIATIONS = "org_affiliations";
 const ORG_AMBASSADORS = "org_ambassadors";
 const ORG_METRICS = "org_metrics";
 const PROFILES = "profiles";
+const USERNAMES = "usernames";
 
 /** Sanitize slug for URL: lowercase, replace spaces with -, remove invalid chars. */
 export function sanitizeSlug(slug: string): string {
@@ -88,22 +90,28 @@ export function sanitizeSlug(slug: string): string {
     .replace(/^-|-$/g, "");
 }
 
-/** Check if a slug is taken. Returns { available: boolean, suggested?: string } if taken. */
+/**
+ * Check if a slug is available in the global namespace (usernames) and not reserved.
+ * Used for org create and org slug edit. Returns { available: boolean, suggested?: string } if taken.
+ */
 export async function checkSlugAvailable(slug: string): Promise<{ available: boolean; suggested?: string }> {
   const s = sanitizeSlug(slug);
   if (s.length < 2) return { available: false };
-  const { data: existing } = await supabase
-    .from(ORGS)
-    .select("id")
-    .ilike("slug", s)
+  if (isReservedPath(s)) return { available: false };
+  const { data: existingInUsernames } = await supabase
+    .from(USERNAMES)
+    .select("username")
+    .ilike("username", s)
     .maybeSingle();
-  if (!existing) return { available: true };
-  for (let n = 2; n <= 99; n++) {
-    const candidate = s + "-" + n;
-    const { data: taken } = await supabase.from(ORGS).select("id").ilike("slug", candidate).maybeSingle();
-    if (!taken) return { available: false, suggested: candidate };
+  if (existingInUsernames) {
+    for (let n = 2; n <= 99; n++) {
+      const candidate = s + "-" + n;
+      const { data: taken } = await supabase.from(USERNAMES).select("username").ilike("username", candidate).maybeSingle();
+      if (!taken) return { available: false, suggested: candidate };
+    }
+    return { available: false, suggested: s + "-" + Date.now().toString(36) };
   }
-  return { available: false, suggested: s + "-" + Date.now().toString(36) };
+  return { available: true };
 }
 
 /** Create org via RPC (atomic: org + membership). Org is unverified and unpublished until X is connected. */
@@ -199,7 +207,7 @@ export async function getOrgBySlug(slug: string): Promise<Org | null> {
   return data as Org | null;
 }
 
-/** Update org (caller must be owner/admin via RLS). xscore is write-only via Wallchain/cron/service-role; never accepted here. */
+/** Update org (caller must be owner/admin via RLS). xscore is write-only via Wallchain/cron/service-role; never accepted here. Does NOT update slug; use claimOrgSlug for slug changes. */
 export async function updateOrg(
   orgId: string,
   payload: Partial<Pick<Org, "name" | "slug" | "tagline" | "website" | "twitter_username" | "logo_url" | "is_crypto_project" | "has_token" | "token_symbol" | "dexscreener_url" | "published">>
@@ -210,6 +218,20 @@ export async function updateOrg(
   }
   delete updates.xscore;
   const { error } = await supabase.from(ORGS).update(updates).eq("id", orgId);
+  return { error: error?.message ?? null };
+}
+
+/**
+ * Claim a slug for an org in the global namespace (usernames). Caller must be org owner/admin.
+ * Use this for org slug changes instead of updateOrg; it ensures usernames is updated and rejects taken slugs.
+ */
+export async function claimOrgSlug(orgId: string, newSlug: string): Promise<{ error: string | null }> {
+  const s = sanitizeSlug(newSlug);
+  if (s.length < 2) return { error: "Slug too short" };
+  const { error } = await supabase.rpc("claim_username_for_org", {
+    desired_username: s,
+    org_id: orgId,
+  });
   return { error: error?.message ?? null };
 }
 

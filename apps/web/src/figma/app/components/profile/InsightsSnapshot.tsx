@@ -9,7 +9,6 @@ import {
   SocialGraphCard,
   TopFollowersCard,
   TopFollowersByScoreTiersCard,
-  AccountFeedCard,
   AffiliatedAccountsCard,
   RecommendedAccountsCard,
   EmptyStateCard,
@@ -164,7 +163,6 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
 
   const [graphSeries, setGraphSeries] = useState({ followers: true, score: true, influencers: false, projects: false, vc: false });
   const [topFollowersTab, setTopFollowersTab] = useState("influencers");
-  const [accountFeedTab, setAccountFeedTab] = useState<"actions" | "newFollowers">("newFollowers");
   const [affiliatedAmbassadorTab, setAffiliatedAmbassadorTab] = useState<"affiliated" | "ambassador">("affiliated");
   const [seeAllModalOpen, setSeeAllModalOpen] = useState(false);
   const [watchlistList, setWatchlistList] = useState<{ people: Array<{ entity_id: string }>; orgs: Array<{ entity_id: string }> } | null>(null);
@@ -488,18 +486,6 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className={island}>
-          <AccountFeedCard
-            variant="light"
-            activeTab={accountFeedTab}
-            onTabChange={setAccountFeedTab}
-            actions={insights?.accountFeed?.actions ?? []}
-            newFollowers={insights?.accountFeed?.newFollowers ?? []}
-            emptyMessage="No data yet. Sync will run automatically."
-            cacheStatus={(insights?.meta?.cache?.feed && typeof insights.meta.cache.feed === "object" ? insights.meta.cache.feed.status : undefined) as "hit" | "miss" | "stale" | undefined}
-            updatedAt={insights?.meta?.cache?.feed && typeof insights.meta.cache.feed === "object" ? insights.meta.cache.feed.updatedAt : undefined}
-          />
-        </div>
         <div className={island}>
           <div className="p-6">
             <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">

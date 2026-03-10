@@ -27,6 +27,8 @@ export type PublicProfileDTO = {
   ethosScore: number | null;
   xscore: number | null;
   linkaryPower: number | null;
+  /** REP score 0–100 from profiles.rep_score (when view exposes it). */
+  rep_score?: number | null;
   analytics: {
     source: "worker" | "partial" | "fallback";
     initialized: boolean;
@@ -126,9 +128,10 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
         website_url: sanitizeUrl(entity.socials.website_url) ?? null,
         telegram_url: sanitizeUrl(entity.socials.telegram_url) ?? null,
       } : null,
-      ethosScore: entity.ethosScore ?? null,
+      ethosScore: entity.ethosScore ?? (p as { ethos_score?: number | null }).ethos_score ?? null,
       xscore: p.xscore ?? null,
       linkaryPower: entity.linkaryPower ?? null,
+      rep_score: (p as { rep_score?: number | null }).rep_score ?? null,
       analytics: {
         source,
         initialized,

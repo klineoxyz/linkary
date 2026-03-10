@@ -454,7 +454,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
   const handleOrgCreated = (orgId: string, _slug?: string) => {
     if (userId) listOrgsForUser(userId).then(setMyOrgs);
     setShowCreateOrg(false);
-    if (setRoute) setRoute({ name: "orgDetail", data: { orgId, showConnectXBanner: true } });
+    if (setRoute) setRoute({ name: "orgDetail", data: { orgId, slug: _slug, showConnectXBanner: true } });
   };
 
   return (
@@ -469,7 +469,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
       {/* Banner: only real data or empty states */}
       <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground">
         <p className="font-medium">Your dashboard</p>
-        <p className="mt-0.5 text-muted-foreground">Numbers below are from your deals and profile. For full X analytics and backfill, go to <a href="/analytics" className="text-primary hover:underline">Analytics</a>.</p>
+        <p className="mt-0.5 text-muted-foreground">Numbers below are from your deals and profile. For full X analytics and backfill, go to <a href="/app/analytics" className="text-primary hover:underline">Analytics</a>.</p>
       </div>
 
       {/* My Orgs first: add admins & team is the main action when user has orgs */}
@@ -507,7 +507,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                     className="p-4 rounded-xl border border-border bg-gradient-to-br bg-card hover:border-border transition-all flex flex-col gap-2"
                   >
                     <div
-                      onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id } })}
+                      onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id, slug: org.slug } })}
                       className="flex items-center gap-3 cursor-pointer"
                     >
                       {org.logo_url && !isPrivateStorageUrl(org.logo_url) ? (
@@ -526,14 +526,14 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                     <div className="flex gap-2 pt-1 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
-                        onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id, tab: "members" } })}
+                        onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id, slug: org.slug, tab: "members" } })}
                         className="text-xs px-3 py-1.5 rounded-lg bg-primary text-white font-medium hover:opacity-90"
                       >
                         Add admins &amp; team
                       </button>
                       <button
                         type="button"
-                        onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id } })}
+                        onClick={() => setRoute && setRoute({ name: "orgDetail", data: { orgId: org.id, slug: org.slug } })}
                         className="text-xs px-3 py-1.5 rounded-lg border border-border bg-background text-foreground font-medium hover:bg-muted"
                       >
                         Open org
@@ -992,7 +992,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
             
             {/* Charts: real data only (volume from deals, reputation from me-stats, activity from deals) */}
             <h2 className="text-xl font-bold text-gray-900 mt-2 mb-1">Activity & reputation</h2>
-            <p className="text-sm text-gray-600 mb-6">Charts below use your deal activity and profile stats. For full X analytics and time-series, go to <a href="/analytics" className="text-primary hover:underline">Analytics</a>.</p>
+            <p className="text-sm text-gray-600 mb-6">Charts below use your deal activity and profile stats. For full X analytics and time-series, go to <a href="/app/analytics" className="text-primary hover:underline">Analytics</a>.</p>
             {/* Charts Row 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
               {/* Earnings Trend */}
@@ -1133,7 +1133,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 mb-1">Categories</h3>
                   <p className="text-sm text-gray-600 text-center mb-4">No category data yet. Add roles and skills on your profile to see a breakdown.</p>
-                  <a href="/analytics" className="text-sm font-medium text-primary hover:underline">See full analytics →</a>
+                  <a href="/app/analytics" className="text-sm font-medium text-primary hover:underline">See full analytics →</a>
                 </div>
               </GlassCard>
             </div>
@@ -1153,7 +1153,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 {skillsRadarData.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <p className="text-sm text-gray-600 mb-2">No skills added yet.</p>
-                    <a href="/profile/edit" className="text-sm font-medium text-primary hover:underline">Add roles & skills in Profile edit →</a>
+                    <a href="/app/profile/edit" className="text-sm font-medium text-primary hover:underline">Add roles & skills in Profile edit →</a>
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height={350}>

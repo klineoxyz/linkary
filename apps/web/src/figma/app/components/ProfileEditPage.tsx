@@ -729,7 +729,7 @@ function RelationsEditor({
                   <span className="text-sm font-medium text-zinc-900 truncate">{org.name}</span>
                   <button
                     type="button"
-                    onClick={() => setRoute({ name: "orgDetail", data: { orgId: org.id, tab: "members" } })}
+                    onClick={() => setRoute({ name: "orgDetail", data: { orgId: org.id, slug: org.slug, tab: "members" } })}
                     className="shrink-0 px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90"
                   >
                     Manage admins &amp; team
@@ -2881,7 +2881,7 @@ export default function ProfileEditPage({
             {dealCreatedNote && (
               <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-foreground">
                 Deal created.{" "}
-                <a href="/profile/deals" className="font-medium text-primary hover:underline">View in Deals</a>
+                <a href="/app/profile/deals" className="font-medium text-primary hover:underline">View in Deals</a>
               </div>
             )}
             {applicationsLoading ? (

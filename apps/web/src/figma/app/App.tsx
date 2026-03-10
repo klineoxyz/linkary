@@ -738,60 +738,60 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     const slug = route.handle ?? route.data?.username ?? "";
     return slug ? `/${encodeURIComponent(slug)}` : "/explore";
   }
-  if (route.name === "profileInsights") return "/profile/insights";
+  if (route.name === "profileInsights") return "/app/profile/insights";
   if (route.name === "userInsights" && (route.handle ?? route.data?.username)) {
     return `/u/${encodeURIComponent(route.handle ?? route.data?.username ?? "")}/insights`;
   }
   const map: Record<string, string> = {
     landing: "/",
-    overview: "/overview",
-    dashboard: "/dashboard",
-    explore: "/explore",
-    discovery: "/explore",
+    overview: "/app/overview",
+    dashboard: "/app/dashboard",
+    explore: "/app/explore",
+    discovery: "/app/explore",
     terms: "/terms",
     privacyPolicy: "/privacy-policy",
     privacy: "/privacy",
     login: "/login",
     onboarding: "/onboarding",
     accountType: "/onboarding",
-    profile: "/profile",
-    profileEdit: "/profile/edit",
-    profileDeals: "/profile/deals",
-    profileApplications: "/profile/applications",
-    market: "/market",
-    messages: "/messages",
-    circles: "/circles",
-    circleDetail: "/circles",
-    analytics: "/analytics",
+    profile: "/app/profile",
+    profileEdit: "/app/profile/edit",
+    profileDeals: "/app/profile/deals",
+    profileApplications: "/app/profile/applications",
+    market: "/app/market",
+    messages: "/app/messages",
+    circles: "/app/circles",
+    circleDetail: "/app/circles",
+    analytics: "/app/analytics",
     verification: "/verification",
     verificationInbox: "/verification-inbox",
-    plansBilling: "/plans",
-    pricing: "/pricing",
-    billing: "/billing",
-    pricingRefined: "/pricing",
-    leaderboards: "/leaderboards",
-    creatorProfile: "/creator",
-    brandProfile: "/brand",
-    agencyProfile: "/agency",
-    calendar: "/calendar",
-    calendarRefined: "/xspaces",
-    enhancedCalendar: "/xspaces",
-    xspaces: "/xspaces",
-    hostDashboard: "/host",
-    availability: "/availability",
-    monetizationShowcase: "/monetization",
-    monetizationFlowShowcase: "/monetization-flow",
-    kolLists: "/kol-lists",
-    capitalPartners: "/capital-partners",
-    connections: "/connections",
-    preferences: "/preferences",
-    support: "/support",
-    notifications: "/notifications",
-    showcase: "/showcase",
-    integrations: "/settings/integrations",
-    rolesSkills: "/settings/roles-skills",
-    wallet: "/settings/wallet",
-    watchlist: "/watchlist",
+    plansBilling: "/app/plans",
+    pricing: "/app/pricing",
+    billing: "/app/billing",
+    pricingRefined: "/app/pricing",
+    leaderboards: "/app/leaderboards",
+    creatorProfile: "/app/creator",
+    brandProfile: "/app/brand",
+    agencyProfile: "/app/agency",
+    calendar: "/app/calendar",
+    calendarRefined: "/app/xspaces",
+    enhancedCalendar: "/app/xspaces",
+    xspaces: "/app/xspaces",
+    hostDashboard: "/app/host",
+    availability: "/app/availability",
+    monetizationShowcase: "/app/monetization",
+    monetizationFlowShowcase: "/app/monetization-flow",
+    kolLists: "/app/kol-lists",
+    capitalPartners: "/app/capital-partners",
+    connections: "/app/connections",
+    preferences: "/app/preferences",
+    support: "/app/support",
+    notifications: "/app/notifications",
+    showcase: "/app/showcase",
+    integrations: "/app/settings/integrations",
+    rolesSkills: "/app/settings/roles-skills",
+    wallet: "/app/settings/wallet",
+    watchlist: "/app/watchlist",
   };
   if (route.name === "profile") {
     const tab = route.data?.tab;
@@ -800,11 +800,12 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     if (tab) q.set("tab", String(tab));
     if (username) q.set("username", String(username));
     const query = q.toString();
-    return query ? `/profile?${query}` : "/profile";
+    return query ? `/app/profile?${query}` : "/app/profile";
   }
-  if (route.name === "orgDetail" && route.data?.orgId) {
-    const tab = route.data.tab;
-    return `/org/${route.data.orgId}${tab ? `?tab=${encodeURIComponent(tab)}` : ""}`;
+  if (route.name === "orgDetail" && (route.data?.orgId ?? route.data?.slug)) {
+    const tab = route.data?.tab;
+    const segment = route.data?.slug ?? route.data?.orgId;
+    return `/org/${encodeURIComponent(segment)}${tab ? `?tab=${encodeURIComponent(tab)}` : ""}`;
   }
   if (route.name === "dealDetail" && route.data?.dealId) return `/deal/${route.data.dealId}`;
   if (route.name === "workRequests") {
@@ -814,7 +815,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     if (tab === "sent") q.set("tab", "sent");
     if (id) q.set("id", id);
     const query = q.toString();
-    return query ? `/work/requests?${query}` : "/work/requests";
+    return query ? `/app/work/requests?${query}` : "/app/work/requests";
   }
   return map[route.name] ?? "/";
 }
@@ -1174,16 +1175,16 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
     return n.type || "Notification";
   };
   const notifLink = (n) => {
-    if (n.type === "connection_request" || n.type === "connection_accepted") return "/connections";
-    if (n.type === "application_submitted" && n.payload?.job_id) return `/app?org=jobs`;
+    if (n.type === "connection_request" || n.type === "connection_accepted") return "/app/connections";
+    if (n.type === "application_submitted" && n.payload?.job_id) return "/app/dashboard";
     if (n.type === "application_accepted" && n.entity_id) return `/deal/${n.entity_id}`;
     if (n.type === "application_rejected" && n.payload?.org_id) return `/org/${n.payload.org_id}?tab=jobs`;
-    if (n.type === "application_rejected") return "/overview";
+    if (n.type === "application_rejected") return "/app/overview";
     if (n.entity_type === "deal" && n.entity_id) return `/deal/${n.entity_id}`;
     if (n.type === "ambassador_invite" || n.type === "ambassador_invite_accepted" || n.type === "ambassador_removed") return (n.payload?.org_id ?? n.entity_id) ? `/org/${n.payload?.org_id ?? n.entity_id}?tab=ambassadors` : null;
     if (n.type === "affiliate_invite" || n.type === "affiliate_invite_accepted" || n.type === "affiliate_removed") return (n.payload?.org_id ?? n.entity_id) ? `/org/${n.payload?.org_id ?? n.entity_id}?tab=affiliates` : null;
-    if (n.type === "speaker_request_created" || n.type === "speaker_request_approved" || n.type === "speaker_request_rejected") return "/xspaces";
-    if (n.type === "sponsor_proposal_accepted" || n.type === "sponsor_proposal_declined") return "/xspaces";
+    if (n.type === "speaker_request_created" || n.type === "speaker_request_approved" || n.type === "speaker_request_rejected") return "/app/xspaces";
+    if (n.type === "sponsor_proposal_accepted" || n.type === "sponsor_proposal_declined") return "/app/xspaces";
     return null;
   };
   return (
@@ -2817,7 +2818,7 @@ function WorkRequestsPage({ setRoute, route, me }) {
                   </Link>
                   {!(mySocials.x_url || mySocials.telegram_url || mySocials.website_url) && (
                     <Link
-                      href="/profile/edit#basics"
+                      href="/app/profile/edit#basics"
                       className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50"
                     >
                       Add contact links
@@ -3430,7 +3431,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
           View Insights
         </a>
         <a
-          href="/analytics"
+          href="/app/analytics"
           className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary"
         >
           Analytics
@@ -3458,7 +3459,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
         <div className="flex flex-wrap gap-3">
           {isMyProfile && (
             <>
-              <a href="/profile/edit" className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground">
+              <a href="/app/profile/edit" className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground">
                 Advanced editor
               </a>
               {accountType === "company" && (
@@ -3470,7 +3471,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
                   <Users className="h-4 w-4 stroke-[1.75]" /> Admins &amp; team
                 </Button>
               )}
-              <Button variant="outline" className="flex items-center gap-2" onClick={() => router.push("/settings/wallet")}>
+              <Button variant="outline" className="flex items-center gap-2" onClick={() => router.push("/app/settings/wallet")}>
                 <Wallet className="h-4 w-4 stroke-[1.75]" /> Wallet
               </Button>
               {hasPublicSlug ? (
@@ -3945,7 +3946,7 @@ function LinkaryAppInner() {
     const nextPath = (path ?? "/").replace(/\/$/, "") || "/";
     // Avoid full navigation to /profile/edit so we don't depend on that route existing (avoids 404)
     if (r.name === "profileEdit") {
-      if (currentPath !== "/profile") router.push("/profile");
+      if (currentPath !== "/app/profile") router.push("/app/profile");
       return;
     }
     if (typeof window !== "undefined" && nextPath !== currentPath) {
@@ -4036,7 +4037,7 @@ function LinkaryAppInner() {
       }
       const p = pathname ?? "/";
       setRouteState((prev) => (prev.name === "login" ? { name: "overview" } : prev));
-      if (p === "/login") router.push("/overview");
+      if (p === "/login") router.push("/app/overview");
     }
     // Post-login repair and analytics: ensure-social-x (repair from identity/profile), then ensure-backfill (today snapshot + 90d job). social_accounts is source of truth.
     if (session?.access_token && typeof window !== "undefined") {

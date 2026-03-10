@@ -46,7 +46,7 @@ export function AnalyticsHeader({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 md:gap-x-4">
           {setRoute && (
             <a
-              href="/dashboard"
+              href="/app/dashboard"
               onClick={(e) => {
                 e.preventDefault();
                 setRoute({ name: "dashboard" });

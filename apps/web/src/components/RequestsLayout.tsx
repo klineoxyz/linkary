@@ -24,7 +24,7 @@ export function RequestsLayout({ children, inboxBadgeCount }: RequestsLayoutProp
       <main className={CONTAINER_CLASS}>
         <div className="mb-6 flex items-center gap-4">
           <Link
-            href="/profile"
+            href="/app/profile"
             className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
           >
             ← Profile
@@ -58,7 +58,7 @@ export function RequestsLayout({ children, inboxBadgeCount }: RequestsLayoutProp
               )}
             </Link>
             <Link
-              href="/profile/requests"
+              href="/app/profile/requests"
               className={cn(
                 "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
                 active === "sent"

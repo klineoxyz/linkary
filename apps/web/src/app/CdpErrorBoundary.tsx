@@ -78,7 +78,7 @@ export class CdpErrorBoundary extends Component<Props, State> {
           <p className="text-sm font-medium text-foreground">Wallet session expired</p>
           <p className="text-xs text-muted-foreground">Reconnect your wallet in Settings to continue.</p>
           <Link
-            href="/settings/wallet"
+            href="/app/settings/wallet"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             Reconnect wallet

@@ -189,7 +189,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           <div className="rounded-xl border border-border bg-card p-6 text-center">
             <p className="text-sm text-muted-foreground mb-2">{res.message}</p>
             <a
-              href="/settings/integrations"
+              href="/app/settings/integrations"
               className="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
             >
               Go to Integrations
@@ -242,7 +242,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             <p className="text-sm font-medium text-foreground">{PLATFORM_TABS.find((t) => t.id === platform)?.label} analytics</p>
             <p className="text-sm text-muted-foreground mt-1">Coming soon. Connect your account in Integrations to be ready.</p>
             <a
-              href="/settings/integrations"
+              href="/app/settings/integrations"
               className="inline-block mt-4 text-xs text-primary hover:underline underline-offset-2"
             >
               Go to Integrations
@@ -255,7 +255,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {setRoute && (
                 <a
-                  href="/dashboard"
+                  href="/app/dashboard"
                   onClick={(e) => {
                     e.preventDefault();
                     setRoute({ name: "dashboard" });

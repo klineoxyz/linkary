@@ -355,7 +355,7 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
         <div className={`${island} p-6`}>
           <h3 className="text-sm font-semibold text-foreground mb-2">Credibility snapshot</h3>
           <p className="text-sm text-muted-foreground mb-4">Score and key stats above. For full X analytics, time-series, top followers, and backfill, use the Analytics page.</p>
-          <a href="/analytics" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+          <a href="/app/analytics" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90">
             <BarChart3 className="h-4 w-4" />
             See full analytics
           </a>

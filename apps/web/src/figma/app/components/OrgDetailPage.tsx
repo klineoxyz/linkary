@@ -156,9 +156,10 @@ export default function OrgDetailPage({
     }
     setLoading(true);
     (async () => {
-      const o = data?.orgId
-        ? await getOrgById(data.orgId)
-        : await getOrgBySlug(orgId as string);
+      const { getIdentifierKind } = await import("@/lib/entityResolver");
+      const o = getIdentifierKind(orgId) === "uuid"
+        ? await getOrgById(orgId)
+        : await getOrgBySlug(orgId);
       setOrg(o ?? null);
       if (o) {
         if (userId && (o as Org & { owner_profile_id?: string }).owner_profile_id === userId) {

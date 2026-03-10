@@ -820,7 +820,10 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
 }
 
 function routeFromPathname(pathname: string | null, searchParams?: URLSearchParams | null): { name: string; data?: any; handle?: string } {
-  const fullPath = (pathname ?? "/").replace(/^\//, "");
+  let pathnameNorm = (pathname ?? "/").replace(/^\//, "").replace(/\/$/, "") || "";
+  if (pathnameNorm.startsWith("app/")) pathnameNorm = pathnameNorm.slice(4) || "";
+  else if (pathnameNorm === "app") pathnameNorm = "";
+  const fullPath = pathnameNorm ? `/${pathnameNorm}`.replace(/^\//, "") : "";
   const parts = fullPath.split("/").map((p) => p.toLowerCase());
   if (parts[0] === "work" && parts[1] === "requests") {
     const tab = searchParams?.get("tab") === "sent" ? "sent" : "inbox";
@@ -868,6 +871,7 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
       support: "support", notifications: "notifications",
       "verification-inbox": "verificationInbox", showcase: "showcase", integrations: "integrations",
       "roles-skills": "rolesSkills", profile: "profile", watchlist: "watchlist",
+      settings: "integrations",
     };
     return { name: nameMap[segment] ?? "landing" };
   }

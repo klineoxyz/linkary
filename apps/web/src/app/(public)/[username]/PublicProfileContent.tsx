@@ -554,8 +554,8 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     <span className="text-xs text-muted-foreground">{profile.location.trim()}</span>
                   )}
                 </div>
-                {(profile.xscore != null || profile.ethos_score != null || profile.rep_score != null) && (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                {(profile.xscore != null || profile.ethos_score != null || profile.rep_score != null || profile.reputation_index != null) && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2" aria-label="Credibility scores">
                     {profile.xscore != null && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
                         <Zap className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> XScore {profile.xscore}
@@ -564,6 +564,11 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                     {profile.ethos_score != null && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
                         <Shield className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> ETHOS {profile.ethos_score}
+                      </span>
+                    )}
+                    {profile.reputation_index != null && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+                        <Zap className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> Power {profile.reputation_index}
                       </span>
                     )}
                     {profile.rep_score != null && (

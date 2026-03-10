@@ -7,6 +7,8 @@ export { SocialGraphCard } from "./SocialGraphCard";
 export type { SocialGraphCardProps, SocialGraphDataPoint } from "./SocialGraphCard";
 export { TopFollowersCard } from "./TopFollowersCard";
 export type { TopFollowersCardProps, TopFollowerItem } from "./TopFollowersCard";
+export { TopFollowersByScoreTiersCard } from "./TopFollowersByScoreTiersCard";
+export type { TopFollowersByScoreTiersCardProps, TopFollowerItemForTiers } from "./TopFollowersByScoreTiersCard";
 export { AccountFeedCard } from "./AccountFeedCard";
 export type { AccountFeedCardProps } from "./AccountFeedCard";
 export { MentionsCard } from "./MentionsCard";

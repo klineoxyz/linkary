@@ -4678,7 +4678,7 @@ function LinkaryAppInner() {
                   />
                 )}
                 {route.name === "profileInsights" && (
-                  <InsightsSnapshot setRoute={setRoute} me={me} getAuthHeaders={getAuthHeaders} snapshotOnly />
+                  <InsightsSnapshot setRoute={setRoute} me={me} getAuthHeaders={getAuthHeaders} />
                 )}
                 {route.name === "userInsights" && (
                   <InsightsSnapshot

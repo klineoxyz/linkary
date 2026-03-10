@@ -8,6 +8,8 @@ import {
   scoreToTier,
   SocialGraphCard,
   TopFollowersCard,
+  TopFollowersByScoreTiersCard,
+  AccountFeedCard,
   AffiliatedAccountsCard,
   RecommendedAccountsCard,
   EmptyStateCard,
@@ -162,6 +164,8 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
 
   const [graphSeries, setGraphSeries] = useState({ followers: true, score: true, influencers: false, projects: false, vc: false });
   const [topFollowersTab, setTopFollowersTab] = useState("influencers");
+  const [accountFeedTab, setAccountFeedTab] = useState<"actions" | "newFollowers">("newFollowers");
+  const [affiliatedAmbassadorTab, setAffiliatedAmbassadorTab] = useState<"affiliated" | "ambassador">("affiliated");
   const [seeAllModalOpen, setSeeAllModalOpen] = useState(false);
   const [watchlistList, setWatchlistList] = useState<{ people: Array<{ entity_id: string }>; orgs: Array<{ entity_id: string }> } | null>(null);
   const [profileEntityIdForOther, setProfileEntityIdForOther] = useState<string | null>(null);
@@ -288,6 +292,14 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
   const topFollowersItems = insights?.topFollowersByTier
     ? (insights.topFollowersByTier[topFollowersTab as keyof typeof insights.topFollowersByTier] ?? []) as Array<{ username: string; display_name: string | null; avatar_url: string | null; followers: number | null }>
     : [];
+  const allTopFollowersForTiers = React.useMemo(() => {
+    const t = insights?.topFollowersByTier;
+    if (!t) return [];
+    const inf = (Array.isArray(t.influencers) ? t.influencers : []) as Array<{ username?: string; display_name?: string | null; avatar_url?: string | null; followers?: number | null; tier?: string | null; score?: number | null }>;
+    const proj = (Array.isArray(t.projects) ? t.projects : []) as Array<{ username?: string; display_name?: string | null; avatar_url?: string | null; followers?: number | null; tier?: string | null; score?: number | null }>;
+    const funds = (Array.isArray(t.funds) ? t.funds : []) as Array<{ username?: string; display_name?: string | null; avatar_url?: string | null; followers?: number | null; tier?: string | null; score?: number | null }>;
+    return [...inf, ...proj, ...funds];
+  }, [insights?.topFollowersByTier]);
 
   const cacheTop = insights?.meta?.cache?.topFollowers && typeof insights.meta.cache.topFollowers === "object" ? insights.meta.cache.topFollowers : undefined;
   const cacheFeed = insights?.meta?.cache?.feed && typeof insights.meta.cache.feed === "object" ? insights.meta.cache.feed : undefined;
@@ -436,7 +448,7 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
         <div className={island}>
           <TopFollowersCard
             variant="light"
-            tabs={[{ id: "influencers", label: "Influencers" }, { id: "projects", label: "Projects" }, { id: "funds", label: "Funds" }]}
+            tabs={[{ id: "influencers", label: "Creators" }, { id: "projects", label: "Projects" }, { id: "funds", label: "Brands" }]}
             activeTab={topFollowersTab}
             onTabChange={setTopFollowersTab}
             items={topFollowersItems}
@@ -470,60 +482,70 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
             </div>
           )}
         </div>
-        <div className={`${island} p-6`}>
-          <h3 className="text-sm font-semibold text-foreground">Insights summary</h3>
-          <dl className="mt-4 space-y-3">
-            <div>
-              <dt className="text-xs font-semibold text-foreground">Followers</dt>
-              <dd className="mt-0.5 text-lg font-semibold text-foreground">
-                {insightsProfile?.followers != null ? insightsProfile.followers.toLocaleString() : me?.followers_total != null ? me.followers_total.toLocaleString() : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-semibold text-foreground">Connected X</dt>
-              <dd className="mt-0.5 text-sm text-foreground">
-                {isOwn && me?.twitter_username?.trim() ? `@${me.twitter_username.replace(/^@/, "")}` : isOwn ? "Not connected" : "—"}
-              </dd>
-            </div>
-            {isOwn && (
-              <div>
-                <dt className="text-xs font-semibold text-foreground">ETHOS</dt>
-                <dd className="mt-1">
-                  <EthosPill ethosScore={meStats?.ethos ?? null} />
-                </dd>
-              </div>
-            )}
-            <div>
-              <dt className="text-xs font-semibold text-foreground">Data health</dt>
-              <dd className="mt-1 flex flex-wrap gap-2">
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${topStatus === "hit" ? "bg-emerald-100 text-emerald-800" : topStatus === "stale" ? "bg-amber-100 text-amber-800" : "bg-secondary text-foreground"}`}>
-                  Top followers: {topStatus ?? "—"}
-                </span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${feedStatus === "hit" ? "bg-emerald-100 text-emerald-800" : feedStatus === "stale" ? "bg-amber-100 text-amber-800" : "bg-secondary text-foreground"}`}>
-                  Feed: {feedStatus ?? "—"}
-                </span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${mentionsStatus === "hit" ? "bg-emerald-100 text-emerald-800" : mentionsStatus === "stale" ? "bg-amber-100 text-amber-800" : "bg-secondary text-foreground"}`}>
-                  Mentions: {mentionsStatus ?? "—"}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-semibold text-foreground">Last updated</dt>
-              <dd className="mt-0.5 text-sm font-medium text-foreground">
-                {formatRelative(cacheTop?.updatedAt ?? null)}
-                {cacheTop?.updatedAt ? " (top followers)" : ""}
-                {!cacheTop?.updatedAt && !cacheFeed?.updatedAt && !cacheMentions?.updatedAt ? "No cache yet" : ""}
-              </dd>
-            </div>
-          </dl>
-          <p className="mt-3 text-xs font-medium text-foreground">Mentions & account feed coming later.</p>
+        <div className={island}>
+          <TopFollowersByScoreTiersCard variant="light" items={allTopFollowersForTiers} emptyMessage="No top followers data yet. Connect X and refresh insights." />
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className={island}>
-          <AffiliatedAccountsCard variant="light" accounts={insights?.affiliatedAccounts ?? []} emptyMessage="Nothing here yet" />
+          <AccountFeedCard
+            variant="light"
+            activeTab={accountFeedTab}
+            onTabChange={setAccountFeedTab}
+            actions={insights?.accountFeed?.actions ?? []}
+            newFollowers={insights?.accountFeed?.newFollowers ?? []}
+            emptyMessage="No data yet. Sync will run automatically."
+            cacheStatus={(insights?.meta?.cache?.feed && typeof insights.meta.cache.feed === "object" ? insights.meta.cache.feed.status : undefined) as "hit" | "miss" | "stale" | undefined}
+            updatedAt={insights?.meta?.cache?.feed && typeof insights.meta.cache.feed === "object" ? insights.meta.cache.feed.updatedAt : undefined}
+          />
         </div>
+        <div className={island}>
+          <div className="p-6">
+            <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
+              <h3 className="text-sm font-semibold text-foreground">Partners</h3>
+              <div className="flex rounded-lg border border-border bg-muted/30 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setAffiliatedAmbassadorTab("affiliated")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${affiliatedAmbassadorTab === "affiliated" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  Affiliated
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAffiliatedAmbassadorTab("ambassador")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${affiliatedAmbassadorTab === "ambassador" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  Ambassador
+                </button>
+              </div>
+            </div>
+            {affiliatedAmbassadorTab === "affiliated" ? (
+              <div className="mt-3">
+                {(insights?.affiliatedAccounts ?? []).length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">Nothing here yet</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {(insights?.affiliatedAccounts ?? []).map((a: unknown, i: number) => (
+                      <li key={i} className="rounded-xl bg-secondary border border-border px-3 py-2 text-xs font-medium text-foreground">
+                        {JSON.stringify(a)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+                <p className="text-sm font-medium text-foreground">Ambassador programs</p>
+                <p className="mt-1 text-xs text-muted-foreground">Nothing here yet. Ambassador relations appear when you join programs.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
         <div className={island}>
           <RecommendedAccountsCard
             variant="light"

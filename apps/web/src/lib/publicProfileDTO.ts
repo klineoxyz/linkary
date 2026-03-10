@@ -46,7 +46,13 @@ export type PublicProfileDTO = {
   publicLayout: { order?: string[]; hidden?: string[] } | null;
   headerMedia: { header_media_type: "NONE" | "IMAGE" | "VIDEO"; header_media_url: string | null } | null;
   tier: "free" | "pro";
-};
+  /** Hero block (Advanced editor). */
+  hero: { hero_image_url: string | null; hero_video_url: string | null; hero_title: string | null } | null;
+  /** Linktree-style links (profile_links is_public). */
+  links: Array<{ title: string; url: string; icon?: string | null }>;
+  /** Team (company profile; org_team_members is_public). */
+  team: Array<{ name: string; role: string | null; avatar_url: string | null; linkedin_url?: string | null; x_url?: string | null; website_url?: string | null; is_public: boolean }>;
+}
 
 export type PublicOrgDTO = {
   type: "org";
@@ -168,6 +174,17 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
       publicLayout: entity.publicLayout ?? null,
       headerMedia: entity.headerMedia ? { header_media_type: entity.headerMedia.header_media_type, header_media_url: sanitizeUrl(entity.headerMedia.header_media_url) ?? null } : null,
       tier: entity.tier,
+      hero: entity.hero ?? null,
+      links: (entity.profileLinks ?? []).map((l) => ({ title: l.title, url: l.url, icon: l.icon ?? null })),
+      team: (entity.team ?? []).map((t) => ({
+        name: t.name,
+        role: t.role ?? null,
+        avatar_url: t.avatar_url ?? null,
+        linkedin_url: t.linkedin_url ?? null,
+        x_url: t.x_url ?? null,
+        website_url: t.website_url ?? null,
+        is_public: t.is_public,
+      })),
     };
   }
   if (entity.type === "org" && entity.org) {
@@ -273,6 +290,12 @@ export type PublicEntityView = {
   subsidiaries: Array<{ id: string; slug: string; name: string; logo_url: string | null }>;
   dexscreenerUrl?: string | null;
   tokenSymbol?: string | null;
+  /** Hero block (profile only). */
+  hero?: { hero_image_url: string | null; hero_video_url: string | null; hero_title: string | null } | null;
+  /** Linktree-style links (profile only). */
+  links?: Array<{ title: string; url: string; icon?: string | null }>;
+  /** Team (profile only, company). */
+  team?: Array<{ name: string; role: string | null; avatar_url: string | null; linkedin_url?: string | null; x_url?: string | null; website_url?: string | null; is_public: boolean }>;
 };
 
 /**
@@ -311,6 +334,9 @@ export function dtoToEntityView(dto: PublicPageDTO): PublicEntityView {
       ambassadors: dto.ambassadors,
       ecosystemCategories: [],
       subsidiaries: [],
+      hero: dto.hero ?? null,
+      links: dto.links ?? [],
+      team: dto.team ?? [],
     };
   }
   const snap = dto.analytics.snapshot;

@@ -29,6 +29,25 @@ export type PublicProfile = {
   public_layout?: PublicLayoutConfig | null;
   created_at: string;
   updated_at: string;
+  /** Hero block (Advanced editor). Shown on public page. */
+  hero_image_url?: string | null;
+  hero_video_url?: string | null;
+  hero_title?: string | null;
+  profile_type?: "individual" | "project" | "company" | null;
+};
+
+/** Linktree-style link (profile_links, is_public). */
+export type PublicProfileLink = { title: string; url: string; icon?: string | null };
+
+/** Team member (org_team_members, company profile). */
+export type PublicTeamMember = {
+  name: string;
+  role: string | null;
+  avatar_url: string | null;
+  linkedin_url?: string | null;
+  x_url?: string | null;
+  website_url?: string | null;
+  is_public: boolean;
 };
 
 export type PublicOrg = {
@@ -97,6 +116,12 @@ export type PublicEntity = {
   subsidiaries: Array<PublicOrg>;
   dexscreenerUrl?: string | null;
   tokenSymbol?: string | null;
+  /** Hero block (profile only; from profiles.hero_*). */
+  hero?: { hero_image_url: string | null; hero_video_url: string | null; hero_title: string | null } | null;
+  /** Linktree-style links (profile only; profile_links is_public). */
+  profileLinks?: PublicProfileLink[];
+  /** Team (profile only when profile_type=company; org_team_members is_public). */
+  team?: PublicTeamMember[];
 };
 
 async function getSubscriptionTier(ownerType: "profile" | "org", ownerId: string, client?: SupabaseClient): Promise<"free" | "pro"> {
@@ -210,7 +235,8 @@ export async function getPublicEntityForOwner(
 
 async function buildPublicProfileEntityWithClient(profile: PublicProfile, client: SupabaseClient): Promise<PublicEntity> {
   const tier = await getSubscriptionTier("profile", profile.id, client);
-  const [socialsRow, mediaRow, snapshotRow, window30Row, rollupRow, caseRows, reviewRows, partnerRows] = await Promise.all([
+  const profileType = profile.profile_type ?? "individual";
+  const [socialsRow, mediaRow, snapshotRow, window30Row, rollupRow, caseRows, reviewRows, partnerRows, linksRows, teamRows] = await Promise.all([
     client.from("profile_socials").select("*").eq("profile_id", profile.id).maybeSingle(),
     client.from("profile_media").select("header_media_type, header_media_url, header_media_file_path").eq("profile_id", profile.id).maybeSingle(),
     client.from("analytics_snapshots").select("day, metrics").eq("owner_type", "profile").eq("owner_id", profile.id).eq("platform", "x").eq("window_days", 1).order("day", { ascending: false }).limit(1).maybeSingle(),
@@ -219,6 +245,8 @@ async function buildPublicProfileEntityWithClient(profile: PublicProfile, client
     client.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profile.id).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     client.from("reviews").select("id, rating, body, title, created_at").eq("reviewee_type", "profile").eq("reviewee_profile_id", profile.id).eq("verified_deal", true).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     client.from("partner_programs").select("program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured").eq("owner_type", "profile").eq("owner_id", profile.id).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
+    client.from("profile_links").select("title, url, icon").eq("profile_id", profile.id).eq("is_public", true).order("sort_order", { ascending: true }),
+    profileType === "company" ? client.from("org_team_members").select("name, role, avatar_url, linkedin_url, x_url, website_url, is_public").eq("org_profile_id", profile.id).eq("is_public", true).order("sort_order", { ascending: true }) : Promise.resolve({ data: [] }),
   ]);
   const caseStudies = (caseRows.data ?? []) as PublicEntity["caseStudies"];
   const reviews = (reviewRows.data ?? []) as PublicEntity["reviews"];
@@ -304,6 +332,22 @@ async function buildPublicProfileEntityWithClient(profile: PublicProfile, client
             followers_delta: null,
           }
         : null;
+
+  const profileLinks: PublicProfileLink[] = (linksRows.data ?? []).map((r: { title: string; url: string; icon?: string | null }) => ({ title: r.title, url: r.url, icon: r.icon ?? null }));
+  const team: PublicTeamMember[] = (teamRows.data ?? []).map((r: { name: string; role: string | null; avatar_url: string | null; linkedin_url?: string | null; x_url?: string | null; website_url?: string | null; is_public: boolean }) => ({
+    name: r.name,
+    role: r.role ?? null,
+    avatar_url: r.avatar_url ?? null,
+    linkedin_url: r.linkedin_url ?? null,
+    x_url: r.x_url ?? null,
+    website_url: r.website_url ?? null,
+    is_public: r.is_public,
+  }));
+  const hero =
+    profile.hero_image_url != null || profile.hero_video_url != null || (profile.hero_title != null && profile.hero_title.trim() !== "")
+      ? { hero_image_url: profile.hero_image_url ?? null, hero_video_url: profile.hero_video_url ?? null, hero_title: profile.hero_title?.trim() ?? null }
+      : null;
+
   return {
     type: "profile",
     profile,
@@ -321,6 +365,9 @@ async function buildPublicProfileEntityWithClient(profile: PublicProfile, client
     ambassadors,
     ecosystemCategories: [],
     subsidiaries: [],
+    hero,
+    profileLinks,
+    team,
   };
 }
 
@@ -428,7 +475,8 @@ export async function getPublicEntityByWallet(address: string, serviceSupabase: 
 
 async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): Promise<PublicEntity> {
   const tier = await getSubscriptionTier("profile", profile.id);
-  const [socialsRow, mediaRow, snapshotRow, window30Row, rollupRow, caseRows, reviewRows, partnerRows] = await Promise.all([
+  const profileType = profile.profile_type ?? "individual";
+  const [socialsRow, mediaRow, snapshotRow, window30Row, rollupRow, caseRows, reviewRows, partnerRows, linksRows, teamRows] = await Promise.all([
     supabase.from("profile_socials").select("*").eq("profile_id", profile.id).maybeSingle(),
     supabase.from("profile_media").select("header_media_type, header_media_url, header_media_file_path").eq("profile_id", profile.id).maybeSingle(),
     supabase.from("analytics_snapshots").select("day, metrics").eq("owner_type", "profile").eq("owner_id", profile.id).eq("platform", "x").eq("window_days", 1).order("day", { ascending: false }).limit(1).maybeSingle(),
@@ -437,6 +485,8 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
     supabase.from("case_studies").select("id, title, description, proof_url, metrics, created_at").eq("owner_type", "profile").eq("owner_profile_id", profile.id).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     supabase.from("reviews").select("id, rating, body, title, created_at").eq("reviewee_type", "profile").eq("reviewee_profile_id", profile.id).eq("verified_deal", true).order("created_at", { ascending: false }).limit(tier === "pro" ? 100 : 2),
     supabase.from("partner_programs").select("program_type, name, website_url, logo_url, logo_file_path, description, since_date, is_featured").eq("owner_type", "profile").eq("owner_id", profile.id).order("is_featured", { ascending: false }).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
+    supabase.from("profile_links").select("title, url, icon").eq("profile_id", profile.id).eq("is_public", true).order("sort_order", { ascending: true }),
+    profileType === "company" ? supabase.from("org_team_members").select("name, role, avatar_url, linkedin_url, x_url, website_url, is_public").eq("org_profile_id", profile.id).eq("is_public", true).order("sort_order", { ascending: true }) : Promise.resolve({ data: [] }),
   ]);
 
   const caseStudies = (caseRows.data ?? []) as PublicEntity["caseStudies"];
@@ -529,6 +579,22 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
             followers_delta: null,
           }
         : null;
+  const profileLinks: PublicProfileLink[] = (linksRows.data ?? []).map((r: { title: string; url: string; icon?: string | null }) => ({ title: r.title, url: r.url, icon: r.icon ?? null }));
+  const team: PublicTeamMember[] = (teamRows.data ?? []).map((r: { name: string; role: string | null; avatar_url: string | null; linkedin_url?: string | null; x_url?: string | null; website_url?: string | null; is_public: boolean }) => ({
+    name: r.name,
+    role: r.role ?? null,
+    avatar_url: r.avatar_url ?? null,
+    linkedin_url: r.linkedin_url ?? null,
+    x_url: r.x_url ?? null,
+    website_url: r.website_url ?? null,
+    is_public: r.is_public,
+  }));
+
+  const hero =
+    profile.hero_image_url != null || profile.hero_video_url != null || (profile.hero_title != null && profile.hero_title.trim() !== "")
+      ? { hero_image_url: profile.hero_image_url ?? null, hero_video_url: profile.hero_video_url ?? null, hero_title: profile.hero_title?.trim() ?? null }
+      : null;
+
   return {
     type: "profile",
     profile,
@@ -546,6 +612,9 @@ async function buildPublicProfileEntity(profile: PublicProfile, _norm: string): 
     ambassadors,
     ecosystemCategories: [],
     subsidiaries: [],
+    hero,
+    profileLinks,
+    team,
   };
 }
 

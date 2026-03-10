@@ -373,6 +373,31 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
           />
         </section>
 
+        {/* Hero block from Advanced editor (image / video / title) */}
+        {"hero" in entity && entity.hero && (entity.hero.hero_image_url || entity.hero.hero_video_url || entity.hero.hero_title) && (
+          <section className="mb-8 rounded-2xl border border-border bg-card/95 overflow-hidden">
+            {entity.hero.hero_image_url && !isPrivateStorageUrl(entity.hero.hero_image_url) && (
+              <img src={entity.hero.hero_image_url} alt="" className="w-full max-h-[360px] object-cover" />
+            )}
+            {entity.hero.hero_video_url && !entity.hero.hero_image_url && (
+              <div className="aspect-video w-full bg-muted">
+                {entity.hero.hero_video_url.startsWith("http") && /youtube|youtu\.be|vimeo|loom|x\.com|twitter/.test(entity.hero.hero_video_url) ? (
+                  <a href={entity.hero.hero_video_url} target="_blank" rel="noopener noreferrer" className="block w-full h-full flex items-center justify-center text-primary font-medium">
+                    Watch video
+                  </a>
+                ) : (
+                  <video src={entity.hero.hero_video_url} controls className="w-full h-full object-contain" />
+                )}
+              </div>
+            )}
+            {entity.hero.hero_title && (
+              <div className="p-4 sm:p-6">
+                <h2 className="text-xl font-semibold text-foreground">{entity.hero.hero_title}</h2>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* Profile: name, @username, bio, identity, trust, socials */}
         <section className="pb-6 border-b border-border">
           <div className="flex items-start gap-4">
@@ -467,7 +492,57 @@ export function PublicOnePager({ entity, username, isLoggedIn, isOwner = false, 
             </nav>
           )}
 
+          {/* Custom links (Advanced editor – profile_links) */}
+          {"links" in entity && entity.links && entity.links.length > 0 && (
+            <div className="mt-6 flex flex-col gap-2">
+              {entity.links.map((l) => (
+                <a
+                  key={`${l.title}-${l.url}`}
+                  href={l.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2 shrink-0" aria-hidden />
+                  {l.title}
+                </a>
+              ))}
+            </div>
+          )}
         </section>
+
+        {/* Team (company profile – org_team_members) */}
+        {"team" in entity && entity.team && entity.team.length > 0 && (
+          <FadeInSection className="mt-10">
+            <SectionTitle>Team</SectionTitle>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {entity.team.map((t) => (
+                <div key={t.name} className="rounded-xl border border-border bg-card p-4 flex items-start gap-3">
+                  {t.avatar_url ? (
+                    <img src={t.avatar_url} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <div className="h-12 w-12 shrink-0 rounded-full bg-muted" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-foreground">{t.name}</p>
+                    {t.role && <p className="text-sm text-muted-foreground">{t.role}</p>}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {t.linkedin_url && (
+                        <a href={t.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">LinkedIn</a>
+                      )}
+                      {t.x_url && (
+                        <a href={t.x_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">X</a>
+                      )}
+                      {t.website_url && (
+                        <a href={t.website_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">Website</a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </FadeInSection>
+        )}
 
         {/* 4 stat cards (brochure dashboard) */}
         <section className="py-8" aria-label="Reputation Signals">

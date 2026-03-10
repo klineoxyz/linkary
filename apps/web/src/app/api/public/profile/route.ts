@@ -419,7 +419,11 @@ export async function GET(request: NextRequest) {
         featured_case_study_id: layoutObj?.featured_case_study_id ?? null,
         featured_review_id: layoutObj?.featured_review_id ?? null,
         featured_gig_id: layoutObj?.featured_gig_id ?? null,
+        profile_type: (entity?.type === "profile" && entity?.profile && "profile_type" in entity.profile
+          ? ((entity.profile as { profile_type?: string }).profile_type ?? "individual")
+          : "individual") as "individual" | "project" | "company",
       },
+      hero: dto.hero ? { hero_image_url: dto.hero.hero_image_url, hero_video_url: dto.hero.hero_video_url, hero_title: dto.hero.hero_title } : null,
       socials: {
         x: dto.socials?.x_url ?? null,
         telegram: dto.socials?.telegram_url ?? null,
@@ -428,7 +432,16 @@ export async function GET(request: NextRequest) {
         website: dto.socials?.website_url ?? dto.website ?? null,
         youtube: dto.socials?.youtube_url ?? null,
       },
-      links: [],
+      links: (dto.links ?? []).map((l) => ({ title: l.title, url: l.url, icon: l.icon ?? null })),
+      team: (dto.team ?? []).map((t) => ({
+        name: t.name,
+        role: t.role ?? null,
+        avatar_url: t.avatar_url ?? null,
+        linkedin_url: t.linkedin_url ?? null,
+        x_url: t.x_url ?? null,
+        website_url: t.website_url ?? null,
+        is_public: t.is_public,
+      })),
       caseStudies,
       reviews: {
         average: reviewsAverage,

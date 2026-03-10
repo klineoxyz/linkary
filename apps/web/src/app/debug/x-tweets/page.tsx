@@ -109,7 +109,7 @@ function DebugXTweetsContent() {
             </table>
           </div>
         )}
-        <Link href="/analytics" className="inline-block mt-4 text-sm text-primary hover:underline">Back to Analytics</Link>
+        <Link href="/app/analytics" className="inline-block mt-4 text-sm text-primary hover:underline">Back to Analytics</Link>
       </div>
     </div>
   );

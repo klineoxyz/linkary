@@ -125,7 +125,7 @@ export default function WatchlistPage({
               <li key={o.entity_id}>
                 <button
                   type="button"
-                  onClick={() => setRoute({ name: "orgDetail", data: { orgId: o.entity_id } })}
+                  onClick={() => setRoute({ name: "orgDetail", data: { orgId: o.entity_id, slug: o.slug ?? undefined } })}
                   className="flex w-full items-center gap-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 >
                   {o.logo_url && !isPrivateStorageUrl(o.logo_url) ? (

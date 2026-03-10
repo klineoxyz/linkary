@@ -65,7 +65,7 @@ export default function MyApplicationsPage() {
         <main className="mx-auto max-w-2xl px-4 py-8">
           <div className="mb-6 flex items-center gap-4">
             <Link
-              href="/profile"
+              href="/app/profile"
               className="text-sm font-medium text-muted-foreground hover:text-primary"
             >
               ← Profile

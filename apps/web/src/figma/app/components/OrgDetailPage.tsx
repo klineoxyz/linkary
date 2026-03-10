@@ -507,7 +507,8 @@ export default function OrgDetailPage({
   const copyOrgLink = () => {
     if (!org?.id) return;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const url = `${origin}/org/${org.id}`;
+    const segment = org.slug ?? org.id;
+    const url = `${origin}/org/${encodeURIComponent(segment)}`;
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(url).then(
         () => {

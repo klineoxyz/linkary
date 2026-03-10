@@ -982,7 +982,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
             <span className="truncate">Messages (soon)</span>
           </button>
           <Link
-            href="/work/requests"
+            href="/app/work/requests"
             onClick={() => setMobileOpen(false)}
             className={cn(
               "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug",
@@ -2537,7 +2537,7 @@ function WorkRequestsPage({ setRoute, route, me }) {
           setSentRequests([]);
           setInboxLoading(false);
           setSentLoading(false);
-          router.replace("/login?next=" + encodeURIComponent("/work/requests"));
+          router.replace("/login?next=" + encodeURIComponent("/app/work/requests"));
         }
         return;
       }
@@ -3425,7 +3425,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
           Public preview
         </button>
         <a
-          href="/profile/insights"
+          href="/app/profile/insights"
           className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary"
         >
           View Insights

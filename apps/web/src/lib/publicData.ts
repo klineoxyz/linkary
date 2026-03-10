@@ -112,7 +112,33 @@ async function getSubscriptionTier(ownerType: "profile" | "org", ownerId: string
   return tier === "pro" || tier === "host" || tier === "brand" || tier === "venture" ? "pro" : "free";
 }
 
-/** Resolve username/slug to profile or org. Tries profile by username, then by twitter_username, then org by slug. */
+/**
+ * Lookup usernames table for a segment. Returns owner_type and owner_id if claimed.
+ * Used for usernames-based resolution and owner-unpublished checks.
+ */
+export async function getUsernameOwner(
+  segment: string,
+  client?: SupabaseClient
+): Promise<{ owner_type: "profile" | "org"; owner_id: string } | null> {
+  const norm = segment.trim().toLowerCase().replace(/^@/, "");
+  if (!norm) return null;
+  const db = client ?? supabase;
+  const { data: row } = await db
+    .from("usernames")
+    .select("owner_type, owner_id")
+    .ilike("username", norm)
+    .maybeSingle();
+  if (!row || !row.owner_type || !row.owner_id) return null;
+  const ownerType = row.owner_type as string;
+  if (ownerType !== "profile" && ownerType !== "org") return null;
+  return { owner_type: ownerType as "profile" | "org", owner_id: String(row.owner_id) };
+}
+
+/**
+ * Resolve username/slug to profile or org from usernames table (single source of truth).
+ * Lookup normalized segment in usernames → owner_type + owner_id → load from public_profile_view or public_org_view.
+ * Returns null if segment not in usernames or entity not in public view (e.g. unpublished).
+ */
 export async function getPublicEntityByUsername(
   username: string,
   client?: SupabaseClient
@@ -121,17 +147,29 @@ export async function getPublicEntityByUsername(
   if (!norm) return null;
 
   const db = client ?? supabase;
-  const [profileByUsername, profileByTwitter, orgRes] = await Promise.all([
-    db.from("public_profile_view").select("*").ilike("username", norm).maybeSingle(),
-    db.from("public_profile_view").select("*").ilike("twitter_username", norm).maybeSingle(),
-    db.from("public_org_view").select("*").ilike("slug", norm).maybeSingle(),
-  ]);
+  const owner = await getUsernameOwner(norm, db);
+  if (!owner) return null;
 
-  const profile = (profileByUsername.data ?? profileByTwitter.data) as PublicProfile | null;
-  const org = orgRes.data as PublicOrg | null;
+  if (owner.owner_type === "profile") {
+    const { data: profile } = await db
+      .from("public_profile_view")
+      .select("*")
+      .eq("id", owner.owner_id)
+      .maybeSingle();
+    if (!profile) return null;
+    return buildPublicProfileEntity(profile as PublicProfile, norm);
+  }
 
-  if (profile) return buildPublicProfileEntity(profile, norm);
-  if (org) return buildPublicOrgEntity(org, norm);
+  if (owner.owner_type === "org") {
+    const { data: org } = await db
+      .from("public_org_view")
+      .select("*")
+      .eq("id", owner.owner_id)
+      .maybeSingle();
+    if (!org) return null;
+    return buildPublicOrgEntity(org as PublicOrg, norm);
+  }
+
   return null;
 }
 

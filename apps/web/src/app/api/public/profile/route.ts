@@ -464,6 +464,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const orgType = entity?.type === "org" && entity?.org && "org_type" in entity.org ? (entity.org as { org_type?: string }).org_type : null;
   const payload: PublicProfileApiPayload = {
     profile: {
       username: dto.slug,
@@ -477,6 +478,7 @@ export async function GET(request: NextRequest) {
       xscore: dto.xscore,
       reputation_index: dto.linkaryInfluence ?? null,
       rep_score: null,
+      profile_type: (orgType === "project" ? "project" : "company") as "individual" | "project" | "company",
     },
     socials: {
       x: null,

@@ -6,6 +6,7 @@ import { dtoToEntityView, entityToPublicDTO } from "@/lib/publicProfileDTO";
 import { resolveEntityMediaToSignedUrls } from "@/lib/resolveEntityMediaUrls";
 import AppWithProviders from "../../AppWithProviders";
 import { PublicOnePagerWrapper } from "./PublicOnePagerWrapper";
+import { PublicProfileContent } from "./PublicProfileContent";
 import { NotFoundClaimView } from "./NotFoundClaimView";
 import { OwnerUnpublishedProfile } from "./OwnerUnpublishedProfile";
 
@@ -222,6 +223,25 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
           entity.type === "profile"
             ? (entity.profile?.username ?? entity.profile?.twitter_username ?? "").replace(/^@/, "").toLowerCase()
             : (entity.org?.slug ?? "").toLowerCase();
+
+        if (!viewBrochure) {
+          try {
+            const base = baseUrl();
+            const res = await fetch(`${base}/api/public/profile?username=${encodeURIComponent(canonicalSlug || segmentLower)}`, { cache: "no-store" });
+            if (res.ok) {
+              const data = await res.json();
+              return (
+                <PublicProfileContent
+                  data={data}
+                  username={data.profile?.username ?? data.profile?.display_name ?? canonicalSlug ?? segmentLower}
+                  profileUrl={`${canonicalBaseUrl()}/${encodeURIComponent(canonicalSlug || segmentLower)}`}
+                />
+              );
+            }
+          } catch {
+            /* fallback to one-pager */
+          }
+        }
         return (
           <PublicOnePagerWrapper
             entityView={entityView}
@@ -319,6 +339,25 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
     entity.type === "profile"
       ? (entity.profile?.username ?? entity.profile?.twitter_username ?? "").replace(/^@/, "").toLowerCase()
       : (entity.org?.slug ?? "").toLowerCase();
+
+  if (!viewBrochure) {
+    try {
+      const base = baseUrl();
+      const res = await fetch(`${base}/api/public/profile?username=${encodeURIComponent(canonicalUsername || segmentLower)}`, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        return (
+          <PublicProfileContent
+            data={data}
+            username={data.profile?.username ?? data.profile?.display_name ?? canonicalUsername ?? segmentLower}
+            profileUrl={`${canonicalBaseUrl()}/${encodeURIComponent(canonicalUsername || segmentLower)}`}
+          />
+        );
+      }
+    } catch {
+      /* fallback to one-pager */
+    }
+  }
   return (
     <PublicOnePagerWrapper
       entityView={entityView}

@@ -73,7 +73,7 @@ The following are **not** redirected in this pass:
 
 - **`/`** — Landing; remains as-is.
 - **`/:username`** and **`/:slug`** — Public profiles/orgs. Only the fixed list above is redirected; arbitrary single segments (e.g. `johndoe`) are not in the map and are left alone.
-- **`/u/:username`** — Public profile by username; excluded by `u/` prefix.
+- **`/u/:username`** — In-app user route; excluded by `u/` prefix.
 - **`/org/:id`** and **`/org/:slug`** — Org routes; excluded by `org/` prefix. Old org UUID routes continue to work; no `/org/:uuid` → `/org/:slug` redirect in this phase.
 - **`/deal/:id`** — Deal deep links; excluded by `deal/` prefix.
 - **Auth:** `/login`, `/auth/callback`, `/auth/*`, `/onboarding` — Excluded by path check.

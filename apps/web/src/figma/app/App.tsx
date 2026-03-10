@@ -4096,6 +4096,7 @@ function LinkaryAppInner() {
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding", "accountType",
     "orgDetail", "brandProfile", "creatorProfile", "agencyProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
     "circles", "circleDetail", "connections", "kolLists", "calendar", "xspaces", "capitalPartners", "watchlist", "explore",
+    "leaderboards", "hostDashboard", "availability", "monetizationShowcase", "monetizationFlowShowcase",
   ]);
   useEffect(() => {
     if (!ALLOWED_ROUTES.has(route.name)) {
@@ -4654,7 +4655,7 @@ function LinkaryAppInner() {
                     onLoggedIn={runAuthGate}
                   />
                 )}
-                {route.name === "accountType" && authUserId && (
+                {(route.name === "accountType" || route.name === "onboarding") && authUserId && (
                   <AccountTypePage
                     userId={authUserId}
                     setRoute={setRoute}
@@ -4711,6 +4712,11 @@ function LinkaryAppInner() {
                 {route.name === "integrations" && <IntegrationsPage setRoute={setRoute} userId={authUserId} />}
                 {route.name === "rolesSkills" && <RolesSkillsPage setRoute={setRoute} userId={authUserId} />}
                 {route.name === "wallet" && <WalletShell />}
+                {route.name === "leaderboards" && <LeaderboardsPage setRoute={setRoute} />}
+                {route.name === "hostDashboard" && <HostDashboard setRoute={setRoute} />}
+                {route.name === "availability" && <AvailabilitySettings setRoute={setRoute} />}
+                {route.name === "monetizationShowcase" && <MonetizationShowcase setRoute={setRoute} />}
+                {route.name === "monetizationFlowShowcase" && <MonetizationFlowShowcase setRoute={setRoute} />}
               </motion.div>
             </AnimatePresence>
           </div>

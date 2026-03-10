@@ -37,20 +37,28 @@
 ### 2.2 In-app user route: `/u/:username`
 
 - **Scope:** Only for **profile-owned** slugs.
-- **Behavior:** Resolve `username` via usernames (or profiles) to a **profile**. If the slug is owned by an org in usernames, `/u/:username` must **not** serve org data; it should 404 or redirect to the public org page `/:slug` as appropriate. In-app user analytics and auth-gated profile views apply only when the slug is profile-owned.
+- **Behavior:** Resolve `username` via usernames (or profiles) to a **profile**. If the slug is owned by an org in usernames, do **not** serve profile data; **redirect (302) to the public canonical route `/:segment`** (see wrong-type policy below). In-app user analytics and auth-gated profile views apply only when the slug is profile-owned.
 
 ### 2.3 In-app org route: `/org/:slug`
 
 - **Scope:** Only for **org-owned** slugs.
-- **Behavior:** Resolve `slug` via usernames (or orgs) to an **org**. If the slug is owned by a profile in usernames, `/org/:slug` must **not** serve profile data; it should 404 or redirect to the public profile page `/:username`. In-app org analytics and auth-gated org views apply only when the slug is org-owned.
+- **Behavior:** Resolve `slug` via usernames (or orgs) to an **org**. If the slug is owned by a profile in usernames, do **not** serve org data; **redirect (302) to the public canonical route `/:segment`** (see wrong-type policy below). In-app org analytics and auth-gated org views apply only when the slug is org-owned.
 
-### 2.4 Summary table
+### 2.4 Wrong-type in-app route policy (final)
+
+When an in-app route is requested for a slug that is owned by the **other** entity type (e.g. `/u/desicryptoclub` but slug is org-owned, or `/org/desicryptoclub` but slug is profile-owned), the app must **redirect to the public canonical route** `/:segment`, not return 404.
+
+- **Choice: redirect (302) to `/:segment`.**
+- **Rationale:** (1) **UX** — The user sees the correct content (public profile or public org) instead of a dead 404. (2) **Canonical** — The public URL is the single source of truth for that slug; redirecting there keeps one canonical destination. (3) **Links** — Shared or bookmarked wrong-type URLs (e.g. `/u/desicryptoclub` when it’s an org) still resolve to the right page. (4) **SEO** — Redirect to canonical is standard; 404 would waste crawl and confuse indexing.
+- **Implementation:** Resolve segment from usernames; if `owner_type` does not match the route (profile for `/u/*`, org for `/org/*`), respond with **302 Redirect** to `/{segment}`. Do not serve the wrong entity type and do not return 404 for wrong-type.
+
+### 2.5 Summary table
 
 | Route           | Resolves from | Allowed owner_type | If wrong type |
 |-----------------|---------------|--------------------|----------------|
 | `/:segment`     | usernames     | profile or org     | N/A (single owner) |
-| `/u/:username`  | usernames     | profile only       | 404 or redirect to `/:slug` |
-| `/org/:slug`    | usernames     | org only           | 404 or redirect to `/:username` |
+| `/u/:username`  | usernames     | profile only       | **302 redirect to `/:segment`** (public canonical) |
+| `/org/:slug`    | usernames     | org only           | **302 redirect to `/:segment`** (public canonical) |
 
 ---
 
@@ -108,7 +116,7 @@
 - **usernames:** `(username = 'desicryptoclub', owner_type = 'profile', owner_id = '<profile_id>')`
 - **Public:** `linkary.xyz/desicryptoclub` → public **user** profile. Canonical, indexable.
 - **In-app user:** `linkary.xyz/u/desicryptoclub` → in-app profile (auth, analytics). Valid.
-- **In-app org:** `linkary.xyz/org/desicryptoclub` → must **not** resolve to a profile. 404 or redirect to `linkary.xyz/desicryptoclub` (public profile).
+- **In-app org:** `linkary.xyz/org/desicryptoclub` → must **not** resolve to a profile. **302 redirect** to `linkary.xyz/desicryptoclub` (public profile).
 - **Org create / org slug edit:** If someone tries to create an org or set org slug to `desicryptoclub`, the claim **fails** (slug taken by profile). No transfer.
 
 ### 5.2 Scenario: Slug is owned by org
@@ -116,7 +124,7 @@
 - **usernames:** `(username = 'desicryptoclub', owner_type = 'org', owner_id = '<org_id>')`
 - **Public:** `linkary.xyz/desicryptoclub` → public **org** profile. Canonical, indexable.
 - **In-app org:** `linkary.xyz/org/desicryptoclub` → in-app org (auth, analytics). Valid.
-- **In-app user:** `linkary.xyz/u/desicryptoclub` → must **not** resolve to the org. 404 or redirect to `linkary.xyz/desicryptoclub` (public org).
+- **In-app user:** `linkary.xyz/u/desicryptoclub` → must **not** resolve to the org. **302 redirect** to `linkary.xyz/desicryptoclub` (public org).
 - **Profile onboarding / profile edit:** If a user tries to claim username `desicryptoclub`, the claim **fails** (slug taken by org). No transfer.
 
 ### 5.3 Transfer example (admin only)
@@ -130,8 +138,8 @@
 ## 6. Routing Consequences
 
 - **Public `/:segment`:** Always one entity (profile or org) from usernames. No session-based override. Canonical URL and sitemap entries use this resolution.
-- **`/u/:username`:** Only profile-owned slugs. If slug is org-owned, do not show profile; return 404 or redirect to `/:slug` (public org).
-- **`/org/:slug`:** Only org-owned slugs. If slug is profile-owned, do not show org; return 404 or redirect to `/:username` (public profile).
+- **`/u/:username`:** Only profile-owned slugs. If slug is org-owned, do not show profile; **302 redirect** to `/:segment` (public org).
+- **`/org/:slug`:** Only org-owned slugs. If slug is profile-owned, do not show org; **302 redirect** to `/:segment` (public profile).
 - **Search and links:** Public discovery uses `/:username` (profiles) and `/:slug` (orgs). In-app links use `/u/:username` for people and `/org/:slug` for orgs. Link generation must use the same usernames-based resolution so that the correct URL is used for the entity type that owns the slug.
 
 ---
@@ -161,8 +169,8 @@
 ### 8.3 Resolver (public and in-app)
 
 - **Public `/:segment`:** Resolve from usernames only: `SELECT owner_type, owner_id FROM usernames WHERE username = normalized(segment)`. Then load profile or org by owner_id. No profile-first/org-second fallback that could flip by session.
-- **`/u/:username`:** Resolve username to profile. If usernames says owner_type = 'org', do not serve profile page; 404 or redirect to `/:username` (public org).
-- **`/org/:slug`:** Resolve slug to org. If usernames says owner_type = 'profile', do not serve org page; 404 or redirect to `/:slug` (public profile).
+- **`/u/:username`:** Resolve username to profile. If usernames says owner_type = 'org', do not serve profile page; **302 redirect** to `/:segment` (public org).
+- **`/org/:slug`:** Resolve slug to org. If usernames says owner_type = 'profile', do not serve org page; **302 redirect** to `/:segment` (public profile).
 
 ### 8.4 UI
 

@@ -73,11 +73,11 @@
 
 2. **In-app user**
    - `/u/:username` → authenticated in-app user profile; may show deeper analytics / auth-gated data by permissions/payment.
-   - Non-canonical, noindex.
+   - Non-canonical, noindex. **Wrong-type (slug is org-owned):** 302 redirect to `/:segment`. See `LINKARY_ENTITY_BOUND_SLUG_OWNERSHIP.md`.
 
 3. **In-app org**
    - `/org/:slug` → authenticated in-app org profile; may show deeper org analytics / auth-gated data.
-   - Non-canonical, noindex where appropriate.
+   - Non-canonical, noindex where appropriate. **Wrong-type (slug is profile-owned):** 302 redirect to `/:segment`. See `LINKARY_ENTITY_BOUND_SLUG_OWNERSHIP.md`.
    - **Migration:** Current links use `/org/:orgId` (UUID). New links use `/org/:slug`; old `/org/:id` can 301 to `/org/:slug` when slug is known.
 
 4. **Search**

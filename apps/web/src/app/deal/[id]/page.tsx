@@ -114,7 +114,7 @@ function DealPageContent() {
         "Content-Type": "application/json",
         ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
       },
-      body: JSON.stringify({ deal_id: id, rating: reviewRating, body: reviewBody.trim() || undefined }),
+      body: JSON.stringify({ deal_id: id, rating: reviewRating, body: reviewBody.trim() || undefined, verified_deal: true }),
     });
     setReviewSubmitting(false);
     const j = await r.json().catch(() => ({}));

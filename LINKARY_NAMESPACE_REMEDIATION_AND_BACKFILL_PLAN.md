@@ -221,4 +221,94 @@ Until 1–3 are done, **do not** move to usernames-based resolver, `/org/:slug` 
 
 ---
 
+## 9. Founder Recommendation and Direct Execution Prompts
+
+**Recommendation (consistency for branding and search):**
+
+- If **desicryptoclub** is the **brand/project identity** → let the **org** keep it.
+- If it is the **personal creator identity** → let the **profile** keep it.
+
+Once you choose the owner, use one of the direct execution prompts below. The output is always `LINKARY_NAMESPACE_REMEDIATION_EXECUTION.md` with exact changes, audit results, backfill results, and final verdict.
+
+---
+
+### 9.1 If the org should keep `desicryptoclub` — use this prompt
+
+```
+Execute Option B from LINKARY_NAMESPACE_REMEDIATION_AND_BACKFILL_PLAN.md.
+
+Decision:
+The org keeps `desicryptoclub`.
+
+Tasks:
+1. Safely update the profile so it no longer uses `desicryptoclub`.
+2. Ensure the org owns `desicryptoclub` in `usernames`.
+3. Re-run the namespace audit and confirm 0 collisions.
+4. Run the org usernames backfill script.
+5. Re-run the audit again and confirm:
+   - 0 collisions
+   - no orgs missing from usernames, or clearly document any remaining intentional exceptions
+
+Required output:
+Create:
+LINKARY_NAMESPACE_REMEDIATION_EXECUTION.md
+
+Include:
+- exact changes made
+- profile old/new username
+- usernames rows affected
+- audit results before/after
+- backfill results
+- final verdict: namespace clean enough to proceed to route migration or not
+```
+
+---
+
+### 9.2 If the profile should keep `desicryptoclub` — use this prompt
+
+```
+Execute Option A from LINKARY_NAMESPACE_REMEDIATION_AND_BACKFILL_PLAN.md.
+
+Decision:
+The profile keeps `desicryptoclub`.
+
+Tasks:
+1. Safely update the org so it no longer uses `desicryptoclub`.
+2. Ensure the profile owns `desicryptoclub` in `usernames`.
+3. Re-run the namespace audit and confirm 0 collisions.
+4. Run the org usernames backfill script.
+5. Re-run the audit again and confirm:
+   - 0 collisions
+   - no orgs missing from usernames, or clearly document any remaining intentional exceptions
+
+Required output:
+Create:
+LINKARY_NAMESPACE_REMEDIATION_EXECUTION.md
+
+Include:
+- exact changes made
+- org old/new slug
+- usernames rows affected
+- audit results before/after
+- backfill results
+- final verdict: namespace clean enough to proceed to route migration or not
+```
+
+---
+
+### 9.3 What comes after remediation (only when namespace is clean)
+
+Only after namespace is clean and `LINKARY_NAMESPACE_REMEDIATION_EXECUTION.md` has a “proceed” verdict, do this sequence:
+
+1. **Enforce org create/update through usernames** — `create_org_and_membership` and org slug updates check and write `usernames`.
+2. **Switch public resolver to usernames-based** — `/:segment` resolves from `usernames` only (one owner per slug).
+3. **Add `/app/...` routes** — product pages under `/app/dashboard`, etc.
+4. **Add `/org/:slug` in-app route** — in-app org by slug; optional 301 from `/org/:id`.
+5. **Migrate internal links** — nav, notifications, emails to `/app/...` and `/org/:slug`.
+6. **Add redirects** — old app paths → `/app/...`; canonical/sitemap/robots cleanup.
+
+That order matches the architecture and keeps one clear canonical public surface with in-app/auth-only surfaces separate.
+
+---
+
 *End of document.*

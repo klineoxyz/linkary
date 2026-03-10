@@ -18,9 +18,10 @@ export type EthosBadge = {
   color: string | null;
 };
 
-/** Input: raw number (legacy), or API payload with optional label/levelKey/color. */
+/** Input: raw number (legacy), string (coerced to number), or API payload with optional label/levelKey/color. */
 export type EthosBadgeInput =
   | number
+  | string
   | null
   | undefined
   | {

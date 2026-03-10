@@ -69,7 +69,11 @@ export function normalizeEthosBadge(input: EthosBadgeInput): EthosBadge {
 
   if (typeof input === "number" && Number.isFinite(input)) {
     rawScore = input;
-  } else if (typeof input === "object") {
+  } else if (typeof input === "string" && input.trim() !== "") {
+    const n = Number(input);
+    if (Number.isFinite(n)) rawScore = n;
+  }
+  if (rawScore == null && typeof input === "object") {
     rawScore =
       typeof (input as { rawScore?: unknown }).rawScore === "number"
         ? (input as { rawScore: number }).rawScore

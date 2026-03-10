@@ -3365,6 +3365,10 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
 
   const roleTags = profileProfessions.length > 0 ? profileProfessions.map((p) => p.name) : [];
   const emptyReviews = { avg: 0, count: 0 };
+  const ethosFromMe = (me as { ethos_score?: number | string | null } | null)?.ethos_score;
+  const ethosResolved =
+    meStats?.ethos != null ? (typeof meStats.ethos === "number" ? meStats.ethos : Number(meStats.ethos)) :
+    ethosFromMe != null && ethosFromMe !== "" ? Number(ethosFromMe) : null;
   const u = me
     ? {
         ...demo.me,
@@ -3373,7 +3377,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe }) {
         bio: me.bio ?? "",
         location: me.location ?? "",
         roleTags,
-        ethos: meStats?.ethos ?? null,
+        ethos: Number.isFinite(ethosResolved) ? ethosResolved : null,
         xscore: meStats?.xscore ?? me.xscore ?? null,
         reputationIndex: meStats?.reputationIndex ?? 0,
         repScore: meStats?.repScore ?? null,

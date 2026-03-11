@@ -36,93 +36,42 @@ function SectionTitle({ title, subtitle, right }: any) {
   );
 }
 
-const demoCircles = [
-  {
-    id: "c1",
-    name: "Core Creator Network",
-    type: "personal" as const,
-    status: "active" as const,
-    description: "My trusted network of Web3 creators and content strategists for collaborations",
-    membersCount: 24,
-    verifiedCount: 18,
-    powerScore: 842,
-    potentialReach: 1240000,
-    topGeos: ["USA", "Germany", "UK"],
-  },
-  {
-    id: "c2",
-    name: "MatrixPay Ambassadors",
-    type: "organization" as const,
-    status: "active" as const,
-    description: "Official brand ambassadors for MatrixPay with verified deals and partnerships",
-    membersCount: 12,
-    verifiedCount: 12,
-    powerScore: 721,
-    potentialReach: 890000,
-    topGeos: ["USA", "India", "Brazil"],
-  },
-  {
-    id: "c3",
-    name: "DeFi Marketing Squad",
-    type: "organization" as const,
-    status: "active" as const,
-    description: "Elite marketing team for DeFi protocol launches and campaigns",
-    membersCount: 8,
-    verifiedCount: 6,
-    powerScore: 634,
-    potentialReach: 560000,
-    topGeos: ["USA", "Singapore", "UK"],
-  },
-  {
-    id: "c4",
-    name: "Web3 Gaming Influencers",
-    type: "personal" as const,
-    status: "draft" as const,
-    description: "Gaming-focused creators for potential GameFi partnerships",
-    membersCount: 15,
-    verifiedCount: 8,
-    powerScore: 512,
-    potentialReach: 720000,
-    topGeos: ["USA", "Japan", "Korea"],
-  },
-  {
-    id: "c5",
-    name: "NFT Artist Collective",
-    type: "personal" as const,
-    status: "active" as const,
-    description: "Digital artists and NFT creators for art-focused campaigns",
-    membersCount: 18,
-    verifiedCount: 14,
-    powerScore: 478,
-    potentialReach: 620000,
-    topGeos: ["USA", "France", "Canada"],
-  },
-  {
-    id: "c6",
-    name: "Archived: Q4 2025 Campaign",
-    type: "organization" as const,
-    status: "archived" as const,
-    description: "Campaign team from Q4 2025, kept for reference",
-    membersCount: 10,
-    verifiedCount: 10,
-    powerScore: 402,
-    potentialReach: 340000,
-    topGeos: ["USA", "UK", "Germany"],
-  },
-];
-
-/** No real circles stats API yet — show Beta placeholders only. */
-const statsData = {
-  totalCircles: 0,
-  verifiedMembers: 0,
-  totalReach: 0,
-  avgPowerScore: 0,
-  isBeta: true,
-};
+/** Map API circle to CircleCard shape (type, membersCount; analytics placeholders as 0 for MVP). */
+function toCardCircle(c: { id: string; name: string; description?: string | null; status: string; owner_type: string; members_count: number }) {
+  return {
+    id: c.id,
+    name: c.name,
+    description: c.description ?? "",
+    type: c.owner_type === "org" ? ("organization" as const) : ("personal" as const),
+    status: c.status as "active" | "archived" | "draft",
+    membersCount: c.members_count ?? 0,
+    verifiedCount: 0,
+    powerScore: 0,
+    potentialReach: 0,
+    topGeos: [] as string[],
+  };
+}
 
 export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (route: any) => void; me?: { id: string } | null }) {
   const [activeTab, setActiveTab] = useState<"all" | "personal" | "organization">("all");
   const [connectionsCount, setConnectionsCount] = useState<{ accepted: number; pending: number } | null>(null);
+  const [circles, setCircles] = useState<ReturnType<typeof toCardCircle>[]>([]);
+  const [circlesLoading, setCirclesLoading] = useState(true);
+  const [createLoading, setCreateLoading] = useState(false);
+
+  const loadCircles = useCallback(async () => {
+    if (!me?.id) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    setCirclesLoading(true);
+    const res = await fetch(`${base}/api/circles`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => ({}));
+    setCirclesLoading(false);
+    const list = Array.isArray(data.circles) ? data.circles : [];
+    setCircles(list.map((c: { id: string; name: string; description?: string | null; status: string; owner_type: string; members_count: number }) => toCardCircle(c)));
+  }, [me?.id]);
 
   const loadConnections = useCallback(async () => {
     if (!me?.id) return;
@@ -142,14 +91,35 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
   useEffect(() => {
     loadConnections();
   }, [loadConnections]);
+  useEffect(() => {
+    loadCircles();
+  }, [loadCircles]);
 
-  const filteredCircles = demoCircles.filter((circle) => {
+  const filteredCircles = circles.filter((circle) => {
     if (activeTab === "all") return true;
     return circle.type === activeTab;
   });
 
-  const handleCreateCircle = () => {
-    setRoute?.({ name: "overview" });
+  const totalMembers = circles.reduce((sum, c) => sum + (c.membersCount ?? 0), 0);
+
+  const handleCreateCircle = async () => {
+    if (!me?.id || createLoading) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    setCreateLoading(true);
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/circles`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: "New Circle", owner_type: "profile", owner_id: me.id }),
+    });
+    setCreateLoading(false);
+    const data = await res.json().catch(() => ({}));
+    if (data.circle) {
+      loadCircles();
+      setRoute?.({ name: "circleDetail", data: { id: data.circle.id, name: data.circle.name } });
+    }
   };
 
   const handleViewCircle = (circle: any) => {
@@ -166,16 +136,12 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/50 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
-        <p className="font-semibold">Coming soon</p>
-        <p className="mt-0.5">Circles are not saved yet. Data below is for preview only. Save and reuse of creator lists will be available in a future update.</p>
-      </div>
       <SectionTitle
         title="Circles"
-        subtitle="Build and manage your creator networks (preview — not saved)"
+        subtitle="Build and manage your creator networks. Create circles and add members from search."
         right={
-          <Button variant="primary" icon={Plus} onClick={handleCreateCircle}>
-            Create Circle
+          <Button variant="primary" icon={Plus} onClick={handleCreateCircle} disabled={createLoading || !me?.id}>
+            {createLoading ? "Creating…" : "Create Circle"}
           </Button>
         }
       />
@@ -198,21 +164,13 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
         </div>
       )}
 
-      {/* Stats Row — Beta: no real circles stats API yet */}
+      {/* Stats: real counts only (no fake analytics) */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatsCard label="Total Circles" value={statsData.totalCircles} icon={Target} color="indigo" />
-        <StatsCard label="Verified Members" value={statsData.verifiedMembers} icon={Shield} color="emerald" />
-        <StatsCard
-          label="Total Potential Reach"
-          value={statsData.totalReach > 0 ? `${(statsData.totalReach / 1000000).toFixed(1)}M` : "—"}
-          icon={TrendingUp}
-          color="purple"
-        />
-        <StatsCard label="Avg Circle Power" value={statsData.avgPowerScore > 0 ? statsData.avgPowerScore : "—"} icon={Users} color="cyan" />
+        <StatsCard label="Total Circles" value={circlesLoading ? "…" : circles.length} icon={Target} color="indigo" />
+        <StatsCard label="Total Members" value={circlesLoading ? "…" : totalMembers} icon={Users} color="emerald" />
+        <StatsCard label="Potential Reach" value="—" icon={TrendingUp} color="purple" />
+        <StatsCard label="Avg Power" value="—" icon={Shield} color="cyan" />
       </div>
-      {statsData.isBeta && (
-        <p className="text-xs text-muted-foreground">Circle analytics in beta. Stats will appear when available.</p>
-      )}
 
       {/* Filter Tabs */}
       <div className="flex gap-2 border-b border-indigo-500/20 pb-1">
@@ -224,7 +182,7 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
               : "text-zinc-400 hover:text-zinc-300"
           }`}
         >
-          All Circles ({demoCircles.length})
+          All Circles ({circles.length})
         </button>
         <button
           onClick={() => setActiveTab("personal")}
@@ -234,7 +192,7 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
               : "text-zinc-400 hover:text-zinc-300"
           }`}
         >
-          Personal ({demoCircles.filter((c) => c.type === "personal").length})
+          Personal ({circles.filter((c) => c.type === "personal").length})
         </button>
         <button
           onClick={() => setActiveTab("organization")}
@@ -244,7 +202,7 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
               : "text-zinc-400 hover:text-zinc-300"
           }`}
         >
-          Organization ({demoCircles.filter((c) => c.type === "organization").length})
+          Organization ({circles.filter((c) => c.type === "organization").length})
         </button>
       </div>
 
@@ -261,12 +219,15 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
         ))}
       </div>
 
-      {filteredCircles.length === 0 && (
+      {circlesLoading && circles.length === 0 && (
+        <div className="text-center py-12 text-zinc-400">Loading circles…</div>
+      )}
+      {!circlesLoading && filteredCircles.length === 0 && (
         <div className="text-center py-12">
           <Users className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
-          <p className="text-zinc-400">No circles found in this category</p>
-          <Button variant="primary" icon={Plus} className="mt-4" onClick={handleCreateCircle}>
-            Create Your First Circle
+          <p className="text-zinc-400">No circles yet. Create one and add members from search.</p>
+          <Button variant="primary" icon={Plus} className="mt-4" onClick={handleCreateCircle} disabled={createLoading || !me?.id}>
+            {createLoading ? "Creating…" : "Create Your First Circle"}
           </Button>
         </div>
       )}

@@ -1003,7 +1003,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
 
         <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Network</span>
         <div className="flex flex-col gap-1.5 lg:gap-2">
-          <NavLink name="circles" icon={Users} label="Circles (Coming soon)" />
+          <NavLink name="circles" icon={Users} label="Circles" />
           <NavLink name="connections" icon={UserPlus} label="Connections" />
           <NavLink name="watchlist" icon={Bookmark} label="Watchlist" />
           <NavLink name="kolLists" icon={Star} label="KOL Lists (Coming soon)" />

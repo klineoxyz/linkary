@@ -34,7 +34,8 @@ import {
 } from "@/lib/orgs";
 import { listJobs, listApplicationsForJobs, type Application } from "@/lib/jobs";
 import { listCaseStudiesForOrg, createCaseStudyForOrg, type CaseStudy } from "@/lib/caseStudies";
-import { Briefcase } from "lucide-react";
+import { Briefcase, Sparkles } from "lucide-react";
+import CreatorProgramsPage from "./CreatorProgramsPage";
 
 function formatRelativeTime(iso: string): string {
   try {
@@ -61,7 +62,7 @@ export default function OrgDetailPage({
   const orgId = data?.orgId ?? data?.slug;
   const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
-  const validTabs = ["dashboard", "insights", "members", "affiliates", "ambassadors", "jobs", "case_studies", "settings"] as const;
+  const validTabs = ["dashboard", "insights", "members", "affiliates", "ambassadors", "jobs", "creator_programs", "case_studies", "settings"] as const;
   const [tab, setTab] = useState<typeof validTabs[number]>("dashboard");
 
   useEffect(() => {
@@ -548,6 +549,7 @@ export default function OrgDetailPage({
     { id: "affiliates" as const, label: "Affiliates", icon: UserPlus },
     { id: "ambassadors" as const, label: "Ambassadors", icon: UserPlus },
     { id: "jobs" as const, label: "Jobs", icon: Briefcase },
+    { id: "creator_programs" as const, label: "Creator programs", icon: Sparkles },
     { id: "case_studies" as const, label: "Case Studies", icon: Building2 },
     { id: "settings" as const, label: "Settings", icon: Settings },
   ];
@@ -1396,6 +1398,10 @@ export default function OrgDetailPage({
                 })
               )}
             </div>
+          )}
+
+          {tab === "creator_programs" && org && (
+            <CreatorProgramsPage setRoute={setRoute} orgId={org.id} />
           )}
 
           {tab === "case_studies" && (

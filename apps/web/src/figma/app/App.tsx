@@ -1017,7 +1017,6 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="watchlist" icon={Bookmark} label="Watchlist" />
           <NavLink name="kolLists" icon={Star} label="KOL Lists" />
           <NavLink name="inviteLineage" icon={Share2} label="Invite lineage" />
-          <NavLink name="creatorPrograms" icon={Briefcase} label="Creator programs" />
           <a
             href="/xspaces"
             onClick={() => setMobileOpen(false)}

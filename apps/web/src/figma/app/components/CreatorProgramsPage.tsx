@@ -7,9 +7,9 @@ import { supabase } from "@/lib/supabase";
 type Program = { id: string; title: string; description?: string | null; program_type: string; status: string; invites_count: number };
 type Org = { id: string; name: string };
 
-export default function CreatorProgramsPage({ setRoute }: { setRoute?: (r: any) => void }) {
+export default function CreatorProgramsPage({ setRoute, orgId: orgIdProp }: { setRoute?: (r: any) => void; orgId?: string }) {
   const [orgs, setOrgs] = useState<Org[]>([]);
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(orgIdProp ?? null);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
@@ -33,8 +33,12 @@ export default function CreatorProgramsPage({ setRoute }: { setRoute?: (r: any) 
   }, []);
 
   useEffect(() => {
+    if (orgIdProp) {
+      setSelectedOrgId(orgIdProp);
+      return;
+    }
     loadOrgs();
-  }, [loadOrgs]);
+  }, [loadOrgs, orgIdProp]);
 
   const loadPrograms = useCallback(async () => {
     if (!selectedOrgId) {
@@ -57,8 +61,9 @@ export default function CreatorProgramsPage({ setRoute }: { setRoute?: (r: any) 
     loadPrograms();
   }, [loadPrograms]);
 
+  const effectiveOrgIdForCreate = orgIdProp ?? selectedOrgId;
   const handleCreate = async () => {
-    if (!selectedOrgId || !createTitle.trim()) return;
+    if (!effectiveOrgIdForCreate || !createTitle.trim()) return;
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     if (!token) return;
@@ -66,7 +71,7 @@ export default function CreatorProgramsPage({ setRoute }: { setRoute?: (r: any) 
     const res = await fetch(`${base}/api/creator-programs`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ org_id: selectedOrgId, title: createTitle.trim(), status: "draft" }),
+      body: JSON.stringify({ org_id: effectiveOrgIdForCreate, title: createTitle.trim(), status: "draft" }),
     });
     setCreateSubmitting(false);
     if (res.ok) {
@@ -76,9 +81,41 @@ export default function CreatorProgramsPage({ setRoute }: { setRoute?: (r: any) 
     }
   };
 
+  const effectiveOrgId = orgIdProp ?? selectedOrgId;
+  const showOrgSelector = !orgIdProp;
+  const hasNoOrgs = orgs.length === 0 && !orgIdProp;
+
+  if (hasNoOrgs) {
+    return (
+      <div className="space-y-6 max-w-3xl">
+        <div className="flex items-center gap-3">
+          <Users className="h-8 w-8 text-primary" />
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Creator programs</h1>
+            <p className="text-sm text-muted-foreground">Create programs and invite creators from your circles or KOL lists</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-muted/30 p-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Creator programs are for organizations. Create or join an org, then open the org and use the <strong>Creator programs</strong> tab there.
+          </p>
+          {setRoute && (
+            <button
+              type="button"
+              onClick={() => setRoute({ name: "overview" })}
+              className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              Go to Dashboard
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-3xl">
-      {setRoute && (
+      {setRoute && !orgIdProp && (
         <button
           type="button"
           onClick={() => setRoute({ name: "overview" })}
@@ -96,21 +133,23 @@ export default function CreatorProgramsPage({ setRoute }: { setRoute?: (r: any) 
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-2">Organization</label>
-        <select
-          value={selectedOrgId ?? ""}
-          onChange={(e) => setSelectedOrgId(e.target.value || null)}
-          className="w-full max-w-xs h-10 px-3 rounded-lg border border-border bg-background text-foreground"
-        >
-          <option value="">Select org</option>
-          {orgs.map((o) => (
-            <option key={o.id} value={o.id}>{o.name}</option>
-          ))}
-        </select>
-      </div>
+      {showOrgSelector && (
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">Organization</label>
+          <select
+            value={selectedOrgId ?? ""}
+            onChange={(e) => setSelectedOrgId(e.target.value || null)}
+            className="w-full max-w-xs h-10 px-3 rounded-lg border border-border bg-background text-foreground"
+          >
+            <option value="">Select org</option>
+            {orgs.map((o) => (
+              <option key={o.id} value={o.id}>{o.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
-      {selectedOrgId && (
+      {effectiveOrgId && (
         <>
           <div className="flex items-center justify-between">
             <h2 className="font-medium text-foreground">Programs</h2>

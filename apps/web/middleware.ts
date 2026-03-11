@@ -140,7 +140,8 @@ export async function middleware(request: NextRequest) {
           .maybeSingle();
         const inviterId = (profile as { inviter_id?: string | null } | null)?.inviter_id;
         const twitter = ((profile as { twitter_username?: string | null } | null)?.twitter_username ?? "").replace(/^@/, "").toLowerCase();
-        const allowed = (inviterId != null && inviterId !== "") || twitter === ADMIN_TWITTER_HANDLE;
+        const fromMeta = (session.user?.user_metadata?.user_name ?? session.user?.user_metadata?.preferred_username ?? "").toString().replace(/^@/, "").toLowerCase();
+        const allowed = (inviterId != null && inviterId !== "") || twitter === ADMIN_TWITTER_HANDLE || fromMeta === ADMIN_TWITTER_HANDLE;
         if (!allowed) {
           // Allow exact /app through so client shows InviteRequiredView; avoid redirect loop (redirecting /app -> /app).
           const isAppRoot = pathname === "/app" || pathname === "/app/";

@@ -45,5 +45,10 @@ export async function GET(request: Request) {
   if (twitter === ADMIN_TWITTER_HANDLE) {
     return NextResponse.json({ allowed: true });
   }
+  // Allow admin by auth identity when profile.twitter_username not yet synced (e.g. ensure-social-x runs after this)
+  const fromMeta = (user.user_metadata?.user_name ?? user.user_metadata?.preferred_username ?? "").toString().replace(/^@/, "").toLowerCase();
+  if (fromMeta === ADMIN_TWITTER_HANDLE) {
+    return NextResponse.json({ allowed: true });
+  }
   return NextResponse.json({ allowed: false, reason: "invite_required" });
 }

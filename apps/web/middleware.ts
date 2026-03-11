@@ -73,7 +73,7 @@ function isExcludedRootAppPath(normalized: string): boolean {
  *
  * If you see ERR_TOO_MANY_REDIRECTS: in Vercel Domains, do NOT redirect linkary.xyz → www. Set linkary.xyz as primary; add www with "Redirect to linkary.xyz".
  */
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const url = request.nextUrl;
   const hostname = (url.hostname ?? request.headers.get("host") ?? "").toLowerCase().split(":")[0];
 

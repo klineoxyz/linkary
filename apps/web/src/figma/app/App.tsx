@@ -941,7 +941,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
         "flex flex-col items-stretch",
         "px-4 py-3 lg:px-6 lg:py-6 gap-3 lg:gap-6",
         "overflow-y-auto",
-        mobileOpen ? "fixed inset-0 z-[100] shadow-xl lg:shadow-none lg:relative lg:z-[25]" : "hidden lg:flex lg:z-[25]"
+        mobileOpen ? "fixed inset-0 z-[100] shadow-2xl lg:shadow-none lg:relative lg:z-[25]" : "hidden lg:flex lg:z-[25]"
       )}
     >
       <div className="flex items-center justify-between w-full flex-shrink-0 py-1 lg:py-0">

@@ -858,6 +858,9 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
     const tab = searchParams?.get("tab") ?? undefined;
     return { name: "orgDetail", data: { orgId: parts[1], tab: tab || undefined } };
   }
+  if (parts[0] === "invites" && parts[1] === "lineage") {
+    return { name: "inviteLineage" };
+  }
   const path = parts[0] || "";
   if (!path) return { name: "landing" };
   const segment = path;
@@ -872,11 +875,12 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
       leaderboards: "leaderboards", creator: "creatorProfile", brand: "brandProfile",
       agency: "agencyProfile", calendar: "calendar", xspaces: "xspaces", host: "hostDashboard",
       availability: "availability", monetization: "monetizationShowcase",
-      "monetization-flow": "monetizationFlowShowcase",       "kol-lists": "kolLists",
+      "monetization-flow": "monetizationFlowShowcase", "kol-lists": "kolLists",
       "capital-partners": "capitalPartners", connections: "connections", preferences: "preferences",
       support: "support", notifications: "notifications",
       "verification-inbox": "verificationInbox", showcase: "showcase", integrations: "integrations",
       "roles-skills": "rolesSkills", profile: "profile", watchlist: "watchlist",
+      "creator-programs": "creatorPrograms",
       settings: "integrations",
     };
     return { name: nameMap[segment] ?? "landing" };

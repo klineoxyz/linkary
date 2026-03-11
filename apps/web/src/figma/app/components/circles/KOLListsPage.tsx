@@ -1,106 +1,85 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Search, Filter, Users, TrendingUp, Award, MapPin, Loader2 } from "lucide-react";
+import { ArrowLeft, Search, Users, Loader2, Plus, Trash2 } from "lucide-react";
 import { CreatorRowCard, KOLSelectionSummaryCard } from "./KOLComponents";
 import { supabase } from "@/lib/supabase";
 
-export default function KOLListsPage({ setRoute }: any) {
-  const [selectedCreators, setSelectedCreators] = useState<any[]>([]);
+/**
+ * KOL Lists Page — real persistence via /api/kol-lists.
+ * Load lists, select list, show members, add from search, remove. No demo data.
+ */
+
+type KolList = { id: string; name: string; description?: string | null; status: string; members_count: number };
+type ListMember = {
+  id: string;
+  profile_id: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  notes?: string | null;
+};
+
+export default function KOLListsPage({ setRoute, me }: { setRoute?: (r: any) => void; me?: { id: string } | null }) {
+  const [lists, setLists] = useState<KolList[]>([]);
+  const [listsLoading, setListsLoading] = useState(true);
+  const [selectedListId, setSelectedListId] = useState<string | null>(null);
+  const [listMembers, setListMembers] = useState<ListMember[]>([]);
+  const [listMembersLoading, setListMembersLoading] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [filters, setFilters] = useState({
-    geo: "all",
-    minReach: 0,
-    verifiedOnly: false,
-    language: "all",
-    category: "all",
-  });
 
-  // Demo creator data (placeholder)
-  const demoCreators = [
-    {
-      id: "1",
-      name: "Alex Chen",
-      handle: "alexchen",
-      reach: 125000,
-      topGeo: "US",
-      verified: true,
-      roleTags: ["Web3", "DeFi", "NFTs"],
-    },
-    {
-      id: "2",
-      name: "Sarah Williams",
-      handle: "sarahw",
-      reach: 85000,
-      topGeo: "UK",
-      verified: true,
-      roleTags: ["Gaming", "Metaverse", "Community"],
-    },
-    {
-      id: "3",
-      name: "Marcus Johnson",
-      handle: "marcusj",
-      reach: 320000,
-      topGeo: "US",
-      verified: false,
-      roleTags: ["Developer", "Open Source", "Infrastructure"],
-    },
-    {
-      id: "4",
-      name: "Yuki Tanaka",
-      handle: "yukitanaka",
-      reach: 45000,
-      topGeo: "JP",
-      verified: true,
-      roleTags: ["Design", "UI/UX", "Web3"],
-    },
-    {
-      id: "5",
-      name: "Emma Rodriguez",
-      handle: "emmar",
-      reach: 8500,
-      topGeo: "ES",
-      verified: false,
-      roleTags: ["Content", "Marketing", "Growth"],
-    },
-    {
-      id: "6",
-      name: "David Kim",
-      handle: "davidkim",
-      reach: 195000,
-      topGeo: "KR",
-      verified: true,
-      roleTags: ["Investment", "VC", "Startups"],
-    },
-    {
-      id: "7",
-      name: "Lisa Anderson",
-      handle: "lisaa",
-      reach: 52000,
-      topGeo: "CA",
-      verified: true,
-      roleTags: ["Community", "Events", "Web3"],
-    },
-    {
-      id: "8",
-      name: "Ahmed Hassan",
-      handle: "ahmedh",
-      reach: 750000,
-      topGeo: "AE",
-      verified: true,
-      roleTags: ["Blockchain", "Enterprise", "Advisory"],
-    },
-  ];
+  const [createListName, setCreateListName] = useState("");
+  const [createListOpen, setCreateListOpen] = useState(false);
+  const [createListLoading, setCreateListLoading] = useState(false);
+
+  const [addToListLoading, setAddToListLoading] = useState<string | null>(null);
 
   const base = typeof window !== "undefined" ? window.location.origin : "";
-  const searchApi = useCallback(async (q: string) => {
-    if (q.length < 2) {
+
+  const loadLists = useCallback(async () => {
+    if (!me?.id) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    setListsLoading(true);
+    const res = await fetch(`${base}/api/kol-lists`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => ({}));
+    setListsLoading(false);
+    setLists(Array.isArray(data.lists) ? data.lists : []);
+  }, [me?.id, base]);
+
+  useEffect(() => {
+    loadLists();
+  }, [loadLists]);
+
+  const loadListMembers = useCallback(async () => {
+    if (!selectedListId) {
+      setListMembers([]);
+      return;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    setListMembersLoading(true);
+    const res = await fetch(`${base}/api/kol-lists/${selectedListId}`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => ({}));
+    setListMembersLoading(false);
+    if (data.members) setListMembers(data.members);
+    else setListMembers([]);
+  }, [selectedListId, base]);
+
+  useEffect(() => {
+    loadListMembers();
+  }, [loadListMembers]);
+
+  const doSearch = useCallback(async (q: string) => {
+    if (q.trim().length < 2) {
       setSearchResults([]);
       return;
     }
     setSearchLoading(true);
-    const params = new URLSearchParams({ q, filter: "people" });
-    const res = await fetch(`${base}/api/search?${params}`);
+    const res = await fetch(`${base}/api/search?q=${encodeURIComponent(q.trim())}&filter=people`);
     const data = await res.json().catch(() => ({}));
     const list = (data.results ?? []).filter((r: any) => r.type === "person");
     setSearchResults(
@@ -112,92 +91,92 @@ export default function KOLListsPage({ setRoute }: any) {
         topGeo: null,
         verified: !!r.verified,
         roleTags: [],
-        _fromSearch: true,
+        avatar: r.avatar,
       }))
     );
     setSearchLoading(false);
   }, [base]);
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      searchApi(searchQuery.trim());
-    }, 300);
+    const t = setTimeout(() => doSearch(searchQuery), 300);
     return () => clearTimeout(t);
-  }, [searchQuery, searchApi]);
+  }, [searchQuery, doSearch]);
 
-  const isSearchActive = searchQuery.trim().length >= 2;
-  const filteredCreators = isSearchActive
-    ? searchResults
-    : demoCreators.filter((creator) => {
-        const matchesSearch =
-          creator.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          creator.handle.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesGeo = filters.geo === "all" || creator.topGeo === filters.geo;
-        const matchesReach = creator.reach >= filters.minReach;
-        const matchesVerified = !filters.verifiedOnly || creator.verified;
-        return matchesSearch && matchesGeo && matchesReach && matchesVerified;
-      });
-
-  const toggleCreator = (creator: any) => {
-    const isSelected = selectedCreators.some((c) => c.id === creator.id);
-    if (isSelected) {
-      setSelectedCreators(selectedCreators.filter((c) => c.id !== creator.id));
-    } else {
-      setSelectedCreators([...selectedCreators, creator]);
+  const handleCreateList = async () => {
+    if (!me?.id || !createListName.trim()) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    setCreateListLoading(true);
+    const res = await fetch(`${base}/api/kol-lists`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: createListName.trim(), owner_type: "profile", owner_id: me.id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setCreateListLoading(false);
+    if (data.list) {
+      setCreateListName("");
+      setCreateListOpen(false);
+      loadLists();
+      setSelectedListId(data.list.id);
     }
   };
 
-  const handleSave = () => {
-    console.log("Save as Circle:", selectedCreators);
-    alert(`Saving ${selectedCreators.length} creators as a new Circle`);
+  const addMemberToList = async (profileId: string) => {
+    if (!selectedListId) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    setAddToListLoading(profileId);
+    const res = await fetch(`${base}/api/kol-lists/${selectedListId}/members`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ profile_id: profileId }),
+    });
+    setAddToListLoading(null);
+    if (res.ok) loadListMembers();
   };
 
-  const handleInviteToGig = () => {
-    console.log("Invite to Gig:", selectedCreators);
-    alert(`Inviting ${selectedCreators.length} creators to a gig (placeholder)`);
+  const removeMemberFromList = async (profileId: string) => {
+    if (!selectedListId) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    await fetch(`${base}/api/kol-lists/${selectedListId}/members?profile_id=${encodeURIComponent(profileId)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    loadListMembers();
   };
 
-  const handleExport = () => {
-    console.log("Export:", selectedCreators);
-    alert(`Export functionality (placeholder)`);
-  };
-
-  const handleClear = () => {
-    setSelectedCreators([]);
-  };
+  const selectedList = lists.find((l) => l.id === selectedListId);
+  const isSearchActive = searchQuery.trim().length >= 2;
 
   return (
     <div className="min-h-screen bg-zinc-50">
-      <div className="border-b border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/50 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
-        <p className="font-semibold">Coming soon</p>
-        <p className="mt-0.5">KOL lists are not saved yet. Data shown is for preview only. Save and reuse will be available in a future update.</p>
-      </div>
-      {/* Header */}
       <div className="border-b border-zinc-200 bg-white">
         <div className="max-w-[1600px] mx-auto px-8 py-6">
           <button
-            onClick={() => setRoute({ name: "overview" })}
+            onClick={() => setRoute?.({ name: "overview" })}
             className="flex items-center gap-2 text-zinc-600 hover:text-zinc-900 transition-colors mb-4"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm font-medium">Back to Circles</span>
+            <span className="text-sm font-medium">Back to overview</span>
           </button>
-
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold text-zinc-900 mb-2">KOL Lists</h1>
-              <p className="text-zinc-600">Build creator lists for campaigns and gigs (preview — lists are not saved)</p>
+              <p className="text-zinc-600">Create lists of creators and reuse them for campaigns and gigs.</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Panel - Search & Filters & Results */}
+          {/* Left: Search + results */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Search & Filters */}
             <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex-1 relative">
@@ -209,135 +188,153 @@ export default function KOLListsPage({ setRoute }: any) {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full h-11 pl-10 pr-4 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500"
                   />
-                  {searchLoading && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400 animate-spin" />
-                  )}
+                  {searchLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400 animate-spin" />}
                 </div>
-                <button className="h-11 px-4 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 font-medium transition-colors flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  Filters
-                </button>
-              </div>
-
-              {/* Filter Row */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Geography</label>
-                  <select
-                    value={filters.geo}
-                    onChange={(e) => setFilters({ ...filters, geo: e.target.value })}
-                    className="w-full h-9 px-3 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-700 focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="all">All Regions</option>
-                    <option value="US">United States</option>
-                    <option value="UK">United Kingdom</option>
-                    <option value="JP">Japan</option>
-                    <option value="KR">South Korea</option>
-                    <option value="ES">Spain</option>
-                    <option value="CA">Canada</option>
-                    <option value="AE">UAE</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Min Reach</label>
-                  <select
-                    value={filters.minReach}
-                    onChange={(e) => setFilters({ ...filters, minReach: Number(e.target.value) })}
-                    className="w-full h-9 px-3 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-700 focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value={0}>Any</option>
-                    <option value={10000}>10K+</option>
-                    <option value={50000}>50K+</option>
-                    <option value={100000}>100K+</option>
-                    <option value={500000}>500K+</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Language</label>
-                  <select
-                    value={filters.language}
-                    onChange={(e) => setFilters({ ...filters, language: e.target.value })}
-                    className="w-full h-9 px-3 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-700 focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="all">All Languages</option>
-                    <option value="en">English</option>
-                    <option value="es">Spanish</option>
-                    <option value="ja">Japanese</option>
-                    <option value="ko">Korean</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-700 mb-1">Category</label>
-                  <select
-                    value={filters.category}
-                    onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                    className="w-full h-9 px-3 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-700 focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="all">All Categories</option>
-                    <option value="web3">Web3</option>
-                    <option value="gaming">Gaming</option>
-                    <option value="developer">Developer</option>
-                    <option value="design">Design</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center gap-3">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={filters.verifiedOnly}
-                    onChange={(e) => setFilters({ ...filters, verifiedOnly: e.target.checked })}
-                    className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="text-sm text-zinc-700">Verified only</span>
-                </label>
               </div>
             </div>
 
-            {/* Results Count */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-zinc-600">
                 {isSearchActive
-                  ? `Search: ${filteredCreators.length} creator${filteredCreators.length !== 1 ? "s" : ""} found`
-                  : `${filteredCreators.length} demo creator${filteredCreators.length !== 1 ? "s" : ""} (type 2+ chars to search real profiles)`}
-                {selectedCreators.length > 0 && ` · ${selectedCreators.length} selected`}
+                  ? `${searchResults.length} creator${searchResults.length !== 1 ? "s" : ""} found`
+                  : "Type 2+ characters to search real profiles"}
               </span>
             </div>
 
-            {/* Creator List */}
             <div className="space-y-3">
-              {filteredCreators.map((creator) => (
-                <CreatorRowCard
-                  key={creator.id}
-                  creator={creator}
-                  isSelected={selectedCreators.some((c) => c.id === creator.id)}
-                  onToggle={() => toggleCreator(creator)}
-                />
+              {searchResults.map((creator) => (
+                <div key={creator.id} className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-4">
+                  <CreatorRowCard
+                    creator={creator}
+                    isSelected={listMembers.some((m) => m.profile_id === creator.id)}
+                    onToggle={() => {}}
+                  />
+                  {selectedListId ? (
+                    listMembers.some((m) => m.profile_id === creator.id) ? (
+                      <span className="text-xs text-zinc-500 shrink-0">In list</span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={addToListLoading === creator.id}
+                        onClick={() => addMemberToList(creator.id)}
+                        className="shrink-0 text-sm font-medium text-primary hover:underline disabled:opacity-50"
+                      >
+                        {addToListLoading === creator.id ? "Adding…" : "Add to list"}
+                      </button>
+                    )
+                  ) : (
+                    <span className="text-xs text-zinc-500 shrink-0">Select a list first</span>
+                  )}
+                </div>
               ))}
-
-              {filteredCreators.length === 0 && (
+              {isSearchActive && searchResults.length === 0 && !searchLoading && (
                 <div className="rounded-xl border border-zinc-200 bg-white p-12 text-center">
                   <Users className="h-12 w-12 text-zinc-300 mx-auto mb-3" />
                   <h3 className="text-lg font-semibold text-zinc-900 mb-2">No creators found</h3>
-                  <p className="text-sm text-zinc-600">Try adjusting your search or filters</p>
+                  <p className="text-sm text-zinc-600">Try a different search term</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Right Panel - Selection Summary */}
+          {/* Right: Lists + current list members */}
           <div className="lg:col-span-1">
-            <div className="sticky top-8">
+            <div className="sticky top-8 space-y-4">
+              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <h3 className="font-semibold text-zinc-900 mb-3">My KOL Lists</h3>
+                {listsLoading && <p className="text-sm text-zinc-500">Loading…</p>}
+                {!listsLoading && lists.length === 0 && <p className="text-sm text-zinc-500">No lists yet. Create one below.</p>}
+                {!listsLoading && lists.length > 0 && (
+                  <select
+                    value={selectedListId ?? ""}
+                    onChange={(e) => setSelectedListId(e.target.value || null)}
+                    className="w-full h-10 px-3 rounded-lg border border-zinc-200 bg-white text-zinc-900 text-sm"
+                  >
+                    <option value="">Select a list</option>
+                    {lists.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name} ({l.members_count ?? 0})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setCreateListOpen(true)}
+                  className="mt-3 flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create new list
+                </button>
+              </div>
+
+              {createListOpen && (
+                <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+                  <input
+                    type="text"
+                    placeholder="List name"
+                    value={createListName}
+                    onChange={(e) => setCreateListName(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg border border-zinc-200 mb-2 text-zinc-900"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCreateList}
+                      disabled={createListLoading || !createListName.trim()}
+                      className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                    >
+                      {createListLoading ? "Creating…" : "Create"}
+                    </button>
+                    <button type="button" onClick={() => setCreateListOpen(false)} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selectedListId && (
+                <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+                  <h3 className="font-semibold text-zinc-900 mb-2">{selectedList?.name ?? "List"} — members</h3>
+                  {listMembersLoading && <p className="text-sm text-zinc-500">Loading…</p>}
+                  {!listMembersLoading && listMembers.length === 0 && <p className="text-sm text-zinc-500">No members. Search and add creators.</p>}
+                  {!listMembersLoading && listMembers.length > 0 && (
+                    <ul className="space-y-2">
+                      {listMembers.map((m) => (
+                        <li key={m.id} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+                          <div className="min-w-0">
+                            <span className="font-medium text-zinc-900 truncate block">{m.display_name ?? m.username ?? "—"}</span>
+                            <span className="text-xs text-zinc-500">@{m.username ?? ""}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeMemberFromList(m.profile_id)}
+                            className="shrink-0 p-1 text-zinc-400 hover:text-destructive"
+                            aria-label="Remove"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
               <KOLSelectionSummaryCard
-                selectedCreators={selectedCreators}
-                onSave={handleSave}
-                onInviteToGig={handleInviteToGig}
-                onExport={handleExport}
-                onClear={handleClear}
+                selectedCreators={listMembers.map((m) => ({
+                  id: m.profile_id,
+                  name: m.display_name ?? m.username ?? "—",
+                  handle: m.username ?? "",
+                  reach: 0,
+                  topGeo: null,
+                  verified: false,
+                  roleTags: [],
+                }))}
+                onSave={() => {}}
+                onInviteToGig={() => {}}
+                onExport={() => {}}
+                onClear={() => {}}
               />
             </div>
           </div>

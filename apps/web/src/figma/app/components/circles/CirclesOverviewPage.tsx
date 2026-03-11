@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Plus, Users, Shield, TrendingUp, Target, Link2 } from "lucide-react";
 import { CircleCard, StatsCard } from "./CircleComponents";
+import CreateCircleFlow from "./CreateCircleFlow";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -57,7 +58,7 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
   const [connectionsCount, setConnectionsCount] = useState<{ accepted: number; pending: number } | null>(null);
   const [circles, setCircles] = useState<ReturnType<typeof toCardCircle>[]>([]);
   const [circlesLoading, setCirclesLoading] = useState(true);
-  const [createLoading, setCreateLoading] = useState(false);
+  const [showCreateFlow, setShowCreateFlow] = useState(false);
 
   const loadCircles = useCallback(async () => {
     if (!me?.id) return;
@@ -102,24 +103,13 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
 
   const totalMembers = circles.reduce((sum, c) => sum + (c.membersCount ?? 0), 0);
 
-  const handleCreateCircle = async () => {
-    if (!me?.id || createLoading) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    if (!token) return;
-    setCreateLoading(true);
-    const base = typeof window !== "undefined" ? window.location.origin : "";
-    const res = await fetch(`${base}/api/circles`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: "New Circle", owner_type: "profile", owner_id: me.id }),
-    });
-    setCreateLoading(false);
-    const data = await res.json().catch(() => ({}));
-    if (data.circle) {
-      loadCircles();
-      setRoute?.({ name: "circleDetail", data: { id: data.circle.id, name: data.circle.name } });
-    }
+  const handleCreateCircle = () => {
+    setShowCreateFlow(true);
+  };
+
+  const handleCreateFlowClose = () => {
+    setShowCreateFlow(false);
+    loadCircles();
   };
 
   const handleViewCircle = (circle: any) => {
@@ -140,8 +130,8 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
         title="Circles"
         subtitle="Build and manage your creator networks. Create circles and add members from search."
         right={
-          <Button variant="primary" icon={Plus} onClick={handleCreateCircle} disabled={createLoading || !me?.id}>
-            {createLoading ? "Creating…" : "Create Circle"}
+          <Button variant="primary" icon={Plus} onClick={handleCreateCircle} disabled={!me?.id}>
+            Create Circle
           </Button>
         }
       />
@@ -226,10 +216,18 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
         <div className="text-center py-12">
           <Users className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
           <p className="text-zinc-400">No circles yet. Create one and add members from search.</p>
-          <Button variant="primary" icon={Plus} className="mt-4" onClick={handleCreateCircle} disabled={createLoading || !me?.id}>
-            {createLoading ? "Creating…" : "Create Your First Circle"}
+          <Button variant="primary" icon={Plus} className="mt-4" onClick={handleCreateCircle} disabled={!me?.id}>
+            Create Your First Circle
           </Button>
         </div>
+      )}
+
+      {showCreateFlow && (
+        <CreateCircleFlow
+          me={me}
+          setRoute={setRoute}
+          onClose={handleCreateFlowClose}
+        />
       )}
     </div>
   );

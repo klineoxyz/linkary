@@ -1,7 +1,8 @@
-# MVP Circles, KOL Lists & Invites — Repo Audit
+# MVP Circles, KOL Lists & Invites — Repo Audit (Updated Post–Pass 2)
 
 **Date:** 2026-03-10  
-**Scope:** Current state of Circles, KOL Lists, Creator Programs, and Platform Invites. What is real vs preview-only, what exists, blockers, and what must be preserved.
+**Scope:** Current state of Circles, KOL Lists, Creator Programs, and Platform Invites.  
+**Pass 2 completed:** Circles full E2E; KOL APIs + persistence; invite gate + issue/allocate/lineage; creator programs APIs + minimal UI; invite schema `issued_by_profile_id`; mock data removed.
 
 ---
 
@@ -9,11 +10,11 @@
 
 | Area | Current state | Persistence | Blockers |
 |------|----------------|------------|----------|
-| **Circles** | UI only; demo data | **None** — no tables, no API | No `circles` / `circle_members` tables; all data hardcoded |
-| **KOL Lists** | UI only; demo creators + real search | **None** — no tables, no API | No `kol_lists` / `kol_list_members`; lists not saved |
-| **Creator Programs** | Mentioned in HostDashboard only | **None** | No schema; no org→program→invite flow |
-| **Platform Invites** | **None** | **None** | No invite-only gate; no invite_codes, batches, redemptions, lineage |
-| **Invite lineage** | **None** | **None** | No inviter/invitee graph or tree |
+| **Circles** | **Full** — overview, detail, create flow, add/remove members | **Yes** — circles, circle_members; all APIs | None |
+| **KOL Lists** | **Full** — lists CRUD, members, add from search | **Yes** — kol_lists, kol_list_members; all APIs | None |
+| **Creator Programs** | **APIs + minimal UI** — list/create programs; add invites by profile_id | **Yes** — creator_programs, creator_program_invites; CRUD + invites APIs | Bulk invite-from-circle/KOL in UI optional |
+| **Platform Invites** | **Full** — redeem, access, issue, allocate-batch, my-codes, lineage; invite-required gate | **Yes** — batches, codes, redemptions; issued_by_profile_id for lineage | None |
+| **Invite lineage** | **Full** — API + InviteLineagePage (inviter + tree) | **Yes** — profiles.inviter_id; lineage API | None |
 
 **Existing related but different:** Org member invites (`org_members`), org ambassador/affiliate invites (`org_ambassadors`, `org_affiliations`) — these are org relationship invites, not platform-access invites.
 

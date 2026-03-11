@@ -183,6 +183,9 @@ import KOLListsPage from "./components/circles/KOLListsPage";
 import CapitalPartnersPage from "./components/circles/CapitalPartnersPage";
 import ConnectionsPage from "./components/ConnectionsPage";
 import WatchlistPage from "./components/WatchlistPage";
+import InviteRequiredView from "./components/InviteRequiredView";
+import InviteLineagePage from "./components/InviteLineagePage";
+import CreatorProgramsPage from "./components/CreatorProgramsPage";
 
 const DashboardPage = dynamic(
   () => import("./components/DashboardPage").then((m) => m.default),
@@ -782,6 +785,8 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     monetizationShowcase: "/app/monetization",
     monetizationFlowShowcase: "/app/monetization-flow",
     kolLists: "/app/kol-lists",
+    inviteLineage: "/app/invites/lineage",
+    creatorPrograms: "/app/creator-programs",
     capitalPartners: "/app/capital-partners",
     connections: "/app/connections",
     preferences: "/app/preferences",
@@ -1006,7 +1011,9 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
           <NavLink name="circles" icon={Users} label="Circles" />
           <NavLink name="connections" icon={UserPlus} label="Connections" />
           <NavLink name="watchlist" icon={Bookmark} label="Watchlist" />
-          <NavLink name="kolLists" icon={Star} label="KOL Lists (Coming soon)" />
+          <NavLink name="kolLists" icon={Star} label="KOL Lists" />
+          <NavLink name="inviteLineage" icon={Share2} label="Invite lineage" />
+          <NavLink name="creatorPrograms" icon={Briefcase} label="Creator programs" />
           <a
             href="/xspaces"
             onClick={() => setMobileOpen(false)}
@@ -3931,6 +3938,7 @@ function LinkaryAppInner() {
   const [analyticsRateLimitResetAt, setAnalyticsRateLimitResetAt] = useState<string | null>(null);
   const [headerMedia, setHeaderMedia] = useState<{ header_media_type: string; header_media_url: string | null; header_media_file_path?: string | null } | null>(null);
   const [profilePayloadRefreshTrigger, setProfilePayloadRefreshTrigger] = useState(0);
+  const [accessAllowed, setAccessAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
     const fromPath = routeFromPathname(pathname ?? "/", searchParams);
@@ -4018,10 +4026,10 @@ function LinkaryAppInner() {
   const runAuthGate = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user?.id) {
-      // Do not force login: leave route as derived from URL so visitors see landing, overview, etc.
       setAuthBootstrapped(true);
       setAuthUserId(null);
       setMe(null);
+      setAccessAllowed(true);
       return;
     }
     setAuthUserId(session.user.id);
@@ -4047,6 +4055,15 @@ function LinkaryAppInner() {
     }
     // Post-login repair and analytics: ensure-social-x (repair from identity/profile), then ensure-backfill (today snapshot + 90d job). social_accounts is source of truth.
     if (session?.access_token && typeof window !== "undefined") {
+      const accessRes = await fetch(`${window.location.origin}/api/me/access`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const accessJson = await accessRes.json().catch(() => ({}));
+      if (accessJson.allowed === true) {
+        setAccessAllowed(true);
+      } else {
+        setAccessAllowed(false);
+      }
       fetch(`${window.location.origin}/api/auth/ensure-social-x`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -4083,6 +4100,7 @@ function LinkaryAppInner() {
     await supabase.auth.signOut();
     setAuthUserId(null);
     setMe(null);
+    setAccessAllowed(null);
     setRoute({ name: "landing" });
     setAuthBootstrapped(true);
   };
@@ -4097,7 +4115,7 @@ function LinkaryAppInner() {
     "landing", "overview", "dashboard", "profile", "profileEdit", "profileInsights", "userProfile", "userInsights", "market", "messages", "workRequests",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding", "accountType",
     "orgDetail", "brandProfile", "creatorProfile", "agencyProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
-    "circles", "circleDetail", "connections", "kolLists", "calendar", "xspaces", "capitalPartners", "watchlist", "explore",
+    "circles", "circleDetail", "connections", "kolLists", "inviteLineage", "creatorPrograms", "calendar", "xspaces", "capitalPartners", "watchlist", "explore",
     "leaderboards", "hostDashboard", "availability", "monetizationShowcase", "monetizationFlowShowcase",
   ]);
   useEffect(() => {
@@ -4149,6 +4167,17 @@ function LinkaryAppInner() {
   // Routes where we hide full-screen decorative layers to avoid haze (keep Linkary light shell)
   const routesWithoutDecorativeLayers = ["profile", "dashboard", "orgDetail"];
   const hideDecorativeLayers = routesWithoutDecorativeLayers.includes(route.name);
+
+  if (authUserId && accessAllowed === false) {
+    return (
+      <InviteRequiredView
+        onSuccess={() => {
+          setAccessAllowed(true);
+          refreshMe();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="scrollbar min-h-screen bg-[#F7F8FB] text-gray-900 relative font-app">
@@ -4701,7 +4730,9 @@ function LinkaryAppInner() {
                 {(route.name === "calendar" || route.name === "xspaces") && <XSpacesPage setRoute={setRoute} me={me} />}
                 {route.name === "circles" && <CirclesOverviewPage setRoute={setRoute} me={me} />}
                 {route.name === "circleDetail" && <CircleDetailPage setRoute={setRoute} data={route.data} />}
-                {route.name === "kolLists" && <KOLListsPage setRoute={setRoute} />}
+                {route.name === "kolLists" && <KOLListsPage setRoute={setRoute} me={me} />}
+                {route.name === "inviteLineage" && <InviteLineagePage setRoute={setRoute} />}
+                {route.name === "creatorPrograms" && <CreatorProgramsPage setRoute={setRoute} />}
                 {route.name === "capitalPartners" && <CapitalPartnersPage setRoute={setRoute} />}
                 {route.name === "connections" && <ConnectionsPage setRoute={setRoute} />}
                 {route.name === "watchlist" && <WatchlistPage setRoute={setRoute} />}

@@ -195,8 +195,9 @@ export function CircleCard({ circle, onView, onEdit, onInvite }: any) {
   );
 }
 
-// Member Row Card
+// Member Row Card — member: { id, profile_id?, name, handle, avatar_url?, verified?, state?, reach?, topGeo?, roleTags? }
 export function MemberRowCard({ member, onRemove, onVerify, onResend, selectable, selected, onSelect }: any) {
+  const displayId = member.profile_id ?? member.id;
   return (
     <div className="rounded-lg border border-zinc-200 bg-white p-4 hover:border-indigo-300 transition-all duration-300 shadow-sm">
       <div className="flex items-center gap-4">
@@ -209,7 +210,11 @@ export function MemberRowCard({ member, onRemove, onVerify, onResend, selectable
           />
         )}
 
-        <div className="h-12 w-12 rounded-full bg-primary/80 flex-shrink-0" />
+        {member.avatar_url ? (
+          <img src={member.avatar_url} alt="" className="h-12 w-12 rounded-full object-cover flex-shrink-0" />
+        ) : (
+          <div className="h-12 w-12 rounded-full bg-primary/80 flex-shrink-0" />
+        )}
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
@@ -240,8 +245,17 @@ export function MemberRowCard({ member, onRemove, onVerify, onResend, selectable
           )}
         </div>
 
-        <div className="relative flex-shrink-0">
-          <button className="text-zinc-400 hover:text-zinc-700 transition-colors">
+        <div className="relative flex-shrink-0 flex items-center gap-1">
+          {onRemove && (
+            <button
+              type="button"
+              onClick={() => onRemove(member)}
+              className="text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded"
+            >
+              Remove
+            </button>
+          )}
+          <button type="button" className="text-zinc-400 hover:text-zinc-700 transition-colors" aria-label="More options">
             <MoreVertical className="h-5 w-5" />
           </button>
         </div>

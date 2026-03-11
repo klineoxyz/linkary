@@ -5,6 +5,19 @@
 
 ---
 
+## Pass 2 — Completed (Current State)
+
+- **Invite lineage schema:** Added `invite_codes.issued_by_profile_id`; updated `redeem_invite_code` to set `profiles.inviter_id` from it when present. Migration: `20260323000000_invite_issued_by_profile_id.sql`.
+- **Circles E2E:** CircleDetailPage wired to GET /api/circles/[id]; real members; add-member search; remove member; settings edit/archive/delete. CreateCircleFlow: real search; after create, POST members for each selected; opens from overview. All demo data removed.
+- **KOL Lists E2E:** GET/POST /api/kol-lists, GET/PATCH/DELETE /api/kol-lists/[id], members APIs; KOLListsPage wired; create list, select list, add/remove members from search; no demo creators.
+- **Invite-only gate:** After auth, GET /api/me/access; if !allowed, render InviteRequiredView (code input → redeem → allow). No entry to app without valid redemption when LINKARY_INVITE_ONLY=true.
+- **Invite issuance:** POST /api/invites/issue (count; cap 500; admin unlimited); POST /api/invites/allocate-batch (admin); GET /api/invites/my-codes.
+- **Invite lineage:** GET /api/invites/lineage?depth=; InviteLineagePage (inviter + invitees tree).
+- **Creator programs:** CRUD APIs; POST/PATCH /api/creator-programs/[id]/invites; CreatorProgramsPage (select org, list programs, create program).
+- **Mock removal:** Circle detail, CreateCircleFlow, KOLListsPage use only real data.
+
+---
+
 ## Phase 1 — Schema & Migrations
 
 ### 1.1 Circles

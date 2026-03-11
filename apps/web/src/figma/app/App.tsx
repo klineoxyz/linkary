@@ -935,7 +935,8 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
   return (
     <aside
       className={cn(
-        "border-r border-sidebar-border bg-sidebar",
+        "border-r border-sidebar-border",
+        "bg-background lg:bg-sidebar",
         "lg:w-64 w-full lg:h-screen lg:sticky lg:top-0",
         "flex flex-col items-stretch",
         "px-4 py-3 lg:px-6 lg:py-6 gap-3 lg:gap-6",

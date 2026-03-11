@@ -22,6 +22,8 @@ export type PublicProfileApiPayload = {
     display_name: string | null;
     bio: string | null;
     avatar_url: string | null;
+    /** Only shown on public page when true (advance editor: "Show location on public profile"). */
+    show_location?: boolean;
     location: string | null;
     roles: string[];
     is_verified: boolean;

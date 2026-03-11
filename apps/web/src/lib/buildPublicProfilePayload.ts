@@ -163,17 +163,40 @@ export async function buildPublicProfilePayloadFromEntity(
     const layoutObj = dto.publicLayout && typeof dto.publicLayout === "object" ? (dto.publicLayout as { preset?: string; order?: string[]; hidden?: string[]; featured_case_study_id?: string | null; featured_review_id?: string | null; featured_gig_id?: string | null }) : null;
     const layoutPreset: "classic" | "spotlight" | "showcase" | "compact" =
       layoutObj?.preset && ["spotlight", "showcase", "compact"].includes(layoutObj.preset) ? (layoutObj.preset as "spotlight" | "showcase" | "compact") : "classic";
-    const profileRow = entity.type === "profile" ? (entity.profile as { ethos_score?: number | null; xscore?: number | null; rep_score?: number | null } | undefined) : undefined;
+    const profileRow = entity.type === "profile" ? (entity.profile as {
+      ethos_score?: number | null;
+      xscore?: number | null;
+      rep_score?: number | null;
+      meta?: { public_location?: boolean; public_pricing?: boolean; pricing?: { post?: { price_usd?: number | null; platforms?: string[]; notes?: string | null }; podcast?: { price_usd?: number | null; platforms?: string[]; notes?: string | null } } };
+    } | undefined) : undefined;
     const ethosFromView = profileRow?.ethos_score ?? null;
     const xscoreFromView = profileRow?.xscore ?? null;
     const repScoreFromView = profileRow?.rep_score ?? null;
+    const meta = profileRow?.meta;
+    const showLocation = meta?.public_location === true;
+    const showPricing = meta?.public_pricing === true;
+    const pricingMeta = meta?.pricing;
+    const hasPostPrice = typeof pricingMeta?.post?.price_usd === "number";
+    const hasPodcastPrice = typeof pricingMeta?.podcast?.price_usd === "number";
+    const pricingBlock =
+      showPricing && (hasPostPrice || hasPodcastPrice)
+        ? {
+            post: hasPostPrice && pricingMeta?.post
+              ? { price_usd: pricingMeta.post.price_usd!, platforms: Array.isArray(pricingMeta.post.platforms) ? pricingMeta.post.platforms : [], notes: pricingMeta.post.notes ?? null }
+              : undefined,
+            podcast: hasPodcastPrice && pricingMeta?.podcast
+              ? { price_usd: pricingMeta.podcast.price_usd!, platforms: Array.isArray(pricingMeta.podcast.platforms) ? pricingMeta.podcast.platforms : [], notes: pricingMeta.podcast.notes ?? null }
+              : undefined,
+          }
+        : null;
     return {
       profile: {
         username: dto.username,
         display_name: dto.display_name,
         bio: dto.bio,
         avatar_url: dto.avatar_url,
-        location: dto.location,
+        show_location: showLocation,
+        location: showLocation ? dto.location : null,
         roles: [],
         is_verified: false,
         ethos_score: dto.ethosScore ?? ethosFromView,
@@ -217,6 +240,7 @@ export async function buildPublicProfilePayloadFromEntity(
       },
       ...(skills.length > 0 ? { skills } : {}),
       ...(achievements.length > 0 ? { achievements } : {}),
+      ...(pricingBlock ? { pricing: pricingBlock } : {}),
     };
   }
 

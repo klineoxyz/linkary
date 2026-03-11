@@ -9,6 +9,7 @@ import {
   type SectionKey,
 } from "@/lib/publicLayoutPresets";
 import { BadgeCheck, ChevronRight, ExternalLink, FileText, Globe, Link2, Share2, Shield, Zap } from "lucide-react";
+import { EthosPill } from "@/components/EthosPill";
 import Link from "next/link";
 import React, { Fragment } from "react";
 import { CopyProfileLinkButton } from "./CopyProfileLinkButton";
@@ -87,31 +88,6 @@ function tierPillClass(tier: string): string {
             ? "border-indigo-400/35 bg-indigo-500/10 text-indigo-800 dark:text-indigo-200"
             : "border-border bg-card text-foreground";
   return `${tierPillBase} ${tint}`;
-}
-
-/** ETHOS score tier for pill color (Linkary orange scale). */
-function ethosToTier(score: number): "entry" | "rising" | "established" | "strong" | "elite" {
-  if (score >= 2000) return "elite";
-  if (score >= 1500) return "strong";
-  if (score >= 1000) return "established";
-  if (score >= 500) return "rising";
-  return "entry";
-}
-
-/** ETHOS pill: Linkary primary (orange) by tier — stronger tint for higher levels. */
-const ethosPillBase = "rounded-full border px-2.5 py-1 text-xs font-medium shrink-0 inline-flex items-center gap-1";
-function ethosPillClass(tier: "entry" | "rising" | "established" | "strong" | "elite"): string {
-  const tint =
-    tier === "entry"
-      ? "border-primary/30 bg-primary/10 text-foreground dark:text-foreground"
-      : tier === "rising"
-        ? "border-primary/40 bg-primary/15 text-foreground dark:text-foreground"
-        : tier === "established"
-          ? "border-primary/50 bg-primary/20 text-primary dark:text-primary-foreground"
-          : tier === "strong"
-            ? "border-primary/60 bg-primary/25 text-primary dark:text-primary-foreground"
-            : "border-primary bg-primary/30 text-primary-foreground dark:border-primary dark:bg-primary/40 dark:text-primary-foreground";
-  return `${ethosPillBase} ${tint}`;
 }
 
 type RelationCard = { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string };
@@ -575,7 +551,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary" aria-label="Profile type">
                     {profileType === "company" ? "Company" : profileType === "project" ? "Project" : "Individual"}
                   </span>
-                  {profile.location && profile.location.trim() && (
+                  {profile.show_location === true && profile.location && profile.location.trim() && (
                     <span className="text-xs text-muted-foreground">{profile.location.trim()}</span>
                   )}
                 </div>
@@ -587,9 +563,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                       </span>
                     )}
                     {profile.ethos_score != null && (
-                      <span className={ethosPillClass(ethosToTier(profile.ethos_score))} aria-label="ETHOS score">
-                        <Shield className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> ETHOS {profile.ethos_score}
-                      </span>
+                      <EthosPill ethosScore={profile.ethos_score} className="shrink-0" />
                     )}
                     {profile.reputation_index != null && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">

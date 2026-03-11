@@ -71,7 +71,11 @@ export function TopFollowersByScoreTiersCard({
     );
   }
 
-  const barFill = isLight ? "hsl(var(--primary))" : "rgba(255,255,255,0.5)";
+  // Linkary orange (#FF5300) — bars and chart use brand color for consistency
+  const primaryOrange = "#FF5300";
+  const barFill = isLight ? primaryOrange : "rgba(255,83,0,0.85)";
+  const gridStroke = isLight ? "rgba(255,83,0,0.12)" : "rgba(255,255,255,0.08)";
+  const axisStroke = isLight ? "rgba(19,6,0,0.5)" : "rgba(255,255,255,0.5)";
 
   return (
     <div className={wrapper}>
@@ -80,17 +84,17 @@ export function TopFollowersByScoreTiersCard({
       <div className="mt-4 h-[220px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={isLight ? "hsl(var(--border))" : "rgba(255,255,255,0.08)"} />
-            <XAxis dataKey="tier" tick={{ fontSize: 10 }} stroke={isLight ? "hsl(var(--muted-foreground))" : "rgba(255,255,255,0.5)"} />
-            <YAxis tick={{ fontSize: 10 }} stroke={isLight ? "hsl(var(--muted-foreground))" : "rgba(255,255,255,0.5)"} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <XAxis dataKey="tier" tick={{ fontSize: 10, fill: axisStroke }} stroke={axisStroke} />
+            <YAxis tick={{ fontSize: 10, fill: axisStroke }} stroke={axisStroke} />
             <Tooltip
-              contentStyle={isLight ? { background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" } : { background: "rgba(0,0,0,0.8)", border: "none", borderRadius: "8px" }}
-              labelStyle={{ color: isLight ? "hsl(var(--foreground))" : "#fff" }}
+              contentStyle={isLight ? { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px" } : { background: "rgba(0,0,0,0.8)", border: "none", borderRadius: "8px" }}
+              labelStyle={{ color: isLight ? "var(--foreground)" : "#fff" }}
               formatter={(value: number) => [value, "Count"]}
             />
             <Bar dataKey="count" radius={[4, 4, 0, 0]} fill={barFill}>
               {chartData.map((_, i) => (
-                <Cell key={i} fill={barFill} opacity={0.7 + (0.3 * (i + 1)) / chartData.length} />
+                <Cell key={i} fill={barFill} opacity={0.75 + (0.25 * (i + 1)) / chartData.length} />
               ))}
             </Bar>
           </BarChart>

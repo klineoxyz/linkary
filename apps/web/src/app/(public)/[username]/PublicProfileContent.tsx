@@ -89,6 +89,31 @@ function tierPillClass(tier: string): string {
   return `${tierPillBase} ${tint}`;
 }
 
+/** ETHOS score tier for pill color (Linkary orange scale). */
+function ethosToTier(score: number): "entry" | "rising" | "established" | "strong" | "elite" {
+  if (score >= 2000) return "elite";
+  if (score >= 1500) return "strong";
+  if (score >= 1000) return "established";
+  if (score >= 500) return "rising";
+  return "entry";
+}
+
+/** ETHOS pill: Linkary primary (orange) by tier — stronger tint for higher levels. */
+const ethosPillBase = "rounded-full border px-2.5 py-1 text-xs font-medium shrink-0 inline-flex items-center gap-1";
+function ethosPillClass(tier: "entry" | "rising" | "established" | "strong" | "elite"): string {
+  const tint =
+    tier === "entry"
+      ? "border-primary/30 bg-primary/10 text-foreground dark:text-foreground"
+      : tier === "rising"
+        ? "border-primary/40 bg-primary/15 text-foreground dark:text-foreground"
+        : tier === "established"
+          ? "border-primary/50 bg-primary/20 text-primary dark:text-primary-foreground"
+          : tier === "strong"
+            ? "border-primary/60 bg-primary/25 text-primary dark:text-primary-foreground"
+            : "border-primary bg-primary/30 text-primary-foreground dark:border-primary dark:bg-primary/40 dark:text-primary-foreground";
+  return `${ethosPillBase} ${tint}`;
+}
+
 type RelationCard = { id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string };
 
 function RelationCardLink({ item, basePath }: { item: RelationCard; basePath: string }) {
@@ -562,7 +587,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                       </span>
                     )}
                     {profile.ethos_score != null && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+                      <span className={ethosPillClass(ethosToTier(profile.ethos_score))} aria-label="ETHOS score">
                         <Shield className="h-3.5 w-3.5 stroke-[1.75]" aria-hidden /> ETHOS {profile.ethos_score}
                       </span>
                     )}

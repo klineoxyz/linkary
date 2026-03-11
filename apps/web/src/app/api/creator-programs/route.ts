@@ -23,28 +23,60 @@ export async function GET(request: NextRequest) {
   if (userError || !user?.id) return fail("Invalid session", 401);
 
   const orgId = request.nextUrl.searchParams.get("org_id");
-  if (!orgId) return fail("org_id required", 400);
 
-  const { data: mem } = await supabase.from("org_members").select("org_id").eq("org_id", orgId).eq("user_id", user.id).maybeSingle();
-  if (!mem) return fail("Not a member of this org", 403);
+  if (orgId) {
+    // Org-scoped: caller must be org member
+    const { data: mem } = await supabase.from("org_members").select("org_id").eq("org_id", orgId).eq("user_id", user.id).maybeSingle();
+    if (!mem) return fail("Not a member of this org", 403);
 
+    const { data: rows, error } = await supabase
+      .from("creator_programs")
+      .select("id, org_id, title, description, program_type, status, created_at, updated_at")
+      .eq("org_id", orgId)
+      .order("updated_at", { ascending: false });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const withCounts = await Promise.all(
+      (rows ?? []).map(async (r: { id: string }) => {
+        const { count } = await supabase
+          .from("creator_program_invites")
+          .select("id", { count: "exact", head: true })
+          .eq("creator_program_id", r.id);
+        return { ...r, invites_count: count ?? 0 };
+      })
+    );
+    return NextResponse.json({ programs: withCounts });
+  }
+
+  // Marketplace: list open programs (RLS creator_programs_select_open allows read where status = 'open')
   const { data: rows, error } = await supabase
     .from("creator_programs")
     .select("id, org_id, title, description, program_type, status, created_at, updated_at")
-    .eq("org_id", orgId)
+    .eq("status", "open")
     .order("updated_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const withCounts = await Promise.all(
-    (rows ?? []).map(async (r: { id: string }) => {
+  const orgIds = [...new Set((rows ?? []).map((r: { org_id: string }) => r.org_id))];
+  const { data: orgs } = orgIds.length
+    ? await supabase.from("orgs").select("id, name, slug").in("id", orgIds)
+    : { data: [] };
+  const orgMap = new Map((orgs ?? []).map((o: { id: string; name: string; slug: string }) => [o.id, o]));
+
+  const withCountsAndOrg = await Promise.all(
+    (rows ?? []).map(async (r: { id: string; org_id: string }) => {
       const { count } = await supabase
         .from("creator_program_invites")
         .select("id", { count: "exact", head: true })
         .eq("creator_program_id", r.id);
-      return { ...r, invites_count: count ?? 0 };
+      const org = orgMap.get(r.org_id);
+      return {
+        ...r,
+        invites_count: count ?? 0,
+        org: org ? { id: org.id, name: org.name, slug: org.slug } : null,
+      };
     })
   );
-  return NextResponse.json({ programs: withCounts });
+  return NextResponse.json({ programs: withCountsAndOrg });
 }
 
 export async function POST(request: NextRequest) {

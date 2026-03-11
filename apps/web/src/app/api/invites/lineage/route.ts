@@ -27,11 +27,16 @@ export async function GET(request: NextRequest) {
 
   const { data: myProfile, error: myErr } = await supabase
     .from("profiles")
-    .select("id, inviter_id")
+    .select("id, inviter_id, username, display_name")
     .eq("id", user.id)
     .maybeSingle();
-  if (myErr || !myProfile) return NextResponse.json({ inviter: null, invitees: [] });
+  if (myErr || !myProfile) return NextResponse.json({ me: null, inviter: null, invitees: [] });
 
+  const me = {
+    id: (myProfile as { id: string }).id,
+    username: (myProfile as { username?: string | null }).username ?? null,
+    display_name: (myProfile as { display_name?: string | null }).display_name ?? null,
+  };
   const inviterId = (myProfile as { inviter_id?: string | null }).inviter_id;
   let inviter: { id: string; username: string | null; display_name: string | null } | null = null;
   if (inviterId) {
@@ -63,5 +68,5 @@ export async function GET(request: NextRequest) {
   }
 
   const invitees = await getInvitees(user.id, 1);
-  return NextResponse.json({ inviter, invitees });
+  return NextResponse.json({ me, inviter, invitees });
 }

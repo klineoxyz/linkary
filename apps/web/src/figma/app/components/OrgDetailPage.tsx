@@ -35,7 +35,6 @@ import {
 import { listJobs, listApplicationsForJobs, type Application } from "@/lib/jobs";
 import { listCaseStudiesForOrg, createCaseStudyForOrg, type CaseStudy } from "@/lib/caseStudies";
 import { Briefcase, Sparkles } from "lucide-react";
-import CreatorProgramsPage from "./CreatorProgramsPage";
 
 function formatRelativeTime(iso: string): string {
   try {
@@ -62,7 +61,7 @@ export default function OrgDetailPage({
   const orgId = data?.orgId ?? data?.slug;
   const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
-  const validTabs = ["dashboard", "insights", "members", "affiliates", "ambassadors", "jobs", "creator_programs", "case_studies", "settings"] as const;
+  const validTabs = ["dashboard", "insights", "members", "affiliates", "ambassadors", "jobs", "case_studies", "settings"] as const;
   const [tab, setTab] = useState<typeof validTabs[number]>("dashboard");
 
   useEffect(() => {
@@ -142,6 +141,10 @@ export default function OrgDetailPage({
   } | null>(null);
   const [watchlistList, setWatchlistList] = useState<{ people: Array<{ entity_id: string }>; orgs: Array<{ entity_id: string }> } | null>(null);
   const [watchlistToggling, setWatchlistToggling] = useState(false);
+  const [orgPrograms, setOrgPrograms] = useState<Array<{ id: string; title: string; status: string; invites_count: number }>>([]);
+  const [showCreateProgramModal, setShowCreateProgramModal] = useState(false);
+  const [programTitle, setProgramTitle] = useState("");
+  const [programSaving, setProgramSaving] = useState(false);
 
   useEffect(() => void loadSession(), []);
   function loadSession() {
@@ -212,6 +215,13 @@ export default function OrgDetailPage({
         setSupporting(supportStatusRes?.supporting === true);
         setInfluenceRollup(influenceRes ? { total_influence: influenceRes.total_influence ?? 0, breakdown: influenceRes.breakdown ?? {}, computed_at: influenceRes.computed_at ?? null } : null);
         setDashboardData(dashboardRes ? { supportersPreview: dashboardRes.supportersPreview ?? [], topSupporters: dashboardRes.topSupporters ?? [], jobsPreview: dashboardRes.jobsPreview ?? [] } : null);
+        if (token && base) {
+          const progRes = await fetch(`${base}/api/creator-programs?org_id=${encodeURIComponent(o.id)}`, { headers: { Authorization: `Bearer ${token}` } });
+          const progJson = await progRes.json().catch(() => ({}));
+          setOrgPrograms(Array.isArray(progJson.programs) ? progJson.programs : []);
+        } else {
+          setOrgPrograms([]);
+        }
         if (userId) {
           const isAdmin = await isOrgAdmin(userId, o.id);
           setAdmin(isAdmin);
@@ -549,7 +559,6 @@ export default function OrgDetailPage({
     { id: "affiliates" as const, label: "Affiliates", icon: UserPlus },
     { id: "ambassadors" as const, label: "Ambassadors", icon: UserPlus },
     { id: "jobs" as const, label: "Jobs", icon: Briefcase },
-    { id: "creator_programs" as const, label: "Creator programs", icon: Sparkles },
     { id: "case_studies" as const, label: "Case Studies", icon: Building2 },
     { id: "settings" as const, label: "Settings", icon: Settings },
   ];
@@ -1397,11 +1406,38 @@ export default function OrgDetailPage({
                   );
                 })
               )}
+              {/* Creator programs — same work surface as Jobs */}
+              <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-700">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Creator programs
+                  </h3>
+                  {admin && (
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateProgramModal(true)}
+                      className="text-sm px-3 py-1.5 rounded-lg bg-primary hover:opacity-90 text-white"
+                    >
+                      Create program
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Invite creators from circles or KOL lists into programs.</p>
+                {orgPrograms.length === 0 ? (
+                  <p className="text-zinc-500 text-sm">No creator programs yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {orgPrograms.map((p) => (
+                      <li key={p.id} className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">{p.title}</span>
+                        <span className="text-xs text-zinc-500">{p.status} · {p.invites_count} invite(s)</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-          )}
-
-          {tab === "creator_programs" && org && (
-            <CreatorProgramsPage setRoute={setRoute} orgId={org.id} />
           )}
 
           {tab === "case_studies" && (
@@ -1840,6 +1876,59 @@ export default function OrgDetailPage({
                 className="flex-1 py-2 rounded-lg bg-primary hover:opacity-90 text-white disabled:opacity-50"
               >
                 {jobSaving ? "Creating…" : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateProgramModal && org && admin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Create creator program</h3>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">Invite creators from circles or KOL lists.</p>
+            <input
+              type="text"
+              placeholder="Program title"
+              value={programTitle}
+              onChange={(e) => setProgramTitle(e.target.value)}
+              className="w-full h-10 px-3 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-4"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowCreateProgramModal(false); setProgramTitle(""); }}
+                className="flex-1 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={programSaving || !programTitle.trim()}
+                onClick={async () => {
+                  if (!org?.id || !programTitle.trim()) return;
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const token = session?.access_token;
+                  const origin = typeof window !== "undefined" ? window.location.origin : "";
+                  if (!token || !origin) return;
+                  setProgramSaving(true);
+                  const res = await fetch(`${origin}/api/creator-programs`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ org_id: org.id, title: programTitle.trim(), status: "draft" }),
+                  });
+                  setProgramSaving(false);
+                  if (res.ok) {
+                    const progRes = await fetch(`${origin}/api/creator-programs?org_id=${encodeURIComponent(org.id)}`, { headers: { Authorization: `Bearer ${token}` } });
+                    const progJson = await progRes.json().catch(() => ({}));
+                    setOrgPrograms(Array.isArray(progJson.programs) ? progJson.programs : []);
+                    setShowCreateProgramModal(false);
+                    setProgramTitle("");
+                  }
+                }}
+                className="flex-1 py-2 rounded-lg bg-primary hover:opacity-90 text-white disabled:opacity-50"
+              >
+                {programSaving ? "Creating…" : "Create"}
               </button>
             </div>
           </div>

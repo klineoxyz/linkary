@@ -185,7 +185,6 @@ import ConnectionsPage from "./components/ConnectionsPage";
 import WatchlistPage from "./components/WatchlistPage";
 import InviteRequiredView from "./components/InviteRequiredView";
 import InviteLineagePage from "./components/InviteLineagePage";
-import CreatorProgramsPage from "./components/CreatorProgramsPage";
 
 const DashboardPage = dynamic(
   () => import("./components/DashboardPage").then((m) => m.default),
@@ -861,6 +860,9 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   if (parts[0] === "invites" && parts[1] === "lineage") {
     return { name: "inviteLineage" };
   }
+  if (parts[0] === "creator-programs") {
+    return { name: "market", data: { view: "creator_programs" } };
+  }
   const path = parts[0] || "";
   if (!path) return { name: "landing" };
   const segment = path;
@@ -880,7 +882,6 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
       support: "support", notifications: "notifications",
       "verification-inbox": "verificationInbox", showcase: "showcase", integrations: "integrations",
       "roles-skills": "rolesSkills", profile: "profile", watchlist: "watchlist",
-      "creator-programs": "creatorPrograms",
       settings: "integrations",
     };
     return { name: nameMap[segment] ?? "landing" };
@@ -1903,10 +1904,13 @@ function ExplorePage({ setRoute }) {
   );
 }
 
-function MarketplacePage({ setRoute }) {
+function MarketplacePage({ setRoute, route }) {
+  const initialView = route?.data?.view === "creator_programs" ? "creator_programs" : "all";
   const [q, setQ] = useState("");
-  const [view, setView] = useState("all");
+  const [view, setView] = useState(initialView);
   const [dbJobs, setDbJobs] = useState<JobWithOrg[]>([]);
+  const [openPrograms, setOpenPrograms] = useState<Array<{ id: string; title: string; status: string; invites_count: number; org?: { id: string; name: string; slug: string } | null }>>([]);
+  const [programsLoading, setProgramsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [myOrgs, setMyOrgs] = useState<{ id: string; name: string; org_type: string }[]>([]);
@@ -1915,6 +1919,10 @@ function MarketplacePage({ setRoute }) {
   const [applyAsOrgId, setApplyAsOrgId] = useState<string | null>(null);
   const [applyLoading, setApplyLoading] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (route?.data?.view === "creator_programs") setView("creator_programs");
+  }, [route?.data?.view]);
 
   useEffect(() => {
     listJobs().then(setDbJobs);
@@ -1930,9 +1938,30 @@ function MarketplacePage({ setRoute }) {
     });
   }, []);
 
+  useEffect(() => {
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token;
+      if (!token || !base) {
+        setOpenPrograms([]);
+        setProgramsLoading(false);
+        return;
+      }
+      setProgramsLoading(true);
+      fetch(`${base}/api/creator-programs`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.json())
+        .then((json) => {
+          setOpenPrograms(Array.isArray(json.programs) ? json.programs : []);
+        })
+        .catch(() => setOpenPrograms([]))
+        .finally(() => setProgramsLoading(false));
+    });
+  }, []);
+
   const agencyOrgs = myOrgs.filter((o) => o.org_type === "agency");
   const jobs = dbJobs.filter((j) => j.type === "job" && (j.title + (j.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()));
   const sprints = dbJobs.filter((j) => j.type === "sprint" && (j.title + (j.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()));
+  const programsFiltered = openPrograms.filter((p) => (p.title + (p.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()));
 
   const handleApplySubmit = async () => {
     if (!applyJob || !userId || !profileId) return;
@@ -2009,6 +2038,12 @@ function MarketplacePage({ setRoute }) {
         >
           Sprints ({sprints.length})
         </Button>
+        <Button
+          variant={view === "creator_programs" ? "primary" : "outline"}
+          onClick={() => setView("creator_programs")}
+        >
+          Creator Programs ({openPrograms.length})
+        </Button>
         <div className="ml-auto">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
@@ -2017,7 +2052,28 @@ function MarketplacePage({ setRoute }) {
         </div>
       </div>
 
-      {(jobs.length === 0 && sprints.length === 0) ? (
+      {(view === "creator_programs") ? (
+        <Card className="p-6">
+          <h3 className="font-semibold mb-4" style={{ color: "#000000" }}>Creator programs</h3>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">Open programs from orgs — invite creators from circles or KOL lists. Create programs from your org&apos;s Jobs tab.</p>
+          {programsLoading ? (
+            <p className="text-sm text-zinc-500">Loading…</p>
+          ) : programsFiltered.length === 0 ? (
+            <p className="text-zinc-600">No open creator programs yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {programsFiltered.map((p) => (
+                <div key={p.id} className="p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-zinc-900 dark:text-zinc-100">{p.title}</p>
+                    <p className="text-xs text-zinc-500">{p.org?.name ?? "—"} · {p.invites_count} invite(s)</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      ) : (jobs.length === 0 && sprints.length === 0) ? (
         <Card className="p-8 text-center">
           <p className="text-zinc-600">No jobs or sprints yet. Check back later or create one from your org dashboard.</p>
         </Card>
@@ -4118,7 +4174,7 @@ function LinkaryAppInner() {
     "landing", "overview", "dashboard", "profile", "profileEdit", "profileInsights", "userProfile", "userInsights", "market", "messages", "workRequests",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding", "accountType",
     "orgDetail", "brandProfile", "creatorProfile", "agencyProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
-    "circles", "circleDetail", "connections", "kolLists", "inviteLineage", "creatorPrograms", "calendar", "xspaces", "capitalPartners", "watchlist", "explore",
+    "circles", "circleDetail", "connections", "kolLists", "inviteLineage", "calendar", "xspaces", "capitalPartners", "watchlist", "explore",
     "leaderboards", "hostDashboard", "availability", "monetizationShowcase", "monetizationFlowShowcase",
   ]);
   useEffect(() => {
@@ -4680,7 +4736,7 @@ function LinkaryAppInner() {
                 className="relative z-[10]"
               >
                 {(route.name === "overview" || !ALLOWED_ROUTES.has(route.name)) && <OverviewPage setRoute={setRoute} headerMedia={headerMedia} getAuthHeaders={getAuthHeaders} />}
-                {route.name === "market" && <MarketplacePage setRoute={setRoute} />}
+                {route.name === "market" && <MarketplacePage setRoute={setRoute} route={route} />}
                 {route.name === "messages" && <MessagesPage setRoute={setRoute} initialConversationId={route.data?.conversationId} />}
                 {route.name === "workRequests" && <WorkRequestsPage setRoute={setRoute} route={route} me={me} />}
                 {route.name === "login" && (
@@ -4735,7 +4791,6 @@ function LinkaryAppInner() {
                 {route.name === "circleDetail" && <CircleDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "kolLists" && <KOLListsPage setRoute={setRoute} me={me} />}
                 {route.name === "inviteLineage" && <InviteLineagePage setRoute={setRoute} />}
-                {route.name === "creatorPrograms" && <CreatorProgramsPage setRoute={setRoute} />}
                 {route.name === "capitalPartners" && <CapitalPartnersPage setRoute={setRoute} />}
                 {route.name === "connections" && <ConnectionsPage setRoute={setRoute} />}
                 {route.name === "watchlist" && <WatchlistPage setRoute={setRoute} />}

@@ -37,15 +37,20 @@ export async function GET(request: NextRequest) {
     username: (myProfile as { username?: string | null }).username ?? null,
     display_name: (myProfile as { display_name?: string | null }).display_name ?? null,
   };
+  const ADMIN_TWITTER = "muazxinthi";
   const inviterId = (myProfile as { inviter_id?: string | null }).inviter_id;
   let inviter: { id: string; username: string | null; display_name: string | null } | null = null;
   if (inviterId) {
     const { data: inv } = await supabase
       .from("profiles")
-      .select("id, username, display_name")
+      .select("id, username, display_name, twitter_username")
       .eq("id", inviterId)
       .maybeSingle();
-    if (inv) inviter = { id: inv.id, username: inv.username ?? null, display_name: inv.display_name ?? null };
+    if (inv) {
+      const tw = ((inv as { twitter_username?: string | null }).twitter_username ?? "").replace(/^@/, "").toLowerCase();
+      const displayName = tw === ADMIN_TWITTER ? "Linkary" : (inv.display_name ?? inv.username ?? null);
+      inviter = { id: inv.id, username: inv.username ?? null, display_name: displayName };
+    }
   }
 
   async function getInvitees(profileId: string, d: number): Promise<{ id: string; username: string | null; display_name: string | null; depth: number; invitees?: any[] }[]> {

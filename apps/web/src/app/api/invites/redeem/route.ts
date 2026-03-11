@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
   const result = data as { ok?: boolean; error?: string };
   if (!result?.ok) {
     const msg = result?.error ?? "Invalid or unavailable code";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    const status = msg === "inviter_limit_reached" ? 403 : 400;
+    return NextResponse.json({ error: msg }, { status });
   }
   return NextResponse.json({ ok: true });
 }

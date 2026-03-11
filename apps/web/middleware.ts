@@ -142,6 +142,9 @@ export function middleware(request: NextRequest) {
         const twitter = ((profile as { twitter_username?: string | null } | null)?.twitter_username ?? "").replace(/^@/, "").toLowerCase();
         const allowed = (inviterId != null && inviterId !== "") || twitter === ADMIN_TWITTER_HANDLE;
         if (!allowed) {
+          // Allow exact /app through so client shows InviteRequiredView; avoid redirect loop (redirecting /app -> /app).
+          const isAppRoot = pathname === "/app" || pathname === "/app/";
+          if (isAppRoot) return response;
           const toApp = new URL(url);
           toApp.pathname = "/app";
           toApp.search = "";

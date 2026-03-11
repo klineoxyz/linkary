@@ -185,6 +185,7 @@ import ConnectionsPage from "./components/ConnectionsPage";
 import WatchlistPage from "./components/WatchlistPage";
 import InviteRequiredView from "./components/InviteRequiredView";
 import InviteLineagePage from "./components/InviteLineagePage";
+import AdminInvitesPage from "./components/AdminInvitesPage";
 
 const DashboardPage = dynamic(
   () => import("./components/DashboardPage").then((m) => m.default),
@@ -785,7 +786,6 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     monetizationFlowShowcase: "/app/monetization-flow",
     kolLists: "/app/kol-lists",
     inviteLineage: "/app/invites/lineage",
-    creatorPrograms: "/app/creator-programs",
     capitalPartners: "/app/capital-partners",
     connections: "/app/connections",
     preferences: "/app/preferences",
@@ -796,6 +796,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     rolesSkills: "/app/settings/roles-skills",
     wallet: "/app/settings/wallet",
     watchlist: "/app/watchlist",
+    adminInvites: "/app/admin/invites",
   };
   if (route.name === "profile") {
     const tab = route.data?.tab;
@@ -862,6 +863,9 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   }
   if (parts[0] === "creator-programs") {
     return { name: "market", data: { view: "creator_programs" } };
+  }
+  if (parts[0] === "admin" && parts[1] === "invites") {
+    return { name: "adminInvites" };
   }
   const path = parts[0] || "";
   if (!path) return { name: "landing" };
@@ -4174,7 +4178,7 @@ function LinkaryAppInner() {
     "landing", "overview", "dashboard", "profile", "profileEdit", "profileInsights", "userProfile", "userInsights", "market", "messages", "workRequests",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding", "accountType",
     "orgDetail", "brandProfile", "creatorProfile", "agencyProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
-    "circles", "circleDetail", "connections", "kolLists", "inviteLineage", "calendar", "xspaces", "capitalPartners", "watchlist", "explore",
+    "circles", "circleDetail", "connections", "kolLists", "inviteLineage", "calendar", "xspaces", "capitalPartners", "watchlist", "explore", "adminInvites",
     "leaderboards", "hostDashboard", "availability", "monetizationShowcase", "monetizationFlowShowcase",
   ]);
   useEffect(() => {
@@ -4791,6 +4795,7 @@ function LinkaryAppInner() {
                 {route.name === "circleDetail" && <CircleDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "kolLists" && <KOLListsPage setRoute={setRoute} me={me} />}
                 {route.name === "inviteLineage" && <InviteLineagePage setRoute={setRoute} />}
+                {route.name === "adminInvites" && <AdminInvitesPage setRoute={setRoute} me={me} />}
                 {route.name === "capitalPartners" && <CapitalPartnersPage setRoute={setRoute} />}
                 {route.name === "connections" && <ConnectionsPage setRoute={setRoute} />}
                 {route.name === "watchlist" && <WatchlistPage setRoute={setRoute} />}

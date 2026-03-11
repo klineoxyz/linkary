@@ -35,6 +35,7 @@ import {
 import { listJobs, listApplicationsForJobs, type Application } from "@/lib/jobs";
 import { listCaseStudiesForOrg, createCaseStudyForOrg, type CaseStudy } from "@/lib/caseStudies";
 import { Briefcase, Sparkles } from "lucide-react";
+import CreatorProgramDetailDrawer from "./CreatorProgramDetailDrawer";
 
 function formatRelativeTime(iso: string): string {
   try {
@@ -145,6 +146,8 @@ export default function OrgDetailPage({
   const [showCreateProgramModal, setShowCreateProgramModal] = useState(false);
   const [programTitle, setProgramTitle] = useState("");
   const [programSaving, setProgramSaving] = useState(false);
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
   useEffect(() => void loadSession(), []);
   function loadSession() {
@@ -1252,6 +1255,7 @@ export default function OrgDetailPage({
                           <p className="text-xs text-zinc-500">{j.type} · {j.status}{j.budget ? ` · ${j.budget}` : ""}</p>
                         </div>
                         <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => setSelectedJobId(j.id)} className="text-sm text-primary hover:underline">Manage</button>
                           <button
                             type="button"
                             onClick={() => setRoute({ name: "market", data: { highlightJobId: j.id } })}
@@ -1429,9 +1433,18 @@ export default function OrgDetailPage({
                 ) : (
                   <ul className="space-y-2">
                     {orgPrograms.map((p) => (
-                      <li key={p.id} className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
+                      <li key={p.id} className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-between gap-2">
                         <span className="font-medium text-zinc-900 dark:text-zinc-100">{p.title}</span>
-                        <span className="text-xs text-zinc-500">{p.status} · {p.invites_count} invite(s)</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-zinc-500">{p.status} · {p.invites_count} invite(s)</span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedProgramId(p.id)}
+                            className="text-sm text-primary hover:underline"
+                          >
+                            Manage
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -1934,6 +1947,173 @@ export default function OrgDetailPage({
           </div>
         </div>
       )}
+
+      {selectedProgramId && org && (
+        <CreatorProgramDetailDrawer
+          programId={selectedProgramId}
+          orgId={org.id}
+          orgName={org.name ?? ""}
+          onClose={() => setSelectedProgramId(null)}
+          onUpdated={async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            const origin = typeof window !== "undefined" ? window.location.origin : "";
+            if (token && origin && org?.id) {
+              const progRes = await fetch(`${origin}/api/creator-programs?org_id=${encodeURIComponent(org.id)}`, { headers: { Authorization: `Bearer ${token}` } });
+              const progJson = await progRes.json().catch(() => ({}));
+              setOrgPrograms(Array.isArray(progJson.programs) ? progJson.programs : []);
+            }
+          }}
+          admin={!!admin}
+        />
+      )}
+
+      {selectedJobId && org && (() => {
+        const j = orgJobs.find((job: { id: string }) => job.id === selectedJobId);
+        if (!j) return null;
+        const jobApps = applications.filter((a) => a.job_id === j.id);
+        const isOpen = j.status === "open";
+        return (
+          <div className="fixed inset-0 z-50 flex justify-end bg-black/50">
+            <div className="w-full max-w-lg bg-white dark:bg-zinc-900 shadow-xl overflow-y-auto flex flex-col max-h-full">
+              <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-700">
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{j.type === "sprint" ? "Sprint" : "Job"}</h2>
+                <button type="button" onClick={() => setSelectedJobId(null)} className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-4 space-y-4">
+                <div>
+                  <h3 className="font-medium text-zinc-900 dark:text-zinc-100">{j.title}</h3>
+                  <p className="text-xs text-zinc-500 mt-0.5">{org.name} · {j.type} · {j.status}</p>
+                  {(j.budget || j.duration) && <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">{j.budget ?? ""} {j.duration ?? ""}</p>}
+                  {j.description && <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">{j.description}</p>}
+                  {j.type === "sprint" && (j as { objective?: string }).objective && <p className="text-xs text-zinc-500 mt-1">Objective: {(j as { objective?: string }).objective}</p>}
+                  {Array.isArray(j.tags) && j.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {j.tags.map((t: string) => (
+                        <span key={t} className="rounded-full border border-zinc-300 dark:border-zinc-600 px-2 py-0.5 text-xs">{t}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setRoute({ name: "market", data: { highlightJobId: j.id } })} className="text-sm text-primary hover:underline">View in Marketplace</button>
+                  {admin && isOpen && (
+                    <button
+                      type="button"
+                      disabled={!!closeJobLoading}
+                      onClick={async () => {
+                        if (!org?.id || !userId) return;
+                        setCloseJobLoading(j.id);
+                        try {
+                          const { data: { session } } = await supabase.auth.getSession();
+                          const token = session?.access_token;
+                          const origin = typeof window !== "undefined" ? window.location.origin : "";
+                          const res = await fetch(`${origin}/api/orgs/${org.id}/jobs/${j.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ status: "completed" }),
+                          });
+                          if (res.ok) {
+                            const all = await listJobs();
+                            setOrgJobs((all ?? []).filter((job: { org_id: string }) => job.org_id === org.id));
+                            const jobsForOrg = (all ?? []).filter((job: { org_id: string }) => job.org_id === org.id);
+                            const appList = jobsForOrg.length ? await listApplicationsForJobs(jobsForOrg.map((job: { id: string }) => job.id)) : [];
+                            setApplications(appList);
+                          }
+                        } finally {
+                          setCloseJobLoading(null);
+                        }
+                      }}
+                      className="text-sm px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600"
+                    >
+                      {closeJobLoading === j.id ? "…" : "Close job"}
+                    </button>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Applicants ({jobApps.length})</h3>
+                  {jobApps.length === 0 ? (
+                    <p className="text-sm text-zinc-500">No applicants yet.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {jobApps.map((app) => (
+                        <li key={app.id} className="py-2 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm">{app.applicant_type === "profile" ? `Profile ${app.applicant_profile_id ?? ""}` : `Org ${app.applicant_org_id ?? ""}`}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-700">{app.status}</span>
+                          </div>
+                          {app.message && <p className="text-xs text-zinc-500 mt-1">{app.message}</p>}
+                          {admin && app.status === "pending" && isOpen && (
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                type="button"
+                                disabled={!!acceptLoading}
+                                onClick={async () => {
+                                  if (!userId) return;
+                                  setAcceptLoading(app.id);
+                                  try {
+                                    const { data: { session } } = await supabase.auth.getSession();
+                                    const token = session?.access_token;
+                                    const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                    const res = await fetch(`${origin}/api/applications/${app.id}/accept`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+                                    const json = await res.json().catch(() => ({}));
+                                    if (res.ok && json?.deal) {
+                                      const all = await listJobs();
+                                      setOrgJobs((all ?? []).filter((job: { org_id: string }) => job.org_id === org?.id));
+                                      const jobsForOrg = (all ?? []).filter((job: { org_id: string }) => job.org_id === org?.id);
+                                      const appList = jobsForOrg.length ? await listApplicationsForJobs(jobsForOrg.map((job: { id: string }) => job.id)) : [];
+                                      setApplications(appList);
+                                      if (json.deal?.id && setRoute) setRoute({ name: "dealDetail", data: { dealId: json.deal.id } });
+                                    }
+                                  } finally {
+                                    setAcceptLoading(null);
+                                  }
+                                }}
+                                className="text-xs px-2 py-1 rounded bg-primary text-white"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!!acceptLoading}
+                                onClick={async () => {
+                                  if (!userId) return;
+                                  setAcceptLoading(app.id);
+                                  try {
+                                    const { data: { session } } = await supabase.auth.getSession();
+                                    const token = session?.access_token;
+                                    const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                    const res = await fetch(`${origin}/api/applications/${app.id}/reject`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+                                    const json = await res.json().catch(() => ({}));
+                                    if (res.ok && json?.ok) {
+                                      const all = await listJobs();
+                                      setOrgJobs((all ?? []).filter((job: { org_id: string }) => job.org_id === org?.id));
+                                      const jobsForOrg = (all ?? []).filter((job: { org_id: string }) => job.org_id === org?.id);
+                                      const appList = jobsForOrg.length ? await listApplicationsForJobs(jobsForOrg.map((job: { id: string }) => job.id)) : [];
+                                      setApplications(appList);
+                                    }
+                                  } finally {
+                                    setAcceptLoading(null);
+                                  }
+                                }}
+                                className="text-xs px-2 py-1 rounded border border-zinc-300"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

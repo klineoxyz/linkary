@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 /** Canonical host (apex). Session cookies are set here; www must redirect here so /username recognizes the owner. */
 const CANONICAL_APEX = "linkary.xyz";
+
+const INVITE_ONLY = process.env.LINKARY_INVITE_ONLY === "true";
+const ADMIN_TWITTER_HANDLE = "muazxinthi";
 
 /**
  * Old root app path → canonical /app/... path. 301 redirects (Phase 7).
@@ -105,6 +110,46 @@ export function middleware(request: NextRequest) {
       redirectUrl.search = url.search;
       return NextResponse.redirect(redirectUrl, 301);
     }
+  }
+
+  // Invite-only gate: signed-in users without redeemed invite cannot use /app/* (server-side enforcement)
+  if (INVITE_ONLY && pathname.startsWith("/app")) {
+    const response = NextResponse.next();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (supabaseUrl && supabaseAnonKey) {
+      const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet: Array<{ name: string; value: string; options?: Record<string, unknown> }>) {
+            cookiesToSet.forEach((c) => response.cookies.set(c.name, c.value, c.options as Parameters<NextResponse["cookies"]["set"]>[2]));
+          },
+        },
+      });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id && session.access_token) {
+        const client = createClient(supabaseUrl, supabaseAnonKey, {
+          global: { headers: { Authorization: `Bearer ${session.access_token}` } },
+        });
+        const { data: profile } = await client
+          .from("profiles")
+          .select("inviter_id, twitter_username")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        const inviterId = (profile as { inviter_id?: string | null } | null)?.inviter_id;
+        const twitter = ((profile as { twitter_username?: string | null } | null)?.twitter_username ?? "").replace(/^@/, "").toLowerCase();
+        const allowed = (inviterId != null && inviterId !== "") || twitter === ADMIN_TWITTER_HANDLE;
+        if (!allowed) {
+          const toApp = new URL(url);
+          toApp.pathname = "/app";
+          toApp.search = "";
+          return NextResponse.redirect(toApp, 302);
+        }
+      }
+    }
+    return response;
   }
 
   return NextResponse.next();

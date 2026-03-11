@@ -3,6 +3,7 @@ import { Plus, Users, Shield, TrendingUp, Target, Link2 } from "lucide-react";
 import { CircleCard, StatsCard } from "./CircleComponents";
 import CreateCircleFlow from "./CreateCircleFlow";
 import { supabase } from "@/lib/supabase";
+import { listMyOrgs } from "@/lib/orgs";
 
 /**
  * Circles Overview Page
@@ -57,6 +58,7 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
   const [activeTab, setActiveTab] = useState<"all" | "personal" | "organization">("all");
   const [connectionsCount, setConnectionsCount] = useState<{ accepted: number; pending: number } | null>(null);
   const [circles, setCircles] = useState<ReturnType<typeof toCardCircle>[]>([]);
+  const [myOrgs, setMyOrgs] = useState<{ id: string; name: string }[]>([]);
   const [circlesLoading, setCirclesLoading] = useState(true);
   const [showCreateFlow, setShowCreateFlow] = useState(false);
 
@@ -67,11 +69,22 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
     if (!token) return;
     const base = typeof window !== "undefined" ? window.location.origin : "";
     setCirclesLoading(true);
-    const res = await fetch(`${base}/api/circles`, { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json().catch(() => ({}));
+    const [profileRes, orgsList] = await Promise.all([
+      fetch(`${base}/api/circles`, { headers: { Authorization: `Bearer ${token}` } }),
+      listMyOrgs(me.id),
+    ]);
+    const profileData = await profileRes.json().catch(() => ({}));
+    const profileCircles = (Array.isArray(profileData.circles) ? profileData.circles : []).map((c: { id: string; name: string; description?: string | null; status: string; members_count: number }) => toCardCircle({ ...c, owner_type: "profile" }));
+    const orgCircles: ReturnType<typeof toCardCircle>[] = [];
+    for (const org of orgsList) {
+      const orgRes = await fetch(`${base}/api/circles?owner=org&org_id=${encodeURIComponent(org.id)}`, { headers: { Authorization: `Bearer ${token}` } });
+      const orgData = await orgRes.json().catch(() => ({}));
+      const list = Array.isArray(orgData.circles) ? orgData.circles : [];
+      orgCircles.push(...list.map((c: { id: string; name: string; description?: string | null; status: string; members_count: number }) => toCardCircle({ ...c, owner_type: "org" })));
+    }
+    setCircles([...profileCircles, ...orgCircles]);
+    setMyOrgs(orgsList.map((o) => ({ id: o.id, name: o.name ?? "" })));
     setCirclesLoading(false);
-    const list = Array.isArray(data.circles) ? data.circles : [];
-    setCircles(list.map((c: { id: string; name: string; description?: string | null; status: string; owner_type: string; members_count: number }) => toCardCircle(c)));
   }, [me?.id]);
 
   const loadConnections = useCallback(async () => {
@@ -227,6 +240,7 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
           me={me}
           setRoute={setRoute}
           onClose={handleCreateFlowClose}
+          myOrgs={myOrgs}
         />
       )}
     </div>

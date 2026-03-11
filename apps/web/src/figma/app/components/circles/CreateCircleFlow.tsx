@@ -30,10 +30,12 @@ export default function CreateCircleFlow({
   onClose,
   setRoute,
   me,
+  myOrgs = [],
 }: {
   onClose: () => void;
   setRoute?: (route: any) => void;
   me?: { id: string } | null;
+  myOrgs?: { id: string; name: string }[];
 }) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -42,6 +44,7 @@ export default function CreateCircleFlow({
     description: "",
     visibility: "private" as "private" | "shareable" | "invite-only",
   });
+  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [selectedMembers, setSelectedMembers] = useState<SelectedMember[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -113,11 +116,13 @@ export default function CreateCircleFlow({
     setCreateError(null);
     try {
       const ownerType = formData.type === "organization" ? "org" : "profile";
-      const ownerId = formData.type === "organization" ? me.id : me.id;
+      const ownerId = formData.type === "organization" ? selectedOrgId : me.id;
       if (formData.type === "organization") {
-        setCreateError("Organization circles require an org. Use a personal circle for now.");
-        setCreateLoading(false);
-        return;
+        if (!selectedOrgId || !myOrgs.some((o) => o.id === selectedOrgId)) {
+          setCreateError("Select an organization.");
+          setCreateLoading(false);
+          return;
+        }
       }
       const createRes = await fetch(`${base}/api/circles`, {
         method: "POST",
@@ -126,8 +131,8 @@ export default function CreateCircleFlow({
           name: formData.name.trim() || "New Circle",
           description: formData.description.trim() || null,
           visibility: formData.visibility,
-          owner_type: "profile",
-          owner_id: me.id,
+          owner_type: ownerType,
+          owner_id: ownerId,
         }),
       });
       const createJson = await createRes.json().catch(() => ({}));
@@ -237,6 +242,24 @@ export default function CreateCircleFlow({
                   </button>
                 </div>
               </div>
+              {formData.type === "organization" && myOrgs.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">Organization</label>
+                  <select
+                    value={selectedOrgId}
+                    onChange={(e) => setSelectedOrgId(e.target.value)}
+                    className="w-full h-11 px-4 rounded-lg border border-border bg-primary/10 text-white focus:border-ring focus:outline-none"
+                  >
+                    <option value="">Select org...</option>
+                    {myOrgs.map((o) => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {formData.type === "organization" && myOrgs.length === 0 && (
+                <p className="text-sm text-amber-400">Create or join an organization first to add an org circle.</p>
+              )}
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">Description</label>
                 <textarea

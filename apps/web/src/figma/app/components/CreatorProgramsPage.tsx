@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * @deprecated Not rendered in app. Creator programs are shown via Market (view=creator_programs).
+ * /app/creator-programs is mapped to market with that view. This component is kept for reference only.
+ */
 import React, { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Plus, Users, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";

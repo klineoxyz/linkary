@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Search, Users, Loader2, Plus, Trash2 } from "lucide-react";
 import { CreatorRowCard, KOLSelectionSummaryCard } from "./KOLComponents";
 import { supabase } from "@/lib/supabase";
+import { listMyOrgs } from "@/lib/orgs";
 
 /**
  * KOL Lists Page — real persistence via /api/kol-lists.
@@ -32,6 +33,9 @@ export default function KOLListsPage({ setRoute, me }: { setRoute?: (r: any) => 
   const [createListName, setCreateListName] = useState("");
   const [createListOpen, setCreateListOpen] = useState(false);
   const [createListLoading, setCreateListLoading] = useState(false);
+  const [createAsOrg, setCreateAsOrg] = useState(false);
+  const [createOrgId, setCreateOrgId] = useState("");
+  const [myOrgs, setMyOrgs] = useState<{ id: string; name: string }[]>([]);
 
   const [addToListLoading, setAddToListLoading] = useState<string | null>(null);
 
@@ -43,10 +47,21 @@ export default function KOLListsPage({ setRoute, me }: { setRoute?: (r: any) => 
     const token = session?.access_token;
     if (!token) return;
     setListsLoading(true);
-    const res = await fetch(`${base}/api/kol-lists`, { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json().catch(() => ({}));
+    const [profileRes, orgsList] = await Promise.all([
+      fetch(`${base}/api/kol-lists`, { headers: { Authorization: `Bearer ${token}` } }),
+      listMyOrgs(me.id),
+    ]);
+    const profileData = await profileRes.json().catch(() => ({}));
+    let allLists = Array.isArray(profileData.lists) ? profileData.lists : [];
+    setMyOrgs(orgsList.map((o) => ({ id: o.id, name: o.name ?? "" })));
+    for (const org of orgsList) {
+      const orgRes = await fetch(`${base}/api/kol-lists?owner=org&org_id=${encodeURIComponent(org.id)}`, { headers: { Authorization: `Bearer ${token}` } });
+      const orgData = await orgRes.json().catch(() => ({}));
+      const orgLists = Array.isArray(orgData.lists) ? orgData.lists : [];
+      allLists = [...allLists, ...orgLists];
+    }
     setListsLoading(false);
-    setLists(Array.isArray(data.lists) ? data.lists : []);
+    setLists(allLists);
   }, [me?.id, base]);
 
   useEffect(() => {
@@ -104,20 +119,25 @@ export default function KOLListsPage({ setRoute, me }: { setRoute?: (r: any) => 
 
   const handleCreateList = async () => {
     if (!me?.id || !createListName.trim()) return;
+    if (createAsOrg && !createOrgId) return;
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     if (!token) return;
     setCreateListLoading(true);
+    const ownerType = createAsOrg ? "org" : "profile";
+    const ownerId = createAsOrg ? createOrgId : me.id;
     const res = await fetch(`${base}/api/kol-lists`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: createListName.trim(), owner_type: "profile", owner_id: me.id }),
+      body: JSON.stringify({ name: createListName.trim(), owner_type: ownerType, owner_id: ownerId }),
     });
     const data = await res.json().catch(() => ({}));
     setCreateListLoading(false);
     if (data.list) {
       setCreateListName("");
       setCreateListOpen(false);
+      setCreateAsOrg(false);
+      setCreateOrgId("");
       loadLists();
       setSelectedListId(data.list.id);
     }
@@ -277,16 +297,32 @@ export default function KOLListsPage({ setRoute, me }: { setRoute?: (r: any) => 
                     onChange={(e) => setCreateListName(e.target.value)}
                     className="w-full h-10 px-3 rounded-lg border border-zinc-200 mb-2 text-zinc-900"
                   />
+                  <label className="flex items-center gap-2 mb-2 text-sm text-zinc-700">
+                    <input type="checkbox" checked={createAsOrg} onChange={(e) => { setCreateAsOrg(e.target.checked); if (!e.target.checked) setCreateOrgId(""); }} />
+                    Create as organization list
+                  </label>
+                  {createAsOrg && myOrgs.length > 0 && (
+                    <select
+                      value={createOrgId}
+                      onChange={(e) => setCreateOrgId(e.target.value)}
+                      className="w-full h-10 px-3 rounded-lg border border-zinc-200 mb-2 text-zinc-900"
+                    >
+                      <option value="">Select org...</option>
+                      {myOrgs.map((o) => (
+                        <option key={o.id} value={o.id}>{o.name}</option>
+                      ))}
+                    </select>
+                  )}
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={handleCreateList}
-                      disabled={createListLoading || !createListName.trim()}
+                      disabled={createListLoading || !createListName.trim() || (createAsOrg && !createOrgId)}
                       className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
                     >
                       {createListLoading ? "Creating…" : "Create"}
                     </button>
-                    <button type="button" onClick={() => setCreateListOpen(false)} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700">
+                    <button type="button" onClick={() => { setCreateListOpen(false); setCreateAsOrg(false); setCreateOrgId(""); }} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700">
                       Cancel
                     </button>
                   </div>

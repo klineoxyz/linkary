@@ -53,6 +53,7 @@ export const RESERVED_PATHS = new Set([
   "work",
   "invites",
   "creator-programs",
+  "admin",
   // Static assets / special (first segment only; Next.js may serve these before [username])
   "favicon.ico",
   "robots.txt",

@@ -374,8 +374,27 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
     );
   }
 
+  const tabLabel = { influencers: "Creators", projects: "Projects", funds: "Brands" }[topFollowersTab] ?? "Top followers";
+
   return (
     <div className="space-y-6 pb-10">
+      <header className="space-y-1">
+        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+          {isOwn ? "Insights" : `Insights for @${targetUsername ?? "user"}`}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {isOwn ? "Your X credibility snapshot, top followers, and social graph." : "Credibility snapshot and top followers for this profile."}
+        </p>
+        {(insights?.profile || cacheTop?.updatedAt) && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-2 text-xs text-muted-foreground">
+            {insightsProfile?.followers != null && <span>Followers: {insightsProfile.followers.toLocaleString()}</span>}
+            {insightsProfile?.following != null && <span>Following: {insightsProfile.following.toLocaleString()}</span>}
+            {insightsProfile?.tweets != null && <span>Tweets: {insightsProfile.tweets.toLocaleString()}</span>}
+            {cacheTop?.updatedAt && <span>Data updated {formatRelative(cacheTop.updatedAt)}</span>}
+          </div>
+        )}
+      </header>
+
       <ProfileHeaderCard
         variant="light"
         displayName={displayName ?? null}
@@ -545,8 +564,27 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
       {seeAllModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setSeeAllModalOpen(false)}>
           <div className="max-h-[80vh] w-full max-w-md overflow-auto rounded-2xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold text-foreground">Top followers</h3>
-            <p className="mt-2 text-xs font-medium text-foreground">Nothing here yet</p>
+            <h3 className="text-sm font-semibold text-foreground">Top followers — {tabLabel}</h3>
+            {topFollowersItems.length > 0 ? (
+              <ul className="mt-4 space-y-2">
+                {topFollowersItems.map((item: { username?: string; display_name?: string | null; avatar_url?: string | null; followers?: number | null }, i: number) => (
+                  <li key={item.username ?? i} className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm">
+                    {item.avatar_url ? (
+                      <img src={item.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-muted" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <span className="font-medium text-foreground">{item.display_name ?? item.username ?? "—"}</span>
+                      {item.username && <span className="ml-1 text-muted-foreground">@{item.username}</span>}
+                    </div>
+                    {item.followers != null && <span className="text-xs text-muted-foreground tabular-nums">{item.followers.toLocaleString()}</span>}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-xs font-medium text-muted-foreground">Nothing here yet. Connect X and refresh insights.</p>
+            )}
             <button type="button" className="mt-4 rounded-lg bg-secondary px-3 py-2 text-sm font-medium text-foreground hover:bg-accent" onClick={() => setSeeAllModalOpen(false)}>Close</button>
           </div>
         </div>

@@ -597,15 +597,6 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                       </span>
                     )}
                     {profile.rep_score != null && (
-                      <span
-                        className={tierPillClass(repToTier(profile.rep_score))}
-                        aria-label="REP tier"
-                      >
-                        <Shield className="h-3.5 w-3.5 shrink-0 opacity-80 stroke-[1.75]" aria-hidden />
-                        {repToTier(profile.rep_score)}
-                      </span>
-                    )}
-                    {profile.rep_score != null && (
                       <RepPillWithBreakdown repScore={profile.rep_score} username={handle} variant="header" />
                     )}
                   </div>

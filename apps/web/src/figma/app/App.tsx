@@ -3411,7 +3411,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
 
   return (
     <div className="font-app text-foreground space-y-6">
-      <p className="text-xs text-muted-foreground -mb-1" aria-hidden>Your profile — only you see this workspace. Use Public View to see what others see.</p>
+      <p className="text-xs text-muted-foreground -mb-1" aria-hidden>Your profile — only you see this. What you see here (links, relations, scores) matches your public page after you save in the Advanced editor. Use Public View to open your public URL.</p>
       <div className="mb-4 flex gap-2 border-b border-border pb-2">
         <button
           type="button"

@@ -45,7 +45,10 @@ export default function InviteRequiredView({
         onSuccess();
         return;
       }
-      setError(json.error ?? "Invalid or unavailable code.");
+      const msg = json.error ?? "Invalid or unavailable code.";
+      if (msg === "already_redeemed") setError("This code was already used.");
+      else if (msg === "invalid_or_unavailable_code") setError("Invalid or expired code. Check the code and try again.");
+      else setError(msg);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {

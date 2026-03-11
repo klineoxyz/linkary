@@ -942,11 +942,21 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
         "px-4 py-3 lg:px-6 lg:py-6 gap-3 lg:gap-6",
         "overflow-y-auto",
         mobileOpen
-          ? "fixed inset-0 z-[100] shadow-2xl lg:shadow-none lg:relative lg:z-[25] max-lg:bg-primary max-lg:text-primary-foreground max-lg:[&_a]:!text-primary-foreground max-lg:[&_span]:!text-primary-foreground max-lg:[&_button]:!text-primary-foreground max-lg:[&_a:hover]:bg-white/20 max-lg:[&_button:hover]:bg-white/20"
+          ? "fixed inset-0 z-[100] shadow-2xl lg:shadow-none lg:relative lg:z-[25] max-lg:text-primary-foreground max-lg:[&_a]:!text-primary-foreground max-lg:[&_span]:!text-primary-foreground max-lg:[&_button]:!text-primary-foreground max-lg:[&_a:hover]:bg-white/20 max-lg:[&_button:hover]:bg-white/20"
           : "hidden lg:flex lg:z-[25]"
       )}
     >
-      <div className="flex items-center justify-between w-full flex-shrink-0 py-1 lg:py-0">
+      {mobileOpen && (
+        <>
+          <div
+            className="max-lg:absolute max-lg:inset-0 max-lg:bg-cover max-lg:bg-center"
+            style={{ backgroundImage: "url(https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80)" }}
+            aria-hidden
+          />
+          <div className="max-lg:absolute max-lg:inset-0 max-lg:bg-gradient-to-br max-lg:from-primary/90 max-lg:to-primary/70" aria-hidden />
+        </>
+      )}
+      <div className="relative z-10 flex items-center justify-between w-full flex-shrink-0 py-1 lg:py-0">
         <Link
           href="/"
           onClick={() => {
@@ -964,7 +974,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
         </button>
       </div>
 
-      <nav className={cn("flex flex-col gap-1.5 lg:gap-2 w-full flex-1 min-h-0 overflow-y-auto antialiased", mobileOpen ? "flex" : "hidden lg:flex")}>
+      <nav className={cn("relative z-10 flex flex-col gap-1.5 lg:gap-2 w-full flex-1 min-h-0 overflow-y-auto antialiased", mobileOpen ? "flex" : "hidden lg:flex")}>
         <Link
           href="/"
           onClick={() => {

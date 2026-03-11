@@ -1,6 +1,6 @@
 # Linkary Launch — Final Current-State Report
 
-**Date:** 10 March 2025  
+**Date:** 10 March 2026  
 **Purpose:** Single source of truth for launch readiness. No future plans; current state and evidence only.
 
 ---
@@ -75,7 +75,8 @@
 | **Route** | `route.name === "adminInvites"` → path `/app/admin/invites`; `apps/web/src/app/app/admin/invites/page.tsx` renders app shell. |
 | **Routing** | `routeFromPathname`: `parts[0]==="admin" && parts[1]==="invites"` → `{ name: "adminInvites" }`; `ALLOWED_ROUTES` includes `"adminInvites"`. |
 | **APIs** | `POST /api/invites/allocate-batch` (allocated_to_type, allocated_to_id, count); `GET /api/invites/my-codes`. |
-| **Access** | Rendered for any user who reaches the route; page checks `me.twitter_username` (normalized) === `"muazxinthi"` and shows "Access restricted" otherwise. |
+| **Admin enforcement** | **Server-enforced.** `POST /api/invites/allocate-batch` (apps/web/src/app/api/invites/allocate-batch/route.ts) validates Bearer token, loads profile by user id, checks `twitter_username` (normalized) === `"muazxinthi"`; returns 403 Forbidden for non-admin. UI hide is in addition only. |
+| **Access (UI)** | AdminInvitesPage shows "Access restricted" unless `me.twitter_username` (normalized) === `"muazxinthi"`. |
 | **User flow** | Founder → /app/admin/invites → Allocate batch form; My issued codes list; link to Invite lineage. |
 
 ### 2.8 Dead code / cleanup
@@ -106,7 +107,15 @@
 
 ---
 
-## 5. Route behavior (invite gate)
+## 5. Invite and API hardening (accuracy)
+
+- **App entry:** Server-side enforced. Middleware for `/app` and `/app/*` (when `LINKARY_INVITE_ONLY=true`) checks session and profile (inviter_id or admin handle); non-allowed signed-in users cannot reach app pages except `/app` (where client shows InviteRequiredView).
+- **API routes:** Authenticated mutating APIs (creator-programs, circles, kol-lists, jobs, invite redeem, etc.) rely on **auth + RLS**. They do **not** re-verify invite eligibility per request. Non-invited users who could obtain a valid session would be blocked from the app UI by middleware but could in theory call such APIs directly. For this **controlled private MVP**, app-entry hardening is the intended boundary; we do not claim full API-wide invite enforcement.
+- **Conclusion:** Invite hardening is **app-entry focused**. Acceptable for controlled beta; not full hard-enforced API-wide.
+
+---
+
+## 6. Route behavior (invite gate)
 
 | Scenario | Middleware | Client |
 |----------|------------|--------|
@@ -117,7 +126,7 @@
 
 ---
 
-## 6. Final verification matrix (code-derived)
+## 7. Final verification matrix (code-derived)
 
 | Flow | Verification |
 |------|--------------|
@@ -137,7 +146,7 @@
 
 ---
 
-## 7. QA evidence (file-level)
+## 8. QA evidence (file-level)
 
 - **Middleware:** `apps/web/middleware.ts` — invite block, `isAppRoot` check (lines 142–149).
 - **Creator program drawer:** `CreatorProgramDetailDrawer.tsx` — open by programId/orgId; load program, invites, circles, kol-lists; POST/PATCH invites; PATCH program.
@@ -149,20 +158,28 @@
 
 ---
 
-## 8. Founder verdict (sign-off)
+## 9. Founder verdict (sign-off)
 
 | Status | Items |
 |--------|--------|
-| **Fully implemented** | Server-side invite gate (middleware, no redirect loop); work item detail (creator program drawer + job/sprint drawer); invite from Circle and KOL in program drawer with source and status; org-owned circles create/manage and use in recruiting; org-owned KOL lists create/manage and use in recruiting; admin invite ops page (allocate batch, my codes, lineage link); route /app/admin/invites and access control; dead code isolated (CreatorProgramsPage deprecated, path map cleaned). |
+| **Fully implemented** | Server-side invite gate (middleware, no redirect loop); work item detail (creator program drawer + job/sprint drawer); invite from Circle and KOL in program drawer with source and status; org-owned circles create/manage and use in recruiting; org-owned KOL lists create/manage and use in recruiting; admin invite ops page (allocate batch, my codes, lineage link) with **server-enforced** allocate-batch (403 for non-admin); route /app/admin/invites; dead code isolated. |
 | **API/schema complete; UI partial** | Admin: allocate + my-codes + lineage link; no separate redeemed/revoked code list UI. |
 | **Deferred** | Invite-from-circle for jobs/sprints; invite quality/activity analytics; graph polish. |
 | **Blocked** | None. |
 
+**Launch wording:** Invite hardening is app-entry focused (middleware); critical APIs use auth + RLS and do not re-check invite per request. Admin allocation is server-enforced. This is appropriate for a controlled private MVP.
+
 ---
 
-## 9. Middleware verdict and redirect-loop fix
+## 10. Middleware verdict and redirect-loop fix
 
 - **Verdict:** Server-side invite gate is correctly implemented and safe for launch.
 - **Redirect-loop bug:** Yes. Blocked users on exact `/app` were being redirected to `/app`, causing a loop.
 - **Fix:** In `apps/web/middleware.ts`, when the user is not allowed, the code now checks `pathname === "/app" || pathname === "/app/"`. If true, it returns `response` (NextResponse.next()) instead of redirecting, so the request is allowed through and the client shows InviteRequiredView. Blocked users on any other `/app/*` are still redirected to `/app` once.
 - **Outcome:** Exact `/app` is allowed through and shows InviteRequiredView client-side; deeper `/app/*` routes redirect to `/app` with no loop.
+
+---
+
+## Final sign-off
+
+**Ready for controlled private MVP launch.** App entry is server-hardened; admin allocate-batch is server-enforced; API access is auth + RLS (no per-request invite re-check). Scope and security claims above are accurate as of 10 March 2026.

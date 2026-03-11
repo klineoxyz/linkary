@@ -936,12 +936,12 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
     <aside
       className={cn(
         "border-r border-sidebar-border",
-        "bg-background lg:bg-sidebar",
+        "bg-white dark:bg-zinc-900 lg:bg-sidebar",
         "lg:w-64 w-full lg:h-screen lg:sticky lg:top-0",
         "flex flex-col items-stretch",
         "px-4 py-3 lg:px-6 lg:py-6 gap-3 lg:gap-6",
         "overflow-y-auto",
-        mobileOpen ? "fixed inset-0 z-[100] lg:relative lg:z-[25]" : "hidden lg:flex lg:z-[25]"
+        mobileOpen ? "fixed inset-0 z-[100] shadow-xl lg:shadow-none lg:relative lg:z-[25]" : "hidden lg:flex lg:z-[25]"
       )}
     >
       <div className="flex items-center justify-between w-full flex-shrink-0 py-1 lg:py-0">

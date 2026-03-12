@@ -74,7 +74,8 @@ function LinkProfilePanelWithCdp() {
 
   const signInWithOAuth = (signInResult as { signInWithOAuth?: unknown }).signInWithOAuth;
   const linkOAuth = (linkResult as { linkOAuth?: unknown }).linkOAuth;
-  const oauthState = (linkResult as { oauthState?: unknown }).oauthState ?? (signInResult as { oauthState?: unknown }).oauthState;
+  type OAuthState = { status?: string; providerType?: string } | null | undefined;
+  const oauthState = ((linkResult as { oauthState?: unknown }).oauthState ?? (signInResult as { oauthState?: unknown }).oauthState) as OAuthState;
 
   const hasCdpUser = h.useCurrentUser ? (currentUser != null) : !!evmAddress;
 
@@ -151,7 +152,7 @@ function LinkProfilePanelWithCdp() {
     }
     if (oauthState?.status !== "success") return;
     if (lastOAuthActionRef.current !== "link") return;
-    const provider = (oauthState as { providerType?: string })?.providerType;
+    const provider = oauthState?.providerType;
     if (provider && provider !== "x") return;
     if (handledOAuthSuccessRef.current) return;
     handledOAuthSuccessRef.current = true;

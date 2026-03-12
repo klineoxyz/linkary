@@ -190,10 +190,10 @@ export default function AuthCallbackPage() {
                 setStatus("error");
                 return;
               }
-              const ebfRes = await fetch(`${window.location.origin}/api/analytics/ensure-backfill`, {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
-              });
+              const [ebfRes, _refreshRes] = await Promise.all([
+                fetch(`${window.location.origin}/api/analytics/ensure-backfill`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }),
+                fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+              ]);
               const ebfBody = await ebfRes.json().catch(() => ({}));
               if (!cancelled && isEnsureBackfillFailure(ebfRes, ebfBody)) {
                 console.error("[ANALYTICS_INIT_FAILED] ensure-backfill", ebfRes.status, ebfBody);
@@ -208,8 +208,6 @@ export default function AuthCallbackPage() {
                 setMessage(reason ? `Analytics init failed: ${reason}. You can retry or continue.` : "Analytics init failed. You can retry or continue.");
                 return;
               }
-              // Refresh Ethos + XScore cache after X connect (fire-and-forget)
-              fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch((err) => console.error("[ANALYTICS_INIT_FAILED] refresh-scores", err));
             }
             if (!cancelled) {
               setStatus("ok");
@@ -300,10 +298,10 @@ export default function AuthCallbackPage() {
                 const errBody = await esxRes.json().catch(() => ({}));
                 console.error("[ANALYTICS_INIT_FAILED] ensure-social-x", esxRes.status, errBody);
               }
-              const ebfRes = await fetch(`${window.location.origin}/api/analytics/ensure-backfill`, {
-                method: "POST",
-                headers: { Authorization: `Bearer ${session.access_token}` },
-              });
+              const [ebfRes] = await Promise.all([
+                fetch(`${window.location.origin}/api/analytics/ensure-backfill`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } }),
+                fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } }).catch(() => null),
+              ]);
               const ebfBody = await ebfRes.json().catch(() => ({}));
               if (!cancelled && isEnsureBackfillFailure(ebfRes, ebfBody)) {
                 console.error("[ANALYTICS_INIT_FAILED] ensure-backfill (session)", ebfRes.status, ebfBody);
@@ -313,8 +311,6 @@ export default function AuthCallbackPage() {
                 setMessage(reason ? `Analytics init failed: ${reason}. You can retry or continue.` : "Analytics init failed. You can retry or continue.");
                 return;
               }
-              // Refresh Ethos + XScore cache after X connect (fire-and-forget)
-              fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } }).catch((err) => console.error("[ANALYTICS_INIT_FAILED] refresh-scores", err));
             }
             if (!cancelled) {
               setStatus("ok");

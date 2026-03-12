@@ -4,6 +4,7 @@ import "./globals.css";
 import { CdpAppIdProvider } from "./CdpAppIdProvider";
 import { ClientErrorBoundary } from "./ClientErrorBoundary";
 import GlobalErrorCapture from "./GlobalErrorCapture";
+import { WebVitalsReporter } from "./WebVitalsReporter";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <CdpAppIdProvider appId={cdpAppId}>
+          <WebVitalsReporter />
           <GlobalErrorCapture />
           <ClientErrorBoundary>{children}</ClientErrorBoundary>
         </CdpAppIdProvider>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
+import useSWR from "swr";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "@/lib/supabase";
+import { authFetcher, SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
 import { listOrgsForUser, type Org } from "@/lib/orgs";
 import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 import { listMyDeals, type Deal } from "@/lib/deals";
@@ -410,16 +412,31 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
     });
   }, []);
 
+  const { data: meStatsSwr } = useSWR<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; repScore?: number | null; socialPower?: number; reviews?: { avg: number; count: number }; completedGigsCount?: number } | null>(
+    authToken ? "/api/profile/me-stats" : null,
+    authFetcher as (url: string) => Promise<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; repScore?: number | null; socialPower?: number; reviews?: { avg: number; count: number }; completedGigsCount?: number } | null>,
+    { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS }
+  );
+  useEffect(() => {
+    if (!meStatsSwr || typeof meStatsSwr !== "object") return;
+    setMeStats({
+      ethos: meStatsSwr.ethos != null ? Number(meStatsSwr.ethos) : null,
+      xscore: meStatsSwr.xscore ?? null,
+      reputationIndex: meStatsSwr.reputationIndex ?? 0,
+      repScore: meStatsSwr.repScore ?? null,
+      socialPower: meStatsSwr.socialPower ?? 0,
+      reviews: meStatsSwr.reviews ?? { avg: 0, count: 0 },
+      verifiedGigsCount: meStatsSwr.completedGigsCount ?? 0,
+    });
+  }, [meStatsSwr]);
+
   useEffect(() => {
     if (!authToken) return;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const headers = { Authorization: `Bearer ${authToken}` };
-    Promise.all([
-      fetch(`${origin}/api/profile/me-stats`, { headers }).then((r) => (r.ok ? r.json() : null)),
-      fetch(`${origin}/api/profile/skills`, { headers }).then((r) => (r.ok ? r.json() : null)),
-    ])
-      .then(([stats, skillsRes]) => {
-        if (stats && typeof stats === "object") setMeStats(stats);
+    fetch(`${origin}/api/profile/skills`, { headers })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((skillsRes) => {
         if (skillsRes?.skills && Array.isArray(skillsRes.skills)) {
           setProfileSkills(skillsRes.skills.map((s: { name?: string; level?: number }) => ({ name: s.name ?? "", level: s.level ?? 1 })));
         }

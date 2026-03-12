@@ -64,7 +64,7 @@ BEGIN
     RETURN jsonb_build_object('ok', true);
   END IF;
 
-  -- 2) Personal invite codes (5 per user; super user @muazxinthi unlimited)
+  -- 2) Personal invite codes (1 code = 1 invite; super user @muazxinthi unlimited)
   SELECT id INTO v_personal_inviter_id
   FROM public.profiles
   WHERE upper(regexp_replace(btrim(COALESCE(personal_invite_code, '')), '\s+', '', 'g')) = v_canonical
@@ -88,7 +88,7 @@ BEGIN
   FROM public.profiles WHERE id = v_personal_inviter_id LIMIT 1;
   v_is_super_user := (v_inviter_username = 'muazxinthi');
 
-  IF NOT v_is_super_user AND v_invite_count >= 5 THEN
+  IF NOT v_is_super_user AND v_invite_count >= 1 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'inviter_limit_reached');
   END IF;
 
@@ -108,4 +108,4 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.redeem_invite_code IS 'Redeem by one-time code or personal_invite_code. Default 5 invites per user; super user (@muazxinthi) unlimited. Sets redeemed_by_user_id/redeemed_at; inserts invite_attributions.';
+COMMENT ON FUNCTION public.redeem_invite_code IS 'Redeem by one-time code or personal_invite_code. 1 code = 1 invite; super user (@muazxinthi) unlimited. Sets redeemed_by_user_id/redeemed_at; inserts invite_attributions.';

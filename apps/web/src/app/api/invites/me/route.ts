@@ -1,13 +1,13 @@
 /**
- * GET /api/invites/me — current user's personal invite code. New users get 5 invites; more via stats/admin later.
- * Super user (@muazxinthi) has unlimited. Returns: { personal_invite_code, invites_used, invites_remaining, max_invites? }.
+ * GET /api/invites/me — current user's personal invite code. 1 code = 1 invite. Super user (@muazxinthi) unlimited.
+ * Returns: { personal_invite_code, invites_used, invites_remaining, max_invites? }.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const INVITES_PER_USER = 5;
+const INVITES_PER_USER = 1;
 const ADMIN_USERNAME = "muazxinthi";
 
 function fail(message: string, status: number) {

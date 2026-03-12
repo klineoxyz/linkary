@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 32" fill="none">
+  <!-- Official Linkary icon: top bar longest, middle slightly shorter, bottom shortest. Transparent background. -->
+  <defs>
+    <linearGradient id="linkary-bar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FF7A33"/>
+      <stop offset="50%" stop-color="#FF5300"/>
+      <stop offset="100%" stop-color="#E64A00"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="4" width="24" height="2" rx="1" fill="url(#linkary-bar)"/>
+  <rect x="0" y="12" width="20" height="2" rx="1" fill="url(#linkary-bar)"/>
+  <rect x="0" y="20" width="12" height="2" rx="1" fill="url(#linkary-bar)"/>
+  <text x="32" y="22" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="700" font-size="18" fill="#130600">Linkary</text>
+</svg>

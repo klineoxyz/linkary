@@ -181,16 +181,15 @@ export const ReputationCardPreview = React.forwardRef<
           }}
         />
 
-        {/* Linkary branding: logo (orange bars) + wordmark + tagline */}
+        {/* Linkary branding: official logo (transparent, no white box) + tagline */}
         <div className="relative flex flex-col items-center text-center">
-          <div className="flex items-center justify-center gap-2">
-            <svg className="h-7 w-7 shrink-0" viewBox="0 0 32 32" fill="none" aria-hidden>
-              <rect x="4" y="6" width="12" height="2" rx="1" fill="#FF5300" />
-              <rect x="4" y="14" width="18" height="2" rx="1" fill="#FF5300" />
-              <rect x="4" y="22" width="24" height="2" rx="1" fill="#FF5300" />
-            </svg>
-            <span className="text-xl font-bold tracking-tight text-[#130600]">Linkary</span>
-          </div>
+          <img
+            src="/logos/logo-primary.svg"
+            alt="Linkary"
+            className="h-8 w-auto max-w-[140px] object-contain object-center"
+            width={140}
+            height={32}
+          />
           <p className="text-xs text-[rgba(19,6,0,0.6)] mt-1 font-medium">Verified Signals • Trusted Connections</p>
         </div>
 

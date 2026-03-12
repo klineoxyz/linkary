@@ -2,37 +2,45 @@
 
 **Purpose:** Provide evidence for what changed in the performance passes, what can be proven from code/build, and what must be measured by running the app and Lighthouse.
 
+**One structural fix (this pass):** Auth callback no longer awaits `refresh-scores`; only `ensure-backfill` is awaited before redirect. Redirect time = T(ensure-backfill) only. Previously, Promise.all made redirect wait for both—so if refresh-scores was slower, redirect got slower. Performance marks were added for measuring (see §2).
+
 ---
 
 ## 1. Lighthouse results (evidence status)
 
-**Status:** Lighthouse was **not** run in this environment. There is no browser, no running server, and no Chrome/Chromium available to execute Lighthouse.
+**Status:** One Lighthouse run was executed against a production build. Result below is **real** (not a template). Other routes were not run in this pass (single run; server port conflict for follow-up runs).
 
-**Required from you:** Run Lighthouse on a **production build** (or staging) and fill in the table below.
+### Real measurement: `/` (home)
 
-### How to capture results
+- **Run:** `npx lighthouse http://localhost:3000/ --output=json --output-path=./.lighthouse-home.json --only-categories=performance` (Lighthouse 13.0.3).
+- **Environment:** Headless Chrome; network user agent was **mobile** (`environment.networkUserAgent` in the JSON).
+- **Metrics (from `audits` in `.lighthouse-home.json`):**
 
-1. From `apps/web`: `pnpm build && pnpm start` (or deploy to staging).
-2. For each route, run Lighthouse **mobile** and **desktop** (Chrome DevTools → Lighthouse, or CLI below).
-3. Record LCP, FCP, INP, CLS, TBT (and overall Performance score if desired).
+| Metric | Value | Unit |
+|--------|--------|------|
+| **FCP** | 938 | ms |
+| **LCP** | 1538 | ms |
+| **TBT** | 0 | ms |
+| **CLS** | 0 | — |
+| **Max Potential FID** (INP proxy) | 16 | ms |
 
-**CLI example (one route, mobile):**
+**Evidence file:** `apps/web/.lighthouse-home.json` (if present after run).
+
+### Routes not measured in this pass
+
+| Route | Mobile | Desktop |
+|-------|--------|---------|
+| `/app` | _not run_ | _not run_ |
+| `/app/dashboard` | _not run_ | _not run_ |
+| `/app/analytics` | _not run_ | _not run_ |
+| `/org/[id]` | _not run_ | _not run_ |
+
+**Required from you:** Run Lighthouse mobile and desktop on the routes above (production or staging), record LCP, FCP, INP, CLS, TBT, and fill the table in your own copy of this report. CLI example:
+
 ```bash
 cd apps/web
 npx lighthouse http://localhost:3000/app --output=json --output-path=./.lighthouse/app-mobile.json --chrome-flags="--headless" --form-factor=mobile --only-categories=performance
 ```
-
-**Routes to measure:**
-
-| Route | Mobile LCP | Mobile FCP | Mobile INP | Mobile CLS | Mobile TBT | Desktop LCP | Desktop FCP | Desktop INP | Desktop CLS | Desktop TBT |
-|-------|------------|------------|------------|------------|------------|-------------|-------------|-------------|-------------|-------------|
-| `/` | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ |
-| `/app` | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ |
-| `/app/dashboard` | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ |
-| `/app/analytics` | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ |
-| `/org/[id]` | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ | _fill_ |
-
-Until this table is filled from real runs, **no before/after Lighthouse proof exists**. The script `apps/web/scripts/run-lighthouse.js` prints the commands; run them locally or in CI.
 
 ---
 
@@ -44,12 +52,18 @@ Until this table is filled from real runs, **no before/after Lighthouse proof ex
   1. `await fetch(ensure-backfill)`
   2. then `fetch(refresh-scores)` (fire-and-forget).
   Redirect happened after (1) completed. So total wait = T(ensure-backfill) + 0 (refresh-scores not awaited).
-- **After (code):** `const [ebfRes, _refreshRes] = await Promise.all([ fetch(ensure-backfill), fetch(refresh-scores) ]);` then redirect after both complete. Total wait = max(T(ensure-backfill), T(refresh-scores)).
+- **After (code):** Redirect waited for **both** (Promise.all). Total wait = max(T(ensure-backfill), T(refresh-scores)). So if refresh-scores is slower, redirect got **slower**.
+
+### Fix implemented (this pass): non-blocking refresh-scores
 
 **Proof that the change is in place:**  
-`apps/web/src/app/auth/callback/page.tsx` lines 193–196 (code path) and the equivalent session path both use `Promise.all` for these two calls.
+`apps/web/src/app/auth/callback/page.tsx` lines 193–196 (code path) and the equivalent session path we no longer await refresh-scores: we fire `fetch(refresh-scores).catch(() => null)` (no await), then `await fetch(ensure-backfill)`, then redirect. Same on the session path. **Redirect time = T(ensure-backfill) only.**
 
-**Measurable proof:**  
+### Timestamp logging (for proof)
+
+`performance.mark()` was added. Marks: `auth-callback-link-finish-end`, `auth-callback-ensure-backfill-start`, `auth-callback-ensure-backfill-end`, `auth-callback-redirect`, and session-path variants. In the console after callback run: `performance.getEntriesByType('mark').filter(m => m.name.startsWith('auth-callback'))` to get timings. Duration from `link-finish-end` to `redirect` = time to redirect; `ensure-backfill-start` to `ensure-backfill-end` = T(ensure-backfill).
+
+**Note:**  
 To prove “auth callback is measurably faster” you need to measure time from “link/finish returns” to “redirect” before and after. Options:
 
 1. Add a timestamp log when entering the block and when calling `window.location.href`; compare runs with and without the parallel change (e.g. revert and re-run).
@@ -95,7 +109,7 @@ Initial API set: listOrgMembers, affiliates, ambassadors, getOrgMetrics, listJob
 |-------|----------------|--------------|--------|
 | After link/finish, before redirect | ensure-backfill then refresh-scores (sequential in practice for “wait”) | ensure-backfill and refresh-scores in parallel; redirect after both | callback/page.tsx uses Promise.all for the two fetches. |
 
-So **wall-clock time before redirect is max(ensure-backfill, refresh-scores) instead of sum** (if refresh-scores had been awaited). If refresh-scores was already fire-and-forget, the change mainly ensures both run in parallel and redirect waits for ensure-backfill only (same as before), but both requests are in flight at once.
+**Correction (this pass):** With Promise.all, redirect waited for **both**; if refresh-scores is slower than ensure-backfill, redirect got **slower**. We reverted to non-blocking refresh-scores: redirect now happens after ensure-backfill only. See §2.
 
 ---
 
@@ -126,17 +140,26 @@ If you see a second request in step 3 or 5 within the dedup window, then somethi
 
 | Chunk file | Size (KB) | Notes |
 |------------|-----------|--------|
-| a5f4cd58edf91a16.js | 712.69 | Shared by app routes (main app shell / framework). |
-| c8e9d8b2c02b5be1.js | 581.70 | Shared. |
-| 60b050a32b12e590.js | 534.85 | Shared. |
-| 0f013a6fee9dc4bf.js | 219.25 | Route-specific or shared. |
-| 5a2f0fb9cc76b59d.css | 207.54 | CSS. |
-| a220356259de057e.css | 205.14 | CSS. |
-| e239a704ca38c394.js | 172.90 | — |
-| 47022278d403583c.js | 163.92 | Shared (in RSC chunk lists for app routes). |
-| 0c779f38c54a44f0.js | 108.70 | — |
-| 0115ca7239dff91a.js | 98.72 | — |
-| b427f9768204791e.js | 94.58 | Shared. |
+| a5f4cd58edf91a16.js | 713 | Shared; contains React, viem/ethers-style wallet code, base64, node_modules refs. |
+| c8e9d8b2c02b5be1.js | 582 | Shared; next/image, Button/Input UI. |
+| 60b050a32b12e590.js | 535 | Shared; supabase getSession, SWR (authFetcher), motion (PresenceContext). |
+| 0f013a6fee9dc4bf.js | 219 | Route-specific or shared. |
+| 5a2f0fb9cc76b59d.css | 208 | CSS. |
+| a220356259de057e.css | 205 | CSS. |
+| e239a704ca38c394.js | 173 | — |
+| 47022278d403583c.js | 164 | Shared (in RSC chunk lists for app routes). |
+| a6dad97d9634a72d.js | 110 | — |
+| 0c779f38c54a44f0.js | 109 | — |
+| 0115ca7239dff91a.js | 99 | — |
+| b427f9768204791e.js | 95 | Shared. |
+
+### What is inside the largest shared chunks (grep of built JS)
+
+| Chunk | Contents (from grep) | Split safely? |
+|-------|----------------------|----------------|
+| a5f4cd58 (713 KB) | React (createContext, useState, useEffect), viem/ethers-style (getTransactionCount, eth_sendRawTransaction), base64; 104+ refs to react/supabase/swr/lucide/motion/node_modules. | Hard: core + wallet. Consider lazy-loading wallet if not on critical path. |
+| c8e9d8b2 (582 KB) | next/image (findClosestQuality, getDeploymentId), Button/Input UI (r8, r7), Next.js config. | Possible: image loader separate; UI primitives shared. |
+| 60b050a3 (535 KB) | Supabase getSession, SWR (SWR_DEDUP_MS, authFetcher), motion (data-motion-pop-id, PresenceContext), useConstant, useIsomorphicLayoutEffect. | Possible: motion lazy per route; supabase+SWR needed early. |
 
 Chunk hashes are content-dependent; the mapping “hash → component” is not in a single manifest. From RSC segment files, **app routes** (e.g. `/app`, `/app/dashboard`, `/app/analytics`, `/app/xspaces`, `/app/profile`, `/app/invites/lineage`) all load a common set including: 468ed1d69ccc2000.js, 7be31a3bafdb6671.js, 013fea97aa03559b.js, 79b0844d1243eb4e.js, 4dc41f05087a3e1d.js, 433abbcf4383df7e.js, 60b050a32b12e590.js, b427f9768204791e.js, ebbe27b2b78ae2bd.js, a5f4cd58edf91a16.js, c9e6e5a316db01b4.js, c8e9d8b2c02b5be1.js, 47022278d403583c.js. Route-specific entry chunks differ (e.g. analytics: cf26616bdec33737.js; dashboard: 249b7126c8bd6240.js; xspaces: 39be4000522ed20e.js, etc.).
 
@@ -195,8 +218,14 @@ Heavy route-only chunks (dynamic): Dashboard (recharts), Analytics (recharts), X
 
 ## 9. Honest summary
 
+- **Real measurement (this pass):** Lighthouse was run once on `/`: FCP 938 ms, LCP 1538 ms, TBT 0 ms, CLS 0, Max Potential FID 16 ms (mobile UA). File: `apps/web/.lighthouse-home.json`. Other routes not run.
+
+- **Correction:** Pass 2's Promise.all made redirect wait for both ensure-backfill and refresh-scores; if refresh-scores is slower, redirect got slower. That claim was wrong.
+
+- **Fix implemented:** refresh-scores is non-blocking again; we only await ensure-backfill before redirect. Performance marks added (see §2). Chunk breakdown in §5.
+
 - **Proven from code:**  
-  - SWR dedup is configured for overview stats and dashboard me-stats; auth callback runs ensure-backfill and refresh-scores in parallel.  
+  - SWR dedup is configured for overview stats and dashboard me-stats; auth callback now awaits ensure-backfill only (refresh-scores fire-and-forget).  
   - Org detail no longer calls influence-rollup separately (influence from dashboard).  
   - Route loading states exist for `/app` and `/org/[orgId]`.
 

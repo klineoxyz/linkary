@@ -179,6 +179,9 @@ export default function AuthCallbackPage() {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
               });
+              if (typeof performance !== "undefined" && performance.mark) {
+                performance.mark("auth-callback-link-finish-end");
+              }
               if (!finishRes.ok && !cancelled) {
                 const errBody = await finishRes.json().catch(() => ({}));
                 const errMsg = (errBody as { error?: string }).error ?? "Could not finalize X connection.";
@@ -190,10 +193,14 @@ export default function AuthCallbackPage() {
                 setStatus("error");
                 return;
               }
-              const [ebfRes, _refreshRes] = await Promise.all([
-                fetch(`${window.location.origin}/api/analytics/ensure-backfill`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }),
-                fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
-              ]);
+              if (typeof performance !== "undefined" && performance.mark) {
+                performance.mark("auth-callback-ensure-backfill-start");
+              }
+              fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+              const ebfRes = await fetch(`${window.location.origin}/api/analytics/ensure-backfill`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+              if (typeof performance !== "undefined" && performance.mark) {
+                performance.mark("auth-callback-ensure-backfill-end");
+              }
               const ebfBody = await ebfRes.json().catch(() => ({}));
               if (!cancelled && isEnsureBackfillFailure(ebfRes, ebfBody)) {
                 console.error("[ANALYTICS_INIT_FAILED] ensure-backfill", ebfRes.status, ebfBody);
@@ -226,6 +233,9 @@ export default function AuthCallbackPage() {
               } catch {
                 /* ignore */
               }
+              if (typeof performance !== "undefined" && performance.mark) {
+                performance.mark("auth-callback-redirect");
+              }
               window.location.href = redirectUrl;
               return;
             }
@@ -233,6 +243,9 @@ export default function AuthCallbackPage() {
           if (!cancelled) {
             setStatus("ok");
             setMessage("Redirecting…");
+            if (typeof performance !== "undefined" && performance.mark) {
+              performance.mark("auth-callback-redirect");
+            }
             window.location.href = redirectTo;
             return;
           }
@@ -298,10 +311,14 @@ export default function AuthCallbackPage() {
                 const errBody = await esxRes.json().catch(() => ({}));
                 console.error("[ANALYTICS_INIT_FAILED] ensure-social-x", esxRes.status, errBody);
               }
-              const [ebfRes] = await Promise.all([
-                fetch(`${window.location.origin}/api/analytics/ensure-backfill`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } }),
-                fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } }).catch(() => null),
-              ]);
+              if (typeof performance !== "undefined" && performance.mark) {
+                performance.mark("auth-callback-session-ensure-backfill-start");
+              }
+              fetch(`${window.location.origin}/api/profile/refresh-scores`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } }).catch(() => null);
+              const ebfRes = await fetch(`${window.location.origin}/api/analytics/ensure-backfill`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } });
+              if (typeof performance !== "undefined" && performance.mark) {
+                performance.mark("auth-callback-session-ensure-backfill-end");
+              }
               const ebfBody = await ebfRes.json().catch(() => ({}));
               if (!cancelled && isEnsureBackfillFailure(ebfRes, ebfBody)) {
                 console.error("[ANALYTICS_INIT_FAILED] ensure-backfill (session)", ebfRes.status, ebfBody);
@@ -315,6 +332,9 @@ export default function AuthCallbackPage() {
             if (!cancelled) {
               setStatus("ok");
               setMessage("Redirecting…");
+              if (typeof performance !== "undefined" && performance.mark) {
+                performance.mark("auth-callback-redirect");
+              }
               const originSession = typeof window !== "undefined" ? window.location.origin : "";
               const skipOnboardingSession = (next === "/onboarding" || next?.includes("onboarding")) && !!identity;
               const finalUrl = skipOnboardingSession ? `${originSession || SITE_URL.replace(/\/$/, "")}/profile` : redirectTo;

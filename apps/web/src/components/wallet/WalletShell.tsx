@@ -187,8 +187,8 @@ export default function WalletShell() {
         <aside className="lg:w-56 shrink-0">
           <WalletSidebar panel={panel} setPanel={setPanel} />
         </aside>
-        <main className="flex-1 min-w-0">
-          <div className="rounded-xl border border-border bg-card backdrop-blur-xl p-6">
+        <main className="flex-1 min-w-0 min-h-[280px]" aria-live="polite" aria-label="Wallet panel content">
+          <div key={panel} className="rounded-xl border border-border bg-card backdrop-blur-xl p-6">
             {panel === "balance" && <BalancePanel getToken={getToken} />}
             {panel === "link-profile" && <LinkProfilePanel />}
             {panel === "mfa" && <MfaPanel getToken={getToken} onUpdated={fetchStatus} />}

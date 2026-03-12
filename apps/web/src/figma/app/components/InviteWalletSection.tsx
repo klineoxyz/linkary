@@ -72,7 +72,19 @@ export default function InviteWalletSection() {
     );
   }
 
-  if (!state) return null;
+  if (!state) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Gift className="h-5 w-5 text-primary shrink-0" />
+          <h2 className="text-lg font-semibold text-foreground">Invite wallet</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Additional one-time invite codes are loaded here when available. Use your invite code above to share with others.
+        </p>
+      </div>
+    );
+  }
 
   const activeCodes = (state.codes ?? []).filter((c) => c.status === "available" && (!c.expires_at || new Date(c.expires_at) > new Date()));
   const canIssue = state.active_codes_count < (state.max_active ?? 5) && !state.frozen_until;

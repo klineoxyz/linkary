@@ -35,7 +35,16 @@
 | `/app/analytics` | Same. |
 | `/org/[id]` | Same; needs valid org id and auth. |
 
-**How to get real app-route metrics:** Run Lighthouse **with an authenticated profile** (e.g. Chrome user data dir with logged-in session, or use a tool that injects cookies). Then run against `http://localhost:3000/app`, `http://localhost:3000/app/dashboard`, `http://localhost:3000/app/analytics`, `http://localhost:3000/org/<real-org-id>`.
+**How to get authenticated app-route metrics:**
+
+1. **Script (recommended):** From `apps/web`, with your app server running (`pnpm start`):
+   - Start Chrome with remote debugging: e.g. `"C:\...\chrome.exe" --remote-debugging-port=9222` (Windows) or `"/Applications/Google Chrome.app/.../Google Chrome" --remote-debugging-port=9222` (macOS).
+   - In that Chrome, open your app (e.g. http://localhost:3000) and **log in**.
+   - Run: `node scripts/run-lighthouse-authenticated.js 9222`  
+     Optional: `node scripts/run-lighthouse-authenticated.js 9222 http://localhost:3000 YOUR_ORG_ID` to include `/org/[id]`.
+   - The script runs Lighthouse for `/app`, `/app/dashboard`, `/app/analytics`, and optionally `/org/ORG_ID` (mobile + desktop), keeps your session (`--disable-storage-reset`, `--port=9222`), and prints a summary table. JSON reports go to `.lighthouse/`.
+
+2. **DevTools:** Open the app in Chrome, log in, open DevTools → Lighthouse. Uncheck "Clear storage". Run a report for each URL and record FCP, LCP, TBT, CLS.
 
 ### Homepage (previous run)
 
@@ -131,7 +140,35 @@ If a second request appears within the dedup window, dedup is not effective for 
 
 ---
 
-## 6. Bottlenecks still open
+## 6. This pass: measured, verified, unproven, next fix
+
+### What was measured
+
+- **Authenticated Lighthouse:** Not run in this environment. There is no Chrome instance with a logged-in session here, and OAuth cannot be automated without real credentials.
+- **Added:** `apps/web/scripts/run-lighthouse-authenticated.js` so you can run Lighthouse on `/app`, `/app/dashboard`, `/app/analytics`, and `/org/[org-id]` with your existing session (Chrome with remote debugging + login, then script with `PORT=9222`). Run it locally and record the printed FCP, LCP, TBT, CLS (and any interaction metric) for each route.
+
+### What was verified
+
+- **Nothing in a real browser** was verified in this environment. SWR dedup (§3) and auth callback timing (§2) must be verified by you in DevTools / console.
+
+### What remains unproven
+
+- Authenticated app-route metrics (FCP, LCP, TBT, CLS, INP) for `/app`, `/app/dashboard`, `/app/analytics`, `/org/[id]`.
+- That SWR actually prevents duplicate `/api/overview/stats` and `/api/profile/me-stats` within 60s when navigating as in §3.
+- Auth callback timings (link/finish → redirect, ensure-backfill duration) from the existing `performance.mark` entries.
+- Whether login/app entry is the main bottleneck (needed to choose the next fix from data).
+
+### Next fix (one only, after measurement)
+
+- **No structural change was implemented in this pass.** The next fix should be chosen only after you have authenticated metrics and, if possible, auth-callback timings.
+
+- **Recommended next fix if login/app entry is slow:** **Single post-login bootstrap API.**  
+  **Why ROI is high:** The auth callback today does several round-trips (ensureProfileForSession, set-session, saveTwitterIdentityFromOAuth, updateMyProfile, link/finish, ensure-backfill). A single server endpoint that performs profile ensure, social upsert, optional ensure-backfill (or enqueue), and optional refresh-scores in the background would reduce round-trips and time-to-redirect. One request from the client after session is set, then redirect when the server has finished (or after a minimal wait).  
+  If authenticated Lighthouse instead shows that app-route JS or first load is the main cost, then **pagination/virtualization for one major list** or **further shared-shell reduction** may be better; use the numbers to decide.
+
+---
+
+## 8. Bottlenecks still open
 
 1. **No Lighthouse for authenticated app content** — All app-route runs so far were unauthenticated; results are for redirect/login flow, not the actual app.
 2. **Large shared JS** — After CDP move, the main shell is still large (React, Supabase, SWR, motion). Further gains need motion or other libs lazy-loaded per route.
@@ -140,10 +177,9 @@ If a second request appears within the dedup window, dedup is not effective for 
 
 ---
 
-## 7. Summary
+## 9. Summary
 
-- **Lighthouse:** One real run for **requested `/app`** (mobile): FCP 3149 ms, LCP 7309 ms, TBT 1030 ms, CLS 0 (redirect flow; not authenticated app). Homepage (previous): FCP 938 ms, LCP 1538 ms, TBT 0, CLS 0.
-- **Auth callback:** Only ensure-backfill is awaited before redirect; refresh-scores is non-blocking. Performance marks are in place for manual timing.
-- **SWR dedup:** Configured; verification steps are in §3 (must be done in DevTools).
-- **Chunk reduction:** CDP is loaded only on wallet routes via dynamic import in `CdpProviderGate.tsx`. Main app chunk no longer includes CDP/wallet on non-wallet routes.
-- **Stale text removed:** All references to Promise.all for auth callback and template placeholders have been removed; report reflects current behavior only.
+- **Existing fixes (unchanged):** Auth callback awaits only ensure-backfill (refresh-scores fire-and-forget). CDP loads only on wallet routes (dynamic import in `CdpProviderGate.tsx`). Performance marks and SWR dedup config in place.
+- **This pass:** No authenticated Lighthouse runs in this environment (no browser session). Added `scripts/run-lighthouse-authenticated.js` so you can measure `/app`, `/app/dashboard`, `/app/analytics`, `/org/[id]` with a logged-in Chrome. No new structural fix; next fix is to be chosen after you have real authenticated metrics.
+- **Recommendation:** If authenticated metrics show login/app entry is slow, implement the single post-login bootstrap API next (best ROI). Otherwise choose pagination/virtualization or shell reduction from the data.
+- **Redirect-flow metrics** (§1) are explicitly not presented as app metrics; they are from unauthenticated requests and reflect redirect behavior only.

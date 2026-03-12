@@ -29,7 +29,7 @@ type LineageData = {
 type GraphNode = { id: string; name: string; username?: string | null; avatar_url?: string | null; isYou?: boolean };
 type GraphLink = { source: string; target: string };
 
-const NODE_R = 20;
+const NODE_R = 14;
 
 function safeAvatarUrl(avatar_url: string | null | undefined, username: string | null | undefined): string | null {
   if (avatar_url && typeof avatar_url === "string" && avatar_url.trim() && !isPrivateStorageUrl(avatar_url))

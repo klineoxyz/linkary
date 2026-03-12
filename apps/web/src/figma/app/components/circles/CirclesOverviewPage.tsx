@@ -14,7 +14,7 @@ function Button({ children, variant = "primary", className = "", icon: Icon, ...
   const base = "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none";
   const variants = {
     primary: "bg-indigo-600 hover:bg-indigo-700 text-white h-10 px-4 text-sm",
-    outline: "border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 h-10 px-4 text-sm",
+    outline: "border border-border bg-muted/50 hover:bg-muted text-foreground h-10 px-4 text-sm",
   };
   return (
     <button className={`${base} ${variants[variant]} ${className}`} {...props}>
@@ -29,8 +29,8 @@ function SectionTitle({ title, subtitle, right }: any) {
     <div className="mb-8">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-white">{title}</h1>
-          {subtitle && <p className="mt-2 text-zinc-300">{subtitle}</p>}
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">{title}</h1>
+          {subtitle && <p className="mt-2 text-muted-foreground">{subtitle}</p>}
         </div>
         {right && <div className="flex items-center gap-2">{right}</div>}
       </div>
@@ -153,10 +153,10 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
       {me?.id && connectionsCount !== null && (
         <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <Link2 className="h-5 w-5 text-indigo-400" />
+            <Link2 className="h-5 w-5 text-indigo-600" />
             <div>
-              <p className="font-medium text-white">My Connections</p>
-              <p className="text-sm text-indigo-200">
+              <p className="font-medium text-foreground">My Connections</p>
+              <p className="text-sm text-muted-foreground">
                 {connectionsCount.accepted} connected · {connectionsCount.pending} pending
               </p>
             </div>
@@ -176,13 +176,13 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 border-b border-indigo-500/20 pb-1">
+      <div className="flex gap-2 border-b border-border pb-1">
         <button
           onClick={() => setActiveTab("all")}
           className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
             activeTab === "all"
-              ? "text-indigo-300 border-b-2 border-indigo-500 bg-indigo-500/10"
-              : "text-zinc-400 hover:text-zinc-300"
+              ? "text-foreground border-b-2 border-primary bg-primary/10"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
           All Circles ({circles.length})
@@ -191,8 +191,8 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
           onClick={() => setActiveTab("personal")}
           className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
             activeTab === "personal"
-              ? "text-indigo-300 border-b-2 border-indigo-500 bg-indigo-500/10"
-              : "text-zinc-400 hover:text-zinc-300"
+              ? "text-foreground border-b-2 border-primary bg-primary/10"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
           Personal ({circles.filter((c) => c.type === "personal").length})
@@ -201,8 +201,8 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
           onClick={() => setActiveTab("organization")}
           className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
             activeTab === "organization"
-              ? "text-indigo-300 border-b-2 border-indigo-500 bg-indigo-500/10"
-              : "text-zinc-400 hover:text-zinc-300"
+              ? "text-foreground border-b-2 border-primary bg-primary/10"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
           Organization ({circles.filter((c) => c.type === "organization").length})
@@ -223,12 +223,12 @@ export default function CirclesOverviewPage({ setRoute, me }: { setRoute?: (rout
       </div>
 
       {circlesLoading && circles.length === 0 && (
-        <div className="text-center py-12 text-zinc-400">Loading circles…</div>
+        <div className="text-center py-12 text-muted-foreground">Loading circles…</div>
       )}
       {!circlesLoading && filteredCircles.length === 0 && (
-        <div className="text-center py-12">
-          <Users className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
-          <p className="text-zinc-400">No circles yet. Create one and add members from search.</p>
+        <div className="text-center py-12 text-muted-foreground">
+          <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">No circles yet. Create one and add members from search.</p>
           <Button variant="primary" icon={Plus} className="mt-4" onClick={handleCreateCircle} disabled={!me?.id}>
             Create Your First Circle
           </Button>

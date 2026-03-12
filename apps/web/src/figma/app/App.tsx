@@ -3285,6 +3285,8 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
   const [csTitle, setCsTitle] = useState("");
   const [csDescription, setCsDescription] = useState("");
   const [csProofUrl, setCsProofUrl] = useState("");
+  const [csProofMode, setCsProofMode] = useState<"url" | "upload">("url");
+  const [csProofFile, setCsProofFile] = useState<File | null>(null);
   const [csSubmitting, setCsSubmitting] = useState(false);
   const [caseStudyRemovingId, setCaseStudyRemovingId] = useState<string | null>(null);
   const [meStats, setMeStats] = useState<{ ethos: number | null; xscore: number | null; reputationIndex: number; repScore: number | null; socialPower: number; reviews: { avg: number; count: number }; completedGigsCount?: number } | null>(null);
@@ -3472,13 +3474,48 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
   const handleCreateCaseStudy = async () => {
     if (!me?.id) return;
     setCsSubmitting(true);
-    const { error } = await createCaseStudyForProfile(me.id, { title: csTitle, description: csDescription, proof_url: csProofUrl || undefined });
-    setCsSubmitting(false);
-    if (!error) {
-      setShowCaseStudyModal(false);
-      setCsTitle(""); setCsDescription(""); setCsProofUrl("");
-      listCaseStudiesForProfile(me.id).then(setCaseStudies);
+    if (csProofMode === "url") {
+      const { error } = await createCaseStudyForProfile(me.id, { title: csTitle, description: csDescription, proof_url: csProofUrl || undefined });
+      setCsSubmitting(false);
+      if (!error) {
+        setShowCaseStudyModal(false);
+        setCsTitle(""); setCsDescription(""); setCsProofUrl(""); setCsProofFile(null);
+        listCaseStudiesForProfile(me.id).then(setCaseStudies);
+      }
+      return;
     }
+    const { data: created, error: createErr } = await createCaseStudyForProfile(me.id, { title: csTitle, description: csDescription });
+    if (createErr || !created?.id) {
+      setCsSubmitting(false);
+      return;
+    }
+    const file = csProofFile;
+    if (file) {
+      try {
+        const headers = await getAuthHeaders();
+        const base = typeof window !== "undefined" ? window.location.origin : "";
+        const urlRes = await fetch(`${base}/api/media/upload-url`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({ type: "case_study_proof", owner_id: created.id, file_name: file.name, content_type: file.type }),
+        });
+        const urlJson = await urlRes.json().catch(() => ({}));
+        if (urlJson?.uploadUrl && urlJson?.file_path) {
+          await fetch(urlJson.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "application/octet-stream" } });
+          await fetch(`${base}/api/media/commit`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...headers },
+            body: JSON.stringify({ type: "case_study_proof", owner_id: created.id, file_path: urlJson.file_path }),
+          });
+        }
+      } catch (_) {
+        // Case study created; proof upload failed — user can add URL later
+      }
+    }
+    setCsSubmitting(false);
+    setShowCaseStudyModal(false);
+    setCsTitle(""); setCsDescription(""); setCsProofUrl(""); setCsProofFile(null);
+    listCaseStudiesForProfile(me.id).then(setCaseStudies);
   };
 
   const handleRemoveCaseStudy = async (caseStudyId: string) => {
@@ -3930,9 +3967,21 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
                 <h3 className="text-lg font-semibold text-foreground mb-4">Add Case Study</h3>
                 <input placeholder="Title" value={csTitle} onChange={(e) => setCsTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground font-medium placeholder:text-foreground/60 mb-3" />
                 <textarea placeholder="Description" value={csDescription} onChange={(e) => setCsDescription(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground font-medium placeholder:text-foreground/60 mb-3" />
-                <input placeholder="Proof URL (optional)" value={csProofUrl} onChange={(e) => setCsProofUrl(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground font-medium placeholder:text-foreground/60 mb-4" />
+                <p className="text-sm font-medium text-foreground mb-2">Proof image</p>
+                <div className="flex gap-2 mb-2">
+                  <button type="button" onClick={() => { setCsProofMode("url"); setCsProofFile(null); }} className={`flex-1 py-2 rounded-lg border text-sm font-medium ${csProofMode === "url" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted"}`}>Use URL</button>
+                  <button type="button" onClick={() => { setCsProofMode("upload"); setCsProofUrl(""); }} className={`flex-1 py-2 rounded-lg border text-sm font-medium ${csProofMode === "upload" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted"}`}>Upload</button>
+                </div>
+                {csProofMode === "url" ? (
+                  <input placeholder="Proof image URL (optional)" value={csProofUrl} onChange={(e) => setCsProofUrl(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-input-background text-foreground font-medium placeholder:text-foreground/60 mb-4" />
+                ) : (
+                  <div className="mb-4">
+                    <input type="file" accept="image/*" onChange={(e) => setCsProofFile(e.target.files?.[0] ?? null)} className="w-full text-sm text-foreground file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-primary file:text-primary-foreground file:font-medium" />
+                    {csProofFile && <p className="mt-1 text-xs text-muted-foreground">{csProofFile.name}</p>}
+                  </div>
+                )}
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => { setShowCaseStudyModal(false); setCsTitle(""); setCsDescription(""); setCsProofUrl(""); }} className="flex-1 py-2 rounded-lg border border-border font-medium text-foreground">Cancel</button>
+                  <button type="button" onClick={() => { setShowCaseStudyModal(false); setCsTitle(""); setCsDescription(""); setCsProofUrl(""); setCsProofFile(null); }} className="flex-1 py-2 rounded-lg border border-border font-medium text-foreground">Cancel</button>
                   <button type="button" disabled={csSubmitting || !csTitle.trim()} onClick={handleCreateCaseStudy} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50">{csSubmitting ? "Saving…" : "Save"}</button>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 /**
  * GET /api/invites/lineage — inviter chain and downstream invitees for the current user.
- * Returns: { inviter: { id, username, display_name } | null, invitees: [ { id, username, display_name, depth?, invitees?: [] } ] }
+ * Returns: { inviter: { id, username, display_name, avatar_url } | null, invitees: [ { id, username, display_name, avatar_url, depth?, invitees?: [] } ] }
  * Query: ?depth=1|2 (default 1 = direct only; 2 = include invitees of invitees)
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   const { data: myProfile, error: myErr } = await supabase
     .from("profiles")
-    .select("id, inviter_id, username, display_name")
+    .select("id, inviter_id, username, display_name, avatar_url")
     .eq("id", user.id)
     .maybeSingle();
   if (myErr || !myProfile) return NextResponse.json({ me: null, inviter: null, invitees: [] });
@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
     id: (myProfile as { id: string }).id,
     username: (myProfile as { username?: string | null }).username ?? null,
     display_name: (myProfile as { display_name?: string | null }).display_name ?? null,
+    avatar_url: (myProfile as { avatar_url?: string | null }).avatar_url ?? null,
   };
   const ADMIN_TWITTER = "muazxinthi";
   const inviterId = (myProfile as { inviter_id?: string | null }).inviter_id;
@@ -43,27 +44,28 @@ export async function GET(request: NextRequest) {
   if (inviterId) {
     const { data: inv } = await supabase
       .from("profiles")
-      .select("id, username, display_name, twitter_username")
+      .select("id, username, display_name, twitter_username, avatar_url")
       .eq("id", inviterId)
       .maybeSingle();
     if (inv) {
       const tw = ((inv as { twitter_username?: string | null }).twitter_username ?? "").replace(/^@/, "").toLowerCase();
       const displayName = tw === ADMIN_TWITTER ? "Linkary" : (inv.display_name ?? inv.username ?? null);
-      inviter = { id: inv.id, username: inv.username ?? null, display_name: displayName };
+      inviter = { id: inv.id, username: inv.username ?? null, display_name: displayName, avatar_url: (inv as { avatar_url?: string | null }).avatar_url ?? null };
     }
   }
 
-  async function getInvitees(profileId: string, d: number): Promise<{ id: string; username: string | null; display_name: string | null; depth: number; invitees?: any[] }[]> {
+  async function getInvitees(profileId: string, d: number): Promise<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null; depth: number; invitees?: any[] }[]> {
     const { data: rows } = await supabase
       .from("profiles")
-      .select("id, username, display_name")
+      .select("id, username, display_name, avatar_url")
       .eq("inviter_id", profileId);
-    const list = (rows ?? []).map((r: { id: string; username: string | null; display_name: string | null }) => ({
+    const list = (rows ?? []).map((r: { id: string; username: string | null; display_name: string | null; avatar_url?: string | null }) => ({
       id: r.id,
       username: r.username ?? null,
       display_name: r.display_name ?? null,
+      avatar_url: r.avatar_url ?? null,
       depth: d,
-    })) as { id: string; username: string | null; display_name: string | null; depth: number; invitees?: any[] }[];
+    })) as { id: string; username: string | null; display_name: string | null; avatar_url: string | null; depth: number; invitees?: any[] }[];
     if (d < depth && list.length > 0) {
       for (const item of list) {
         item.invitees = await getInvitees(item.id, d + 1);

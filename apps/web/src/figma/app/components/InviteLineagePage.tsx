@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { Users, Loader2, ArrowLeft, List, Network } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 
 const ForceGraph2D = dynamic(
   () => import("react-force-graph-2d").then((mod) => mod.default),
@@ -14,18 +15,29 @@ type LineageNode = {
   id: string;
   username: string | null;
   display_name: string | null;
+  avatar_url?: string | null;
   depth?: number;
   invitees?: LineageNode[];
 };
 
 type LineageData = {
-  me: { id: string; username: string | null; display_name: string | null } | null;
-  inviter: { id: string; username: string | null; display_name: string | null } | null;
+  me: { id: string; username: string | null; display_name: string | null; avatar_url?: string | null } | null;
+  inviter: { id: string; username: string | null; display_name: string | null; avatar_url?: string | null } | null;
   invitees: LineageNode[];
 };
 
-type GraphNode = { id: string; name: string; isYou?: boolean };
+type GraphNode = { id: string; name: string; username?: string | null; avatar_url?: string | null; isYou?: boolean };
 type GraphLink = { source: string; target: string };
+
+const NODE_R = 20;
+
+function safeAvatarUrl(avatar_url: string | null | undefined, username: string | null | undefined): string | null {
+  if (avatar_url && typeof avatar_url === "string" && avatar_url.trim() && !isPrivateStorageUrl(avatar_url))
+    return avatar_url.trim();
+  const handle = (username ?? "").toString().replace(/^@/, "").trim();
+  if (handle) return `https://unavatar.io/twitter/${encodeURIComponent(handle)}`;
+  return null;
+}
 
 function buildGraphData(data: LineageData): { nodes: GraphNode[]; links: GraphLink[] } {
   const nodes: GraphNode[] = [];
@@ -34,7 +46,7 @@ function buildGraphData(data: LineageData): { nodes: GraphNode[]; links: GraphLi
 
   if (data.me) {
     const name = data.me.display_name || data.me.username || "You";
-    nodes.push({ id: data.me.id, name, isYou: true });
+    nodes.push({ id: data.me.id, name, avatar_url: data.me.avatar_url ?? null, isYou: true });
     seen.add(data.me.id);
 
     if (data.inviter && !seen.has(data.inviter.id)) {
@@ -42,6 +54,7 @@ function buildGraphData(data: LineageData): { nodes: GraphNode[]; links: GraphLi
       nodes.push({
         id: data.inviter.id,
         name: data.inviter.display_name || data.inviter.username || "—",
+        avatar_url: data.inviter.avatar_url ?? null,
       });
       links.push({ source: data.inviter.id, target: data.me.id });
     }
@@ -53,6 +66,7 @@ function buildGraphData(data: LineageData): { nodes: GraphNode[]; links: GraphLi
           nodes.push({
             id: node.id,
             name: node.display_name || node.username || "—",
+            avatar_url: node.avatar_url ?? null,
           });
         }
         links.push({ source: parentId, target: node.id });
@@ -71,6 +85,7 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"graph" | "list">("graph");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [loadedImages, setLoadedImages] = useState<Record<string, HTMLImageElement>>({});
 
   const load = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -106,6 +121,20 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
 
   const graphData = useMemo(() => (data ? buildGraphData(data) : { nodes: [], links: [] }), [data]);
 
+  useEffect(() => {
+    const nodes = graphData.nodes ?? [];
+    nodes.forEach((node) => {
+      const n = node as GraphNode;
+      const url = safeAvatarUrl(n.avatar_url, n.username);
+      if (!url) return;
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => setLoadedImages((prev) => ({ ...prev, [node.id]: img }));
+      img.onerror = () => {};
+      img.src = url;
+    });
+  }, [graphData.nodes]);
+
   const toggle = (id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -120,6 +149,7 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
     const isExpanded = expanded.has(node.id);
     const name = node.display_name || node.username || "—";
     const handle = node.username ? `@${node.username}` : "";
+    const avatarSrc = safeAvatarUrl(node.avatar_url, node.username);
     return (
       <div key={node.id} className="pl-4 border-l-2 border-border ml-2" style={{ marginLeft: depth * 12 }}>
         <div className="flex items-center gap-2 py-1.5">
@@ -130,6 +160,13 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
           ) : (
             <span className="w-5" />
           )}
+          <span className="h-8 w-8 flex-shrink-0 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+            {avatarSrc ? (
+              <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-xs font-medium text-muted-foreground">{(name || "?").charAt(0).toUpperCase()}</span>
+            )}
+          </span>
           <span className="font-medium text-foreground">{name}</span>
           {handle && <span className="text-sm text-muted-foreground">{handle}</span>}
         </div>
@@ -195,8 +232,8 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
         <p className="text-sm text-destructive">{error}</p>
       )}
       {data && !error && viewMode === "graph" && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="h-[400px] w-full">
+        <div className="rounded-xl border border-border bg-transparent overflow-hidden">
+          <div className="h-[400px] w-full bg-transparent">
             {graphData.nodes.length === 0 ? (
               <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
                 No invite data to show. Invite someone to see the network.
@@ -207,20 +244,37 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
                 nodeLabel={(n: GraphNode) => n.name}
                 nodeCanvasObject={(node, ctx, globalScale) => {
                   const n = node as GraphNode & { x?: number; y?: number };
-                  const label = n.name;
-                  const fontSize = 12 / globalScale;
-                  ctx.font = `${n.isYou ? "bold " : ""}${fontSize}px sans-serif`;
-                  ctx.textAlign = "center";
-                  ctx.textBaseline = "middle";
-                  ctx.fillStyle = n.isYou ? "hsl(var(--primary))" : "hsl(var(--foreground))";
-                  if (n.x != null && n.y != null) {
-                    ctx.fillText(label, n.x, n.y);
+                  if (n.x == null || n.y == null) return;
+                  const r = NODE_R;
+                  const img = loadedImages[n.id];
+                  ctx.save();
+                  ctx.beginPath();
+                  ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
+                  ctx.closePath();
+                  ctx.clip();
+                  if (img && img.complete && img.naturalWidth) {
+                    ctx.drawImage(img, n.x - r, n.y - r, r * 2, r * 2);
+                  } else {
+                    ctx.fillStyle = n.isYou ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
+                    ctx.fill();
+                    const initial = (n.name || "?").charAt(0).toUpperCase();
+                    ctx.font = `12px sans-serif`;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillStyle = "hsl(var(--background))";
+                    ctx.fillText(initial, n.x, n.y);
                   }
+                  ctx.restore();
+                  ctx.beginPath();
+                  ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
+                  ctx.strokeStyle = n.isYou ? "hsl(var(--primary))" : "hsl(var(--border))";
+                  ctx.lineWidth = 1.5;
+                  ctx.stroke();
                 }}
                 linkDirectionalArrowLength={4}
                 linkDirectionalArrowRelPos={1}
                 linkColor="hsl(var(--muted-foreground))"
-                backgroundColor="hsl(var(--card))"
+                backgroundColor="transparent"
               />
             )}
           </div>
@@ -231,10 +285,22 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
           <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-2">Invited by</h2>
             {data.inviter ? (
-              <p className="text-foreground">
-                {data.inviter.display_name || data.inviter.username || "—"}
-                {data.inviter.username && <span className="text-muted-foreground ml-1">@{data.inviter.username}</span>}
-              </p>
+              <div className="flex items-center gap-3">
+                <span className="h-10 w-10 flex-shrink-0 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+                  {(() => {
+                    const inviterAvatar = safeAvatarUrl(data.inviter.avatar_url, data.inviter.username);
+                    return inviterAvatar ? (
+                      <img src={inviterAvatar} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-sm font-medium text-muted-foreground">{(data.inviter.display_name || data.inviter.username || "?").charAt(0).toUpperCase()}</span>
+                    );
+                  })()}
+                </span>
+                <p className="text-foreground">
+                  {data.inviter.display_name || data.inviter.username || "—"}
+                  {data.inviter.username && <span className="text-muted-foreground ml-1">@{data.inviter.username}</span>}
+                </p>
+              </div>
             ) : (
               <p className="text-muted-foreground">No inviter (you joined another way)</p>
             )}

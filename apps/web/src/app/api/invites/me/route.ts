@@ -1,6 +1,6 @@
 /**
- * GET /api/invites/me — current user's personal invite code and 5-invite allowance.
- * Returns: { personal_invite_code, invites_used, invites_remaining (0–5) }.
+ * GET /api/invites/me — current user's personal invite code (1 code = 1 invite).
+ * Returns: { personal_invite_code, invites_used, invites_remaining (0 or 1) }.
  * If profile has no personal_invite_code, generates one (10-char alphanumeric) and saves.
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -8,7 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const INVITES_PER_USER = 5;
+const INVITES_PER_USER = 1;
 
 function fail(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });

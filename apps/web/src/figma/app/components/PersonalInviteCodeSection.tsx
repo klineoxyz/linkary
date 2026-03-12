@@ -78,7 +78,7 @@ export default function PersonalInviteCodeSection() {
       ) : data ? (
         <>
           <p className="text-sm text-muted-foreground">
-            Share this code with people you want to invite. They enter it when signing up. One code can be used by up to 5 people.
+            Share this code with people you want to invite. They enter it when signing up. One code can be used by up to 5 people. For one-time codes (one per invite), use the <strong>Invite wallet</strong> section below.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <code className="px-4 py-3 rounded-lg bg-muted text-lg font-mono font-semibold tracking-wide text-foreground">

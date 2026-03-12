@@ -31,7 +31,7 @@ type LineageData = {
 type GraphNode = { id: string; name: string; username?: string | null; avatar_url?: string | null; isYou?: boolean };
 type GraphLink = { source: string; target: string };
 
-const NODE_R = 14;
+const NODE_R = 9;
 
 function safeAvatarUrl(avatar_url: string | null | undefined, username: string | null | undefined): string | null {
   if (avatar_url && typeof avatar_url === "string" && avatar_url.trim() && !isPrivateStorageUrl(avatar_url))
@@ -88,6 +88,7 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
   const [viewMode, setViewMode] = useState<"graph" | "list">("graph");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loadedImages, setLoadedImages] = useState<Record<string, HTMLImageElement>>({});
+  const graphRef = React.useRef<{ d3Force: (name: string, fn?: unknown) => unknown; d3ReheatSimulation?: () => void } | null>(null);
 
   const load = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -122,6 +123,20 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
   }, [load]);
 
   const graphData = useMemo(() => (data ? buildGraphData(data) : { nodes: [], links: [] }), [data]);
+
+  useEffect(() => {
+    if (!graphData.nodes?.length) return;
+    const id = setTimeout(() => {
+      const g = graphRef.current;
+      if (!g) return;
+      const charge = g.d3Force("charge") as { strength?: (v: number) => void } | undefined;
+      const link = g.d3Force("link") as { distance?: (v: number) => void } | undefined;
+      if (charge && typeof charge.strength === "function") charge.strength(-320);
+      if (link && typeof link.distance === "function") link.distance(90);
+      if (typeof g.d3ReheatSimulation === "function") g.d3ReheatSimulation();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [graphData]);
 
   useEffect(() => {
     const nodes = graphData.nodes ?? [];
@@ -244,6 +259,7 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
               </div>
             ) : (
               <ForceGraph2D
+                ref={graphRef}
                 graphData={graphData}
                 nodeLabel={(n: GraphNode) => n.name}
                 nodeCanvasObject={(node, ctx, globalScale) => {
@@ -262,7 +278,7 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
                     ctx.fillStyle = n.isYou ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
                     ctx.fill();
                     const initial = (n.name || "?").charAt(0).toUpperCase();
-                    ctx.font = `12px sans-serif`;
+                    ctx.font = `10px sans-serif`;
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
                     ctx.fillStyle = "hsl(var(--background))";
@@ -272,10 +288,10 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
                   ctx.beginPath();
                   ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
                   ctx.strokeStyle = n.isYou ? "hsl(var(--primary))" : "hsl(var(--border))";
-                  ctx.lineWidth = 1.5;
+                  ctx.lineWidth = 1;
                   ctx.stroke();
                 }}
-                linkDirectionalArrowLength={4}
+                linkDirectionalArrowLength={3}
                 linkDirectionalArrowRelPos={1}
                 linkColor="hsl(var(--muted-foreground))"
                 backgroundColor="transparent"

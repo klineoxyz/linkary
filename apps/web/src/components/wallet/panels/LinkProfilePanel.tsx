@@ -68,13 +68,13 @@ function LinkProfilePanelWithCdp() {
   const useEvmAddressSafe = h.useEvmAddress ?? useNull;
 
   const currentUser = useCurrentUserSafe();
-  const signInResult = useSignInSafe();
-  const linkResult = useLinkSafe();
+  const signInResult = useSignInSafe() ?? {};
+  const linkResult = useLinkSafe() ?? {};
   const evmAddress = useEvmAddressSafe();
 
-  const signInWithOAuth = signInResult.signInWithOAuth;
-  const linkOAuth = linkResult.linkOAuth;
-  const oauthState = linkResult.oauthState ?? signInResult.oauthState;
+  const signInWithOAuth = (signInResult as { signInWithOAuth?: unknown }).signInWithOAuth;
+  const linkOAuth = (linkResult as { linkOAuth?: unknown }).linkOAuth;
+  const oauthState = (linkResult as { oauthState?: unknown }).oauthState ?? (signInResult as { oauthState?: unknown }).oauthState;
 
   const hasCdpUser = h.useCurrentUser ? (currentUser != null) : !!evmAddress;
 
@@ -438,6 +438,41 @@ function LinkProfilePanelNoCdp() {
   );
 }
 
+class LinkProfilePanelErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="space-y-4">
+          <h3 className="text-base font-semibold">Wallet (CDP) &amp; account</h3>
+          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              This panel needs the wallet environment. If you just opened the app, wait a moment and try again, or refresh the page.
+            </p>
+            <button
+              type="button"
+              onClick={() => this.setState({ hasError: false })}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function LinkProfilePanel() {
-  return cdpHooks ? <LinkProfilePanelWithCdp /> : <LinkProfilePanelNoCdp />;
+  const content = cdpHooks ? <LinkProfilePanelWithCdp /> : <LinkProfilePanelNoCdp />;
+  return <LinkProfilePanelErrorBoundary>{content}</LinkProfilePanelErrorBoundary>;
 }

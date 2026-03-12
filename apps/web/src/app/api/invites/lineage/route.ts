@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   };
   const ADMIN_TWITTER = "muazxinthi";
   const inviterId = (myProfile as { inviter_id?: string | null }).inviter_id;
-  let inviter: { id: string; username: string | null; display_name: string | null } | null = null;
+  let inviter: { id: string; username: string | null; display_name: string | null; avatar_url: string | null } | null = null;
   if (inviterId) {
     const { data: inv } = await supabase
       .from("profiles")

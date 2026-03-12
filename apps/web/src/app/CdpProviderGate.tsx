@@ -1,11 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { CDPReactProvider } from "@coinbase/cdp-react";
 import { useCdpAppId } from "@/app/CdpAppIdProvider";
 import { CdpErrorBoundary, clearCdpPersistedState } from "@/app/CdpErrorBoundary";
+
+/** CDP (Coinbase embedded wallet) is loaded only on wallet routes to keep it off the main app chunk. */
+type CdpModule = { CDPReactProvider: React.ComponentType<{ config: unknown; children: ReactNode }> };
 
 /** Routes where CDP (Coinbase embedded wallet) is allowed to mount. All other routes never load CDP. */
 const WALLET_ROUTES = ["/settings/wallet", "/wallet"];
@@ -56,14 +58,32 @@ export default function CdpProviderGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const cdpAppId = useCdpAppId();
   useCdpRejectionHandler();
+  const [cdpModule, setCdpModule] = useState<CdpModule | null>(null);
 
   const shouldMountCdp = !!cdpAppId && isWalletRoute(pathname);
-  const content = children;
+
+  useEffect(() => {
+    if (!shouldMountCdp) return;
+    let cancelled = false;
+    import("@coinbase/cdp-react").then((m) => {
+      if (!cancelled) setCdpModule({ CDPReactProvider: m.CDPReactProvider });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [shouldMountCdp]);
 
   if (!shouldMountCdp) {
-    return <>{content}</>;
+    return <>{children}</>;
   }
 
+  if (!cdpModule) {
+    return (
+      <div className="min-h-[40vh] flex items-center justify-center bg-background text-muted-foreground text-sm">
+        Loading wallet…
+      </div>
+    );
+  }
+
+  const { CDPReactProvider } = cdpModule;
   return (
     <CDPReactProvider
       config={{
@@ -73,7 +93,7 @@ export default function CdpProviderGate({ children }: { children: ReactNode }) {
         authMethods: ["oauth:x"],
       }}
     >
-      <CdpErrorBoundary>{content}</CdpErrorBoundary>
+      <CdpErrorBoundary>{children}</CdpErrorBoundary>
     </CDPReactProvider>
   );
 }

@@ -8,6 +8,8 @@ type MeInvites = {
   personal_invite_code: string;
   invites_used: number;
   invites_remaining: number;
+  /** null = unlimited (super user) */
+  max_invites?: number | null;
 };
 
 export default function PersonalInviteCodeSection() {
@@ -34,6 +36,7 @@ export default function PersonalInviteCodeSection() {
         personal_invite_code: json.personal_invite_code,
         invites_used: json.invites_used ?? 0,
         invites_remaining: json.invites_remaining ?? 0,
+        max_invites: json.max_invites !== undefined ? json.max_invites : 5,
       });
     } else {
       setError(json?.error ?? "Could not load your invite code. Try again.");
@@ -78,7 +81,7 @@ export default function PersonalInviteCodeSection() {
       ) : data ? (
         <>
           <p className="text-sm text-muted-foreground">
-            Share this code with one person you want to invite. They enter it when signing up. One code works for one invite only. For more invites, get one-time codes in the <strong>Invite wallet</strong> section below.
+            Share this code with people you want to invite. They enter it when signing up. Every new user gets 5 invites; you can get more based on your activity later. For one-time codes, use the <strong>Invite wallet</strong> section below.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <code className="px-4 py-3 rounded-lg bg-muted text-lg font-mono font-semibold tracking-wide text-foreground">
@@ -94,7 +97,9 @@ export default function PersonalInviteCodeSection() {
             </button>
           </div>
           <p className="text-xs text-muted-foreground">
-            {data.invites_remaining} of 1 invite remaining with this code.
+            {data.max_invites == null
+              ? `Unlimited invites (${data.invites_used} used).`
+              : `${data.invites_remaining} of ${data.max_invites} invites remaining with this code.`}
           </p>
         </>
       ) : null}

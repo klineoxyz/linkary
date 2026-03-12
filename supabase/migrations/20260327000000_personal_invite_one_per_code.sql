@@ -1,4 +1,5 @@
--- Personal invite code: 1 code = 1 invite (was 5). Same redeem_invite_code body with cap 1 for personal_invite_code path.
+-- Personal invite code: 5 invites per user (initial allowance). Super user (@muazxinthi) exempt from cap.
+-- New users get 5 invites; more can be granted by stats/admin later.
 
 CREATE OR REPLACE FUNCTION public.redeem_invite_code(p_code text, p_redeemer_profile_id uuid)
 RETURNS jsonb
@@ -16,6 +17,8 @@ DECLARE
   v_exists int;
   v_personal_inviter_id uuid;
   v_invite_count int;
+  v_inviter_username text;
+  v_is_super_user boolean := false;
 BEGIN
   IF p_redeemer_profile_id IS NULL OR p_code IS NULL THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_input');
@@ -61,7 +64,7 @@ BEGIN
     RETURN jsonb_build_object('ok', true);
   END IF;
 
-  -- 2) Personal invite codes (1 code = 1 invite)
+  -- 2) Personal invite codes (5 per user; super user @muazxinthi unlimited)
   SELECT id INTO v_personal_inviter_id
   FROM public.profiles
   WHERE upper(regexp_replace(btrim(COALESCE(personal_invite_code, '')), '\s+', '', 'g')) = v_canonical
@@ -81,7 +84,11 @@ BEGIN
   FROM public.profiles
   WHERE inviter_id = v_personal_inviter_id;
 
-  IF v_invite_count >= 1 THEN
+  SELECT LOWER(TRIM(COALESCE(username, ''))) INTO v_inviter_username
+  FROM public.profiles WHERE id = v_personal_inviter_id LIMIT 1;
+  v_is_super_user := (v_inviter_username = 'muazxinthi');
+
+  IF NOT v_is_super_user AND v_invite_count >= 5 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'inviter_limit_reached');
   END IF;
 
@@ -101,4 +108,4 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.redeem_invite_code IS 'Redeem by one-time code or personal_invite_code (1 code = 1 invite). Sets redeemed_by_user_id/redeemed_at on codes; inserts invite_attributions.';
+COMMENT ON FUNCTION public.redeem_invite_code IS 'Redeem by one-time code or personal_invite_code. Default 5 invites per user; super user (@muazxinthi) unlimited. Sets redeemed_by_user_id/redeemed_at; inserts invite_attributions.';

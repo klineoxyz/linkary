@@ -51,6 +51,14 @@ export async function POST(request: NextRequest) {
   const isAdmin = twitter === ADMIN_TWITTER;
 
   if (!isAdmin) {
+    const { data: activeCount } = await supabase.rpc("get_user_active_invite_count", { p_user_id: user.id });
+    const currentActive = activeCount ?? 0;
+    if (currentActive >= 5) {
+      return fail("Max 5 active invite codes (global cap). Use or expire existing codes first.", 400);
+    }
+    if (currentActive + count > 5) {
+      return fail(`Only ${5 - currentActive} slot(s) left under global cap (5). Request ${count} would exceed.`, 400);
+    }
     const LIFETIME_CAP = 500;
     const { count: issuedCount } = await supabase
       .from("invite_codes")
@@ -121,6 +129,7 @@ export async function POST(request: NextRequest) {
       .insert({
         code: codeStr,
         batch_id: batchId,
+        owner_user_id: user.id,
         issued_by_type: "profile",
         issued_by_id: user.id,
         issued_by_profile_id: user.id,

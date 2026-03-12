@@ -7,8 +7,7 @@ import { useCdpAppId } from "@/app/CdpAppIdProvider";
 import { CdpErrorBoundary, clearCdpPersistedState } from "@/app/CdpErrorBoundary";
 
 /** CDP (Coinbase embedded wallet) is loaded only on wallet routes to keep it off the main app chunk. */
-type CdpProviderProps = { config: Record<string, unknown>; children: ReactNode };
-type CdpModule = { CDPReactProvider: React.ComponentType<CdpProviderProps> };
+type CdpModule = { CDPReactProvider: React.ComponentType<{ config: Record<string, unknown>; children: ReactNode }> };
 
 /** Routes where CDP (Coinbase embedded wallet) is allowed to mount. All other routes never load CDP. */
 const WALLET_ROUTES = ["/settings/wallet", "/wallet"];
@@ -67,7 +66,7 @@ export default function CdpProviderGate({ children }: { children: ReactNode }) {
     if (!shouldMountCdp) return;
     let cancelled = false;
     import("@coinbase/cdp-react").then((m) => {
-      if (!cancelled) setCdpModule({ CDPReactProvider: m.CDPReactProvider as React.ComponentType<CdpProviderProps> });
+      if (!cancelled) setCdpModule({ CDPReactProvider: m.CDPReactProvider as unknown as CdpModule["CDPReactProvider"] });
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [shouldMountCdp]);

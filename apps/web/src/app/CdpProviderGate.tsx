@@ -10,7 +10,7 @@ import { CdpErrorBoundary, clearCdpPersistedState } from "@/app/CdpErrorBoundary
 type CdpModule = { CDPReactProvider: React.ComponentType<{ config: Record<string, unknown>; children: ReactNode }> };
 
 /** Routes where CDP (Coinbase embedded wallet) is allowed to mount. All other routes never load CDP. */
-const WALLET_ROUTES = ["/settings/wallet", "/wallet"];
+const WALLET_ROUTES = ["/settings/wallet", "/wallet", "/app/settings/wallet", "/app/wallet"];
 
 function isWalletRoute(pathname: string | null): boolean {
   if (!pathname) return false;

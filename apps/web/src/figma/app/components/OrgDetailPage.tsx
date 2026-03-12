@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import {
   Building2,
   Users,
@@ -35,7 +36,11 @@ import {
 import { listJobs, listApplicationsForJobs, type Application } from "@/lib/jobs";
 import { listCaseStudiesForOrg, createCaseStudyForOrg, type CaseStudy } from "@/lib/caseStudies";
 import { Briefcase, Sparkles } from "lucide-react";
-import CreatorProgramDetailDrawer from "./CreatorProgramDetailDrawer";
+
+const CreatorProgramDetailDrawer = dynamic(
+  () => import("./CreatorProgramDetailDrawer").then((m) => m.default),
+  { ssr: false, loading: () => <div className="p-6 flex items-center justify-center min-h-[200px]"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div> }
+);
 
 function formatRelativeTime(iso: string): string {
   try {
@@ -148,13 +153,15 @@ export default function OrgDetailPage({
   const [programSaving, setProgramSaving] = useState(false);
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
-  useEffect(() => void loadSession(), []);
-  function loadSession() {
+  const loadSession = useCallback(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserId(session?.user?.id ?? null);
+      setAccessToken(session?.access_token ?? null);
     });
-  }
+  }, []);
+  useEffect(() => void loadSession(), [loadSession]);
 
   useEffect(() => {
     if (!orgId) {
@@ -180,9 +187,8 @@ export default function OrgDetailPage({
         setSettingsOrgName(o.name ?? "");
         setSettingsOrgSlug((o.slug ?? "").replace(/^@/, ""));
         const base = typeof window !== "undefined" ? window.location.origin : "";
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        const [m, a, am, met, jobsAll, cs, supportersRes, influenceRes, supportStatusRes, dashboardRes] = await Promise.all([
+        const token = accessToken;
+        const [m, a, am, met, jobsAll, cs, supportersRes, supportStatusRes, dashboardRes] = await Promise.all([
           listOrgMembers(o.id),
           token && base
             ? fetch(`${base}/api/orgs/${o.id}/affiliates`, { headers: { Authorization: `Bearer ${token}` } }).then(async (r) => (r.ok ? ((await r.json()).affiliations ?? []) : await listOrgAffiliations(o.id)))
@@ -194,14 +200,9 @@ export default function OrgDetailPage({
           listJobs(),
           listCaseStudiesForOrg(o.id),
           fetch(`${base}/api/orgs/${o.id}/supporters?limit=12`).then((r) => r.json()),
-          fetch(`${base}/api/orgs/${o.id}/influence-rollup`).then((r) => r.json()),
-          userId ? (async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            if (!token) return { supporting: false };
-            const r = await fetch(`${base}/api/orgs/${o.id}/support-status`, { headers: { Authorization: `Bearer ${token}` } });
-            return r.json();
-          })() : Promise.resolve({ supporting: false }),
+          userId && token && base
+            ? fetch(`${base}/api/orgs/${o.id}/support-status`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json())
+            : Promise.resolve({ supporting: false }),
           fetch(`${base}/api/orgs/${o.id}/dashboard`).then((r) => r.json()),
         ]);
         setMembers(m);
@@ -216,7 +217,7 @@ export default function OrgDetailPage({
         setSupportersCount(supportersRes?.count ?? 0);
         setSupportersSample(supportersRes?.supporters ?? []);
         setSupporting(supportStatusRes?.supporting === true);
-        setInfluenceRollup(influenceRes ? { total_influence: influenceRes.total_influence ?? 0, breakdown: influenceRes.breakdown ?? {}, computed_at: influenceRes.computed_at ?? null } : null);
+        setInfluenceRollup(dashboardRes?.influenceRollup ? { total_influence: dashboardRes.influenceRollup.total_influence ?? 0, breakdown: dashboardRes.influenceRollup.breakdown ?? {}, computed_at: dashboardRes.influenceRollup.computed_at ?? null } : null);
         setDashboardData(dashboardRes ? { supportersPreview: dashboardRes.supportersPreview ?? [], topSupporters: dashboardRes.topSupporters ?? [], jobsPreview: dashboardRes.jobsPreview ?? [] } : null);
         if (token && base) {
           const progRes = await fetch(`${base}/api/creator-programs?org_id=${encodeURIComponent(o.id)}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -232,13 +233,12 @@ export default function OrgDetailPage({
       }
       setLoading(false);
     })();
-  }, [orgId, data?.orgId, userId]);
+  }, [orgId, data?.orgId, userId, accessToken]);
 
   const fetchMembersWithProfiles = async () => {
     if (!org?.id) return;
     setMembersLoadError(null);
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    const token = accessToken;
     if (!token) {
       setMembersWithProfiles(members);
       return;
@@ -264,8 +264,7 @@ export default function OrgDetailPage({
   }, [org?.id, tab, members.length]);
 
   const fetchWatchlistList = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    const token = accessToken;
     if (!token) return;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const res = await fetch(`${origin}/api/watchlist/list`, { headers: { Authorization: `Bearer ${token}` } });
@@ -330,8 +329,7 @@ export default function OrgDetailPage({
   const onWatchlistOrg = watchlistList && org ? watchlistList.orgs.some((o) => o.entity_id === org.id) : false;
   const handleToggleWatchlistOrg = async () => {
     if (!org?.id || watchlistToggling) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    const token = accessToken;
     if (!token) return;
     setWatchlistToggling(true);
     const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -351,8 +349,7 @@ export default function OrgDetailPage({
     if (!org?.id || !memberUsername.trim()) return;
     setMembersError(null);
     setAddMemberLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    const token = accessToken;
     if (!token) {
       setMembersError("Not signed in");
       setAddMemberLoading(false);
@@ -380,8 +377,7 @@ export default function OrgDetailPage({
     if (!org?.id) return;
     setRemoveLoading((prev) => ({ ...prev, [targetUserId]: true }));
     setMembersError(null);
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    const token = accessToken;
     if (!token) {
       setMembersError("Not signed in");
       setRemoveLoading((prev) => ({ ...prev, [targetUserId]: false }));
@@ -407,8 +403,7 @@ export default function OrgDetailPage({
     if (!org?.id) return;
     setRoleChangeLoading((prev) => ({ ...prev, [targetUserId]: true }));
     setMembersError(null);
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    const token = accessToken;
     if (!token) {
       setMembersError("Not signed in");
       setRoleChangeLoading((prev) => ({ ...prev, [targetUserId]: false }));
@@ -438,8 +433,7 @@ export default function OrgDetailPage({
     if (!org?.id || !transferTargetUserId || transferLoading) return;
     setTransferLoading(true);
     setMembersError(null);
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    const token = accessToken;
     if (!token) {
       setMembersError("Not signed in");
       setTransferLoading(false);
@@ -468,8 +462,7 @@ export default function OrgDetailPage({
     const profileId = type === "affiliate" ? selectedAffiliateProfileId : selectedAmbassadorProfileId;
     if (!org || (!handle && !profileId)) return;
     setInviteError(null);
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    const token = accessToken;
     if (!token) {
       setInviteError("Not signed in");
       return;
@@ -619,7 +612,7 @@ export default function OrgDetailPage({
               <button
                 type="button"
                 onClick={copyOrgLink}
-                className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-2 min-h-[44px] rounded border border-zinc-300 dark:border-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 touch-manipulation"
               >
                 <Link2 className="w-3.5 h-3.5" />
                 {orgLinkCopied ? "Copied" : "Copy link"}
@@ -643,8 +636,7 @@ export default function OrgDetailPage({
                 <button
                   type="button"
                   onClick={async () => {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    const token = session?.access_token;
+                    const token = accessToken;
                     const base = typeof window !== "undefined" ? window.location.origin : "";
                     const method = supporting ? "unsupport" : "support";
                     const res = await fetch(`${base}/api/orgs/${org.id}/${method}`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {} });
@@ -659,7 +651,7 @@ export default function OrgDetailPage({
                       }
                     }
                   }}
-                  className={`text-xs px-2 py-1 rounded border ${supporting ? "bg-primary/10 border-primary text-primary" : "border-zinc-300 dark:border-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}
+                  className={`text-xs px-3 py-2 min-h-[44px] rounded border touch-manipulation ${supporting ? "bg-primary/10 border-primary text-primary" : "border-zinc-300 dark:border-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}
                 >
                   {supporting ? "Supporting" : "Support"}
                 </button>
@@ -669,7 +661,7 @@ export default function OrgDetailPage({
                   type="button"
                   onClick={handleToggleWatchlistOrg}
                   disabled={watchlistToggling}
-                  className={`text-xs px-2 py-1 rounded border ${onWatchlistOrg ? "bg-primary/10 border-primary text-primary" : "border-zinc-300 dark:border-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"} disabled:opacity-50`}
+                  className={`text-xs px-3 py-2 min-h-[44px] rounded border touch-manipulation ${onWatchlistOrg ? "bg-primary/10 border-primary text-primary" : "border-zinc-300 dark:border-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"} disabled:opacity-50`}
                 >
                   {onWatchlistOrg ? "On watchlist" : "Watchlist"}
                 </button>
@@ -697,8 +689,8 @@ export default function OrgDetailPage({
           {tabs.map((t) => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+            onClick={() => setTab(t.id)}
+                className={`flex items-center gap-2 px-4 sm:px-6 py-3 min-h-[44px] min-w-[44px] text-sm font-medium border-b-2 whitespace-nowrap transition-colors touch-manipulation ${
                 tab === t.id
                   ? "border-primary text-primary"
                   : "border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
@@ -1041,8 +1033,7 @@ export default function OrgDetailPage({
                             if (!org?.id) return;
                             setAcceptPartnerLoading(a.id);
                             try {
-                              const { data: { session } } = await supabase.auth.getSession();
-                              const token = session?.access_token;
+                              const token = accessToken;
                               const origin = typeof window !== "undefined" ? window.location.origin : "";
                               const res = await fetch(`${origin}/api/orgs/${org.id}/affiliates/${a.id}`, {
                                 method: "PATCH",
@@ -1070,8 +1061,7 @@ export default function OrgDetailPage({
                             if (!org?.id) return;
                             setRemovePartnerLoading(a.id);
                             try {
-                              const { data: { session } } = await supabase.auth.getSession();
-                              const token = session?.access_token;
+                              const token = accessToken;
                               const origin = typeof window !== "undefined" ? window.location.origin : "";
                               const res = await fetch(`${origin}/api/orgs/${org.id}/affiliates/${a.id}`, {
                                 method: "PATCH",
@@ -1170,8 +1160,7 @@ export default function OrgDetailPage({
                             if (!org?.id) return;
                             setAcceptPartnerLoading(a.id);
                             try {
-                              const { data: { session } } = await supabase.auth.getSession();
-                              const token = session?.access_token;
+                              const token = accessToken;
                               const origin = typeof window !== "undefined" ? window.location.origin : "";
                               const res = await fetch(`${origin}/api/orgs/${org.id}/ambassadors/${a.id}`, {
                                 method: "PATCH",
@@ -1199,8 +1188,7 @@ export default function OrgDetailPage({
                             if (!org?.id) return;
                             setRemovePartnerLoading(a.id);
                             try {
-                              const { data: { session } } = await supabase.auth.getSession();
-                              const token = session?.access_token;
+                              const token = accessToken;
                               const origin = typeof window !== "undefined" ? window.location.origin : "";
                               const res = await fetch(`${origin}/api/orgs/${org.id}/ambassadors/${a.id}`, {
                                 method: "PATCH",
@@ -1271,8 +1259,7 @@ export default function OrgDetailPage({
                                 if (!org?.id || !userId) return;
                                 setCloseJobLoading(j.id);
                                 try {
-                                  const { data: { session } } = await supabase.auth.getSession();
-                                  const token = session?.access_token;
+                                  const token = accessToken;
                                   const origin = typeof window !== "undefined" ? window.location.origin : "";
                                   const res = await fetch(`${origin}/api/orgs/${org.id}/jobs/${j.id}`, {
                                     method: "PATCH",
@@ -1324,8 +1311,7 @@ export default function OrgDetailPage({
                             <button
                               type="button"
                               onClick={async () => {
-                                const { data: { session } } = await supabase.auth.getSession();
-                                const token = session?.access_token;
+                                const token = accessToken;
                                 const origin = typeof window !== "undefined" ? window.location.origin : "";
                                 const res = await fetch(`${origin}/api/applications/${app.id}/cv-download`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
                                 const json = await res.json().catch(() => ({}));
@@ -1347,8 +1333,7 @@ export default function OrgDetailPage({
                                   if (!userId) return;
                                   setAcceptLoading(app.id);
                                   try {
-                                    const { data: { session } } = await supabase.auth.getSession();
-                                    const token = session?.access_token;
+                                    const token = accessToken;
                                     const origin = typeof window !== "undefined" ? window.location.origin : "";
                                     const res = await fetch(`${origin}/api/applications/${app.id}/accept`, {
                                       method: "POST",
@@ -1378,8 +1363,7 @@ export default function OrgDetailPage({
                                   if (!userId) return;
                                   setAcceptLoading(app.id);
                                   try {
-                                    const { data: { session } } = await supabase.auth.getSession();
-                                    const token = session?.access_token;
+                                    const token = accessToken;
                                     const origin = typeof window !== "undefined" ? window.location.origin : "";
                                     const res = await fetch(`${origin}/api/applications/${app.id}/reject`, {
                                       method: "POST",
@@ -1844,8 +1828,7 @@ export default function OrgDetailPage({
                       return { url: line };
                     });
                   const origin = typeof window !== "undefined" ? window.location.origin : "";
-                  const { data: { session } } = await supabase.auth.getSession();
-                  const token = session?.access_token;
+                  const token = accessToken;
                   const payload: Record<string, unknown> = {
                     type: jobType,
                     title: jobTitle.trim(),
@@ -1920,8 +1903,7 @@ export default function OrgDetailPage({
                 disabled={programSaving || !programTitle.trim()}
                 onClick={async () => {
                   if (!org?.id || !programTitle.trim()) return;
-                  const { data: { session } } = await supabase.auth.getSession();
-                  const token = session?.access_token;
+                  const token = accessToken;
                   const origin = typeof window !== "undefined" ? window.location.origin : "";
                   if (!token || !origin) return;
                   setProgramSaving(true);
@@ -1955,8 +1937,7 @@ export default function OrgDetailPage({
           orgName={org.name ?? ""}
           onClose={() => setSelectedProgramId(null)}
           onUpdated={async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
+            const token = accessToken;
             const origin = typeof window !== "undefined" ? window.location.origin : "";
             if (token && origin && org?.id) {
               const progRes = await fetch(`${origin}/api/creator-programs?org_id=${encodeURIComponent(org.id)}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -2007,8 +1988,7 @@ export default function OrgDetailPage({
                         if (!org?.id || !userId) return;
                         setCloseJobLoading(j.id);
                         try {
-                          const { data: { session } } = await supabase.auth.getSession();
-                          const token = session?.access_token;
+                          const token = accessToken;
                           const origin = typeof window !== "undefined" ? window.location.origin : "";
                           const res = await fetch(`${origin}/api/orgs/${org.id}/jobs/${j.id}`, {
                             method: "PATCH",
@@ -2054,8 +2034,7 @@ export default function OrgDetailPage({
                                   if (!userId) return;
                                   setAcceptLoading(app.id);
                                   try {
-                                    const { data: { session } } = await supabase.auth.getSession();
-                                    const token = session?.access_token;
+                                    const token = accessToken;
                                     const origin = typeof window !== "undefined" ? window.location.origin : "";
                                     const res = await fetch(`${origin}/api/applications/${app.id}/accept`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
                                     const json = await res.json().catch(() => ({}));
@@ -2082,8 +2061,7 @@ export default function OrgDetailPage({
                                   if (!userId) return;
                                   setAcceptLoading(app.id);
                                   try {
-                                    const { data: { session } } = await supabase.auth.getSession();
-                                    const token = session?.access_token;
+                                    const token = accessToken;
                                     const origin = typeof window !== "undefined" ? window.location.origin : "";
                                     const res = await fetch(`${origin}/api/applications/${app.id}/reject`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
                                     const json = await res.json().catch(() => ({}));

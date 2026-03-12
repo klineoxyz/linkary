@@ -148,9 +148,6 @@ import CreatorProfilePage from "./components/CreatorProfilePage";
 import AgencyProfilePage from "./components/AgencyProfilePage";
 import ComponentShowcase from "./components/ComponentShowcase";
 import CalendarPage from "./components/CalendarPage";
-import XSpacesPage from "./components/XSpacesPage";
-import OrgDetailPage from "./components/OrgDetailPage";
-import DealDetailPage from "./components/DealDetailPage";
 import AffiliationAmbassadorSection from "./components/AffiliationAmbassadorSection";
 import { EthosPill } from "@/components/EthosPill";
 import LoginPage from "./components/LoginPage";
@@ -184,8 +181,14 @@ import CapitalPartnersPage from "./components/circles/CapitalPartnersPage";
 import ConnectionsPage from "./components/ConnectionsPage";
 import WatchlistPage from "./components/WatchlistPage";
 import InviteRequiredView from "./components/InviteRequiredView";
-import InviteLineagePage from "./components/InviteLineagePage";
-import AdminInvitesPage from "./components/AdminInvitesPage";
+
+const routeChunkFallback = () => <div className="min-h-[40vh] flex items-center justify-center"><div className="animate-pulse text-muted-foreground text-sm">Loading…</div></div>;
+const XSpacesPage = dynamic(() => import("./components/XSpacesPage").then((m) => m.default), { ssr: false, loading: routeChunkFallback });
+const OrgDetailPage = dynamic(() => import("./components/OrgDetailPage").then((m) => m.default), { ssr: false, loading: routeChunkFallback });
+const DealDetailPage = dynamic(() => import("./components/DealDetailPage").then((m) => m.default), { ssr: false, loading: routeChunkFallback });
+const InviteLineagePage = dynamic(() => import("./components/InviteLineagePage").then((m) => m.default), { ssr: false, loading: routeChunkFallback });
+const AdminInvitesPage = dynamic(() => import("./components/AdminInvitesPage").then((m) => m.default), { ssr: false, loading: routeChunkFallback });
+const ProfileEditPage = dynamic(() => import("./components/ProfileEditPage").then((m) => m.default), { ssr: false, loading: routeChunkFallback });
 
 const DashboardPage = dynamic(
   () => import("./components/DashboardPage").then((m) => m.default),
@@ -208,7 +211,6 @@ import IntegrationsPage from "./components/IntegrationsPage";
 import RolesSkillsPage from "./components/RolesSkillsPage";
 import WalletShell from "@/components/wallet/WalletShell";
 import { RepBreakdownModal } from "@/components/rep/RepBreakdownModal";
-import ProfileEditPage from "./components/ProfileEditPage";
 import GlobalSearch from "./components/GlobalSearch";
 
 /**

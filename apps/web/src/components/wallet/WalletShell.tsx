@@ -66,11 +66,12 @@ export default function WalletShell() {
     });
     if (res.ok) {
       const j = await res.json();
+      const s = j?.status ?? j;
       setStatus({
-        enabled: !!j.enabled,
-        chain: j.chain ?? "base",
-        address: j.address ?? null,
-        needsCreate: !!j.needsCreate,
+        enabled: !!s.enabled,
+        chain: s.chain ?? "base",
+        address: s.address ?? s.walletAddress ?? null,
+        needsCreate: !!s.needsCreate,
       });
     } else {
       setStatus(null);
@@ -194,7 +195,7 @@ export default function WalletShell() {
             {panel === "mfa" && <MfaPanel getToken={getToken} onUpdated={fetchStatus} />}
             {panel === "send-tx" && <SendTxPanel address={address} getToken={getToken} />}
             {panel === "export-keys" && <ExportKeysPanel getToken={getToken} fetchStatus={fetchStatus} />}
-            {panel === "deposit-usdc" && <DepositUsdcPanel address={address} />}
+            {panel === "deposit-usdc" && <DepositUsdcPanel address={address} onRefresh={fetchStatus} />}
             {panel === "external-wallets" && <ExternalWalletsPanel getToken={getToken} onUpdated={fetchStatus} />}
           </div>
         </main>

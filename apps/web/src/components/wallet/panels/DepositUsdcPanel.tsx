@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, RefreshCw } from "lucide-react";
 
 const cn = (...a: (string | undefined)[]) => a.filter(Boolean).join(" ");
 
 interface DepositUsdcPanelProps {
   address: string | null;
+  /** Callback to refetch wallet status (e.g. after linking so address appears). */
+  onRefresh?: () => void;
 }
 
-export default function DepositUsdcPanel({ address }: DepositUsdcPanelProps) {
+export default function DepositUsdcPanel({ address, onRefresh }: DepositUsdcPanelProps) {
   const [copyDone, setCopyDone] = useState(false);
 
   const handleCopy = () => {
@@ -24,7 +26,22 @@ export default function DepositUsdcPanel({ address }: DepositUsdcPanelProps) {
     return (
       <div className="space-y-4">
         <h3 className="text-base font-semibold">Deposit USDC</h3>
-        <p className="text-sm text-muted-foreground">Create or link your wallet to see your deposit address.</p>
+        <p className="text-sm text-muted-foreground">
+          Create or link your wallet to see your deposit address. If you’ve just linked a wallet, refresh to load it.
+        </p>
+        {onRefresh && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-lg font-medium h-9 px-3 text-sm",
+              "border border-border bg-secondary hover:bg-accent"
+            )}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </button>
+        )}
       </div>
     );
   }

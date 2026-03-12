@@ -72,9 +72,10 @@ function LinkProfilePanelWithCdp() {
   const linkResult = useLinkSafe() ?? {};
   const evmAddress = useEvmAddressSafe();
 
-  const signInWithOAuth = (signInResult as { signInWithOAuth?: unknown }).signInWithOAuth;
-  const linkOAuth = (linkResult as { linkOAuth?: unknown }).linkOAuth;
+  type OAuthFn = ((provider: string) => Promise<void>) | null | undefined;
   type OAuthState = { status?: string; providerType?: string } | null | undefined;
+  const signInWithOAuth = (signInResult as { signInWithOAuth?: OAuthFn }).signInWithOAuth ?? null;
+  const linkOAuth = (linkResult as { linkOAuth?: OAuthFn }).linkOAuth ?? null;
   const oauthState = ((linkResult as { oauthState?: unknown }).oauthState ?? (signInResult as { oauthState?: unknown }).oauthState) as OAuthState;
 
   const hasCdpUser = h.useCurrentUser ? (currentUser != null) : !!evmAddress;

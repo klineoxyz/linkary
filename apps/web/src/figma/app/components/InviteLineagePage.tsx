@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
+import type { ForceGraphMethods, NodeObject, LinkObject } from "react-force-graph-2d";
 import { Users, Loader2, ArrowLeft, List, Network } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
@@ -88,7 +89,7 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
   const [viewMode, setViewMode] = useState<"graph" | "list">("graph");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loadedImages, setLoadedImages] = useState<Record<string, HTMLImageElement>>({});
-  const graphRef = React.useRef<{ d3Force: (name: string, fn?: unknown) => unknown; d3ReheatSimulation?: () => void } | null>(null);
+  const graphRef = React.useRef<ForceGraphMethods<NodeObject<GraphNode>, LinkObject<GraphNode, GraphLink>> | null>(null);
 
   const load = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();

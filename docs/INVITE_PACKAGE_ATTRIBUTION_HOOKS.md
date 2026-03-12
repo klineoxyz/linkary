@@ -1,6 +1,6 @@
 # Invite package attribution — 90-day rule and hook points
 
-When an **invited org** (an org created by a user who joined via an invite code) buys a package, the inviter is credited and can earn +1 reserve invite credit. Attribution is applied only if the purchase happens within **90 days** of the invite (attribution row `created_at`).
+When an **invited org** buys a package, **one inviter** is credited (**first-touch**). That inviter earns **+3 reserve** invite credits. Attribution is applied only if the purchase happens within **90 days** of the invite (attribution row `created_at`). **Policy: first-touch only** — the single winning inviter is the one whose attribution row has the **earliest `created_at`** for that org in the 90-day window.
 
 ---
 
@@ -66,18 +66,18 @@ Use this from Stripe webhooks, your billing worker, or any server-side flow wher
 
 ---
 
-## 3. What the function does
+## 3. What the function does (first-touch only)
 
-1. Finds all **invite_attributions** rows where:
+1. Finds the **single** **invite_attributions** row where:
    - `invitee_org_id = p_org_id`
    - `created_at` within the last **90 days**
    - `attribution_status != 'package_purchased'`
-2. For each row:
-   - Sets `package_purchase_id`, `package_type`, `package_amount_cents`, `package_purchased_at`, `attribution_status = 'package_purchased'`.
-   - Calls `grant_invite_reserve_for_milestone(inviter_user_id, 'package_purchase', 'package_purchase', p_purchase_id)` so the inviter gets +1 reserve (idempotent per purchase/reference).
-3. Returns `{ ok: true, attributions_updated, reserve_grants }`.
+   - **Order by `created_at` ASC** and take **LIMIT 1** (earliest attribution = winning inviter).
+2. If none: returns `{ ok: true, attributions_updated: 0, reserve_grants: 0 }`.
+3. If one: updates that row with `package_purchase_id`, `package_type`, `package_amount_cents`, `package_purchased_at`, `attribution_status = 'package_purchased'`, and calls `grant_invite_reserve_for_milestone(inviter_user_id, 'package_purchase', 'package_purchase', p_purchase_id)` so that inviter gets **+3 reserve** (cap 10).
+4. Returns `{ ok: true, attributions_updated: 1, reserve_grants: 1 }`.
 
-So: one purchase can update multiple attributions (e.g. if the same org was linked to more than one invitee); each inviter gets at most one reserve grant per attribution (and per purchase, due to reference idempotency).
+**One org purchase = one winning inviter = one attribution updated = one reserve grant (+3).** No multi-touch.
 
 ---
 
@@ -96,7 +96,8 @@ So: one purchase can update multiple attributions (e.g. if the same org was link
 |------|--------|
 | 90-day window | Implemented in `record_invite_package_attribution` (`created_at >= now() - 90 days`) |
 | Update attribution row | Yes: package_* fields and `attribution_status = 'package_purchased'` |
-| Grant inviter reserve | Yes: +1 via `grant_invite_reserve_for_milestone(..., 'package_purchase', ..., purchase_id)` |
+| Attribution model | **First-touch only:** earliest attribution (created_at) for that org in 90 days |
+| Grant inviter reserve | Yes: **+3** via `grant_invite_reserve_for_milestone(..., 'package_purchase', ..., purchase_id)` (cap 10) |
 | Idempotency | Per (inviter, reason, reference_id); same purchase_id won’t double-grant |
 | API route | POST `/api/invites/record-package-attribution` (auth + org membership) |
 | RPC | `record_invite_package_attribution(p_org_id, p_purchase_id, p_package_type?, p_amount_cents?)` |

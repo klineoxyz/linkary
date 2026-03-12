@@ -4,56 +4,65 @@
 
 ---
 
+## Final policy (MVP — no ambiguity)
+
+| # | Policy | Final decision |
+|---|--------|-----------------|
+| **1. Personal codes vs 5-code cap** | The **5-code cap applies only to rows in `invite_codes`** (wallet + batch). **Personal invite code is an explicit exception:** it lives on `profiles.personal_invite_code`, is one per profile, reusable (max 5 redeemers), and **does not count toward the 5**. So a user can have 5 active invite_codes **and** their personal code. |
+| **2. Package attribution model** | **First-touch only.** One org purchase credits a single winning inviter: the attribution row with **earliest `created_at`** for that org within the 90-day window. Only that row is updated and only that inviter receives the package_purchase reserve grant. |
+| **3. Reward values** | **invitee_active = +1**, **org_active = +2**, **package_purchase = +3** reserve credits. One-time milestones (profile_complete, verified_social, first_activity) = **+1 each**. Total reserve cap remains 10. |
+| **4. Batch expiry** | **Intentional exception.** Wallet-issued codes expire in **30 days** if unused. **Batch-issued codes do not expire**; they remain active until redeemed or manually revoked (admin/legacy campaign use). |
+
+---
+
 ## 1. How the invite wallet works
 
-- **Active codes / global cap:** Each user has at most **5 active** invite codes **in total** (wallet + batch + any profile-issued). Active = status `available`, not expired. Counted by `get_user_active_invite_count(user_id)`. **No exception** for batch: both wallet issue and batch issue enforce the same 5-code cap for non-admin. Admin is exempt from lifetime batch cap only; wallet still caps at 5.
-- **Codes expire** 30 days after issuance if unused (wallet codes). Batch-issued codes do not set `expires_at` so they stay active until redeemed. When a code is redeemed or expired, that slot frees up.
-- **Issue flow:** Wallet: `POST /api/invites/wallet/issue`. Batch: `POST /api/invites/issue` — now sets `owner_user_id` and checks global active count before issuing; if active ≥ 5, returns 400.
-- **Existing flows unchanged:** Personal invite codes (one per profile, 5 redeemers max) unchanged. Redemption unchanged.
-- **UI:** The "Invite lineage" page now shows an **Invite wallet** section at the top: active codes count, reserve credits, "Issue new code", list of active codes (copy), and redeemed/successful counts.
+- **Active codes / global cap:** Each user has at most **5 active** codes from **`invite_codes`** (wallet + batch). Counted by `get_user_active_invite_count(user_id)`. **Personal invite code is not in `invite_codes`** and does not count toward the 5 (see Final policy above).
+- **Expiry:** Wallet-issued codes expire in 30 days if unused. Batch-issued codes **do not expire** (intentional exception; see Final policy).
+- **Issue flow:** Wallet: `POST /api/invites/wallet/issue`. Batch: `POST /api/invites/issue` — sets `owner_user_id` and enforces the same 5-code cap. Admin exempt from lifetime batch cap only; wallet cap remains 5.
+- **UI:** Invite lineage page shows Invite wallet section: active count, reserve, issue button, active codes (copy), redeemed/successful counts.
 
 ---
 
 ## 2. How reserve credits work
 
-- **Reserve credits** are a separate balance (stored in `invite_credit_ledger` as sum of `delta`). MVP cap: **10** per user.
-- They do **not** create unlimited live invites. They are used to **top the user back up to 5 active invites** when they drop below 5 (e.g. after a code is redeemed or expired).
-- **Earning reserve (MVP):** Grant reasons: `profile_complete`, `verified_social`, `first_activity` (one-time per user, no reference); `invitee_active`, `org_active`, `package_purchase` (repeatable, **reference_id required** for idempotency: attribution id, org id, purchase id). Call `grant_invite_reserve_for_milestone(user_id, reason, reference_type?, reference_id?)`. Total reserve capped at 10.
-- **Consuming reserve:** Replenishment runs via cron: `run_invite_replenishment_cycle(max_users)`. It calls `replenish_invite_from_reserve(user_id)` only for **healthy** users (account age ≥7 days, profile has display_name or username, profile updated in last 90 days, not frozen). That creates one new code and ledger `delta = -1`.
-- **Admin:** `admin_grant_invite_reserve_credit(target_user_id, delta, reason)` (admin only) adds reserve up to the 10 cap.
+- **Reserve credits** are a separate balance (`invite_credit_ledger`, sum of `delta`). Cap: **10** per user.
+- **Earning (MVP reward values):** `profile_complete` / `verified_social` / `first_activity` = **+1 each** (one-time, no reference). `invitee_active` = **+1**, `org_active` = **+2**, `package_purchase` = **+3** (repeatable, reference_id required). Total reserve capped at 10.
+- **Consuming:** Cron `run_invite_replenishment_cycle(max_users)` calls `replenish_invite_from_reserve(user_id)` for healthy users only; creates one code and ledger -1.
+- **Admin:** `admin_grant_invite_reserve_credit(target_user_id, delta, reason)` (admin only), up to cap 10.
 
 ---
 
 ## 3. How attribution works
 
-- **On redeem:** When a code is redeemed (one-time or personal), the existing flow sets `profiles.inviter_id` and inserts into `invite_redemptions` (one-time only). The updated `redeem_invite_code` RPC also sets `invite_codes.redeemed_by_user_id`, `redeemed_at` and inserts one row into **invite_attributions** (inviter, invitee, invite_code_id if one-time, status `redeemed`). One row per invitee (unique on `invitee_user_id`).
-- **Later steps:** Update attribution row and call `grant_invite_reserve_for_milestone` with the right **reference_id** (attribution id for invitee_active, org id for org_active, purchase id for package_purchase) so each reward is idempotent. **Package purchase:** Call `record_invite_package_attribution(org_id, purchase_id, package_type?, amount_cents?)` from billing when an org buys; it updates attributions for that org (90-day window) and grants +1 reserve per inviter. See `docs/INVITE_PACKAGE_ATTRIBUTION_HOOKS.md`.
+- **On redeem:** Same as before: `redeem_invite_code` sets `profiles.inviter_id`, `invite_codes.redeemed_by_user_id`/`redeemed_at`, and inserts **invite_attributions** (one row per invitee).
+- **Later steps:** Call `grant_invite_reserve_for_milestone` with the right **reference_id** for repeatable reasons (attribution id, org id, purchase id). **Package purchase:** Call `record_invite_package_attribution(org_id, purchase_id, ...)` from billing; **first-touch only** — single winning inviter (earliest attribution for that org in 90 days) gets the package_purchase grant (+3). See `docs/INVITE_PACKAGE_ATTRIBUTION_HOOKS.md`.
 
 ---
 
 ## 4. Why this prevents spam
 
-- **Global cap of 5 active codes** per user (wallet + batch): enforced in `issue_wallet_invite_code` and in `POST /api/invites/issue`. No separate pool for batch.
-- **30-day expiry** for wallet-issued codes; batch codes don’t expire until redeemed.
-- **Reserve cap 10:** enforced in all grant paths.
-- **Replenishment** only runs for **healthy** accounts: `invite_healthy_for_replenishment(user_id)` checks account age ≥7 days, profile has display_name or username, profile updated in last 90 days, not frozen. `replenish_invite_from_reserve` calls this before issuing.
-- **Anti-abuse:** `invite_policy_state` has `frozen_until` and `suspicious_invite_score`. Admin can freeze a user (set `frozen_until`); `issue_wallet_invite_code` and replenishment refuse to issue when frozen. Self-invite is already blocked (redeem rejects same user as inviter). Further guards (IP/device clustering, low-quality conversion flags) can be added in policy checks without changing the core schema.
+- **Cap of 5 active codes** from `invite_codes` (wallet + batch). Personal code is an exception and does not count.
+- **30-day expiry** for wallet codes only; batch codes do not expire (intentional).
+- **Reserve cap 10** and **reward values** +1/+2/+3 as above.
+- **Replenishment** only for **healthy** accounts (age, profile, activity, not frozen).
+- **Anti-abuse:** `frozen_until`, self-invite blocked, admin revoke.
 
 ---
 
-## 5. What is complete vs deferred (follow-up pass)
+## 5. What is final for MVP vs intentionally deferred
 
-**Done in follow-up:**
-- **Reward semantics:** One-time (profile_complete, verified_social, first_activity) vs repeatable (invitee_active, org_active, package_purchase) with `reference_type`/`reference_id`; idempotent per (user, reason, reference). Ledger unique index enforces no double-grant.
-- **Global scarcity:** `get_user_active_invite_count`; wallet and batch share one 5-code cap. Batch issue sets `owner_user_id` and checks cap before issuing.
-- **Healthy-account replenishment:** `invite_healthy_for_replenishment(user_id)` (age ≥7d, profile complete, updated in 90d, not frozen). `replenish_invite_from_reserve` uses it.
-- **Cron/worker:** `run_invite_replenishment_cycle(max_users)` runs `expire_invite_codes()` then replenishes up to `max_users` eligible users.
-- **Package attribution:** `record_invite_package_attribution(org_id, purchase_id, ...)`; 90-day window; API `POST /api/invites/record-package-attribution` and hook doc in `docs/INVITE_PACKAGE_ATTRIBUTION_HOOKS.md`.
+**Final for MVP (policy and code aligned):**
+- **Personal codes:** Explicit exception; do not count toward 5. No code change (cap already counts only `invite_codes`).
+- **Package attribution:** First-touch only; one winning inviter per org purchase; implemented in `record_invite_package_attribution`.
+- **Reward values:** invitee_active +1, org_active +2, package_purchase +3; one-time +1 each; in `grant_invite_reserve_for_milestone`.
+- **Batch expiry:** Intentional exception; batch codes do not expire; documented only.
+- Global scarcity, healthy-account replenishment, cron cycle, grant idempotency — all as implemented.
 
-**Still deferred:**
-- **Billing integration:** No Stripe/payment flow yet; when you add it, call the package-attribution API or RPC after a successful purchase (see hook doc).
-- **Delayed reward confirmation:** invitee_active / org_active still require the app to call `grant_invite_reserve_for_milestone` with the right reference when you detect activation or org creation; no automatic job yet.
-- **Admin UI:** Freeze, grant reserve, revoke code — all via DB/RPC; no dedicated admin UI.
+**Intentionally deferred:**
+- **Billing integration:** Call package-attribution API/RPC when purchase flow exists (see hook doc).
+- **invitee_active / org_active automation:** App must call `grant_invite_reserve_for_milestone` with reference when activation/org creation is detected; no automatic job.
+- **Admin UI:** Freeze, grant reserve, revoke — via DB/RPC only.
 
 ---
 
@@ -67,7 +76,8 @@
 | Migrations | `supabase/migrations/20260326000003_invite_reserve_milestone.sql` | grant_invite_reserve_for_milestone (original one-time) |
 | Migrations | `supabase/migrations/20260326100000_invite_wallet_followup.sql` | Ledger idempotent unique index; grant_invite_reserve_for_milestone with reference_type/reference_id (one-time vs repeatable); invite_healthy_for_replenishment; replenish uses healthy check; run_invite_replenishment_cycle |
 | Migrations | `supabase/migrations/20260326100001_invite_global_scarcity.sql` | get_user_active_invite_count; issue_wallet_invite_code uses global count |
-| Migrations | `supabase/migrations/20260326100002_invite_package_attribution.sql` | Index invite_attributions(invitee_org_id, created_at); record_invite_package_attribution(org_id, purchase_id, ...) |
+| Migrations | `supabase/migrations/20260326100002_invite_package_attribution.sql` | Index; record_invite_package_attribution (multi-touch, later overridden by 20260326100003) |
+| Migrations | `supabase/migrations/20260326100003_invite_policy_final.sql` | Reward values +1/+2/+3 in grant_invite_reserve_for_milestone; first-touch only in record_invite_package_attribution |
 | API | `apps/web/src/app/api/invites/wallet/route.ts` | GET wallet state |
 | API | `apps/web/src/app/api/invites/wallet/issue/route.ts` | POST issue one wallet code |
 | API | `apps/web/src/app/api/invites/wallet/grant-milestone/route.ts` | POST grant milestone; body now accepts reference_type, reference_id for repeatable reasons |
@@ -95,7 +105,7 @@
 1. **Redeem:** Attribution row created with status `redeemed` (inviter, invitee, invite_code_id if one-time).
 2. **Invitee active:** When you detect "meaningful activation", update row: `became_active_at`, `attribution_status = 'invitee_active'`; optionally call `grant_invite_reserve_for_milestone(inviter, 'invitee_active')`.
 3. **Org created:** When invitee creates an org, set `invitee_org_id`, `attribution_status = 'org_created'`; optionally grant `org_active`.
-4. **Package purchase:** When that org buys within 90 days, set `package_purchase_id`, `package_type`, `package_amount_cents`, `package_purchased_at`, `attribution_status = 'package_purchased'`; grant `package_purchase` reserve.
+4. **Package purchase:** Call `record_invite_package_attribution(org_id, purchase_id, ...)`. First-touch: earliest attribution for that org in 90 days gets updated and that inviter gets +3 reserve.
 
 ---
 
@@ -109,13 +119,12 @@
 
 ---
 
-## 10. Regression risks
+## 10. Regression risks from policy decisions
 
-- **Redeem:** Unchanged except additive columns and invite_attributions insert. Same success/error contract.
-- **Batch issue:** Now enforces **global 5-code cap** and sets `owner_user_id`. Users who previously had 5+ batch codes and no wallet codes will hit "Max 5 active invite codes" until they redeem or (for wallet codes) codes expire. **Legacy:** Existing batch codes without `owner_user_id` are still counted via `(issued_by_type = 'profile' AND issued_by_id = user_id)`. New batch inserts set `owner_user_id`.
-- **Wallet vs batch:** Both paths share one cap; no ambiguity. Admin is exempt from lifetime batch cap only; wallet cap remains 5.
-- **Grant milestone API:** Repeatable reasons now **require** `reference_id` in body; one-time reasons must **not** send reference. Old clients that only sent `reason` still work for one-time reasons; for invitee_active/org_active/package_purchase they must add reference_id or get 400.
-- **RLS:** Unchanged; writes via RPCs.
+- **Personal codes:** No code change; behavior unchanged. Only docs clarified (exception to 5-cap).
+- **First-touch attribution:** **Behavior change.** Previously one purchase could credit multiple inviters; now only the earliest attribution for that org gets the grant. Any org that already had multiple attributions updated for the same purchase is unchanged (past data); going forward only one inviter is credited per org purchase.
+- **Reward values (+1/+2/+3):** **Behavior change.** New grants use the higher deltas for org_active and package_purchase. Existing ledger rows unchanged; reserve cap 10 still enforced (grant is LEAST(delta, 10 - current)).
+- **Batch expiry:** Doc only; no code change. Batch codes continue not to expire.
 
 ---
 
@@ -128,5 +137,5 @@
 - [ ] **Batch issue:** Sets owner_user_id; rejects if active ≥ 5 or active + count > 5; same lifetime batch cap as before.
 - [ ] **Grant milestone:** One-time (profile_complete, etc.) without reference; repeatable (invitee_active, org_active, package_purchase) with reference_id; idempotent (same reference_id twice returns already_granted).
 - [ ] **Replenish:** replenish_invite_from_reserve only issues when invite_healthy_for_replenishment is true; run_invite_replenishment_cycle expires then replenishes up to max_users.
-- [ ] **Package attribution:** record_invite_package_attribution(org_id, purchase_id) or POST /api/invites/record-package-attribution; 90-day window; inviter gets +1 reserve per attribution updated.
+- [ ] **Package attribution:** First-touch only; one inviter (earliest attribution) gets +3 reserve per org purchase; 90-day window.
 - [ ] **CdpProviderGate:** Build passes (no type error on CDPReactProvider).

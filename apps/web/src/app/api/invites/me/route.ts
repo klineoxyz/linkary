@@ -1,6 +1,6 @@
 /**
- * GET /api/invites/me — current user's personal invite code. 1 code = 1 invite. Super user (@muazxinthi) unlimited.
- * Returns: { personal_invite_code, invites_used, invites_remaining, max_invites? }.
+ * GET /api/invites/me — current user's personal invite code. 1 code = 1 invite for everyone.
+ * Returns: { personal_invite_code, invites_used, invites_remaining, max_invites }.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -8,7 +8,6 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const INVITES_PER_USER = 1;
-const ADMIN_USERNAME = "muazxinthi";
 
 function fail(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -33,13 +32,10 @@ export async function GET(request: NextRequest) {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, personal_invite_code, username")
+    .select("id, personal_invite_code")
     .eq("id", user.id)
     .maybeSingle();
   if (profileError || !profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
-
-  const username = (profile as { username?: string | null }).username ?? "";
-  const isSuperUser = username.toLowerCase().trim() === ADMIN_USERNAME;
 
   let code = (profile as { personal_invite_code?: string | null }).personal_invite_code?.trim() || null;
   if (!code) {
@@ -79,13 +75,12 @@ export async function GET(request: NextRequest) {
     .eq("inviter_id", user.id);
   if (countErr) return NextResponse.json({ error: countErr.message }, { status: 500 });
   const invites_used = count ?? 0;
-  const max_invites = isSuperUser ? null : INVITES_PER_USER;
-  const invites_remaining = isSuperUser ? Math.max(0, 999 - invites_used) : Math.max(0, INVITES_PER_USER - invites_used);
+  const invites_remaining = Math.max(0, INVITES_PER_USER - invites_used);
 
   return NextResponse.json({
     personal_invite_code: code,
     invites_used,
     invites_remaining,
-    max_invites,
+    max_invites: INVITES_PER_USER,
   });
 }

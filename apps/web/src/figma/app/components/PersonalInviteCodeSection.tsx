@@ -97,9 +97,7 @@ export default function PersonalInviteCodeSection() {
             </button>
           </div>
           <p className="text-xs text-muted-foreground">
-            {data.max_invites == null
-              ? `Unlimited invites (${data.invites_used} used).`
-              : `${data.invites_remaining} of ${data.max_invites} invites remaining with this code.`}
+            {data.invites_remaining} of {data.max_invites ?? 1} invite remaining with this code. For more invites, use one-time codes in the Invite wallet below.
           </p>
         </>
       ) : null}

@@ -212,6 +212,8 @@ import RolesSkillsPage from "./components/RolesSkillsPage";
 import WalletShell from "@/components/wallet/WalletShell";
 import { RepBreakdownModal } from "@/components/rep/RepBreakdownModal";
 import GlobalSearch from "./components/GlobalSearch";
+import { ReputationCardModal } from "./components/profile/ReputationCardModal";
+import { buildReputationCardPayload } from "./components/profile/ReputationCardPreview";
 
 /**
  * Linkary - Web3 Reputation + Opportunity + Review + Case Study Infrastructure
@@ -3531,6 +3533,17 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
   const displayCaseStudies = caseStudies.length > 0 ? caseStudies : (u.caseStudies ?? []);
   const isMyProfile = !!me?.id;
 
+  const [showReputationCardModal, setShowReputationCardModal] = useState(false);
+  const reputationCardPayload = me
+    ? buildReputationCardPayload({
+        me,
+        meStats: meStats ?? null,
+        profileProfessions,
+        caseStudiesCount: caseStudies.length,
+        publicSlug: publicSlug ?? "",
+      })
+    : null;
+
   return (
     <div className="font-app text-foreground space-y-6">
       <p className="text-xs text-muted-foreground -mb-1" aria-hidden>Your profile is private. Only you see this. What you see here (links, relations, scores) matches your public page after you save in the Advanced editor. Use Public View to open your public URL.</p>
@@ -3610,6 +3623,9 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
                   Public View (set username or connect X)
                 </Button>
               )}
+              <Button variant="outline" className="flex items-center gap-2" onClick={() => setShowReputationCardModal(true)} title="Generate a shareable Linkary Reputation Card">
+                <Download className="h-4 w-4 stroke-[1.75]" /> Generate Card
+              </Button>
             </>
           )}
           <Button variant="outline" className="flex items-center gap-2" onClick={() => setRoute({ name: "overview" })}>
@@ -3620,6 +3636,8 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
           </Button>
         </div>
       </div>
+
+      <ReputationCardModal open={showReputationCardModal} onOpenChange={setShowReputationCardModal} payload={reputationCardPayload} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column: profile summary on top, Core profile form below (when own profile) */}

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { Users, Loader2, ArrowLeft, List, Network } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
+import InviteWalletSection from "./InviteWalletSection";
 
 const ForceGraph2D = dynamic(
   () => import("react-force-graph-2d").then((mod) => mod.default),
@@ -199,6 +200,7 @@ export default function InviteLineagePage({ setRoute }: { setRoute?: (r: any) =>
           Back
         </button>
       )}
+      <InviteWalletSection />
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           <Users className="h-8 w-8 text-primary" />

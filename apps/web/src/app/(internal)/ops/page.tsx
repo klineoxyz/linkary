@@ -52,7 +52,7 @@ export default function OpsPage() {
 
   return (
     <div className="min-h-screen bg-[#F7F8FB] text-gray-900 p-6 max-w-2xl mx-auto">
-      <h1 className="text-xl font-semibold mb-4">Ops — Readiness &amp; QA</h1>
+      <h1 className="text-xl font-semibold mb-4">Ops: Readiness &amp; QA</h1>
       <ul className="list-disc list-inside space-y-2 text-sm text-zinc-700">
         <li>
           <strong>Readiness:</strong>{" "}

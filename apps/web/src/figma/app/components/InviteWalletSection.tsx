@@ -178,7 +178,7 @@ export default function InviteWalletSection() {
           <ul className="space-y-1 text-sm text-muted-foreground">
             {(state.redeemed ?? []).slice(0, 10).map((r) => (
               <li key={r.id}>
-                {r.code} — {r.redeemed_at ? new Date(r.redeemed_at).toLocaleDateString() : "—"}
+                {r.code} · {r.redeemed_at ? new Date(r.redeemed_at).toLocaleDateString() : "—"}
               </li>
             ))}
           </ul>

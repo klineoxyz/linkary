@@ -224,7 +224,7 @@ export default function AgencyProfilePage({ setRoute }: { setRoute?: (route: any
     <div className="space-y-6">
       <SectionTitle
         title={`linkary.xyz/agency/${u.handle}`}
-        subtitle="Agency Profile — Your public agency page"
+        subtitle="Your public agency page"
         right={
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" className="flex items-center gap-2">

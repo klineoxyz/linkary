@@ -92,7 +92,7 @@ export function LeaveReviewBlock({ username }: { username: string }) {
   if (submitted) {
     return (
       <div className={`${sectionCardClass} p-5`}>
-        <p className="text-sm font-medium text-primary">Thanks — your review was submitted.</p>
+        <p className="text-sm font-medium text-primary">Thanks. Your review was submitted.</p>
       </div>
     );
   }

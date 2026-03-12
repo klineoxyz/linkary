@@ -1363,7 +1363,7 @@ function OverviewPage({ setRoute, headerMedia, getAuthHeaders }) {
       )}
       <SectionTitle
         title="Overview"
-        subtitle="Web3 Reputation Infrastructure — Platform Stats & Featured Creators"
+        subtitle="Platform stats and featured creators"
         right={
           <div className="flex flex-wrap gap-3">
             <Button 
@@ -2814,7 +2814,7 @@ function WorkRequestsPage({ setRoute, route, me }) {
 
   return (
     <div className="space-y-6">
-      <SectionTitle title="Requests" subtitle="Collaboration requests — accept, archive, or follow up" />
+      <SectionTitle title="Requests" subtitle="Accept, archive, or follow up on collaboration requests" />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card>
@@ -2997,7 +2997,7 @@ function WorkRequestsPage({ setRoute, route, me }) {
             ) : list.length === 0 && tab === "inbox" && sentRequests.length > 0 ? (
               <div className="py-4">
                 <h3 className="font-semibold text-foreground mb-3">Recent sent requests</h3>
-                <p className="text-sm text-muted-foreground mb-4">Your inbox is empty. Here are requests you sent — click to open.</p>
+                <p className="text-sm text-muted-foreground mb-4">Your inbox is empty. Here are requests you sent. Click one to open it.</p>
                 <div className="space-y-2">
                   {sentRequests.slice(0, 3).map((r) => {
                     const person = r.target;
@@ -3533,7 +3533,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
 
   return (
     <div className="font-app text-foreground space-y-6">
-      <p className="text-xs text-muted-foreground -mb-1" aria-hidden>Your profile — only you see this. What you see here (links, relations, scores) matches your public page after you save in the Advanced editor. Use Public View to open your public URL.</p>
+      <p className="text-xs text-muted-foreground -mb-1" aria-hidden>Your profile is private. Only you see this. What you see here (links, relations, scores) matches your public page after you save in the Advanced editor. Use Public View to open your public URL.</p>
       <div className="mb-4 flex gap-2 border-b border-border pb-2">
         <button
           type="button"

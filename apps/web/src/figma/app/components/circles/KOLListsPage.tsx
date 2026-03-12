@@ -331,7 +331,7 @@ export default function KOLListsPage({ setRoute, me }: { setRoute?: (r: any) => 
 
               {selectedListId && (
                 <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-                  <h3 className="font-semibold text-zinc-900 mb-2">{selectedList?.name ?? "List"} — members</h3>
+                  <h3 className="font-semibold text-zinc-900 mb-2">{selectedList?.name ?? "List"} members</h3>
                   {listMembersLoading && <p className="text-sm text-zinc-500">Loading…</p>}
                   {!listMembersLoading && listMembers.length === 0 && <p className="text-sm text-zinc-500">No members. Search and add creators.</p>}
                   {!listMembersLoading && listMembers.length > 0 && (

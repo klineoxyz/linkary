@@ -775,7 +775,7 @@ export default function UnifiedProfileLayout({ data }: { data: UnifiedProfileDat
         {/* Footer */}
         <footer className="pb-12 text-center">
           <p className="text-slate-600 text-sm">
-            Powered by <span className="font-semibold text-slate-900">Linkary</span> — Web3 Reputation Infrastructure
+            Powered by <span className="font-semibold text-slate-900">Linkary</span>
           </p>
         </footer>
       </main>

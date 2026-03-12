@@ -314,7 +314,7 @@ export default function OnboardingPage({
               <p className="text-xs text-destructive mt-0.5">✗ This handle is taken. Sign in with X and verify to claim it if it’s yours.</p>
             )}
             <p className="text-xs text-zinc-500 mt-1">
-              Use your X (Twitter) handle. To <strong>confirm</strong> this handle you must sign in with X and verify—no handle is confirmed until then.
+              Use your X (Twitter) handle. To <strong>confirm</strong> this handle you must sign in with X and verify. No handle is confirmed until then.
             </p>
             <div className="mt-2 rounded-lg border border-border bg-muted px-3 py-2">
               <p className="text-xs text-foreground">

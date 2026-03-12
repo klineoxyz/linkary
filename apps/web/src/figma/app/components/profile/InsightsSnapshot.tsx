@@ -564,7 +564,7 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
       {seeAllModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setSeeAllModalOpen(false)}>
           <div className="max-h-[80vh] w-full max-w-md overflow-auto rounded-2xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold text-foreground">Top followers — {tabLabel}</h3>
+            <h3 className="text-sm font-semibold text-foreground">Top followers: {tabLabel}</h3>
             {topFollowersItems.length > 0 ? (
               <ul className="mt-4 space-y-2">
                 {topFollowersItems.map((item: { username?: string; display_name?: string | null; avatar_url?: string | null; followers?: number | null }, i: number) => (

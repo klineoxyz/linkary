@@ -203,7 +203,7 @@ export default function CreatorProfilePage({ setRoute }: { setRoute?: (route: an
     <div className="space-y-6">
       <SectionTitle
         title={`linkary.xyz/${u.handle}`}
-        subtitle="Creator Profile — Your public creator page"
+        subtitle="Your public creator page"
         right={
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" className="flex items-center gap-2">

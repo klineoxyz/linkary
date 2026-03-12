@@ -66,7 +66,7 @@ export default function AccountTypePage({
           >
             <Building2 className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
             <span className="font-medium text-foreground">Company</span>
-            <span className="text-xs text-muted-foreground text-center">Brand, agency, or project — create orgs and hire</span>
+            <span className="text-xs text-muted-foreground text-center">Brand, agency, or project. Create orgs and hire.</span>
           </button>
         </div>
         {error && (

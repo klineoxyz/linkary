@@ -156,7 +156,7 @@ export default function AnalyticsTabContent({
     postsLast30Days: rollup ? num(rollup.posts_30d) : 84,
     postsDelta: -40.0,
     accountAge: "2 years 4 months",
-    lastUpdated: lastProfile ? formatTimeAgo(lastProfile) : "— (sync from Settings → Integrations)",
+    lastUpdated: lastProfile ? formatTimeAgo(lastProfile) : "Not synced (sync from Settings → Integrations)",
     avgLikes: rollup ? num(rollup.avg_likes_30d) : 342,
     avgLikesGrowth: 18.2,
     avgReplies: rollup ? num(rollup.avg_replies_30d) : 28,

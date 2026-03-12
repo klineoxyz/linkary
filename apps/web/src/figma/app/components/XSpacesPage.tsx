@@ -841,7 +841,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
         pollIntervalRef.current = null;
         setDetectLinkedPolling(false);
-        setDetectError("No match found — paste the X Space link below.");
+        setDetectError("No match found. Paste the X Space link below.");
         return;
       }
       poll().then((done) => {
@@ -917,7 +917,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
       return;
     }
     if (data.found === false) {
-      setDetectError("No match found — paste the X Space link below.");
+      setDetectError("No match found. Paste the X Space link below.");
       return;
     }
     if (!res.ok) {
@@ -1188,7 +1188,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
           <ul className="text-sm text-foreground list-disc list-inside mt-1">
             {addFromXSuccess.overlaps.slice(0, 3).map((o, i) => (
               <li key={i}>
-                @{o.other_host_username ?? "user"} — <OverlapText o={o} />
+                @{o.other_host_username ?? "user"}: <OverlapText o={o} />
               </li>
             ))}
           </ul>
@@ -1396,7 +1396,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                       {detectCandidatesSource === "linkary" ? (
                         <p className="text-sm text-muted-foreground">From your Linkary spaces (X detection unavailable). Pick the one that matches:</p>
                       ) : (
-                        <p className="text-sm text-muted-foreground">Found {detectCandidates.length} candidate{detectCandidates.length !== 1 ? "s" : ""} — pick the right one:</p>
+                        <p className="text-sm text-muted-foreground">Found {detectCandidates.length} candidate{detectCandidates.length !== 1 ? "s" : ""}. Pick the right one:</p>
                       )}
                     </>
                   )}
@@ -1461,7 +1461,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   {overlaps.length > 0 && (
                     <ul className="list-disc list-inside text-xs mt-1">
                       {overlaps.slice(0, 3).map((o) => (
-                        <li key={o.id}>{o.title} — {new Date(o.scheduled_at).toLocaleString()}</li>
+                        <li key={o.id}>{o.title} · {new Date(o.scheduled_at).toLocaleString()}</li>
                       ))}
                     </ul>
                   )}
@@ -1524,7 +1524,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                 ) : (
                   <>
                     {myXSpacesSource === "linkary" && (
-                      <p className="text-xs text-muted-foreground mb-2">Showing your Linkary spaces (not a live X list — X API credits or list unavailable).</p>
+                      <p className="text-xs text-muted-foreground mb-2">Showing your Linkary spaces (not a live X list; X API credits or list unavailable).</p>
                     )}
                     <ul className="space-y-2 max-h-48 overflow-y-auto">
                     {myXSpacesList.map((item) => (
@@ -1572,7 +1572,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
               </div>
             )}
             {xConnected !== true && (
-              <p className="text-sm text-muted-foreground mb-2">Connect X first to grant X API access — then you can import or see your past Spaces.</p>
+              <p className="text-sm text-muted-foreground mb-2">Connect X first to grant X API access. Then you can import or see your past Spaces.</p>
             )}
             {addFromXError && (
               <p className="text-sm text-destructive mb-2">{addFromXError}</p>
@@ -1724,7 +1724,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   <div className="space-y-1">
                     {(audienceOverlapsBySpaceId[detailsSpace.id] ?? []).map((o) => (
                       <p key={o.other_space_id}>
-                        @{o.other_host_username ?? "user"} — {o.other_space_title}: <OverlapText o={o} />
+                        @{o.other_host_username ?? "user"}: {o.other_space_title} · <OverlapText o={o} />
                       </p>
                     ))}
                   </div>
@@ -1737,7 +1737,7 @@ export default function XSpacesPage({ setRoute, me }: { setRoute: (r: { name: st
                   {spaceRsvps.attendees && spaceRsvps.attendees.length > 0 && (
                     <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">
                       {spaceRsvps.attendees.slice(0, 10).map((a) => (
-                        <li key={a.profile_id}>@{a.username ?? "user"} — {a.status}</li>
+                        <li key={a.profile_id}>@{a.username ?? "user"}: {a.status}</li>
                       ))}
                       {spaceRsvps.attendees.length > 10 && <li>+{spaceRsvps.attendees.length - 10} more</li>}
                     </ul>

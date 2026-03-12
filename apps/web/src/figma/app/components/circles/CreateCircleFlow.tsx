@@ -309,7 +309,7 @@ export default function CreateCircleFlow({
               {searchLoading && <p className="text-sm text-zinc-400">Searching…</p>}
               {searchQuery.trim().length >= 2 && !searchLoading && (
                 <div className="space-y-2">
-                  <span className="text-sm text-zinc-400">Search results — click to add</span>
+                  <span className="text-sm text-zinc-400">Search results. Click to add.</span>
                   <ul className="space-y-2 max-h-48 overflow-auto">
                     {searchResults.map((r) => (
                       <li key={r.id} className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">

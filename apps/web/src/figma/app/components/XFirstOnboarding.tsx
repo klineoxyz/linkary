@@ -2,8 +2,6 @@
 
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { updateMyProfile } from "@/lib/profiles";
-import { getProfileProfessions, setProfileProfessions } from "@/lib/profileProfessions";
 import ProfessionSelect from "./ProfessionSelect";
 import type { Profession } from "@/lib/professions";
 import { User, Building2, Shield, Loader2 } from "lucide-react";
@@ -124,38 +122,29 @@ export default function XFirstOnboarding({
     }
   };
 
-  // Step 3: Profession(s) then finish
+  // Step 3: Profession(s) then finish — single server round-trip (profile + professions + profile_complete + invitee_active)
   const handleProfessionFinish = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const { error: profErr } = await setProfileProfessions(userId, selectedProfessions.map((p) => p.id));
-      if (profErr) {
-        setError(profErr);
-        setLoading(false);
-        return;
-      }
-      const { error: updateErr } = await updateMyProfile(userId, {
-        onboarding_completed_at: new Date().toISOString(),
-      });
-      if (updateErr) {
-        setError(updateErr);
-        setLoading(false);
-        return;
-      }
       const token = await getToken();
+      if (!token) {
+        setError("Session expired. Please sign in again.");
+        setLoading(false);
+        return;
+      }
       const base = typeof window !== "undefined" ? window.location.origin : "";
-      if (token && base) {
-        fetch(`${base}/api/invites/wallet/grant-milestone`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ reason: "profile_complete" }),
-        }).catch(() => {});
-        fetch(`${base}/api/invites/mark-invitee-active`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }).catch(() => {});
+      const res = await fetch(`${base}/api/onboarding/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ profession_ids: selectedProfessions.map((p) => p.id) }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((json as { error?: string }).error ?? "Could not complete onboarding.");
+        setLoading(false);
+        return;
       }
       onComplete();
       setRoute({ name: "profile" });

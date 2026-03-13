@@ -275,6 +275,12 @@ export default function AuthCallbackPage() {
             setMessage("Updating profile…");
             const user = session.user as unknown as Parameters<typeof extractTwitterIdentity>[0];
             await ensureProfileForSession(session.user.id);
+            const bootstrapResSession = await fetch(`${window.location.origin}/api/auth/post-login-bootstrap`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            }).catch(() => null);
+            const bootstrapJsonSession = bootstrapResSession?.ok ? await bootstrapResSession.json().catch(() => ({})) : {};
+            const needsOnboardingSession = bootstrapJsonSession.needsOnboarding === true;
             const identity = extractTwitterIdentity(user);
             if (identity) {
               const { error: saveErr } = await saveTwitterIdentityFromOAuth(session.user.id, identity);
@@ -284,7 +290,7 @@ export default function AuthCallbackPage() {
                 return;
               }
               const isOnboardingNextSession = next === "/onboarding" || next?.includes("onboarding");
-              if (isOnboardingNextSession) {
+              if (isOnboardingNextSession || needsOnboardingSession) {
                 const bio = identity.description?.trim() || null;
                 const displayName = identity.name?.trim() || null;
                 await updateMyProfile(session.user.id, {
@@ -347,8 +353,14 @@ export default function AuthCallbackPage() {
                 performance.mark("auth-callback-redirect");
               }
               const originSession = typeof window !== "undefined" ? window.location.origin : "";
-              const skipOnboardingSession = (next === "/onboarding" || next?.includes("onboarding")) && !!identity;
-              const finalUrl = skipOnboardingSession ? `${originSession || SITE_URL.replace(/\/$/, "")}/profile` : redirectTo;
+              const baseSession = originSession || SITE_URL.replace(/\/$/, "");
+              let finalUrl: string;
+              if (needsOnboardingSession) {
+                finalUrl = `${baseSession}/onboarding`;
+              } else {
+                const skipOnboardingSession = (next === "/onboarding" || next?.includes("onboarding")) && !!identity;
+                finalUrl = skipOnboardingSession ? `${baseSession}/profile` : redirectTo;
+              }
               window.location.href = finalUrl;
               return;
             }

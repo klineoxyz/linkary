@@ -151,7 +151,7 @@ import CalendarPage from "./components/CalendarPage";
 import AffiliationAmbassadorSection from "./components/AffiliationAmbassadorSection";
 import { EthosPill } from "@/components/EthosPill";
 import LoginPage from "./components/LoginPage";
-import AccountTypePage from "./components/AccountTypePage";
+import XFirstOnboarding from "./components/XFirstOnboarding";
 import { supabase } from "@/lib/supabase";
 import { ensureProfileForSession, getMyProfile, updateMyProfile } from "@/lib/profiles";
 import { getXConnection } from "@/lib/xAuth";
@@ -4315,7 +4315,8 @@ function LinkaryAppInner() {
   const routesWithoutDecorativeLayers = ["profile", "dashboard", "orgDetail"];
   const hideDecorativeLayers = routesWithoutDecorativeLayers.includes(route.name);
 
-  if (authUserId && accessAllowed === false) {
+  const isOnboardingRoute = route.name === "onboarding" || route.name === "accountType";
+  if (authUserId && accessAllowed === false && !isOnboardingRoute) {
     return (
       <InviteRequiredView
         onSuccess={() => {
@@ -4834,12 +4835,17 @@ function LinkaryAppInner() {
                   />
                 )}
                 {(route.name === "accountType" || route.name === "onboarding") && authUserId && (
-                  <AccountTypePage
+                  <XFirstOnboarding
                     userId={authUserId}
+                    accessAllowed={accessAllowed}
                     setRoute={setRoute}
                     onComplete={async () => {
                       const p = await getMyProfile(authUserId);
                       setMe(p ?? null);
+                    }}
+                    onAccessGranted={() => {
+                      setAccessAllowed(true);
+                      refreshMe();
                     }}
                   />
                 )}

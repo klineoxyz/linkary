@@ -62,7 +62,15 @@ export async function POST(request: Request) {
   const xIdentity = identities.find((i) => isXProvider(i.provider)) as Record<string, unknown> | undefined;
 
   if (!xIdentity) {
-    return NextResponse.json({ ok: true, userId: user.id, username: null });
+    const { data: statusRow } = await supabase
+      .from("profiles")
+      .select("account_type, onboarding_completed_at")
+      .eq("id", user.id)
+      .maybeSingle();
+    const at = (statusRow as { account_type?: string | null } | null)?.account_type;
+    const oca = (statusRow as { onboarding_completed_at?: string | null } | null)?.onboarding_completed_at;
+    const needsOnboarding = !at || (at !== "individual" && at !== "company") || !oca;
+    return NextResponse.json({ ok: true, userId: user.id, username: null, needsOnboarding });
   }
 
   const raw = (xIdentity.identity_data ?? xIdentity) as Record<string, unknown>;
@@ -71,7 +79,15 @@ export async function POST(request: Request) {
   const handle = username ? String(username).replace(/^@/, "").trim() : null;
 
   if (!providerUserId) {
-    return NextResponse.json({ ok: true, userId: user.id, username: null });
+    const { data: statusRow } = await supabase
+      .from("profiles")
+      .select("account_type, onboarding_completed_at")
+      .eq("id", user.id)
+      .maybeSingle();
+    const at = (statusRow as { account_type?: string | null } | null)?.account_type;
+    const oca = (statusRow as { onboarding_completed_at?: string | null } | null)?.onboarding_completed_at;
+    const needsOnboarding = !at || (at !== "individual" && at !== "company") || !oca;
+    return NextResponse.json({ ok: true, userId: user.id, username: null, needsOnboarding });
   }
 
   const providerUserIdTrim = String(providerUserId).trim();
@@ -131,5 +147,15 @@ export async function POST(request: Request) {
     // Don't fail login if claim fails (e.g. TAKEN); profile and handle are already set.
   }
 
-  return NextResponse.json({ ok: true, userId: user.id, username: handle });
+  const { data: statusRow } = await supabase
+    .from("profiles")
+    .select("account_type, onboarding_completed_at")
+    .eq("id", user.id)
+    .maybeSingle();
+  const at = (statusRow as { account_type?: string | null } | null)?.account_type;
+  const oca = (statusRow as { onboarding_completed_at?: string | null } | null)?.onboarding_completed_at;
+  const needsOnboarding =
+    !at || (at !== "individual" && at !== "company") || !oca;
+
+  return NextResponse.json({ ok: true, userId: user.id, username: handle, needsOnboarding });
 }

@@ -151,10 +151,15 @@ export default function AuthCallbackPage() {
           }
           setMessage("Saving your X profile…");
           await ensureProfileForSession(user.id);
-          await fetch(`${window.location.origin}/api/auth/post-login-bootstrap`, {
+          const bootstrapRes = await fetch(`${window.location.origin}/api/auth/post-login-bootstrap`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
-          }).catch((err) => console.error("[AUTH] post-login-bootstrap failed", err));
+          }).catch((err) => {
+            console.error("[AUTH] post-login-bootstrap failed", err);
+            return null;
+          });
+          const bootstrapJson = bootstrapRes?.ok ? await bootstrapRes.json().catch(() => ({})) : {};
+          const needsOnboarding = bootstrapJson.needsOnboarding === true;
           const identity = extractTwitterIdentity(user as unknown as Parameters<typeof extractTwitterIdentity>[0]);
           if (identity) {
             const { error: saveErr } = await saveTwitterIdentityFromOAuth(user.id, identity);
@@ -164,7 +169,7 @@ export default function AuthCallbackPage() {
               return;
             }
             const isOnboardingNext = next === "/onboarding" || next?.includes("onboarding");
-            if (isOnboardingNext) {
+            if (isOnboardingNext || needsOnboarding) {
               const bio = identity.description?.trim() || null;
               const displayName = identity.name?.trim() || null;
               await updateMyProfile(user.id, {
@@ -219,12 +224,18 @@ export default function AuthCallbackPage() {
             if (!cancelled) {
               setStatus("ok");
               setMessage("Redirecting…");
-              const skipOnboarding = isOnboardingNext && !!identity;
-              let redirectUrl = skipOnboarding
-                ? `${origin || SITE_URL.replace(/\/$/, "")}/profile`
-                : next === "/settings/integrations" || next?.includes("integrations")
-                  ? redirectTo + (redirectTo.includes("?") ? "&" : "?") + "x_connected=1"
-                  : redirectTo;
+              const base = origin || SITE_URL.replace(/\/$/, "");
+              const skipOnboarding = isOnboardingNext && !!identity && !needsOnboarding;
+              let redirectUrl: string;
+              if (needsOnboarding) {
+                redirectUrl = `${base}/onboarding`;
+              } else if (skipOnboarding) {
+                redirectUrl = `${base}/profile`;
+              } else if (next === "/settings/integrations" || next?.includes("integrations")) {
+                redirectUrl = redirectTo + (redirectTo.includes("?") ? "&" : "?") + "x_connected=1";
+              } else {
+                redirectUrl = redirectTo;
+              }
               try {
                 if (sessionStorage.getItem("linkary_oauth_fallback") === "1") {
                   sessionStorage.removeItem("linkary_oauth_fallback");

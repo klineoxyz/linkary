@@ -75,9 +75,8 @@ export async function POST(request: NextRequest) {
   if (subscriptionId) {
     try {
       const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription;
-      const end = subscription.current_period_end;
-      periodEnd = new Date(end * 1000).toISOString();
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId) as { current_period_end: number };
+      periodEnd = new Date(subscription.current_period_end * 1000).toISOString();
     } catch {
       const period = (session.metadata?.period as string) ?? "monthly";
       const now = new Date();

@@ -5,18 +5,16 @@ import { Copy, Check, Loader2, Link2, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type MeInvites = {
-  personal_invite_code: string;
+  codes: Array<{ id: string; code: string }>;
   invites_used: number;
-  invites_remaining: number;
-  /** null = unlimited (super user) */
-  max_invites?: number | null;
+  max_invites: number;
 };
 
 export default function PersonalInviteCodeSection() {
   const [data, setData] = useState<MeInvites | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const fetchMe = useCallback(async () => {
     setError(null);
@@ -24,22 +22,21 @@ export default function PersonalInviteCodeSection() {
     const token = session?.access_token;
     if (!token) {
       setLoading(false);
-      setError("Sign in to see your invite code.");
+      setError("Sign in to see your invite codes.");
       return;
     }
     const base = typeof window !== "undefined" ? window.location.origin : "";
     const res = await fetch(`${base}/api/invites/me`, { headers: { Authorization: `Bearer ${token}` } });
     const json = await res.json().catch(() => ({}));
     setLoading(false);
-    if (res.ok && !json.error && json.personal_invite_code) {
+    if (res.ok && !json.error && Array.isArray(json.codes)) {
       setData({
-        personal_invite_code: json.personal_invite_code,
+        codes: json.codes,
         invites_used: json.invites_used ?? 0,
-        invites_remaining: json.invites_remaining ?? 0,
-        max_invites: json.max_invites !== undefined ? json.max_invites : 1,
+        max_invites: json.max_invites ?? 5,
       });
     } else {
-      setError(json?.error ?? "Could not load your invite code. Try again.");
+      setError(json?.error ?? "Could not load your invite codes. Try again.");
     }
   }, []);
 
@@ -47,12 +44,11 @@ export default function PersonalInviteCodeSection() {
     fetchMe();
   }, [fetchMe]);
 
-  const copyCode = () => {
-    if (!data?.personal_invite_code) return;
+  const copyCode = (code: string, id: string) => {
     if (typeof navigator?.clipboard?.writeText === "function") {
-      navigator.clipboard.writeText(data.personal_invite_code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      navigator.clipboard.writeText(code);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
     }
   };
 
@@ -60,7 +56,7 @@ export default function PersonalInviteCodeSection() {
     <div className="rounded-xl border border-border bg-card p-6 space-y-4">
       <div className="flex items-center gap-2">
         <Link2 className="h-5 w-5 text-primary shrink-0" />
-        <h2 className="text-lg font-semibold text-foreground">Your invite code</h2>
+        <h2 className="text-lg font-semibold text-foreground">Your invite codes</h2>
       </div>
       {loading ? (
         <div className="flex items-center justify-center min-h-[100px]">
@@ -81,23 +77,31 @@ export default function PersonalInviteCodeSection() {
       ) : data ? (
         <>
           <p className="text-sm text-muted-foreground">
-            One code works for one invite. Share it with someone to sign up; for more invites use one-time codes in the <strong>Invite wallet</strong> section below.
+            You have 5 individual invite codes. Each code can be used once. Share a code with someone to sign up. For more invites, use the <strong>Invite wallet</strong> section below.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <code className="px-4 py-3 rounded-lg bg-muted text-lg font-mono font-semibold tracking-wide text-foreground">
-              {data.personal_invite_code}
-            </code>
-            <button
-              type="button"
-              onClick={copyCode}
-              className="inline-flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-background hover:bg-muted text-sm font-medium"
-            >
-              {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-              {copied ? "Copied" : "Copy"}
-            </button>
+            {data.codes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">All 5 codes have been used. Use the Invite wallet below for more.</p>
+            ) : (
+              data.codes.map(({ id, code }) => (
+                <div key={id} className="flex items-center gap-2">
+                  <code className="px-4 py-3 rounded-lg bg-muted text-lg font-mono font-semibold tracking-wide text-foreground">
+                    {code}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => copyCode(code, id)}
+                    className="inline-flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-background hover:bg-muted text-sm font-medium"
+                  >
+                    {copiedId === id ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    {copiedId === id ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              ))
+            )}
           </div>
           <p className="text-xs text-muted-foreground">
-            {data.invites_remaining} of {data.max_invites ?? 1} invite remaining with this code. For more invites, use one-time codes in the Invite wallet below.
+            {data.codes.length} of {data.max_invites} codes remaining. {data.invites_used} invite(s) used. For more invites, use one-time codes in the Invite wallet below.
           </p>
         </>
       ) : null}

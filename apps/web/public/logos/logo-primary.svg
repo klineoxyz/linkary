@@ -1,14 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 32" fill="none">
-  <!-- Official Linkary icon: top bar longest, middle slightly shorter, bottom shortest. Transparent background. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 36" fill="none">
   <defs>
-    <linearGradient id="linkary-bar" x1="0%" y1="0%" x2="0%" y2="100%">
+    <!-- Glossy bar gradient: brighter left, deeper orange right -->
+    <linearGradient id="bar-grad" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#FF7A33"/>
-      <stop offset="50%" stop-color="#FF5300"/>
+      <stop offset="40%" stop-color="#FF5300"/>
       <stop offset="100%" stop-color="#E64A00"/>
     </linearGradient>
+    <!-- Speckle pattern for wordmark interior -->
+    <pattern id="speckle" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
+      <circle cx="1.5" cy="3" r="0.5" fill="#FF5300" opacity="0.95"/>
+      <circle cx="6" cy="1" r="0.4" fill="#FF7A33" opacity="0.9"/>
+      <circle cx="4" cy="7" r="0.45" fill="#FF5300" opacity="0.9"/>
+      <circle cx="9" cy="5" r="0.35" fill="#FF8440" opacity="0.95"/>
+      <circle cx="2" cy="9" r="0.4" fill="#FF5300" opacity="0.85"/>
+      <circle cx="7" cy="10" r="0.5" fill="#E64A00" opacity="0.9"/>
+      <circle cx="10" cy="2" r="0.35" fill="#FF5300" opacity="0.8"/>
+    </pattern>
   </defs>
-  <rect x="0" y="4" width="24" height="2" rx="1" fill="url(#linkary-bar)"/>
-  <rect x="0" y="12" width="20" height="2" rx="1" fill="url(#linkary-bar)"/>
-  <rect x="0" y="20" width="12" height="2" rx="1" fill="url(#linkary-bar)"/>
-  <text x="32" y="22" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="700" font-size="18" fill="#130600">Linkary</text>
+  <!-- Four bars: top medium, 2nd longest, 3rd shortest, 4th medium. Rounded ends. -->
+  <rect x="0" y="2" width="28" height="3" rx="1.5" fill="url(#bar-grad)"/>
+  <rect x="0" y="8" width="38" height="3" rx="1.5" fill="url(#bar-grad)"/>
+  <rect x="0" y="14" width="18" height="3" rx="1.5" fill="url(#bar-grad)"/>
+  <rect x="0" y="20" width="30" height="3" rx="1.5" fill="url(#bar-grad)"/>
+  <!-- Wordmark: lowercase "linkary" with speckled fill and dark outline; i-dot solid dark -->
+  <text x="46" y="24" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="700" font-size="20" fill="url(#speckle)" stroke="#130600" stroke-width="0.35">linkary</text>
+  <circle cx="55" cy="12" r="1.1" fill="#130600"/>
 </svg>

@@ -1,15 +1,18 @@
 # Linkary Logos
 
-Place your logo files here:
+Place your logo files here.
 
-**Icons** (for favicon, app icons, nav):
+## Original logo (do not alter)
+
+- **`linkary-logo.png`** — Official Linkary logo (icon + wordmark). Use this file as the canonical logo across the app (e.g. Reputation Card, branding). **Do not modify or replace this file**; it is the original logo PNG.
+
+## Icons (for favicon, app icons, nav)
+
 - `icons/icon.svg` - black (light backgrounds)
 - `icons/icon-white.svg` - white (dark backgrounds)
 - `icons/icon-color.svg` - gradient (accent)
 
-**Full logos** (icon + wordmark):
-- `logos/logo-black.png` - black on light
-- `logos/logo-white.png` - white on dark
-- `logos/logo-color.png` - colored on dark
+## Other full logos (icon + wordmark)
 
-These SVGs are placeholders matching the Linkary icon style (4 stacked bars). Replace with your PNG assets when available.
+- `logos/logo-black.svg` - black on light
+- `logos/logo-primary.svg` - SVG variant (optional)

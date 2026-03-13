@@ -181,13 +181,13 @@ export const ReputationCardPreview = React.forwardRef<
           }}
         />
 
-        {/* Linkary branding: official logo (transparent, no white box) + tagline */}
+        {/* Linkary branding: official logo image as-provided, no change or alteration */}
         <div className="relative flex flex-col items-center text-center">
           <img
-            src="/logos/logo-primary.svg"
+            src="/logos/linkary-logo.png"
             alt="Linkary"
-            className="h-8 w-auto max-w-[140px] object-contain object-center"
-            width={140}
+            className="h-8 w-auto max-w-[180px] object-contain object-center"
+            width={180}
             height={32}
           />
           <p className="text-xs text-[rgba(19,6,0,0.6)] mt-1 font-medium">Verified Signals • Trusted Connections</p>

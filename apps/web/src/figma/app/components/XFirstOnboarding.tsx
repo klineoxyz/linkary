@@ -11,26 +11,28 @@ import { User, Building2, Shield, Loader2 } from "lucide-react";
 type Step = "invite" | "role" | "profession";
 
 /**
- * X-first onboarding: invite (if required) → role (Individual/Org) → profession(s).
- * Used when needsOnboarding; does not set onboarding_completed_at until profession step is done.
+ * X-first onboarding: referral (always) → role (Individual/Org) → profession(s).
+ * - Invite-only ON: referral code required.
+ * - Invite-only OFF: referral optional but shown and captured for attribution if entered.
  */
 export default function XFirstOnboarding({
   userId,
   accessAllowed,
+  inviteOnly,
   setRoute,
   onComplete,
   onAccessGranted,
 }: {
   userId: string;
-  /** When false, show invite step first (invite-only mode). */
   accessAllowed: boolean | null;
+  /** When true, platform is invite-only; referral is required when accessAllowed is false. */
+  inviteOnly: boolean | null;
   setRoute: (r: { name: string }) => void;
   onComplete: () => void;
-  /** Call after successful invite redeem so parent can refresh access and me. */
   onAccessGranted?: () => void;
 }) {
-  const needInviteStep = accessAllowed === false;
-  const [step, setStep] = useState<Step>(() => (needInviteStep ? "invite" : "role"));
+  const referralRequired = inviteOnly === true && accessAllowed === false;
+  const [step, setStep] = useState<Step>("invite");
   const [inviteCode, setInviteCode] = useState("");
   const [accountType, setAccountType] = useState<"individual" | "company" | null>(null);
   const [selectedProfessions, setSelectedProfessions] = useState<Profession[]>([]);
@@ -42,12 +44,21 @@ export default function XFirstOnboarding({
     return session?.access_token ?? null;
   };
 
-  // Step 1: Invite code (when invite-only and not yet allowed)
+  const handleSkipReferral = () => {
+    setError(null);
+    setStep("role");
+  };
+
+  // Step 1: Referral / invite code. Required when invite-only ON and not redeemed; optional otherwise (still captured for attribution).
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = inviteCode.trim();
-    if (!trimmed) {
+    if (referralRequired && !trimmed) {
       setError("Enter an invite code.");
+      return;
+    }
+    if (!referralRequired && !trimmed) {
+      setStep("role");
       return;
     }
     setError(null);
@@ -150,16 +161,18 @@ export default function XFirstOnboarding({
               <Shield className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-foreground">Invite code</h1>
+              <h1 className="text-xl font-semibold text-foreground">Referral or invite code</h1>
               <p className="text-sm text-muted-foreground">
-                Linkary is invite-only. Enter your referral or invite code to continue.
+                {referralRequired
+                  ? "Linkary is invite-only. Enter your referral or invite code to continue."
+                  : "Have a referral or invite code? (Optional — we use it for attribution.)"}
               </p>
             </div>
           </div>
           <form onSubmit={handleInviteSubmit} className="space-y-4">
             <div>
               <label htmlFor="invite-code" className="block text-sm font-medium text-foreground mb-2">
-                Invite code
+                {referralRequired ? "Invite code *" : "Invite code (optional)"}
               </label>
               <input
                 id="invite-code"
@@ -173,14 +186,26 @@ export default function XFirstOnboarding({
               />
             </div>
             {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-11 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {loading ? "Verifying…" : "Continue"}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-11 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {loading ? "Verifying…" : referralRequired ? "Continue" : "Continue with code"}
+              </button>
+              {!referralRequired && (
+                <button
+                  type="button"
+                  onClick={handleSkipReferral}
+                  disabled={loading}
+                  className="w-full h-11 rounded-lg border border-border bg-background text-foreground font-medium hover:bg-muted/50 disabled:opacity-50"
+                >
+                  Skip
+                </button>
+              )}
+            </div>
           </form>
         </div>
       </div>

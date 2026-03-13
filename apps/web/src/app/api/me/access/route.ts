@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   }
 
   if (!INVITE_ONLY) {
-    return NextResponse.json({ allowed: true });
+    return NextResponse.json({ allowed: true, inviteOnly: false });
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -35,20 +35,20 @@ export async function GET(request: Request) {
     .eq("id", user.id)
     .maybeSingle();
   if (profileError || !profile) {
-    return NextResponse.json({ allowed: false, reason: "invite_required" });
+    return NextResponse.json({ allowed: false, reason: "invite_required", inviteOnly: true });
   }
   const inviterId = (profile as { inviter_id?: string | null }).inviter_id;
   const twitter = ((profile as { twitter_username?: string | null }).twitter_username ?? "").replace(/^@/, "").toLowerCase();
   if (inviterId != null && inviterId !== "") {
-    return NextResponse.json({ allowed: true });
+    return NextResponse.json({ allowed: true, inviteOnly: true });
   }
   if (twitter === ADMIN_TWITTER_HANDLE) {
-    return NextResponse.json({ allowed: true });
+    return NextResponse.json({ allowed: true, inviteOnly: true });
   }
   // Allow admin by auth identity when profile.twitter_username not yet synced (e.g. ensure-social-x runs after this)
   const fromMeta = (user.user_metadata?.user_name ?? user.user_metadata?.preferred_username ?? "").toString().replace(/^@/, "").toLowerCase();
   if (fromMeta === ADMIN_TWITTER_HANDLE) {
-    return NextResponse.json({ allowed: true });
+    return NextResponse.json({ allowed: true, inviteOnly: true });
   }
-  return NextResponse.json({ allowed: false, reason: "invite_required" });
+  return NextResponse.json({ allowed: false, reason: "invite_required", inviteOnly: true });
 }

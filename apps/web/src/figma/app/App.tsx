@@ -4084,6 +4084,7 @@ function LinkaryAppInner() {
   const [headerMedia, setHeaderMedia] = useState<{ header_media_type: string; header_media_url: string | null; header_media_file_path?: string | null } | null>(null);
   const [profilePayloadRefreshTrigger, setProfilePayloadRefreshTrigger] = useState(0);
   const [accessAllowed, setAccessAllowed] = useState<boolean | null>(null);
+  const [inviteOnly, setInviteOnly] = useState<boolean | null>(null);
 
   useEffect(() => {
     const fromPath = routeFromPathname(pathname ?? "/", searchParams);
@@ -4204,6 +4205,7 @@ function LinkaryAppInner() {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const accessJson = await accessRes.json().catch(() => ({}));
+      setInviteOnly(accessJson.inviteOnly === true || accessJson.inviteOnly === false ? accessJson.inviteOnly : null);
       if (accessJson.allowed === true) {
         setAccessAllowed(true);
       } else {
@@ -4248,6 +4250,7 @@ function LinkaryAppInner() {
     setAuthUserId(null);
     setMe(null);
     setAccessAllowed(null);
+    setInviteOnly(null);
     setRoute({ name: "landing" });
     setAuthBootstrapped(true);
   };
@@ -4838,6 +4841,7 @@ function LinkaryAppInner() {
                   <XFirstOnboarding
                     userId={authUserId}
                     accessAllowed={accessAllowed}
+                    inviteOnly={inviteOnly}
                     setRoute={setRoute}
                     onComplete={async () => {
                       const p = await getMyProfile(authUserId);

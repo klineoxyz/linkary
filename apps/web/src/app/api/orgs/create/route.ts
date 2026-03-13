@@ -104,5 +104,7 @@ export async function POST(request: NextRequest) {
     /* non-blocking */
   }
 
+  supabase.rpc("record_invitee_org_created", { p_org_id: org.id }).then(() => {}).catch(() => {});
+
   return ok({ orgId: org.id, slug: org.slug ?? org.id });
 }

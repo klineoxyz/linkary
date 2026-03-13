@@ -144,6 +144,19 @@ export default function XFirstOnboarding({
         setLoading(false);
         return;
       }
+      const token = await getToken();
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      if (token && base) {
+        fetch(`${base}/api/invites/wallet/grant-milestone`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ reason: "profile_complete" }),
+        }).catch(() => {});
+        fetch(`${base}/api/invites/mark-invitee-active`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => {});
+      }
       onComplete();
       setRoute({ name: "profile" });
     } catch (e) {

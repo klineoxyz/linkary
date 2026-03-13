@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   let event: Stripe.Event;
   try {
-    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-03-31.basil" });
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
     event = stripe.webhooks.constructEvent(body, sig, stripeWebhookSecret);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Invalid signature";
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
   let periodEnd: string;
   if (subscriptionId) {
     try {
-      const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-03-31.basil" });
+      const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       const end = subscription.current_period_end;
       periodEnd = new Date(end * 1000).toISOString();

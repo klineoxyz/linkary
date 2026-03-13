@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
   const priceId = getPriceId(packageKey, period);
   if (!priceId) return fail(`Price not configured for ${packageKey}/${period}`, 400);
 
-  const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-03-31.basil" });
+  const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
   const baseUrl = request.headers.get("x-forwarded-host") ?? request.nextUrl?.host ?? "localhost:3000";
   const protocol = request.headers.get("x-forwarded-proto") === "https" ? "https" : "http";
   const origin = `${protocol}://${baseUrl}`;

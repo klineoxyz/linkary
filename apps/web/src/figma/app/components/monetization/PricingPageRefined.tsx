@@ -1,9 +1,24 @@
-import React, { useState } from "react";
-import { Check, Lock, ChevronDown, ChevronUp } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Check, Lock, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { listMyOrgs } from "@/lib/orgs";
+import { supabase } from "@/lib/supabase";
 
-export default function PricingPageRefined({ setRoute }: any) {
+export default function PricingPageRefined({ setRoute, userId = null }: { setRoute: (r: { name: string }) => void; userId?: string | null }) {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  const [orgs, setOrgs] = useState<{ id: string; name: string }[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) {
+      setOrgs([]);
+      setSelectedOrgId(null);
+      return;
+    }
+    listMyOrgs(userId).then((list) => setOrgs(list.map((o) => ({ id: o.id, name: o.name }))));
+  }, [userId]);
 
   const plans = [
     {
@@ -118,6 +133,51 @@ export default function PricingPageRefined({ setRoute }: any) {
     { name: "Capital Tools", free: false, pro: false, host: false, brand: false, venture: true },
   ];
 
+  const handleUpgrade = async (packageKey: string) => {
+    if (!userId) return;
+    setCheckoutError(null);
+    if (orgs.length === 0) {
+      setCheckoutError("Create an org first to subscribe.");
+      return;
+    }
+    if (!selectedOrgId) {
+      setCheckoutError("Select an org to upgrade.");
+      return;
+    }
+    setCheckoutLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        setCheckoutError("Session expired. Please sign in again.");
+        setCheckoutLoading(false);
+        return;
+      }
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/billing/create-checkout-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          org_id: selectedOrgId,
+          package_key: packageKey,
+          period: billingPeriod,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCheckoutError((json as { error?: string }).error ?? "Could not start checkout.");
+        setCheckoutLoading(false);
+        return;
+      }
+      const url = (json as { url?: string }).url;
+      if (url) window.location.href = url;
+      else setCheckoutError("Invalid response from server.");
+    } catch (e) {
+      setCheckoutError(e instanceof Error ? e.message : "Something went wrong.");
+    }
+    setCheckoutLoading(false);
+  };
+
   const faqs = [
     {
       question: "Can I change plans later?",
@@ -152,6 +212,25 @@ export default function PricingPageRefined({ setRoute }: any) {
           <p className="text-xl text-zinc-700 mb-12">
             Start free. Upgrade when you're ready to grow your influence.
           </p>
+
+          {userId && orgs.length > 0 && (
+            <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
+              <label className="text-sm font-medium text-zinc-700">Subscribe for org:</label>
+              <select
+                value={selectedOrgId ?? ""}
+                onChange={(e) => { setSelectedOrgId(e.target.value || null); setCheckoutError(null); }}
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">Select an org</option>
+                {orgs.map((o) => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {checkoutError && (
+            <p className="mb-4 text-sm text-red-600">{checkoutError}</p>
+          )}
 
           {/* Billing Toggle */}
           <div className="flex items-center justify-center gap-3">
@@ -231,13 +310,16 @@ export default function PricingPageRefined({ setRoute }: any) {
 
               {/* CTA Button */}
               <button
+                type="button"
+                disabled={plan.id !== "free" && (checkoutLoading || (userId && orgs.length > 0 && !selectedOrgId))}
+                onClick={() => plan.id !== "free" && userId && handleUpgrade(plan.id)}
                 className={`w-full h-11 rounded-lg font-medium text-sm transition-all mb-6 ${
                   plan.emphasized
                     ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                     : "border border-zinc-300 hover:border-zinc-400 text-zinc-900 hover:bg-zinc-50"
-                }`}
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                {plan.cta}
+                {plan.id !== "free" && checkoutLoading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : plan.cta}
               </button>
 
               {/* Features */}

@@ -4897,7 +4897,7 @@ function LinkaryAppInner() {
                 {route.name === "terms" && <TermsOfServicePage setRoute={setRoute} />}
                 {route.name === "privacyPolicy" && <PrivacyPolicyPage setRoute={setRoute} />}
                 {(route.name === "pricing" || route.name === "billing" || route.name === "plansBilling") && (
-                  <PlansAndBillingPage setRoute={setRoute} initialTab={route.name === "billing" ? "billing" : "plans"} />
+                  <PlansAndBillingPage setRoute={setRoute} initialTab={route.name === "billing" ? "billing" : "plans"} userId={authUserId} />
                 )}
                 {route.name === "integrations" && <IntegrationsPage setRoute={setRoute} userId={authUserId} />}
                 {route.name === "rolesSkills" && <RolesSkillsPage setRoute={setRoute} userId={authUserId} />}

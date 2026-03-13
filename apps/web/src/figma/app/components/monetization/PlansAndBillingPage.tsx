@@ -8,7 +8,7 @@ import BillingPage from "./BillingPage";
 /**
  * Combined Plans & Billing: one page with Plans (pricing) and Billing (subscription, payment, history) tabs.
  */
-export default function PlansAndBillingPage({ setRoute, initialTab = "plans" }: any) {
+export default function PlansAndBillingPage({ setRoute, initialTab = "plans", userId = null }: { setRoute: (r: { name: string }) => void; initialTab?: "plans" | "billing"; userId?: string | null }) {
   const [tab, setTab] = useState<"plans" | "billing">(initialTab);
 
   return (
@@ -40,7 +40,7 @@ export default function PlansAndBillingPage({ setRoute, initialTab = "plans" }: 
         </div>
       </div>
 
-      {tab === "plans" && <PricingPageRefined setRoute={setRoute} />}
+      {tab === "plans" && <PricingPageRefined setRoute={setRoute} userId={userId} />}
       {tab === "billing" && <BillingPage setRoute={setRoute} onUpgradePlan={() => setTab("plans")} />}
     </div>
   );

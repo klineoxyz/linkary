@@ -71,13 +71,30 @@ export async function POST(request: NextRequest) {
   const amountTotal = typeof session.amount_total === "number" ? session.amount_total : 0;
   const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id ?? null;
 
-  const period = (session.metadata?.period as string) ?? "monthly";
-  const now = new Date();
-  const periodEnd =
-    period === "yearly"
-      ? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString()
-      : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-  const nowStr = now.toISOString();
+  let periodEnd: string;
+  if (subscriptionId) {
+    try {
+      const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-03-31.basil" });
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const end = subscription.current_period_end;
+      periodEnd = new Date(end * 1000).toISOString();
+    } catch {
+      const period = (session.metadata?.period as string) ?? "monthly";
+      const now = new Date();
+      periodEnd =
+        period === "yearly"
+          ? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString()
+          : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    }
+  } else {
+    const period = (session.metadata?.period as string) ?? "monthly";
+    const now = new Date();
+    periodEnd =
+      period === "yearly"
+        ? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString()
+        : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  }
+  const nowStr = new Date().toISOString();
 
   await supabase.from("subscriptions").upsert(
     {
@@ -105,28 +122,46 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (insertErr) {
+    const isUniqueViolation =
+      (insertErr as { code?: string }).code === "23505" ||
+      String((insertErr as { message?: string }).message ?? "").toLowerCase().includes("unique");
+    if (isUniqueViolation) {
+      return NextResponse.json({ received: true, already_processed: true });
+    }
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
   const purchaseId = (purchaseRow as { id: string }).id;
 
   if (billingWebhookSecret) {
     const origin = appOrigin.startsWith("http") ? appOrigin : `https://${appOrigin}`;
-    try {
-      await fetch(`${origin}/api/invites/record-package-attribution/webhook`, {
+    const attributionPayload = {
+      org_id: orgId,
+      purchase_id: purchaseId,
+      package_type: packageKey,
+      amount_cents: amountTotal,
+    };
+    const callAttribution = () =>
+      fetch(`${origin}/api/invites/record-package-attribution/webhook`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Linkary-Billing-Secret": billingWebhookSecret,
         },
-        body: JSON.stringify({
-          org_id: orgId,
-          purchase_id: purchaseId,
-          package_type: packageKey,
-          amount_cents: amountTotal,
-        }),
+        body: JSON.stringify(attributionPayload),
       });
+    try {
+      const res = await callAttribution();
+      if (!res.ok) {
+        await new Promise((r) => setTimeout(r, 2000));
+        await callAttribution();
+      }
     } catch (_) {
-      // Non-blocking; attribution can be retried or reconciled later
+      try {
+        await new Promise((r) => setTimeout(r, 2000));
+        await callAttribution();
+      } catch (_) {
+        // Non-blocking; attribution can be reconciled later
+      }
     }
   }
 

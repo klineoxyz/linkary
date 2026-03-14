@@ -7,6 +7,12 @@
  *
  * Use from authenticated API routes only, after entitlement check.
  * /analytics remains the owner of deep analytics; discovery uses only approved snapshot fields.
+ *
+ * Search behavior (current):
+ * - Lightweight, snapshot-oriented. No deep analytics or private insights.
+ * - Order: deterministic by username (profiles) or slug (orgs), ascending.
+ * - Filter: optional q applied as ilike across allowlisted text columns (no full-text or ranking yet).
+ * - Ranking: none; results are ordered by handle/slug only. Future paid search may add ranking.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";

@@ -22,6 +22,19 @@
 
 import type { PublicProfileDTO, PublicOrgDTO } from "./publicProfileDTO";
 
+/** Explicit allowlist: only these field names may appear in discovery profile payloads. Used for validation/docs. */
+export const DISCOVERY_PROFILE_ALLOWED_FIELDS = [
+  "type", "username", "display_name", "avatar_url", "bio", "profile_type",
+  "twitter_username", "xscore", "analytics_snapshot", "tags",
+] as const;
+
+/** Explicitly forbidden from discovery payloads. Never expose these. */
+export const DISCOVERY_FORBIDDEN_FIELDS = [
+  "email", "location", "street", "city", "pricing", "pricing_notes", "meta",
+  "user_id", "id", "auth", "internal_id", "private_metadata", "private_reviews",
+  "unpublished", "hidden", "contact_email", "cdp_wallet_address",
+] as const;
+
 /**
  * Safe fields for future paid search/discovery results (profiles).
  * Explicit allowlist; anything not listed must not be exposed.
@@ -51,6 +64,7 @@ export type DiscoveryProfileResult = {
  * Safe fields for future paid search/discovery results (orgs).
  */
 export type DiscoveryOrgResult = {
+  type: "org";
   slug: string;
   name: string;
   tagline: string | null;
@@ -73,6 +87,7 @@ export type DiscoverySearchResult = DiscoveryProfileResult | DiscoveryOrgResult;
  */
 export function publicProfileToDiscoveryResult(dto: PublicProfileDTO): DiscoveryProfileResult {
   return {
+    type: "profile",
     username: dto.username ?? null,
     display_name: dto.display_name ?? null,
     avatar_url: dto.avatar_url ?? null,

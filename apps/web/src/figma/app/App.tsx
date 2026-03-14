@@ -179,6 +179,7 @@ import CircleDetailPage from "./components/circles/CircleDetailPage";
 import KOLListsPage from "./components/circles/KOLListsPage";
 import CapitalPartnersPage from "./components/circles/CapitalPartnersPage";
 import ConnectionsPage from "./components/ConnectionsPage";
+import DiscoveryPage from "./components/DiscoveryPage";
 import WatchlistPage from "./components/WatchlistPage";
 import InviteRequiredView from "./components/InviteRequiredView";
 
@@ -4804,7 +4805,7 @@ function LinkaryAppInner() {
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}
                 {route.name === "creatorProfile" && <CreatorProfilePage setRoute={setRoute} />}
                 {route.name === "agencyProfile" && <AgencyProfilePage setRoute={setRoute} />}
-                {route.name === "explore" && <ExplorePage setRoute={setRoute} />}
+                {route.name === "explore" && <DiscoveryPage setRoute={setRoute} />}
                 {route.name === "dashboard" && <DashboardPage setRoute={setRoute} />}
                 {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "dealDetail" && <DealDetailPage setRoute={setRoute} dealId={route.data?.dealId} />}

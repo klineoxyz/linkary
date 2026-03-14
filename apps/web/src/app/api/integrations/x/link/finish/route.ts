@@ -130,10 +130,12 @@ export async function POST(request: Request) {
 
   await supabase.from("profiles").update(updates).eq("id", currentUser.id);
 
-  supabase.rpc("grant_invite_reserve_for_milestone", {
-    p_user_id: currentUser.id,
-    p_reason: "verified_social",
-  }).then(() => {}).catch(() => {});
+  void Promise.resolve(
+    supabase.rpc("grant_invite_reserve_for_milestone", {
+      p_user_id: currentUser.id,
+      p_reason: "verified_social",
+    })
+  ).then(() => {}, () => {});
 
   return NextResponse.json({
     ok: true,

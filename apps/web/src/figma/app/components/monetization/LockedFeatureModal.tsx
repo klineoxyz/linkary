@@ -101,7 +101,7 @@ export default function LockedFeatureModal({
         {/* Content */}
         <h3 className="text-2xl font-bold text-zinc-900 mb-2">{featureName}</h3>
         <p className="text-zinc-700 mb-6">
-          {description || `This feature is available for ${plan.name} members.`}
+          {description || `This feature will be available for ${plan.name} when paid plans go live.`}
         </p>
 
         {/* Plan Card */}
@@ -134,11 +134,11 @@ export default function LockedFeatureModal({
           }}
           className={`w-full h-12 rounded-lg ${colors.button} text-white font-semibold transition-colors flex items-center justify-center gap-2`}
         >
-          Upgrade to {plan.name}
+          View plans
           <ArrowRight className="h-5 w-5" />
         </button>
 
-        <p className="text-xs text-zinc-500 text-center mt-4">Placeholder - payment flow required</p>
+        <p className="text-xs text-zinc-500 text-center mt-4">Billing coming soon. This feature will be available with paid plans; 7-day free trial when we launch.</p>
       </div>
     </div>
   );

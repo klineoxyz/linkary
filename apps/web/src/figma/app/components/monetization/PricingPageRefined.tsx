@@ -133,76 +133,46 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
     { name: "Capital Tools", free: false, pro: false, host: false, brand: false, venture: true },
   ];
 
-  const handleUpgrade = async (packageKey: string) => {
-    if (!userId) return;
+  // MVP: Billing is not live. Do not call checkout; show coming-soon message only.
+  const handleUpgrade = async (_packageKey: string) => {
     setCheckoutError(null);
-    if (orgs.length === 0) {
-      setCheckoutError("Create an org first to subscribe.");
-      return;
-    }
-    if (!selectedOrgId) {
-      setCheckoutError("Select an org to upgrade.");
-      return;
-    }
-    setCheckoutLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) {
-        setCheckoutError("Session expired. Please sign in again.");
-        setCheckoutLoading(false);
-        return;
-      }
-      const base = typeof window !== "undefined" ? window.location.origin : "";
-      const res = await fetch(`${base}/api/billing/create-checkout-session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          org_id: selectedOrgId,
-          package_key: packageKey,
-          period: billingPeriod,
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setCheckoutError((json as { error?: string }).error ?? "Could not start checkout.");
-        setCheckoutLoading(false);
-        return;
-      }
-      const url = (json as { url?: string }).url;
-      if (url) window.location.href = url;
-      else setCheckoutError("Invalid response from server.");
-    } catch (e) {
-      setCheckoutError(e instanceof Error ? e.message : "Something went wrong.");
-    }
-    setCheckoutLoading(false);
+    setCheckoutError("Billing coming soon. Early access is currently open. A 7-day free trial will apply when paid plans go live.");
   };
 
   const faqs = [
     {
+      question: "Is billing live?",
+      answer: "Not yet. Early access is open now. When we launch paid plans, a 7-day free trial will apply.",
+    },
+    {
       question: "Can I change plans later?",
-      answer: "Yes, you can upgrade or downgrade at any time. Changes take effect immediately, with prorated billing.",
+      answer: "Yes, you will be able to upgrade or downgrade when billing is live. Changes will take effect per the plan terms.",
     },
     {
-      question: "What payment methods do you accept?",
-      answer: "We accept all major credit cards, debit cards, and crypto payments (USDC, USDT).",
+      question: "What payment methods will you accept?",
+      answer: "When billing launches we plan to accept major credit and debit cards; details will be announced.",
     },
     {
-      question: "Is there a free trial for paid plans?",
-      answer: "Founding members get 50% off for the first 3 months. Cancel anytime during this period.",
+      question: "Will there be a free trial?",
+      answer: "Yes. A 7-day free trial will apply when paid plans go live.",
     },
     {
       question: "What happens to my data if I downgrade?",
-      answer: "Your data remains accessible. Some advanced features may be view-only or limited based on your new plan.",
-    },
-    {
-      question: "Do you offer refunds?",
-      answer: "Yes, we offer a 14-day money-back guarantee on all paid plans. No questions asked.",
+      answer: "Your data remains accessible. Some advanced features may be view-only or limited based on your plan.",
     },
   ];
 
   return (
     <div className="min-h-screen bg-white">
+      {/* MVP: Billing not live — clarity banner */}
+      <div className="bg-amber-50 border-b border-amber-200">
+        <div className="max-w-6xl mx-auto px-6 py-3 text-center">
+          <p className="text-sm font-medium text-amber-800">
+            Billing coming soon. Early access is currently open. A 7-day free trial will apply when paid plans go live.
+          </p>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <div className="border-b border-zinc-200 bg-white">
         <div className="max-w-6xl mx-auto px-6 py-16 text-center">
@@ -210,7 +180,7 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
             Simple pricing for serious builders.
           </h1>
           <p className="text-xl text-zinc-700 mb-12">
-            Start free. Upgrade when you're ready to grow your influence.
+            Start free. Paid plans and billing coming soon — early access is open now.
           </p>
 
           {userId && orgs.length > 0 && (

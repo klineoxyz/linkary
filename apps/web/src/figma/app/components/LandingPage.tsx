@@ -129,7 +129,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
         "5 verification requests/month",
         "3 basic case studies",
       ],
-      cta: "Start Free Trial",
+      cta: "Early access",
       highlighted: false,
     },
     {
@@ -147,7 +147,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
         "Full verification workflow + priority queue",
         "Early access: YouTube + TikTok analytics",
       ],
-      cta: "Start Free Trial",
+      cta: "Early access",
       highlighted: true,
     },
     {
@@ -162,7 +162,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
         "Priority verification + API exports",
         "Dedicated support",
       ],
-      cta: "Contact Sales",
+      cta: "Contact us",
       highlighted: false,
     },
   ];
@@ -712,8 +712,9 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
       <section className="py-20 lg:py-32 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Simple, transparent pricing</h2>
-            <p className="text-xl text-gray-600">No hidden fees. No surprises. Just clear value.</p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Plans and pricing</h2>
+            <p className="text-xl text-gray-600 mb-2">Early access is currently open. Billing coming soon.</p>
+            <p className="text-sm text-gray-500">A 7-day free trial will apply when paid plans go live.</p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">

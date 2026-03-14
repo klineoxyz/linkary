@@ -1420,6 +1420,12 @@ export default function ProfileEditPage({
   const [featuredCaseStudyId, setFeaturedCaseStudyId] = useState<string | null>(null);
   const [featuredReviewId, setFeaturedReviewId] = useState<string | null>(null);
   const [featuredGigId, setFeaturedGigId] = useState<string | null>(null);
+  const [publicLocation, setPublicLocation] = useState(false);
+  const [publicPricing, setPublicPricing] = useState(false);
+  const [pricingValues, setPricingValues] = useState<{ post: { price_usd: number | null; platforms: string[]; notes: string }; podcast: { price_usd: number | null; platforms: string[]; notes: string } }>({
+    post: { price_usd: null, platforms: [], notes: "" },
+    podcast: { price_usd: null, platforms: [], notes: "" },
+  });
   const [myReviews, setMyReviews] = useState<Array<{ id: string; rating: number; title: string | null; body: string | null; created_at: string }>>([]);
   const [team, setTeam] = useState<TeamMemberRow[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
@@ -1731,6 +1737,23 @@ export default function ProfileEditPage({
     }
     if (me?.published != null) setPublished(!!me.published);
     if ((me as { show_reviews?: boolean })?.show_reviews !== undefined) setShowReviews((me as { show_reviews: boolean }).show_reviews !== false);
+    const meta = (me as { meta?: { public_location?: boolean; public_pricing?: boolean; pricing?: { post?: { price_usd?: number | null; platforms?: string[]; notes?: string | null }; podcast?: { price_usd?: number | null; platforms?: string[]; notes?: string | null } } } }).meta;
+    if (meta) {
+      setPublicLocation(meta.public_location === true);
+      setPublicPricing(meta.public_pricing === true);
+      setPricingValues({
+        post: {
+          price_usd: typeof meta.pricing?.post?.price_usd === "number" ? meta.pricing.post.price_usd : null,
+          platforms: Array.isArray(meta.pricing?.post?.platforms) ? meta.pricing.post.platforms : [],
+          notes: meta.pricing?.post?.notes?.trim() ?? "",
+        },
+        podcast: {
+          price_usd: typeof meta.pricing?.podcast?.price_usd === "number" ? meta.pricing.podcast.price_usd : null,
+          platforms: Array.isArray(meta.pricing?.podcast?.platforms) ? meta.pricing.podcast.platforms : [],
+          notes: meta.pricing?.podcast?.notes?.trim() ?? "",
+        },
+      });
+    }
     if ((me as { cv_document_id?: string | null })?.cv_document_id) {
       const { data: cvDoc } = await supabase
         .from("profile_documents")
@@ -1747,7 +1770,7 @@ export default function ProfileEditPage({
     }
     loadSkills();
     loadAchievements();
-  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam, loadGigs, loadLinks, loadSkills, loadAchievements, loadRelations, loadMyReviews]);
+  }, [me?.id, me?.display_name, me?.email, me?.bio, me?.website, me?.location, me?.published, (me as { meta?: unknown })?.meta, (me as { cv_document_id?: string | null })?.cv_document_id, loadPartners, loadCaseStudies, loadTeam, loadGigs, loadLinks, loadSkills, loadAchievements, loadRelations, loadMyReviews]);
 
   useEffect(() => {
     load();
@@ -1872,6 +1895,12 @@ export default function ProfileEditPage({
       featured_case_study_id: featuredCaseStudyId,
       featured_review_id: featuredReviewId,
       featured_gig_id: featuredGigId,
+      public_location: publicLocation,
+      public_pricing: publicPricing,
+      pricing: {
+        post: pricingValues.post.price_usd != null ? { price_usd: pricingValues.post.price_usd, platforms: pricingValues.post.platforms, notes: pricingValues.post.notes.trim() || null } : undefined,
+        podcast: pricingValues.podcast.price_usd != null ? { price_usd: pricingValues.podcast.price_usd, platforms: pricingValues.podcast.platforms, notes: pricingValues.podcast.notes.trim() || null } : undefined,
+      },
     });
     if (profileErr) {
       setSaving(false);
@@ -1986,7 +2015,7 @@ export default function ProfileEditPage({
         </div>
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Email</label>
-          <p className="text-xs text-zinc-500 mb-2">Contact email (stored in your profile). Other users can have their own.</p>
+          <p className="text-xs text-zinc-500 mb-2">Not shown on public profile. For account and internal use only.</p>
           <input
             type="email"
             value={email}
@@ -2079,6 +2108,61 @@ export default function ProfileEditPage({
             <option value="company">Company</option>
           </select>
         </div>
+
+        <div className="border-t border-zinc-200 pt-4 mt-4">
+          <h3 className="text-sm font-semibold text-zinc-900 mb-2">Public visibility</h3>
+          <p className="text-xs text-zinc-500 mb-3">Control what appears on your public page (linkary.xyz/you).</p>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={publicLocation} onChange={(e) => setPublicLocation(e.target.checked)} className="rounded border-zinc-300" />
+              <span className="text-sm text-zinc-700">Show location on public profile</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={publicPricing} onChange={(e) => setPublicPricing(e.target.checked)} className="rounded border-zinc-300" />
+              <span className="text-sm text-zinc-700">Show pricing on public profile</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="border-t border-zinc-200 pt-4 mt-4">
+          <h3 className="text-sm font-semibold text-zinc-900 mb-2">Monetization / Pricing</h3>
+          <p className="text-xs text-zinc-500 mb-3">Optional. Only shown on your public page when &quot;Show pricing on public profile&quot; is on.</p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Price per post (USD)</label>
+              <div className="flex items-center gap-2 mb-1">
+                <input type="number" min={0} step={1} value={pricingValues.post.price_usd ?? ""} onChange={(e) => setPricingValues((p) => ({ ...p, post: { ...p.post, price_usd: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) } }))} placeholder="0" className="w-24 px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900" />
+                <span className="text-sm text-zinc-500">USD</span>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {["X", "Instagram", "YouTube", "TikTok"].map((platform) => (
+                  <label key={platform} className="flex items-center gap-1 cursor-pointer text-xs">
+                    <input type="checkbox" checked={pricingValues.post.platforms.includes(platform)} onChange={(e) => setPricingValues((p) => ({ ...p, post: { ...p.post, platforms: e.target.checked ? [...p.post.platforms, platform] : p.post.platforms.filter((x) => x !== platform) } }))} className="rounded border-zinc-300" />
+                    {platform}
+                  </label>
+                ))}
+              </div>
+              <input type="text" value={pricingValues.post.notes} onChange={(e) => setPricingValues((p) => ({ ...p, post: { ...p.post, notes: e.target.value } }))} placeholder="Optional notes" className="mt-2 w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Price per podcast (USD)</label>
+              <div className="flex items-center gap-2 mb-1">
+                <input type="number" min={0} step={1} value={pricingValues.podcast.price_usd ?? ""} onChange={(e) => setPricingValues((p) => ({ ...p, podcast: { ...p.podcast, price_usd: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) } }))} placeholder="0" className="w-24 px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900" />
+                <span className="text-sm text-zinc-500">USD</span>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {["X Spaces", "YouTube", "TikTok Live"].map((platform) => (
+                  <label key={platform} className="flex items-center gap-1 cursor-pointer text-xs">
+                    <input type="checkbox" checked={pricingValues.podcast.platforms.includes(platform)} onChange={(e) => setPricingValues((p) => ({ ...p, podcast: { ...p.podcast, platforms: e.target.checked ? [...p.podcast.platforms, platform] : p.podcast.platforms.filter((x) => x !== platform) } }))} className="rounded border-zinc-300" />
+                    {platform}
+                  </label>
+                ))}
+              </div>
+              <input type="text" value={pricingValues.podcast.notes} onChange={(e) => setPricingValues((p) => ({ ...p, podcast: { ...p.podcast, notes: e.target.value } }))} placeholder="Optional notes" className="mt-2 w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 text-sm" />
+            </div>
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Public page layout</label>
           <p className="text-xs text-zinc-500 mb-2">How your public page is arranged. Classic = two columns; Spotlight = single column; Showcase = larger case studies &amp; gigs; Compact = denser.</p>

@@ -15,7 +15,7 @@ export type PublicProfile = {
   id: string;
   username: string | null;
   display_name: string | null;
-  /** Contact email (from Public 1-Pager). Shown on public page when set. */
+  /** Owner/account email. Must NOT be exposed in public or discovery payloads. Do not add to public_profile_view. */
   email?: string | null;
   bio: string | null;
   avatar_url: string | null;

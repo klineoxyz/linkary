@@ -7,6 +7,10 @@ import { BadgeCheck, ExternalLink, Users, Eye, TrendingUp, User, Award, Code, Bu
  * User Profile Page (General User Entity Type)
  * Shows the logged-in management view with card-based layout
  * Infrastructure-grade UI matching Creator and Brand profiles
+ *
+ * TODO: This route is hard-disabled from production: App.tsx redirects userProfile to /{username}
+ * and never renders this component. Real user journeys must use canonical public profile /{username}.
+ * Do not use for discovery or any path that could serve mock/demo data to users.
  */
 
 // Helper functions

@@ -43,6 +43,14 @@ supabase db push
 
 This applies any migrations that haven’t been applied yet.
 
+**If you see `Found local migration files to be inserted before the last migration on remote database`:**  
+Run with `--include-all` so older-timestamped local migrations are still applied:  
+`pnpm db:push:all` (or `npx supabase db push --include-all`).
+
+**If you see `duplicate key value violates unique constraint "schema_migrations_pkey"`:**  
+Mark the migration reverted, then push again:  
+`npx supabase migration repair 20260401000000 --status reverted` then `pnpm db:push`. The migration SQL is idempotent.
+
 ### Option B: Supabase Dashboard (SQL Editor)
 
 1. Open your project → **SQL Editor**.

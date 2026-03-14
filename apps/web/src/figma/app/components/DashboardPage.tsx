@@ -619,8 +619,9 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                             onClick={() => {
                               if (user.url && typeof window !== "undefined") {
                                 window.location.href = user.url;
-                              } else if (setRoute) {
-                                setRoute({ name: "userProfile", data: user });
+                              } else if (typeof window !== "undefined" && (user.username || user.handle)) {
+                                const slug = (user.username || user.handle || "").toString().replace(/^@/, "");
+                                if (slug) window.location.href = `/${encodeURIComponent(slug)}`;
                               }
                             }}
                             className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all cursor-pointer hover:scale-105"
@@ -747,7 +748,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               <p className="text-xs text-gray-600 mb-2">Marketing agencies & services</p>
               <div className="flex items-center gap-2 text-xs text-primary"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
             </button>
-            <button onClick={() => setRoute && setRoute({ name: "userProfile" })} className="p-5 rounded-2xl bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
+            {/* TODO: Future paid discovery; do not use userProfile route (mock data). Link to explore for now. */}
+            <button onClick={() => setRoute && setRoute({ name: "explore" })} className="p-5 rounded-2xl bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-xl bg-accent border border-border"><User className="w-5 h-5 text-primary stroke-[1.75]" /></div>
                 <h4 className="font-semibold text-gray-900">User</h4>

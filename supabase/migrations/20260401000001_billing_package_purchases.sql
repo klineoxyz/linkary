@@ -18,6 +18,7 @@ COMMENT ON TABLE public.package_purchases IS 'One row per successful org package
 -- Allow org owner/admin to read their org purchases (for billing history later).
 ALTER TABLE public.package_purchases ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "package_purchases_select_org_admin" ON public.package_purchases;
 CREATE POLICY "package_purchases_select_org_admin" ON public.package_purchases
   FOR SELECT USING (
     EXISTS (

@@ -113,13 +113,12 @@ export default function ConnectionsPage({
                         {c.other_username ? `@${c.other_username}` : c.other_profile_id.slice(0, 8) + "…"}
                       </span>
                       {c.other_username && (
-                        <button
-                          type="button"
-                          onClick={() => setRoute({ name: "userProfile", data: { username: c.other_username } })}
+                        <a
+                          href={`/${encodeURIComponent(String(c.other_username).replace(/^@/, ""))}`}
                           className="text-sm text-primary hover:underline truncate"
                         >
                           View profile
-                        </button>
+                        </a>
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -191,13 +190,12 @@ export default function ConnectionsPage({
                       {c.other_username ? `@${c.other_username}` : c.other_profile_id.slice(0, 8) + "…"}
                     </span>
                     {c.other_username && (
-                      <button
-                        type="button"
-                        onClick={() => setRoute({ name: "userProfile", data: { username: c.other_username } })}
+                      <a
+                        href={`/${encodeURIComponent(String(c.other_username).replace(/^@/, ""))}`}
                         className="text-sm text-primary hover:underline"
                       >
                         View profile
-                      </button>
+                      </a>
                     )}
                   </li>
                 ))}

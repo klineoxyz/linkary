@@ -1,6 +1,11 @@
 /**
  * Strict allowlist DTO for public profile/org pages. Never spread raw DB; map explicitly.
  * No email, user_id, bearer tokens, or internal fields. All URLs sanitized (https/http only).
+ *
+ * Payload separation:
+ * - Owner/private: full profile from getMyProfile (not this DTO); never use for public or discovery.
+ * - Public profile: this DTO (entityToPublicDTO) for /{username} and public API only.
+ * - Discovery/search: use discoveryAllowlist.ts (publicProfileToDiscoveryResult etc.); explicit allowlist, no sensitive fields.
  */
 import type { PublicEntity } from "./publicData";
 import { sanitizeUrl } from "./sanitizeUrl";
@@ -114,7 +119,8 @@ export function entityToPublicDTO(entity: PublicEntity, analyticsSource?: "worke
       type: "profile",
       display_name: p.display_name ?? null,
       username: p.username ?? null,
-      contact_email: (p as { email?: string | null }).email?.trim() || null,
+      /** Never expose auth/user email. Public contact email must be a separate allowlisted field if added later. */
+      contact_email: null,
       bio: p.bio ?? null,
       avatar_url: sanitizeUrl(p.avatar_url) ?? null,
       website: sanitizeUrl(p.website) ?? null,

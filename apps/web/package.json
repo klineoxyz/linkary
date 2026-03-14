@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "db:push": "pnpm -w run db:push",
     "start": "next start",
     "lint": "eslint",
     "check:storage-url": "pnpm exec tsx src/lib/isPrivateStorageUrl.checks.ts",

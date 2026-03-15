@@ -49,6 +49,11 @@ export default function MyDealsPage() {
   const [reviewBody, setReviewBody] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [caseStudyModalDeal, setCaseStudyModalDeal] = useState<DealRow | null>(null);
+  const [caseStudyTitle, setCaseStudyTitle] = useState("");
+  const [caseStudyDescription, setCaseStudyDescription] = useState("");
+  const [caseStudySubmitting, setCaseStudySubmitting] = useState(false);
+  const [caseStudyError, setCaseStudyError] = useState<string | null>(null);
 
   const loadDealsAndReviews = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -156,6 +161,55 @@ export default function MyDealsPage() {
     setReviewError(null);
   };
 
+  const openCaseStudyModal = (deal: DealRow) => {
+    if (deal.status !== "completed") return;
+    setCaseStudyError(null);
+    setCaseStudyTitle(deal.gig_title ?? "");
+    setCaseStudyDescription("");
+    setCaseStudyModalDeal(deal);
+  };
+
+  const closeCaseStudyModal = () => {
+    if (!caseStudySubmitting) {
+      setCaseStudyModalDeal(null);
+      setCaseStudyTitle("");
+      setCaseStudyDescription("");
+      setCaseStudyError(null);
+    }
+  };
+
+  const submitCaseStudy = async () => {
+    if (!caseStudyModalDeal || caseStudySubmitting) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = (session as { access_token?: string } | null)?.access_token;
+    if (!token) return;
+    setCaseStudySubmitting(true);
+    setCaseStudyError(null);
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    try {
+      const res = await fetch(`${base}/api/case-studies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          gig_deal_id: caseStudyModalDeal.id,
+          title: caseStudyTitle.trim() || null,
+          description: caseStudyDescription.trim() || null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.ok) {
+        toast.success("Case study created");
+        closeCaseStudyModal();
+      } else {
+        setCaseStudyError(json.message ?? "Failed to create case study");
+      }
+    } catch (e) {
+      setCaseStudyError(e instanceof Error ? e.message : "Failed to create case study");
+    } finally {
+      setCaseStudySubmitting(false);
+    }
+  };
+
   const submitReview = async () => {
     if (!reviewModalDeal || reviewSubmitting) return;
     const revieweeId = reviewModalDeal.counterparty_id;
@@ -189,7 +243,7 @@ export default function MyDealsPage() {
         loadDealsAndReviews();
       } else {
         if (res.status === 403) {
-          setReviewError("You can only leave a verified review when you have an active or completed deal with this person.");
+          setReviewError("You can only leave a verified review after the work is completed. Complete the deal first.");
         } else {
           setReviewError(json.error ?? json.message ?? "Failed to submit review");
         }
@@ -289,7 +343,7 @@ export default function MyDealsPage() {
                           </button>
                         </div>
                       )}
-                      {(d.status === "active" || d.status === "completed") && (
+                      {d.status === "completed" && (
                         reviewedDealIds.has(d.id) ? (
                           <span className="text-xs text-muted-foreground">Review submitted</span>
                         ) : (
@@ -301,6 +355,18 @@ export default function MyDealsPage() {
                             Leave review
                           </button>
                         )
+                      )}
+                      {d.status === "active" && !reviewedDealIds.has(d.id) && (
+                        <span className="text-xs text-muted-foreground">Complete the work to leave a verified review</span>
+                      )}
+                      {d.status === "completed" && (
+                        <button
+                          type="button"
+                          onClick={() => openCaseStudyModal(d)}
+                          className="rounded border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted"
+                        >
+                          Create case study from this work
+                        </button>
                       )}
                     </div>
                   </div>
@@ -386,6 +452,69 @@ export default function MyDealsPage() {
                 className="rounded-lg border border-primary bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 {reviewSubmitting ? "Submitting…" : "Submit review"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Case study modal */}
+      {caseStudyModalDeal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => closeCaseStudyModal()}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-semibold text-foreground">Create case study from this work</h3>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {caseStudyModalDeal.gig_title ?? "Gig"} · completed deal
+            </p>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-foreground">Title (optional)</label>
+              <input
+                type="text"
+                value={caseStudyTitle}
+                onChange={(e) => setCaseStudyTitle(e.target.value)}
+                placeholder="Case study title"
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-foreground">Description (optional)</label>
+              <textarea
+                value={caseStudyDescription}
+                onChange={(e) => setCaseStudyDescription(e.target.value)}
+                placeholder="Describe the work and outcome..."
+                rows={3}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              />
+            </div>
+
+            {caseStudyError && (
+              <p className="mt-3 text-sm text-destructive">{caseStudyError}</p>
+            )}
+
+            <div className="mt-4 flex gap-2 justify-end">
+              <button
+                type="button"
+                disabled={caseStudySubmitting}
+                onClick={closeCaseStudyModal}
+                className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={caseStudySubmitting}
+                onClick={submitCaseStudy}
+                className="rounded-lg border border-primary bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {caseStudySubmitting ? "Creating…" : "Create case study"}
               </button>
             </div>
           </div>

@@ -1,8 +1,19 @@
 # Dev server not opening (localhost:3000)
 
-If **http://localhost:3000** never loads in the browser, try these in order.
+If **http://localhost:3000** (or the Network URL) never loads—browser stays blank or "waiting"—try these in order.
 
-## 1. Use port 3001
+## 1. Use Webpack instead of Turbopack (try this first)
+
+Next.js 16 uses Turbopack by default. On some machines the first request gets stuck on "Compiling / ..." and the page never loads. Use the Webpack dev server instead:
+
+```powershell
+cd C:\Users\Muaz\Desktop\Linkary\apps\web
+pnpm run dev:webpack
+```
+
+Wait until you see **"Ready"** (first compile can take 30–60 seconds). Then open **http://localhost:3000** in your browser.
+
+## 2. Use port 3001
 
 In case something is blocking port 3000:
 
@@ -27,7 +38,7 @@ node -e "require('http').createServer((q,r)=>{r.end('OK');}).listen(3000, ()=>co
 
 Press Ctrl+C to stop the test server.
 
-## 3. Allow Node through Windows Firewall
+## 4. Allow Node through Windows Firewall
 
 1. Windows Security → Firewall & network protection → Allow an app through firewall.
 2. Find **Node.js** (or add it via “Allow another app”) and enable **Private** (and **Public** if you need it).
@@ -38,7 +49,7 @@ Press Ctrl+C to stop the test server.
 - Turn off any VPN; some break localhost.
 - Try a different browser or a private/incognito window.
 
-## 5. Run from repo root
+## 6. Run from repo root
 
 ```powershell
 cd C:\Users\Muaz\Desktop\Linkary
@@ -47,7 +58,8 @@ pnpm dev
 
 Then open **http://localhost:3000** (or **http://127.0.0.1:3000**).
 
-## Summary of changes already made
+## Summary of scripts
 
 - **next.config.ts**: `turbopack.root` set so Turbopack uses the monorepo root (fixes “inferred workspace root” and can help compilation).
-- **package.json**: `dev:3001` script added so you can run on port 3001 if 3000 is blocked.
+- **pnpm run dev:webpack** – use Webpack instead of Turbopack (use if the page never loads).
+- **pnpm run dev:3001** – run on port 3001 if 3000 is blocked.

@@ -216,6 +216,8 @@ import { RepBreakdownModal } from "@/components/rep/RepBreakdownModal";
 import GlobalSearch from "./components/GlobalSearch";
 import { ReputationCardModal } from "./components/profile/ReputationCardModal";
 import { buildReputationCardPayload } from "./components/profile/ReputationCardPreview";
+import { shouldRedirectProfileToAnalytics } from "@/lib/profileRedirect";
+import { buildAnalyticsProfilePath, parseAnalyticsProfilePath } from "@/lib/appRouting";
 
 /**
  * Linkary - Web3 Reputation + Opportunity + Review + Case Study Infrastructure
@@ -814,7 +816,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     return query ? `/app/profile?${query}` : "/app/profile";
   }
   if (route.name === "analyticsProfile" && route.data?.username) {
-    return `/app/analytics/profile/${encodeURIComponent(String(route.data.username))}`;
+    return buildAnalyticsProfilePath(String(route.data.username));
   }
   if (route.name === "orgDetail" && (route.data?.orgId ?? route.data?.slug)) {
     const tab = route.data?.tab;
@@ -855,9 +857,8 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   if (parts[0] === "profile" && parts[1] === "dashboard") {
     return { name: "analytics" };
   }
-  if (parts[0] === "analytics" && parts[1] === "profile" && parts[2]) {
-    return { name: "analyticsProfile", data: { username: decodeURIComponent(parts[2]) } };
-  }
+  const analyticsProfile = parseAnalyticsProfilePath(pathnameNorm ? `/${pathnameNorm}` : null);
+  if (analyticsProfile) return { name: "analyticsProfile", data: analyticsProfile };
   if (parts[0] === "u" && parts[1] && parts[2] === "insights") {
     return { name: "userInsights", data: { username: decodeURIComponent(parts[1]) }, handle: decodeURIComponent(parts[1]) };
   }
@@ -3383,9 +3384,8 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
   const hasPublicSlug = publicSlug.length > 0;
 
   useEffect(() => {
-    if (!viewUsername || !publicSlug || !setRoute) return;
-    const other = String(viewUsername).replace(/^@/, "").toLowerCase().trim();
-    if (other && other !== publicSlug) setRoute({ name: "analyticsProfile", data: { username: viewUsername } });
+    if (!setRoute) return;
+    if (shouldRedirectProfileToAnalytics(viewUsername, publicSlug)) setRoute({ name: "analyticsProfile", data: { username: viewUsername } });
   }, [viewUsername, publicSlug, setRoute]);
 
   const [publicProfilePayload, setPublicProfilePayload] = useState<{

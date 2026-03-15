@@ -14,6 +14,7 @@ import { isEligibleForDiscovery } from "@/lib/entitlementDiscovery";
 import { rateLimit } from "@/lib/rate-limit";
 import { DISCOVERY_RATE_LIMIT, DISCOVERY_RATE_WINDOW_SEC } from "@/lib/discoveryConstants";
 import { ok, fail } from "@/lib/api-response";
+import { shapeCrossUserAnalyticsResponse } from "@/lib/crossUserAnalyticsAllowlist";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -94,23 +95,11 @@ export async function GET(
       .eq("profile_id", profileId)
       .maybeSingle();
 
-    const profile = {
-      username: (profileRow as { username: string | null }).username ?? username,
-      display_name: (profileRow as { display_name: string | null }).display_name ?? null,
-      avatar_url: (profileRow as { avatar_url: string | null }).avatar_url ?? null,
-    };
-
-    const analytics = rollup
-      ? {
-          posts_7d: (rollup as Record<string, unknown>).posts_7d ?? null,
-          posts_30d: (rollup as Record<string, unknown>).posts_30d ?? null,
-          posts_90d: (rollup as Record<string, unknown>).posts_90d ?? null,
-          avg_likes_30d: (rollup as Record<string, unknown>).avg_likes_30d ?? null,
-          avg_replies_30d: (rollup as Record<string, unknown>).avg_replies_30d ?? null,
-          engagement_rate_30d: (rollup as Record<string, unknown>).engagement_rate_30d ?? null,
-          reach_proxy_30d: (rollup as Record<string, unknown>).reach_proxy_30d ?? null,
-        }
-      : null;
+    const { profile, analytics } = shapeCrossUserAnalyticsResponse(
+      profileRow as { username: string | null; display_name: string | null; avatar_url: string | null },
+      username,
+      rollup as Record<string, unknown> | null
+    );
 
     return ok({ profile, analytics });
   } catch (err) {

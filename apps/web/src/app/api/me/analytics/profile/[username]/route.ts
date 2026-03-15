@@ -3,7 +3,7 @@
  *
  * Cross-user analytics viewer: returns allowlisted analytics for the given profile
  * when the caller is eligible (same entitlement as discovery). Auth required.
- * No email, location, pricing, auth ids, or private metadata.
+ * Rate limited (same policy as discovery). No email, location, pricing, auth ids, or private metadata.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -11,17 +11,12 @@ import { createClient } from "@supabase/supabase-js";
 import { createServiceSupabase } from "@/lib/x-analytics-server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { isEligibleForDiscovery } from "@/lib/entitlementDiscovery";
+import { rateLimit } from "@/lib/rate-limit";
+import { DISCOVERY_RATE_LIMIT, DISCOVERY_RATE_WINDOW_SEC } from "@/lib/discoveryConstants";
+import { ok, fail } from "@/lib/api-response";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-function fail(code: string, message: string, status: number) {
-  return NextResponse.json({ ok: false as const, code, message }, { status });
-}
-
-function ok(payload: unknown) {
-  return NextResponse.json({ ok: true as const, ...payload });
-}
 
 export async function GET(
   request: NextRequest,
@@ -67,6 +62,17 @@ export async function GET(
     const eligible = await isEligibleForDiscovery(userId, viewerEmail, serviceSupabase);
     if (!eligible) return fail("ANALYTICS_VIEW_NOT_ELIGIBLE", "Analytics view not available on your plan", 403);
 
+    const rlKey = `analytics-profile:u:${userId}`;
+    const rl = await rateLimit({
+      key: rlKey,
+      limit: DISCOVERY_RATE_LIMIT,
+      windowSeconds: DISCOVERY_RATE_WINDOW_SEC,
+      supabaseAdmin: serviceSupabase,
+    });
+    if (!rl.allowed) {
+      return fail("RATE_LIMITED", "Too many requests. Try again later.", 429, { resetAt: rl.resetAt });
+    }
+
     const { data: profileRow } = await serviceSupabase
       .from("public_profile_view")
       .select("id, username, display_name, avatar_url")
@@ -109,6 +115,6 @@ export async function GET(
     return ok({ profile, analytics });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
-    return fail("SERVER_ERROR", message, 500);
+    return NextResponse.json({ ok: false as const, code: "SERVER_ERROR", message }, { status: 500 });
   }
 }

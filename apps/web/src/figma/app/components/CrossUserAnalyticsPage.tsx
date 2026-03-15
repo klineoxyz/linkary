@@ -16,7 +16,7 @@ type Analytics = {
   reach_proxy_30d: number | null;
 };
 
-type Status = "idle" | "loading" | "success" | "locked" | "unauthorized" | "not_found" | "error";
+type Status = "idle" | "loading" | "success" | "locked" | "unauthorized" | "rate_limited" | "not_found" | "error";
 
 export default function CrossUserAnalyticsPage({
   username: usernameProp,
@@ -31,6 +31,7 @@ export default function CrossUserAnalyticsPage({
   const [profile, setProfile] = useState<Profile | null>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [rateLimitResetAt, setRateLimitResetAt] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!username) {
@@ -130,6 +131,31 @@ export default function CrossUserAnalyticsPage({
               type="button"
               onClick={() => setRoute({ name: "analytics" })}
               className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              Back to Analytics
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "rate_limited") {
+    return (
+      <div className="max-w-2xl mx-auto p-6" data-page="cross-user-analytics">
+        <div className="rounded-xl border border-border bg-card p-8 text-center">
+          <AlertCircle className="h-12 w-12 mx-auto text-amber-500 mb-4" />
+          <h2 className="text-lg font-medium text-foreground">Too many requests</h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            {rateLimitResetAt
+              ? `Try again after ${new Date(rateLimitResetAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}.`
+              : "Please wait a moment before trying again."}
+          </p>
+          {setRoute && (
+            <button
+              type="button"
+              onClick={() => setRoute({ name: "analytics" })}
+              className="mt-4 inline-flex items-center justify-center rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium text-foreground"
             >
               Back to Analytics
             </button>

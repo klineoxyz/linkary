@@ -84,9 +84,9 @@
 
 ---
 
-## 8. Intentionally deferred
+## 8. Updates and current state
 
-- **Rate limiting** on GET /api/me/analytics/profile/[username]: not added in this pass; can reuse discovery-style rate limit later if needed.
+- **Rate limiting:** Now implemented on GET /api/me/analytics/profile/[username] (same policy as discovery; 429 with resetAt). See CROSS_USER_ANALYTICS_VISIBILITY.md and PROFILE_ANALYTICS_VERIFICATION_DELIVERABLES.md.
 - **Charts in cross-user viewer:** Only KPIs (snapshot) in v1; no engagement series or follower growth charts for other users.
-- **Moving location/pricing toggles** from /app/profile to /app/profile/edit: documented in PROFILE_SURFACES_AUDIT.md; not done in this pass (no redesign).
-- **Unifying “single source of truth”** for all public visibility in edit page: recommended in audit; deferred.
+- **Location/pricing controls:** Already in /app/profile/edit (single control plane). /app/profile shows read-only summary only. See PROFILE_ANALYTICS_VERIFICATION_DELIVERABLES.md.
+- **Unifying “single source of truth”** for all public visibility: already in edit page. See PROFILE_ANALYTICS_VERIFICATION_DELIVERABLES.md. Deferred: additional filters only.

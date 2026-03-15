@@ -52,10 +52,11 @@
 
 ---
 
-## 6. Entitlement
+## 6. Entitlement and rate limiting
 
 - Cross-user analytics uses the **same** eligibility as discovery: `isEligibleForDiscovery(userId, email, serviceSupabase)`.
 - If not eligible: API returns 403 `ANALYTICS_VIEW_NOT_ELIGIBLE`; UI shows locked state.
+- **Rate limiting:** Same policy as discovery (60 requests per 60 seconds per user, key `analytics-profile:u:{userId}`). When exceeded: 429 RATE_LIMITED with `resetAt` (ISO). UI shows "Too many requests" and optional try-again time.
 - Route is authenticated and noindex; not a public SEO page.
 
 ---
@@ -65,5 +66,6 @@
 - **GET /api/me/analytics/profile/[username]**
   - Auth: required (Bearer or cookie).
   - Entitlement: must be eligible for discovery/analytics view.
+  - Rate limit: 60/60s per user (same as discovery).
   - Response (200): `{ ok: true, profile: { username, display_name, avatar_url }, analytics: { posts_7d, posts_30d, ... } | null }`.
-  - Errors: 401 Unauthorized, 403 ANALYTICS_VIEW_NOT_ELIGIBLE, 404 NOT_FOUND, 400 USE_OWN_ANALYTICS (use owner analytics for self).
+  - Errors: 401 Unauthorized, 403 ANALYTICS_VIEW_NOT_ELIGIBLE, 404 NOT_FOUND, 400 USE_OWN_ANALYTICS (use owner analytics for self), 429 RATE_LIMITED (body may include `resetAt`).

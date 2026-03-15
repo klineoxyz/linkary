@@ -180,6 +180,7 @@ import KOLListsPage from "./components/circles/KOLListsPage";
 import CapitalPartnersPage from "./components/circles/CapitalPartnersPage";
 import ConnectionsPage from "./components/ConnectionsPage";
 import DiscoveryPage from "./components/DiscoveryPage";
+import CrossUserAnalyticsPage from "./components/CrossUserAnalyticsPage";
 import WatchlistPage from "./components/WatchlistPage";
 import InviteRequiredView from "./components/InviteRequiredView";
 
@@ -812,6 +813,9 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     const query = q.toString();
     return query ? `/app/profile?${query}` : "/app/profile";
   }
+  if (route.name === "analyticsProfile" && route.data?.username) {
+    return `/app/analytics/profile/${encodeURIComponent(String(route.data.username))}`;
+  }
   if (route.name === "orgDetail" && (route.data?.orgId ?? route.data?.slug)) {
     const tab = route.data?.tab;
     const segment = route.data?.slug ?? route.data?.orgId;
@@ -850,6 +854,9 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   if (parts[0] === "profile" && parts[1] === "insights") return { name: "profileInsights" };
   if (parts[0] === "profile" && parts[1] === "dashboard") {
     return { name: "analytics" };
+  }
+  if (parts[0] === "analytics" && parts[1] === "profile" && parts[2]) {
+    return { name: "analyticsProfile", data: { username: decodeURIComponent(parts[2]) } };
   }
   if (parts[0] === "u" && parts[1] && parts[2] === "insights") {
     return { name: "userInsights", data: { username: decodeURIComponent(parts[1]) }, handle: decodeURIComponent(parts[1]) };
@@ -3375,6 +3382,12 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
   const publicSlug = (me?.username || me?.twitter_username || xHandle || "").replace(/^@/, "").toLowerCase().trim();
   const hasPublicSlug = publicSlug.length > 0;
 
+  useEffect(() => {
+    if (!viewUsername || !publicSlug || !setRoute) return;
+    const other = String(viewUsername).replace(/^@/, "").toLowerCase().trim();
+    if (other && other !== publicSlug) setRoute({ name: "analyticsProfile", data: { username: viewUsername } });
+  }, [viewUsername, publicSlug, setRoute]);
+
   const [publicProfilePayload, setPublicProfilePayload] = useState<{
     links?: Array<{ title: string; url: string; icon?: string | null }>;
     relations?: { ambassadorOf?: Array<{ id: string; username: string; display_name: string | null }>; affiliateOf?: Array<{ id: string; username: string; display_name: string | null }> };
@@ -3874,7 +3887,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
                     <li key={r.id}>
                       <button
                         type="button"
-                        onClick={() => setRoute({ name: "profile", data: { username } })}
+                        onClick={() => setRoute({ name: "analyticsProfile", data: { username } })}
                         className="flex w-full items-center gap-3 rounded-xl border border-border bg-muted px-3 py-2.5 text-left transition-colors hover:bg-secondary hover:border-border"
                       >
                         {r.avatar ? (
@@ -4810,6 +4823,12 @@ function LinkaryAppInner() {
                 {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
                 {route.name === "dealDetail" && <DealDetailPage setRoute={setRoute} dealId={route.data?.dealId} />}
                 {route.name === "analytics" && <AnalyticsPage setRoute={setRoute} />}
+                {route.name === "analyticsProfile" && (
+                  <CrossUserAnalyticsPage
+                    username={route.data?.username ?? ""}
+                    setRoute={setRoute}
+                  />
+                )}
                 {(route.name === "calendar" || route.name === "xspaces") && <XSpacesPage setRoute={setRoute} me={me} />}
                 {route.name === "circles" && <CirclesOverviewPage setRoute={setRoute} me={me} />}
                 {route.name === "circleDetail" && <CircleDetailPage setRoute={setRoute} data={route.data} />}

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:network": "next dev --hostname 0.0.0.0",
     "dev:webpack": "next dev --webpack",
     "dev:3001": "next dev --port 3001",
     "dev:minimal-server": "node scripts/minimal-server.js",

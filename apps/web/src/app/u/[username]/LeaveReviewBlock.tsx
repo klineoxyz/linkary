@@ -98,7 +98,7 @@ export function LeaveReviewBlock({ username }: { username: string }) {
   }
 
   return (
-    <div className={sectionCardClass}>
+    <div className={sectionCardClass} data-testid="leave-review-block">
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
         <h2 className="text-sm font-semibold tracking-tight text-primary">Leave a review</h2>
         <p className="text-xs text-muted-foreground">

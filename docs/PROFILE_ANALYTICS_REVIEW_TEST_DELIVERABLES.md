@@ -1,79 +1,100 @@
-# Profile Surfaces, Cross-User Analytics & Reviews — Test Deliverables
+# Profile, Cross-User Analytics & Review — Test Coverage Deliverables
 
-**Mission:** Add route-level and integration test coverage so current behavior is protected from regressions. No product behavior changes except testable extraction of helpers.
+**Mission:** Add the next layer of real test coverage for profile surfaces, cross-user analytics, and review flows using route-level and browser-level tests. Build on existing tests; no replacement.
 
 ---
 
 ## 1. Exact tests added
 
-| Test file | What it covers |
-|-----------|----------------|
-| `apps/web/src/lib/crossUserAnalyticsAllowlist.test.ts` | Cross-user analytics payload: allowed profile keys (username, display_name, avatar_url); allowed analytics keys; forbidden keys (email, location, pricing, user_id, id, etc.) never in response; `shapeCrossUserAnalyticsResponse` strips leaks; `isSafeProfileObject` / `isSafeAnalyticsObject` validators. |
-| `apps/web/src/lib/profileRedirect.test.ts` | Profile redirect rule: `shouldRedirectProfileToAnalytics(viewUsername, publicSlug)` — no redirect when viewUsername or publicSlug empty, or when viewing self (same username); redirect when viewing other (different username); @ and case normalization. |
-| `apps/web/src/lib/appRouting.test.ts` | Analytics profile path: `buildAnalyticsProfilePath(username)` builds `/app/analytics/profile/[username]`; `parseAnalyticsProfilePath(pathname)` parses back; roundtrip; no duplicate profile route (path is under analytics/profile). |
-| `apps/web/src/lib/reviewsContract.test.ts` | Reviews API contract: can-review response must have `canReview` boolean; when true must have `dealId`+`dealType: "org"` or `revieweeProfileId`+`dealType: "gig"`; create body must have `verified_deal: true` and (`deal_id` or `reviewee_profile_id`); invalid payloads rejected by validators. |
+### 1.1 Route-level (Vitest)
 
-**Run all:** `pnpm --filter web run test:profile-analytics`  
-**Run individually:** `pnpm exec tsx apps/web/src/lib/<name>.test.ts`
+| File | Tests |
+|------|--------|
+| `apps/web/src/app/api/me/analytics/profile/[username]/route.test.ts` | **Existing** (unchanged): 401 unauthorized, 403 not eligible, 404 not found, 400 USE_OWN_ANALYTICS, 429 rate limited, 200 success allowlisted payload only, 200 null analytics when no rollup. |
+| `apps/web/src/app/api/reviews/can-review/route.test.ts` | **New.** 401 no token; 400 no username; 404 target profile not found; 400 self-review (target === reviewer); canReview false when no eligible deals; canReview true with dealId for eligible org deal; canReview true for eligible gig deal. |
+| `apps/web/src/app/api/reviews/route.test.ts` | **New.** 401 no token; 400 when verified_deal not true; 400 when neither deal_id nor reviewee_profile_id; 400 self-review (gig path); 404 org deal not found; 400 org deal not completed; 403 not a party to org deal; 403 no gig deal (not a party). |
 
----
+### 1.2 Browser / E2E (Playwright)
 
-## 2. Framework and files used
+| File | Tests |
+|------|--------|
+| `apps/web/e2e/profile-analytics-review.spec.ts` | Cross-user analytics: analytics profile URL shows `[data-page=cross-user-analytics]`; unauthorized state shows “Sign in required”; not found state shows “Profile not found”; locked state shows “Analytics view not available”. Public profile: /[username] loads. Profile redirect: /app/profile?username=other results in analytics profile view (URL or content). LeaveReviewBlock: hidden when can-review returns false; visible with “Leave a review” when can-review returns true. |
 
-- **Framework:** No Jest/Vitest; same as existing tests (e.g. `entitlementDiscovery.test.ts`, `discoveryValidation.test.ts`): **tsx**-executed scripts with `assert(cond, msg)` and `console.log` on success.
-- **Runner:** `pnpm exec tsx <path>` or `pnpm --filter web run test:profile-analytics`.
-- **Files added:**
-  - `apps/web/src/lib/crossUserAnalyticsAllowlist.ts` — Allowlist and `shapeCrossUserAnalyticsResponse` (used by GET /api/me/analytics/profile/[username]).
-  - `apps/web/src/lib/crossUserAnalyticsAllowlist.test.ts`
-  - `apps/web/src/lib/profileRedirect.ts` — `shouldRedirectProfileToAnalytics` (used by ProfilePage effect in App.tsx).
-  - `apps/web/src/lib/profileRedirect.test.ts`
-  - `apps/web/src/lib/appRouting.ts` — `buildAnalyticsProfilePath`, `parseAnalyticsProfilePath` (used by getPathForRoute and routeFromPathname in App.tsx).
-  - `apps/web/src/lib/appRouting.test.ts`
-  - `apps/web/src/lib/reviewsContract.test.ts` — Contract validators and assertions only (no API calls).
-- **Files changed:**
-  - `apps/web/src/app/api/me/analytics/profile/[username]/route.ts` — Uses `shapeCrossUserAnalyticsResponse` from allowlist.
-  - `apps/web/src/figma/app/App.tsx` — Uses `shouldRedirectProfileToAnalytics`, `buildAnalyticsProfilePath`, `parseAnalyticsProfilePath`.
-  - `apps/web/package.json` — Script `test:profile-analytics` added.
+### 1.3 Existing tests (unchanged)
+
+- `apps/web/src/lib/crossUserAnalyticsAllowlist.test.ts` — allowlist shaping
+- `apps/web/src/lib/profileRedirect.test.ts` — profile redirect helpers
+- `apps/web/src/lib/appRouting.test.ts` — analytics path helpers
+- `apps/web/src/lib/reviewsContract.test.ts` — review payload/contract shape
 
 ---
 
-## 3. Coverage summary by surface
+## 2. Framework used
 
-| Surface | Coverage |
-|---------|----------|
-| **/app/profile** | Redirect rule tested: `?username=other` (other ≠ me) → redirect to analytics viewer. Self-only and “no other-user mode” enforced by `shouldRedirectProfileToAnalytics`. |
-| **/app/profile/edit** | Not directly tested (no route handler test); contract that edit is single control plane is documented. Review and visibility controls covered by review contract tests. |
-| **/{username}** | Not directly tested; “remains public snapshot” is a product invariant; no duplicate profile route asserted in appRouting.test (path is /app/analytics/profile/*, not /{username}). |
-| **/app/analytics/profile/[username]** | Payload allowlist tested (no email, location, pricing, auth ids); path build/parse tested; eligible/403/401/404/429/self-view are API behavior, not exercised by these unit tests. |
-| **Cross-user analytics** | Allowlist guarantees no sensitive fields in response. API status codes (401, 403, 404, 429, 400 USE_OWN_ANALYTICS) are implemented in route; not hit by tsx unit tests without mocks. |
-| **Analytics search navigation** | Path for analytics profile and roundtrip tested; Discover people → analytics viewer and View public profile → /{username} are implemented in App and use the tested helpers. |
-| **Reviews** | can-review response shape and create body requirements (verified_deal, deal_id or reviewee_profile_id) enforced by contract tests. No open/fake path: validators require deal/reviewee when canReview true and verified_deal true. |
+| Layer | Framework | Run command |
+|-------|-----------|-------------|
+| Route / API | **Vitest** (Node) | `pnpm test:route` or `pnpm exec vitest run "src/app/api/me/analytics/profile/[username]/route.test.ts"` and same for `reviews/can-review/route.test.ts`, `reviews/route.test.ts` |
+| E2E / browser | **Playwright** | `pnpm test:e2e` (starts dev server if not CI). Optional: `pnpm test:e2e:ui` |
 
 ---
 
-## 4. Bugs found and fixed
+## 3. Real route behavior covered
 
-- **None.** No product bugs were found. Refactors were limited to extracting testable helpers (profileRedirect, appRouting, crossUserAnalyticsAllowlist) and wiring them into existing behavior so tests can protect that behavior.
-
----
-
-## 5. Remaining untested areas
-
-- **API route handlers with real auth/DB:** GET /api/me/analytics/profile/[username] and GET/POST review routes are not invoked with mocked Supabase or fetch in this pass. To add integration tests that hit 401/403/404/429/400, you’d need a test runner (e.g. Jest) with mocks or a local server.
-- **E2E:** No Playwright/Cypress; no tests that click “Discover people” or “View public profile” in the browser.
-- **/app/profile and /app/profile/edit:** No direct route or component tests; behavior is protected indirectly via redirect and routing tests.
-- **LeaveReviewBlock UI:** “Review form only renders when canReview is true” is implemented in code; not asserted by these tests (would require component or E2E test).
+- **GET /api/me/analytics/profile/[username]:** 401, 403, 404, 400 USE_OWN_ANALYTICS, 429 (with resetAt), 200 allowlisted-only payload, 200 null analytics.
+- **GET /api/reviews/can-review:** 401, 400 (no username), 404 (target not found), 400 (self), 200 canReview false (no deals), 200 canReview true (org deal with membership), 200 canReview true (gig deal).
+- **POST /api/reviews:** 401, 400 (verified_deal missing), 400 (missing deal_id and reviewee_profile_id), 400 (self-review), 404 (deal not found), 400 (deal not completed), 403 (not party to org deal), 403 (no gig deal).
 
 ---
 
-## 6. Final regression checklist
+## 4. Browser behavior covered
 
-- [ ] Run `pnpm --filter web run test:profile-analytics` — all four test files pass.
-- [ ] **Profile:** /app/profile is self-only; `?username=other` (other ≠ me) redirects to analytics viewer (profileRedirect.test).
-- [ ] **Edit:** /app/profile/edit remains single control plane for public visibility and pricing (documented; no code change).
-- [ ] **Public profile:** /{username} remains public snapshot; no duplicate profile route (appRouting.test ensures path is under analytics/profile).
-- [ ] **Cross-user analytics:** Payload only allowlisted fields; no email, location, pricing, auth ids (crossUserAnalyticsAllowlist.test).
-- [ ] **Analytics search:** Discover people → /app/analytics/profile/[username]; View public profile → /{username} (appRouting + App wiring).
-- [ ] **Reviews:** can-review shape and create body contract (verified_deal, deal_id or reviewee_profile_id) (reviewsContract.test).
-- [ ] **Self-view:** API returns 400 USE_OWN_ANALYTICS (implemented in route; not covered by unit tests).
-- [ ] **429:** Cross-user analytics API returns 429 with resetAt (implemented; not covered by unit tests).
+- Navigating to `/app/analytics/profile/[username]` shows the cross-user analytics page (`data-page=cross-user-analytics`).
+- Unauthorized (401) shows “Sign in required”.
+- Not found (404) shows “Profile not found”.
+- Locked (403 eligible) shows “Analytics view not available”.
+- Public profile route `/[username]` loads.
+- `/app/profile?username=other` leads to analytics profile view (URL or in-app route state).
+- LeaveReviewBlock is not visible when can-review returns `canReview: false`.
+- LeaveReviewBlock is visible with “Leave a review” when can-review returns `canReview: true` (with `data-testid="leave-review-block"`).
+
+---
+
+## 5. Privacy boundaries (strict)
+
+Tests do not weaken privacy. Coverage verifies:
+
+- Cross-user analytics route test asserts **allowlisted payload only** (no keys in `CROSS_USER_ANALYTICS_FORBIDDEN`: email, location, pricing, auth/account ids, private metadata).
+- No new exposure of email, location, pricing, auth ids, or private metadata in any added test or mock.
+
+---
+
+## 6. Remaining gaps
+
+- **Discover people click → /app/analytics/profile/[username]:** Not asserted end-to-end (would require search + click in app; can be added later with stable selectors).
+- **LeaveReviewBlock E2E:** Requires authenticated session on `/u/[username]` for the “visible when canReview true” case; without auth the app redirects to login. Either run E2E with test auth or document as “auth required” for that test.
+- **POST review success path:** Route tests cover rejection cases; 200 + review body not exercised in route tests (could add with full insert mock).
+- **Rate limit E2E:** No browser test that triggers 429 and checks “Too many requests” UI (covered by route test only).
+
+---
+
+## 7. Final regression checklist
+
+Before release, run:
+
+1. **Unit / route tests**
+   - [ ] `pnpm test:profile-analytics` (allowlist, profile redirect, app routing, reviews contract)
+   - [ ] `pnpm test:route` (all Vitest route tests: analytics profile, can-review, POST reviews)
+
+2. **E2E (dev server or CI)**
+   - [ ] `pnpm test:e2e` (profile-analytics-review.spec.ts). If LeaveReviewBlock “visible” test fails without auth, run with test session or treat as optional in CI.
+
+3. **Privacy**
+   - [ ] Confirm no cross-user analytics response includes email, location, pricing, auth ids, or private metadata (allowlist test + route 200 test enforce this).
+
+4. **No product/design changes**
+   - [ ] No redesign or product behavior change except fixes for real bugs.
+   - [ ] LeaveReviewBlock: only addition is `data-testid="leave-review-block"` for E2E.
+
+5. **Stability**
+   - [ ] Route tests use mocks only; no live DB required.
+   - [ ] E2E use route interception where possible to avoid flakiness; auth-dependent tests documented.

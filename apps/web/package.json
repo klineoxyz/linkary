@@ -17,6 +17,10 @@
     "test:xspaces": "tsx scripts/xspaces-regression.ts",
     "test:xspaces-dates": "tsx src/figma/app/components/xspaces/utils.test.ts",
     "test:profile-analytics": "tsx src/lib/crossUserAnalyticsAllowlist.test.ts && tsx src/lib/profileRedirect.test.ts && tsx src/lib/appRouting.test.ts && tsx src/lib/reviewsContract.test.ts",
+    "test:route": "vitest run",
+    "test:route:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "smoke:xspaces": "tsx scripts/xspaces-smoke.ts",
     "smoke:xspaces:full": "pnpm build && pnpm run smoke:xspaces"
   },
@@ -83,6 +87,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",
@@ -92,6 +97,7 @@
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
     "tsx": "^4.19.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

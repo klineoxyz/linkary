@@ -295,9 +295,9 @@ export default function MyDealsPage() {
               You have no deals yet. Deals are created when a gig owner accepts your application (or when you accept an application to your gig).
             </p>
           ) : (
-            <ul className="mt-6 space-y-3">
+            <ul className="mt-6 space-y-3" data-testid="profile-deals-list">
               {deals.map((d) => (
-                <li key={d.id} className="rounded-xl border border-border bg-card p-4">
+                <li key={d.id} className="rounded-xl border border-border bg-card p-4" data-testid="deal-row" data-deal-id={d.id} data-deal-status={d.status}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-foreground">{d.gig_title ?? "Gig"}</p>
@@ -467,6 +467,7 @@ export default function MyDealsPage() {
           <div
             className="w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-lg"
             onClick={(e) => e.stopPropagation()}
+            data-testid="case-study-modal"
           >
             <h3 className="font-semibold text-foreground">Create case study from this work</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">

@@ -2,6 +2,18 @@
 
 If **http://localhost:3000** (or the Network URL) never loads—browser stays blank or "waiting"—try these in order.
 
+## 0. Check if the server responds at all
+
+With **pnpm dev** running in one terminal:
+
+1. **API (no browser):** In a **new** PowerShell window run:
+   ```powershell
+   Invoke-WebRequest -Uri http://localhost:3000/api/health -UseBasicParsing
+   ```
+   If you see `ok: true` in the output, the server **is** responding. The issue is then the main page (/) or your browser. Try opening **http://localhost:3000/test-server** in the browser—that’s a minimal page. If /test-server loads but / doesn’t, the root app (or Turbopack compiling it) is the problem.
+
+2. **If the command above fails** (connection refused, timeout): the server isn’t reachable. Check Windows Firewall, antivirus, or try from **Administrator** PowerShell.
+
 ## 1. Use Webpack instead of Turbopack (try this first)
 
 Next.js 16 uses Turbopack by default. On some machines the first request gets stuck on "Compiling / ..." and the page never loads. Use the Webpack dev server instead:

@@ -121,7 +121,7 @@ describe("GET /api/reviews/can-review", () => {
     expect(json.canReview).toBe(false);
   });
 
-  it("returns canReview false when no eligible deals", async () => {
+  it("returns canReview false with reason no_eligible_deal when no eligible deals", async () => {
     const { GET } = await import("./route");
     const req = nextRequest("http://localhost/api/reviews/can-review?username=other", {
       Authorization: "Bearer fake-token",
@@ -130,6 +130,7 @@ describe("GET /api/reviews/can-review", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.canReview).toBe(false);
+    expect(json.reason).toBe("no_eligible_deal");
   });
 
   it("returns canReview true with dealId when eligible org deal", async () => {
@@ -162,5 +163,21 @@ describe("GET /api/reviews/can-review", () => {
     expect(json.canReview).toBe(true);
     expect(json.revieweeProfileId).toBe(TARGET_PROFILE_ID);
     expect(json.dealType).toBe("gig");
+  });
+
+  it("returns canReview false with reason already_reviewed when org deal exists but already reviewed", async () => {
+    mockState.orgDeals = [{ id: "deal-1", org_id: "org-1" }];
+    mockState.orgMembership = { role: "admin" };
+    mockState.existingReviews = [{ id: "review-1" }];
+    mockState.gigDeals = [];
+    const { GET } = await import("./route");
+    const req = nextRequest("http://localhost/api/reviews/can-review?username=other", {
+      Authorization: "Bearer fake-token",
+    });
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.canReview).toBe(false);
+    expect(json.reason).toBe("already_reviewed");
   });
 });

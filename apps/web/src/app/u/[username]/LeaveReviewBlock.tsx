@@ -7,6 +7,8 @@ type CanReview = {
   dealId?: string;
   revieweeProfileId?: string;
   dealType?: "org" | "gig";
+  /** When canReview is false: "already_reviewed" | "no_eligible_deal" */
+  reason?: string;
 };
 
 const sectionCardClass =
@@ -87,7 +89,22 @@ export function LeaveReviewBlock({ username }: { username: string }) {
     }
   };
 
-  if (loading || !state?.canReview) return null;
+  if (loading) return null;
+  if (!state) return null;
+  if (!state.canReview) {
+    const msg =
+      state.reason === "already_reviewed"
+        ? "You've already left a review for this creator."
+        : state.reason === "no_eligible_deal"
+          ? "Reviews are available after a completed collaboration with this creator."
+          : null;
+    if (!msg) return null;
+    return (
+      <div className={`${sectionCardClass} p-5`} data-testid="leave-review-block">
+        <p className="text-sm text-muted-foreground">{msg}</p>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (

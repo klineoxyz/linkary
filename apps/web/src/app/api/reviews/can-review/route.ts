@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
     .select("id, org_id")
     .eq("profile_id", targetProfileId)
     .eq("status", "completed");
+  let alreadyReviewedAllEligible = false;
   for (const d of orgDeals ?? []) {
     const { data: membership } = await supabase
       .from("org_members")
@@ -67,7 +68,10 @@ export async function GET(request: NextRequest) {
       .eq("reviewer_type", "org")
       .eq("reviewer_org_id", (d as { org_id: string }).org_id)
       .limit(1);
-    if ((existing ?? []).length > 0) continue;
+    if ((existing ?? []).length > 0) {
+      alreadyReviewedAllEligible = true;
+      continue;
+    }
     return NextResponse.json({
       canReview: true,
       dealId: (d as { id: string }).id,
@@ -90,7 +94,10 @@ export async function GET(request: NextRequest) {
       .eq("gig_deal_id", (g as { id: string }).id)
       .eq("reviewer_profile_id", reviewerProfileId)
       .limit(1);
-    if ((existing ?? []).length > 0) continue;
+    if ((existing ?? []).length > 0) {
+      alreadyReviewedAllEligible = true;
+      continue;
+    }
     return NextResponse.json({
       canReview: true,
       revieweeProfileId: targetProfileId,
@@ -98,5 +105,6 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  return NextResponse.json({ canReview: false });
+  const reason = alreadyReviewedAllEligible ? "already_reviewed" : "no_eligible_deal";
+  return NextResponse.json({ canReview: false, reason });
 }

@@ -95,7 +95,7 @@ export default function DealDetailPage({
             </div>
           )}
         </dl>
-        <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+        <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex flex-wrap gap-3">
           <button
             type="button"
             onClick={() => setRoute({ name: "messages", data: { conversationId: null, dealId: deal.id } })}
@@ -103,6 +103,15 @@ export default function DealDetailPage({
           >
             Open in Messages →
           </button>
+          {isCompleted && (
+            <button
+              type="button"
+              onClick={() => setRoute({ name: "profile", data: { openCaseStudyFromDeal: deal.id } })}
+              className="text-sm text-primary hover:opacity-90"
+            >
+              Create case study from this work →
+            </button>
+          )}
         </div>
       </div>
     </div>

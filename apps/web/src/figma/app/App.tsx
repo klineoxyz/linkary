@@ -3300,6 +3300,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
   const [csProofFile, setCsProofFile] = useState<File | null>(null);
   const [csSubmitting, setCsSubmitting] = useState(false);
   const [caseStudyRemovingId, setCaseStudyRemovingId] = useState<string | null>(null);
+  const [caseStudyFromDealId, setCaseStudyFromDealId] = useState<string | null>(null);
   const [meStats, setMeStats] = useState<{ ethos: number | null; xscore: number | null; reputationIndex: number; repScore: number | null; socialPower: number; reviews: { avg: number; count: number }; completedGigsCount?: number } | null>(null);
   const [xHandle, setXHandle] = useState<string | null>(null);
   const [profileSearchQuery, setProfileSearchQuery] = useState("");
@@ -3388,6 +3389,16 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
     if (shouldRedirectProfileToAnalytics(viewUsername, publicSlug)) setRoute({ name: "analyticsProfile", data: { username: viewUsername } });
   }, [viewUsername, publicSlug, setRoute]);
 
+  const openCaseStudyFromDeal = (route?.name === "profile" && route?.data && "openCaseStudyFromDeal" in route.data && typeof (route.data as { openCaseStudyFromDeal?: string }).openCaseStudyFromDeal === "string")
+    ? (route.data as { openCaseStudyFromDeal: string }).openCaseStudyFromDeal
+    : null;
+  useEffect(() => {
+    if (!openCaseStudyFromDeal || !setRoute) return;
+    setCaseStudyFromDealId(openCaseStudyFromDeal);
+    setShowCaseStudyModal(true);
+    setRoute({ name: "profile", data: { tab: route?.data?.tab ?? "overview", username: viewUsername } });
+  }, [openCaseStudyFromDeal]);
+
   const [publicProfilePayload, setPublicProfilePayload] = useState<{
     links?: Array<{ title: string; url: string; icon?: string | null }>;
     relations?: { ambassadorOf?: Array<{ id: string; username: string; display_name: string | null }>; affiliateOf?: Array<{ id: string; username: string; display_name: string | null }> };
@@ -3456,6 +3467,24 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
   const handleCreateCaseStudy = async () => {
     if (!me?.id) return;
     setCsSubmitting(true);
+    const fromDealId = caseStudyFromDealId;
+    if (fromDealId) {
+      const headers = await getAuthHeaders();
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/case-studies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ title: csTitle, description: csDescription, proof_url: csProofUrl || undefined, is_public: true, deal_id: fromDealId }),
+      });
+      setCsSubmitting(false);
+      if (res.ok) {
+        setCaseStudyFromDealId(null);
+        setShowCaseStudyModal(false);
+        setCsTitle(""); setCsDescription(""); setCsProofUrl(""); setCsProofFile(null);
+        listCaseStudiesForProfile(me.id).then(setCaseStudies);
+      }
+      return;
+    }
     if (csProofMode === "url") {
       const { error } = await createCaseStudyForProfile(me.id, { title: csTitle, description: csDescription, proof_url: csProofUrl || undefined });
       setCsSubmitting(false);
@@ -3933,7 +3962,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
                   </div>
                 )}
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => { setShowCaseStudyModal(false); setCsTitle(""); setCsDescription(""); setCsProofUrl(""); setCsProofFile(null); }} className="flex-1 py-2 rounded-lg border border-border font-medium text-foreground">Cancel</button>
+                  <button type="button" onClick={() => { setShowCaseStudyModal(false); setCaseStudyFromDealId(null); setCsTitle(""); setCsDescription(""); setCsProofUrl(""); setCsProofFile(null); }} className="flex-1 py-2 rounded-lg border border-border font-medium text-foreground">Cancel</button>
                   <button type="button" disabled={csSubmitting || !csTitle.trim()} onClick={handleCreateCaseStudy} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50">{csSubmitting ? "Saving…" : "Save"}</button>
                 </div>
               </div>

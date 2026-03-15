@@ -49,7 +49,10 @@ export async function POST(request: NextRequest) {
       .eq("id", dealId)
       .maybeSingle();
     if (dealErr || !deal) return fail("NOT_FOUND", "Deal not found", 404);
-    const d = deal as { profile_id: string; org_id: string };
+    const d = deal as { profile_id: string; org_id: string; status: string };
+    if (d.status !== "completed") {
+      return fail("BAD_REQUEST", "Case study can only be linked to a completed deal", 400);
+    }
     if (d.profile_id !== profileId) {
       const { data: membership } = await supabase
         .from("org_members")
@@ -67,13 +70,16 @@ export async function POST(request: NextRequest) {
   if (gigDealId) {
     const { data: gigDeal, error: gErr } = await supabase
       .from("gig_deals")
-      .select("id, owner_profile_id, participant_profile_id")
+      .select("id, owner_profile_id, participant_profile_id, status")
       .eq("id", gigDealId)
       .maybeSingle();
     if (gErr || !gigDeal) return fail("NOT_FOUND", "Gig deal not found", 404);
-    const g = gigDeal as { owner_profile_id: string; participant_profile_id: string };
+    const g = gigDeal as { owner_profile_id: string; participant_profile_id: string; status: string };
     if (g.owner_profile_id !== profileId && g.participant_profile_id !== profileId) {
       return fail("FORBIDDEN", "Only a party to this deal can link a case study", 403);
+    }
+    if (g.status !== "completed") {
+      return fail("BAD_REQUEST", "Case study can only be linked to a completed gig deal", 400);
     }
   }
 

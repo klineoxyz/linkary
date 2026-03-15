@@ -208,6 +208,25 @@ describe("POST /api/reviews", () => {
     const res = await POST(req);
     expect(res.status).toBe(403);
     const json = await res.json();
-    expect(json.error).toMatch(/deal|Verified/);
+    expect(json.error).toMatch(/deal|Verified|completed/);
+  });
+
+  it("returns 200 with review when gig deal is completed and caller is party", async () => {
+    mockState.gigDeal = { id: "gig-1", status: "completed" };
+    const { POST } = await import("./route");
+    const req = new NextRequest("http://localhost/api/reviews", {
+      method: "POST",
+      headers: { Authorization: "Bearer t", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        rating: 5,
+        verified_deal: true,
+        reviewee_profile_id: REVIEWEE_PROFILE_ID,
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.review).toBeDefined();
   });
 });

@@ -12,9 +12,9 @@ const GIG_DEAL_ID = "gig-deal-1";
 const mockState = {
   user: { id: USER_ID } as { id: string } | null,
   profileId: PROFILE_ID,
-  deal: null as { id: string; profile_id: string; org_id: string } | null,
+  deal: null as { id: string; profile_id: string; org_id: string; status: string } | null,
   dealOrgMembership: null as { role: string } | null,
-  gigDeal: null as { id: string; owner_profile_id: string; participant_profile_id: string } | null,
+  gigDeal: null as { id: string; owner_profile_id: string; participant_profile_id: string; status: string } | null,
 };
 
 vi.mock("@/lib/profiles", () => ({
@@ -45,7 +45,13 @@ vi.mock("@supabase/supabase-js", () => ({
           insert: (row: unknown) => ({
             select: () => ({
               single: () => Promise.resolve({
-                data: { id: "cs-1", title: "Test", deal_id: (row as { deal_id?: string })?.deal_id ?? null, gig_deal_id: null, created_at: new Date().toISOString() },
+                data: {
+                  id: "cs-1",
+                  title: "Test",
+                  deal_id: (row as { deal_id?: string })?.deal_id ?? null,
+                  gig_deal_id: (row as { gig_deal_id?: string })?.gig_deal_id ?? null,
+                  created_at: new Date().toISOString(),
+                },
                 error: null,
               }),
             }),
@@ -91,7 +97,7 @@ describe("POST /api/case-studies", () => {
   });
 
   it("returns 403 when deal_id provided but caller not a party", async () => {
-    mockState.deal = { id: DEAL_ID, profile_id: "other-profile", org_id: "org-1" };
+    mockState.deal = { id: DEAL_ID, profile_id: "other-profile", org_id: "org-1", status: "completed" };
     mockState.dealOrgMembership = null;
     mockState.profileId = PROFILE_ID;
     const { POST } = await import("./route");
@@ -105,7 +111,7 @@ describe("POST /api/case-studies", () => {
   });
 
   it("returns 201 with case study when deal_id provided and caller is profile party", async () => {
-    mockState.deal = { id: DEAL_ID, profile_id: PROFILE_ID, org_id: "org-1" };
+    mockState.deal = { id: DEAL_ID, profile_id: PROFILE_ID, org_id: "org-1", status: "completed" };
     const { POST } = await import("./route");
     const req = new NextRequest("http://localhost/api/case-studies", {
       method: "POST",
@@ -128,5 +134,56 @@ describe("POST /api/case-studies", () => {
     });
     const res = await POST(req);
     expect(res.status).toBe(201);
+  });
+
+  it("returns 400 when deal_id provided but deal not completed", async () => {
+    mockState.deal = { id: DEAL_ID, profile_id: PROFILE_ID, org_id: "org-1", status: "active" };
+    const { POST } = await import("./route");
+    const req = new NextRequest("http://localhost/api/case-studies", {
+      method: "POST",
+      headers: { Authorization: "Bearer t", "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Test", deal_id: DEAL_ID }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 201 with gig_deal_id when caller is party and gig deal is completed", async () => {
+    mockState.gigDeal = { id: GIG_DEAL_ID, owner_profile_id: PROFILE_ID, participant_profile_id: "other", status: "completed" };
+    const { POST } = await import("./route");
+    const req = new NextRequest("http://localhost/api/case-studies", {
+      method: "POST",
+      headers: { Authorization: "Bearer t", "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Gig work", description: "Done", gig_deal_id: GIG_DEAL_ID }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    const json = await res.json();
+    expect(json.caseStudy).toBeDefined();
+    expect(json.caseStudy.gig_deal_id).toBe(GIG_DEAL_ID);
+  });
+
+  it("returns 403 when gig_deal_id provided but caller not a party", async () => {
+    mockState.gigDeal = { id: GIG_DEAL_ID, owner_profile_id: "other1", participant_profile_id: "other2", status: "completed" };
+    const { POST } = await import("./route");
+    const req = new NextRequest("http://localhost/api/case-studies", {
+      method: "POST",
+      headers: { Authorization: "Bearer t", "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Test", gig_deal_id: GIG_DEAL_ID }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 400 when gig_deal_id provided but gig deal not completed", async () => {
+    mockState.gigDeal = { id: GIG_DEAL_ID, owner_profile_id: PROFILE_ID, participant_profile_id: "other", status: "active" };
+    const { POST } = await import("./route");
+    const req = new NextRequest("http://localhost/api/case-studies", {
+      method: "POST",
+      headers: { Authorization: "Bearer t", "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Test", gig_deal_id: GIG_DEAL_ID }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
   });
 });

@@ -79,14 +79,14 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Gig deals: completed (or active) where we and target are the two parties
+  // Gig deals: completed only — same rule as org (review only after verified work is done)
   const { data: gigDeals } = await supabase
     .from("gig_deals")
     .select("id")
     .or(
       `and(owner_profile_id.eq.${reviewerProfileId},participant_profile_id.eq.${targetProfileId}),and(owner_profile_id.eq.${targetProfileId},participant_profile_id.eq.${reviewerProfileId})`
     )
-    .in("status", ["active", "completed"]);
+    .eq("status", "completed");
   for (const g of gigDeals ?? []) {
     const { data: existing } = await supabase
       .from("reviews")

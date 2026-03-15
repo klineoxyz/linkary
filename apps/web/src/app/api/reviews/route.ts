@@ -123,14 +123,14 @@ export async function POST(request: NextRequest) {
     .or(
       `and(owner_profile_id.eq.${reviewerProfileId},participant_profile_id.eq.${revieweeProfileId}),and(owner_profile_id.eq.${revieweeProfileId},participant_profile_id.eq.${reviewerProfileId})`
     )
-    .in("status", ["active", "completed"])
+    .eq("status", "completed")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (dealErr || !gigDeal) {
     return NextResponse.json(
-      { error: "Verified review requires a deal" },
+      { error: "Verified review requires a completed gig deal. Complete the work first." },
       { status: 403 }
     );
   }

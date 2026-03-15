@@ -117,6 +117,7 @@ Single path for v1:
 - **Gig deal detail page:** Deal detail in app is org-deal only; gig deals listed via /api/deals/mine but no dedicated gig-deal detail page with “Create case study.” Deferred: add gig-deal detail or “Create case study” from a unified “My work” list.
 - **Case study create from org deal in UI:** “Create case study from this work” on DealDetailPage can link to profile edit with query param; full modal prefill deferred if not in initial scope.
 - **Org case studies linked to deal:** Optional org-owned case study with deal_id (org as party) not implemented; only profile case studies with deal_id/gig_deal_id in this pass.
+- **Follow-up (trust loop):** Gig review eligibility was tightened to completed-only; case-study link requires completed deal/gig_deal. See `docs/VERIFIED_WORK_TRUST_LOOP_TIGHTENING_DELIVERABLES.md`.
 
 ---
 

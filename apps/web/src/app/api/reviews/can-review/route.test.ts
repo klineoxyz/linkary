@@ -133,6 +133,20 @@ describe("GET /api/reviews/can-review", () => {
     expect(json.reason).toBe("no_eligible_deal");
   });
 
+  it("returns canReview false for gig when no completed gig deal (completed-only rule)", async () => {
+    mockState.orgDeals = [];
+    mockState.gigDeals = [];
+    const { GET } = await import("./route");
+    const req = nextRequest("http://localhost/api/reviews/can-review?username=other", {
+      Authorization: "Bearer fake-token",
+    });
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.canReview).toBe(false);
+    expect(json.reason).toBe("no_eligible_deal");
+  });
+
   it("returns canReview true with dealId when eligible org deal", async () => {
     mockState.orgDeals = [{ id: "deal-1", org_id: "org-1" }];
     mockState.orgMembership = { role: "admin" };
@@ -149,7 +163,7 @@ describe("GET /api/reviews/can-review", () => {
     expect(json.dealType).toBe("org");
   });
 
-  it("returns canReview true for gig deal when eligible", async () => {
+  it("returns canReview true for gig deal when completed (completed-only)", async () => {
     mockState.orgDeals = [];
     mockState.gigDeals = [{ id: "gig-deal-1" }];
     mockState.existingReviews = [];

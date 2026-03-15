@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:webpack": "next dev --webpack",
     "dev:3001": "next dev --port 3001",
+    "dev:minimal-server": "node scripts/minimal-server.js",
     "build": "next build",
     "db:push": "pnpm -w run db:push",
     "start": "next start",

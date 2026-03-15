@@ -2,17 +2,28 @@
 
 If **http://localhost:3000** (or the Network URL) never loads—browser stays blank or "waiting"—try these in order.
 
-## 0. Check if the server responds at all
+## 0. Is localhost working at all? (minimal Node server)
 
-With **pnpm dev** running in one terminal:
+**Stop Next.js** (Ctrl+C), then run a **plain Node** server (no Next.js):
 
-1. **API (no browser):** In a **new** PowerShell window run:
-   ```powershell
-   Invoke-WebRequest -Uri http://localhost:3000/api/health -UseBasicParsing
-   ```
-   If you see `ok: true` in the output, the server **is** responding. The issue is then the main page (/) or your browser. Try opening **http://localhost:3000/test-server** in the browser—that’s a minimal page. If /test-server loads but / doesn’t, the root app (or Turbopack compiling it) is the problem.
+```powershell
+cd C:\Users\Muaz\Desktop\Linkary\apps\web
+pnpm run dev:minimal-server
+```
 
-2. **If the command above fails** (connection refused, timeout): the server isn’t reachable. Check Windows Firewall, antivirus, or try from **Administrator** PowerShell.
+Open **http://127.0.0.1:3000** (or http://localhost:3000) in your browser.
+
+- **If you see "Server OK"** → Your machine can serve localhost. The problem is **Next.js** (use dev:webpack or wait for a fix). Start Next again with `pnpm run dev:webpack` and try **http://localhost:3000/test-server**.
+- **If the page never loads** → Firewall, antivirus, or network is blocking Node. Add Node.js to Windows Firewall allow list, disable VPN, or run PowerShell as **Administrator** and try again.
+
+Stop the minimal server with Ctrl+C when done.
+
+## 0b. Check if Next.js responds (once dev is running)
+
+With **pnpm dev** (or **pnpm run dev:webpack**) running:
+
+1. **API (no browser):** In a **new** PowerShell window: `Invoke-WebRequest -Uri http://127.0.0.1:3000/api/health -UseBasicParsing`
+2. If that works, open **http://127.0.0.1:3000/test-server** in the browser.
 
 ## 1. Use Webpack instead of Turbopack (try this first)
 

@@ -195,4 +195,42 @@ test.describe("Profile deals — completed gig work trust-loop", () => {
     await expect(row.getByRole("button", { name: "Leave review" })).not.toBeVisible();
     await expect(row.getByRole("button", { name: "Create case study from this work" })).toBeVisible();
   });
+
+  test("review submit happy path: open modal, submit, success, then row shows Review submitted", async ({ page }) => {
+    await page.route("**/api/reviews**", (route) => {
+      if (route.request().method() === "POST") {
+        return route.fulfill({ status: 200, body: JSON.stringify({ ok: true }) });
+      }
+      return route.fallback();
+    });
+
+    await gotoDealsAndExpectList(page);
+    const row = dealRow(page, "completed", DEAL_IDS.completed);
+    await row.getByRole("button", { name: "Leave review" }).click();
+
+    await expect(page.getByRole("heading", { name: /Leave a review/i })).toBeVisible({ timeout: 3000 });
+    await page.getByPlaceholder("Short summary").fill("Great work");
+    await page.getByPlaceholder("Share your experience...").fill("Smooth collaboration.");
+
+    const postPromise = page.waitForRequest(
+      (req) => req.url().includes("/api/reviews") && req.method() === "POST",
+      { timeout: 5000 }
+    );
+    await page.getByRole("button", { name: "Submit review" }).click();
+
+    const req = await postPromise;
+    const body = req.postDataJSON() as { reviewee_profile_id?: string; rating?: number; title?: string; body?: string; verified_deal?: boolean };
+    expect(body.reviewee_profile_id).toBe("cp-1");
+    expect(body.rating).toBe(5);
+    expect(body.verified_deal).toBe(true);
+    expect(body.title).toBe("Great work");
+    expect(body.body).toBe("Smooth collaboration.");
+
+    await expect(page.getByText("Review submitted!")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: /Leave a review/i })).not.toBeVisible({ timeout: 3000 });
+
+    const sameRow = dealRow(page, "completed", DEAL_IDS.completed);
+    await expect(sameRow.getByText("Review submitted")).toBeVisible({ timeout: 5000 });
+    await expect(sameRow.getByRole("button", { name: "Leave review" })).not.toBeVisible();
+  });
 });

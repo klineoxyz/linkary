@@ -24,14 +24,28 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: ["**/profile-deals-trust-loop.spec.ts"] },
     {
-      name: "profile-deals",
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: [
+        "**/profile-deals-trust-loop.spec.ts",
+        "**/cross-user-analytics.spec.ts",
+        "**/discovery-explore.spec.ts",
+        "**/discover-people.spec.ts",
+      ],
+    },
+    {
+      name: "authenticated",
       use: {
         ...devices["Desktop Chrome"],
         storageState: ".playwright/profile-deals-auth.json",
       },
-      testMatch: ["**/profile-deals-trust-loop.spec.ts"],
+      testMatch: [
+        "**/profile-deals-trust-loop.spec.ts",
+        "**/cross-user-analytics.spec.ts",
+        "**/discovery-explore.spec.ts",
+        "**/discover-people.spec.ts",
+      ],
     },
   ],
   webServer:

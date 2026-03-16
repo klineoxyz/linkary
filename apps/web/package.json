@@ -26,7 +26,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "smoke:xspaces": "tsx scripts/xspaces-smoke.ts",
-    "smoke:xspaces:full": "pnpm build && pnpm run smoke:xspaces"
+    "smoke:xspaces:full": "pnpm build && pnpm run smoke:xspaces",
+    "release:gate": "pnpm run build && pnpm test:route && pnpm run test:profile-analytics"
   },
   "dependencies": {
     "@coinbase/cdp-core": "^0.0.85",

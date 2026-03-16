@@ -146,6 +146,37 @@ describe("GET /api/work/mine", () => {
     expect(json.items.some((i: Record<string, unknown>) => i.email != null)).toBe(false);
   });
 
+  it("returns 200 with completed gig_deal when user is participant (e.g. converted collab requester sees work and can review owner)", async () => {
+    mockState.gigDeals = [
+      {
+        id: "gd-collab-1",
+        gig_id: "gig-collab",
+        owner_profile_id: "target-owner",
+        participant_profile_id: PROFILE_ID,
+        status: "completed",
+        created_at: "2025-01-01T00:00:00Z",
+        updated_at: "2025-01-02T00:00:00Z",
+      },
+    ];
+    mockState.gigs = [{ id: "gig-collab", title: "Collab work with @requester" }];
+    mockState.profiles = [{ id: "target-owner", username: "target", display_name: "Target User" }];
+    mockState.reviewsGig = [];
+    mockState.caseStudies = [];
+
+    const { GET } = await import("./route");
+    const req = new NextRequest("http://localhost/api/work/mine", {
+      headers: { Authorization: "Bearer t" },
+    });
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    const gigItem = json.items.find((i: { kind: string }) => i.kind === "gig");
+    expect(gigItem).toBeDefined();
+    expect(gigItem.gig_deal_id).toBe("gd-collab-1");
+    expect(gigItem.reviewee_profile_id).toBe("target-owner");
+    expect(gigItem.canReview).toBe(true);
+  });
+
   it("returns 200 with org item and case study state", async () => {
     mockState.orgDealsProfile = [
       {

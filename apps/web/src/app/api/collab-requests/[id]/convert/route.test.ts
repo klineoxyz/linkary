@@ -1,6 +1,8 @@
 /**
  * POST /api/collab-requests/[id]/convert — convert accepted collab to verified work (gig + gig_deal).
- * Tests: 400 no id, 401 no token, 404 not found, 403 not target, 400 not accepted, idempotent when already converted, 200 and creates gig_deal.
+ * Role mapping (product rule): target_profile_id → gig/gig_deal owner (only they can complete);
+ * requester_profile_id → gig_deal participant. Tests: 400 no id, 401 no token, 404 not found,
+ * 403 not target, 400 not accepted, idempotent when already converted, 200 and creates gig_deal.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";

@@ -19,11 +19,30 @@ Minimal, production-safe path so an **accepted collab request** can become **ver
 
 ## 2. Canonical v1 handshake chosen
 
+### 2.1 Role mapping (verified; do not change without product/QA)
+
+| Collab | Gig / gig_deal | Who can complete | Who sees deal (Deals page) | Who sees work (Work page after complete) |
+|--------|----------------|------------------|----------------------------|------------------------------------------|
+| `target_profile_id` | `gig.owner_profile_id`, `gig_deal.owner_profile_id` | **Target only** (owner) | Target + Requester | Target + Requester (completed only) |
+| `requester_profile_id` | `gig_deal.participant_profile_id` | — | Target + Requester | Target + Requester (completed only) |
+
+- **Target** = person who accepted the collab request = **owner** of the created gig and gig_deal. Only the owner can call POST `/api/deals/[id]/complete`.
+- **Requester** = **participant** in the gig_deal; they see the deal on `/profile/deals` but cannot complete it. After the target completes, both can leave a review and create case studies linked to the gig_deal.
+
 - **Accepted collab request → one-time convert → create gig + gig_deal (reuse existing trust loop).**
 - Only the **target** (person who accepted) can convert.
 - Only when status is **accepted** and not already converted.
 - One conversion per request (DB: at most one gig_deal per `collab_request_id`).
 - Reviews and case studies still require a **completed** gig_deal (unchanged); no review unlock from “accepted” alone.
+
+---
+
+## 2.2 Post-conversion flow verification (completed)
+
+- **Role mapping:** Verified in code and docs: `target_profile_id` → gig/gig_deal owner; `requester_profile_id` → gig_deal participant. Only owner can complete.
+- **Surfaces:** Converted gig_deals appear in GET `/api/deals/mine` (and thus `/profile/deals`) for both target and requester; they appear in GET `/api/work/mine` (and thus `/profile/work`) only after status = completed.
+- **Completion path:** POST `/api/deals/[id]/complete` allows only the deal owner (target). The `/profile/deals` page shows "Complete" only when `is_owner && status === "active"`, so no UI gap.
+- **Trust loop:** Accepted → convert → visible in Deals → owner completes → visible in Work → both parties can review and create case studies (existing rules). No review from accepted-only; no case study without completed deal.
 
 ---
 
@@ -37,6 +56,11 @@ Minimal, production-safe path so an **accepted collab request** can become **ver
 | `apps/web/src/app/api/collab-requests/sent/route.ts` | Select and return `converted_gig_deal_id` for requester view. |
 | `apps/web/src/figma/app/App.tsx` | Inbox: for accepted, show “Convert to verified work” or “Converted” + “View verified work” link; Sent: show “Converted” + link when applicable. Added `convertLoading`, `refreshKey`, `convertToVerifiedWork()`. |
 | `apps/web/tsconfig.json` | Excluded `e2e` from build so Playwright E2E is not type-checked by Next (fixes Vercel build re `fullConfig`). |
+| `apps/web/src/app/api/collab-requests/[id]/convert/route.ts` | Added canonical role-mapping comment (target = owner, requester = participant). |
+| `apps/web/src/app/api/deals/[id]/complete/route.test.ts` | **New.** 401, 404, 403 when participant tries to complete, 400 when not active, 200 when owner completes. |
+| `apps/web/src/app/api/work/mine/route.test.ts` | Added test: completed gig_deal when user is participant (converted collab requester sees work and can review owner). |
+
+**Completion/UI gap:** None. Converted deals are completable via existing `/profile/deals` Complete button (owner only).
 
 ---
 
@@ -73,12 +97,15 @@ Existing behavior (unchanged) already enforces:
 
 ---
 
-## 7. Regression checklist
+## 7. Regression checklist (final)
 
-- [ ] **No review from accept-only:** Reviews still require completed verified work (gig_deal or org deal); accepting a collab does not by itself unlock review.
-- [ ] **Conversion creates correct object:** Convert creates exactly one gig and one gig_deal; gig_deal has `collab_request_id`; `collab_requests.converted_gig_deal_id` is set.
-- [ ] **Completed converted work unlocks review:** When the new gig_deal is marked completed, existing can-review and create-review flows allow review as for any other completed gig_deal.
-- [ ] **Case studies:** Case studies can still link only to completed deal_id or gig_deal_id when caller is a party; no new path for unverified collabs.
-- [ ] **No fake proof:** No review or case study can be created without a completed verified work record; no bypass using only collab_requests.
-- [ ] **Privacy:** No new public exposure of internal workflow; public profile unchanged.
-- [ ] **UI:** Inbox (target) shows Convert vs Converted + “View verified work”; Sent shows Converted + link when applicable; no clutter on public profile.
+- [x] **Role mapping:** target → owner (only they can complete), requester → participant; documented in convert route and §2.1.
+- [x] **No review from accept-only:** Reviews still require completed verified work (gig_deal or org deal); accepting a collab does not by itself unlock review.
+- [x] **Conversion creates correct object:** Convert creates exactly one gig and one gig_deal; gig_deal has `collab_request_id`; `collab_requests.converted_gig_deal_id` is set.
+- [x] **Converted deals visible:** Both parties see deal on `/profile/deals`; after completion both see on `/profile/work`.
+- [x] **Only owner can complete:** POST `/api/deals/[id]/complete` returns 403 for participant; UI shows Complete only for owner.
+- [x] **Completed converted work unlocks review:** When the new gig_deal is marked completed, existing can-review and create-review flows allow review as for any other completed gig_deal.
+- [x] **Case studies:** Case studies can still link only to completed deal_id or gig_deal_id when caller is a party; no new path for unverified collabs.
+- [x] **No fake proof:** No review or case study can be created without a completed verified work record; no bypass using only collab_requests.
+- [x] **Privacy:** No new public exposure of internal workflow; public profile unchanged.
+- [x] **UI:** Inbox (target) shows Convert vs Converted + “View verified work”; Sent shows Converted + link when applicable; no clutter on public profile.

@@ -1,6 +1,11 @@
 /**
  * POST /api/collab-requests/[id]/convert — convert an accepted collab request into verified work (gig_deal).
  * Only the target (accepter) can convert. Creates a gig + gig_deal; no review unlocks until the deal is completed.
+ *
+ * Role mapping (canonical; do not change without product/QA):
+ * - collab_requests.target_profile_id  → gig.owner_profile_id, gig_deal.owner_profile_id (the “accepter” owns the gig and deal; only they can complete).
+ * - collab_requests.requester_profile_id → gig_deal.participant_profile_id (the requester is the other party).
+ * So: target = owner (can complete), requester = participant (sees deal, cannot complete). Both see the deal on /profile/deals; after completion both see it on /profile/work and can review / create case studies.
  */
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";

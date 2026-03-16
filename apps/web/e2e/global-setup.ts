@@ -1,10 +1,13 @@
 /**
  * Playwright global setup. Runs once before all tests.
  * When E2E_TEST_USER_EMAIL and E2E_TEST_USER_PASSWORD are set, obtains a Supabase
- * session and writes .playwright/profile-deals-auth.json (storageState) so profile-deals
- * tests run with an authenticated session. Runs before the web server starts, so we
+ * session and writes .playwright/e2e-auth-state.json (storageState) so authenticated
+ * E2E tests run with a logged-in session. Runs before the web server starts, so we
  * write the storageState JSON directly (no browser).
+ * In CI: fails with a clear error if auth or Supabase env vars are missing or invalid.
  */
+export const E2E_AUTH_STATE_FILE = "e2e-auth-state.json";
+
 import { fullConfig } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from "fs";
@@ -52,11 +55,24 @@ export default async function globalSetup(config: typeof fullConfig) {
   const baseURL = config.projects[0]?.use?.baseURL ?? "http://localhost:3000";
   const origin = baseURL.startsWith("http") ? new URL(baseURL).origin : "http://localhost:3000";
   const outDir = resolve(process.cwd(), ".playwright");
-  const authPath = resolve(outDir, "profile-deals-auth.json");
+  const authPath = resolve(outDir, E2E_AUTH_STATE_FILE);
 
   mkdirSync(outDir, { recursive: true });
 
+  const isCI = process.env.CI === "true" || process.env.CI === "1";
   if (!email || !password || !supabaseUrl || !supabaseAnonKey) {
+    if (isCI) {
+      const missing = [
+        !email && "E2E_TEST_USER_EMAIL",
+        !password && "E2E_TEST_USER_PASSWORD",
+        !supabaseUrl && "NEXT_PUBLIC_SUPABASE_URL",
+        !supabaseAnonKey && "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      ].filter(Boolean);
+      throw new Error(
+        `E2E auth setup failed in CI: missing required env (secrets) — ${missing.join(", ")}. ` +
+          "Add these as GitHub secrets (or env) and ensure the test user exists in Supabase with email/password sign-in."
+      );
+    }
     writeFileSync(authPath, buildStorageState(origin), "utf8");
     return;
   }
@@ -65,9 +81,10 @@ export default async function globalSetup(config: typeof fullConfig) {
   const { data: { session }, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error || !session) {
-    if (process.env.CI === "true") {
+    if (isCI) {
       throw new Error(
-        `E2E auth setup failed: ${error?.message ?? "no session"}. Set E2E_TEST_USER_EMAIL and E2E_TEST_USER_PASSWORD to valid Supabase credentials.`
+        `E2E auth setup failed in CI: ${error?.message ?? "no session"}. ` +
+          "Ensure E2E_TEST_USER_EMAIL and E2E_TEST_USER_PASSWORD are valid Supabase credentials and the user has email/password sign-in enabled."
       );
     }
     writeFileSync(authPath, buildStorageState(origin), "utf8");

@@ -2,7 +2,7 @@
 
 **Mission:** Extend the shared authenticated Playwright setup to other protected Linkary flows (cross-user analytics, discovery/explore, review submit, Discover people journey) so critical logged-in user journeys are covered end-to-end and CI-safe.
 
-See also: [Profile Deals E2E CI Auth Deliverables](./PROFILE_DEALS_E2E_CI_AUTH_DELIVERABLES.md) for the base auth setup.
+See also: [Profile Deals E2E CI Auth Deliverables](./PROFILE_DEALS_E2E_CI_AUTH_DELIVERABLES.md) for the base auth setup. **[CI and local run guide](./E2E_CI_AND_LOCAL.md)** — secrets, env, commands, common failures.
 
 ---
 
@@ -10,7 +10,7 @@ See also: [Profile Deals E2E CI Auth Deliverables](./PROFILE_DEALS_E2E_CI_AUTH_D
 
 | File | Change |
 |------|--------|
-| `apps/web/playwright.config.ts` | **Projects:** Renamed **profile-deals** → **authenticated**; same `storageState: ".playwright/profile-deals-auth.json"`. **authenticated** runs: `profile-deals-trust-loop.spec.ts`, `cross-user-analytics.spec.ts`, `discovery-explore.spec.ts`, `discover-people.spec.ts`. **chromium** project now testIgnores all four of these specs (no auth). |
+| `apps/web/playwright.config.ts` | **Projects:** **authenticated** uses `storageState: ".playwright/e2e-auth-state.json"`. **authenticated** runs: `profile-deals-trust-loop.spec.ts`, `cross-user-analytics.spec.ts`, `discovery-explore.spec.ts`, `discover-people.spec.ts`. **chromium** project testIgnores those four (no auth). |
 | `apps/web/e2e/cross-user-analytics.spec.ts` | **New.** Authenticated E2E for `/app/analytics/profile/[username]`: mocks `GET /api/me/analytics/profile/[username]`; tests eligible user can open page, "View public profile" → `/{username}`, no sensitive fields in viewer. |
 | `apps/web/e2e/discovery-explore.spec.ts` | **New.** Authenticated E2E for `/explore`: mocks `GET /api/me/discovery/profiles`; tests open explore, search with mock, click profile result → public `/{username}`, no sensitive data in cards; separate describe for locked state (403 DISCOVERY_NOT_ELIGIBLE). |
 | `apps/web/e2e/discover-people.spec.ts` | **New.** In-app "Discover people" journey: goto `/app/profile`, mock `GET /api/search?q=...&filter=people`, type in "Search by name or handle...", click result → URL `/app/analytics/profile/[username]`. |
@@ -18,7 +18,7 @@ See also: [Profile Deals E2E CI Auth Deliverables](./PROFILE_DEALS_E2E_CI_AUTH_D
 
 **Unchanged (preserved):**
 
-- `apps/web/e2e/global-setup.ts` — same; writes `.playwright/profile-deals-auth.json` when `E2E_TEST_USER_EMAIL` / `E2E_TEST_USER_PASSWORD` set.
+- `apps/web/e2e/global-setup.ts` — writes `.playwright/e2e-auth-state.json` when auth + Supabase env set; in CI throws if missing or invalid.
 - `apps/web/e2e/profile-analytics-review.spec.ts` — unauthenticated tests for 401/403/404 and public profile / LeaveReviewBlock (still run in **chromium** only).
 
 ---
@@ -37,8 +37,8 @@ See also: [Profile Deals E2E CI Auth Deliverables](./PROFILE_DEALS_E2E_CI_AUTH_D
 
 ## 3. How auth setup was reused
 
-- **Single storageState:** All authenticated specs use the same `.playwright/profile-deals-auth.json` produced by `global-setup.ts` (Supabase email/password; no browser in setup).
-- **One authenticated project:** Playwright project **authenticated** runs all four spec files above with `storageState: ".playwright/profile-deals-auth.json"`. No per-spec or one-off auth logic.
+- **Single storageState:** All authenticated specs use the same `.playwright/e2e-auth-state.json` produced by `global-setup.ts` (Supabase email/password; no browser in setup).
+- **One authenticated project:** Playwright project **authenticated** runs all four spec files with `storageState: ".playwright/e2e-auth-state.json"`. No per-spec or one-off auth logic.
 - **Deterministic CI:** Same env vars (`E2E_TEST_USER_EMAIL`, `E2E_TEST_USER_PASSWORD`, Supabase env) drive global setup; in CI, missing/invalid auth fails the run (existing profile-deals auth sanity behavior).
 - **Local behavior:** Without credentials, global setup can write empty storageState; authenticated specs may redirect to login and skip (same pattern as profile-deals).
 

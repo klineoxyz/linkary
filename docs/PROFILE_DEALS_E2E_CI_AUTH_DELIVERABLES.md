@@ -8,8 +8,8 @@
 
 | File | Change |
 |------|--------|
-| `apps/web/e2e/global-setup.ts` | **New.** Loads `.env.local`; when `E2E_TEST_USER_EMAIL` and `E2E_TEST_USER_PASSWORD` are set, signs in with Supabase, builds storageState JSON (Supabase auth key in localStorage), writes `.playwright/profile-deals-auth.json`. When credentials missing or sign-in fails, writes empty storageState (or in CI throws). No browser; runs before web server. |
-| `apps/web/playwright.config.ts` | Added `globalSetup: require.resolve("./e2e/global-setup.ts")`. Split projects: **chromium** (all tests except profile-deals), **profile-deals** (only `**/profile-deals-trust-loop.spec.ts`, `storageState: ".playwright/profile-deals-auth.json"`). |
+| `apps/web/e2e/global-setup.ts` | Loads `.env.local`; when `E2E_TEST_USER_EMAIL` and `E2E_TEST_USER_PASSWORD` are set, signs in with Supabase, builds storageState JSON (Supabase auth key in localStorage), writes `.playwright/e2e-auth-state.json`. When credentials missing or sign-in fails: in CI throws with clear error; locally writes empty storageState. No browser; runs before web server. |
+| `apps/web/playwright.config.ts` | `globalSetup` points to `./e2e/global-setup.ts`. Projects: **chromium** (unauthenticated specs), **authenticated** (auth specs, `storageState: ".playwright/e2e-auth-state.json"`). |
 | `apps/web/e2e/profile-deals-trust-loop.spec.ts` | Updated comment. In `gotoDealsAndExpectList`: when redirected to `/login` or list not visible, **CI** → throw with clear message; **local** → `test.skip`. Added test **"auth sanity: authenticated session lands on /profile/deals and not /login"** (fails in CI if auth broken, skips locally if no creds). |
 | `apps/web/.gitignore` | Added `.playwright` so auth state is not committed. |
 
@@ -19,8 +19,8 @@
 
 - **Global setup** (runs once before any worker): Node script only; no browser, no dev server.
 - **Supabase email/password:** `signInWithPassword(E2E_TEST_USER_EMAIL, E2E_TEST_USER_PASSWORD)` to get a session (access_token, refresh_token, user, etc.).
-- **storageState:** Built by hand in global setup. Supabase client stores session in `localStorage` under `sb-<project-ref>-auth-token`. We write Playwright’s storageState JSON with that origin and a single localStorage entry `{ name: storageKey, value: JSON.stringify(session) }` so the app’s `getSession()` sees the session.
-- **Project split:** Only the **profile-deals** project uses this storageState and runs `profile-deals-trust-loop.spec.ts`. The default **chromium** project ignores that spec so it doesn’t run without auth.
+- **storageState:** Built by hand in global setup; written to `.playwright/e2e-auth-state.json`. Supabase client stores session in `localStorage` under `sb-<project-ref>-auth-token`. We write Playwright’s storageState JSON with that origin and a single localStorage entry so the app’s `getSession()` sees the session.
+- **Project split:** The **authenticated** project uses this storageState and runs the auth-required specs. The **chromium** project ignores those specs so it can run without auth.
 - **Mocks unchanged:** `/api/deals/mine`, `/api/reviews/mine`, and `/api/case-studies` remain mocked in the spec for deterministic UI regression; no real backend required for these tests.
 
 ---
@@ -100,4 +100,4 @@ Do not set the two E2E_* vars. Global setup writes an empty storageState. The pr
 - [ ] Auth sanity test fails in CI when credentials are wrong or missing (redirect to /login).
 - [ ] Without credentials, profile-deals tests skip locally (no hard failure).
 - [ ] Mocks for `/api/deals/mine`, `/api/reviews/mine`, and `/api/case-studies` remain in the spec; behavior is unchanged.
-- [ ] `.playwright/` is gitignored; no auth state committed.
+- [ ] `.playwright/` is gitignored; no auth state (e2e-auth-state.json) committed.

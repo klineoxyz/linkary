@@ -1,11 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Playwright config for Linkary E2E: profile, cross-user analytics, review flows.
+ * Playwright config for Linkary E2E: unauthenticated (chromium) + authenticated flows.
  * Run from apps/web: pnpm run test:e2e
  *
- * Profile-deals tests use authenticated session from global setup. Set
- * E2E_TEST_USER_EMAIL and E2E_TEST_USER_PASSWORD (and Supabase env) for CI or to run those tests.
+ * Authenticated project uses shared storageState from global setup (.playwright/e2e-auth-state.json).
+ * Set E2E_TEST_USER_EMAIL and E2E_TEST_USER_PASSWORD (and Supabase env) for CI or local auth runs.
  *
  * If the dev server fails to start: PLAYWRIGHT_NO_WEB_SERVER=1 and start the app manually.
  */
@@ -38,7 +38,7 @@ export default defineConfig({
       name: "authenticated",
       use: {
         ...devices["Desktop Chrome"],
-        storageState: ".playwright/profile-deals-auth.json",
+        storageState: ".playwright/e2e-auth-state.json",
       },
       testMatch: [
         "**/profile-deals-trust-loop.spec.ts",

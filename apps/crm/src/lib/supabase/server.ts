@@ -14,6 +14,7 @@ export async function createServerSupabase(): Promise<SupabaseClient | null> {
   }
 
   const cookieStore = await cookies();
+  const cookieDomain = process.env.NEXT_PUBLIC_COOKIE_DOMAIN || undefined;
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
@@ -22,7 +23,7 @@ export async function createServerSupabase(): Promise<SupabaseClient | null> {
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            cookieStore.set(name, value, { ...options, ...(cookieDomain && { domain: cookieDomain }) })
           );
         } catch {
           // read-only in Server Components

@@ -43,8 +43,9 @@ In the CRM Vercel project → **Settings → Environment Variables**, add:
 |--------------------------------|--------------------------|--------------------------|
 | `NEXT_PUBLIC_SUPABASE_URL`     | `https://xxx.supabase.co`| Same as linkary.xyz      |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`| (anon key)               | Same as linkary.xyz      |
+| `NEXT_PUBLIC_COOKIE_DOMAIN`    | `.linkary.xyz`           | Share auth with linkary.xyz so users logged in there can access CRM without signing in again. Set in **both** Vercel projects (web + CRM). |
 
-Use the **same** Supabase project as linkary.xyz. No need to expose the service role key unless you add server-only sync features later.
+Use the **same** Supabase project as linkary.xyz. For shared session across linkary.xyz and crm.linkary.xyz, set **NEXT_PUBLIC_COOKIE_DOMAIN** to `.linkary.xyz` in **both** the main app and the CRM project in production.
 
 Apply to **Production**, **Preview**, and **Development** as needed.
 

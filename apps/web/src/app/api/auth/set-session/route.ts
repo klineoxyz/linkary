@@ -33,8 +33,10 @@ export async function POST(request: NextRequest) {
 
   await supabase.auth.setSession({ access_token, refresh_token });
 
+  const cookieDomain = process.env.NEXT_PUBLIC_COOKIE_DOMAIN || undefined;
   cookiesToSet.forEach(({ name, value, options }) => {
-    response.cookies.set(name, value, options as Parameters<NextResponse["cookies"]["set"]>[2]);
+    const opts = { ...(options as Record<string, unknown>), ...(cookieDomain && { domain: cookieDomain }) };
+    response.cookies.set(name, value, opts as Parameters<NextResponse["cookies"]["set"]>[2]);
   });
 
   return response;

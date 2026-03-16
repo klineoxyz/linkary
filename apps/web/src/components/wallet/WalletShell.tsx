@@ -52,11 +52,13 @@ type PanelId =
 
 export default function WalletShell() {
   const evmAddress = useEvmAddressFromCdp();
+  const signInWithOAuth = useSignInWithOAuthFromCdp();
   const [status, setStatus] = useState<WalletStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [panel, setPanel] = useState<PanelId>("balance");
   const [copyDone, setCopyDone] = useState(false);
+  const [oauthStarting, setOauthStarting] = useState(false);
 
   const getToken = useCallback(async () => {
     const { data } = await supabase.auth.getSession();

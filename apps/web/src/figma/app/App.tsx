@@ -2960,6 +2960,8 @@ function WorkRequestsPage({ setRoute, route, me }) {
                 return (
                   <div
                     key={r.id}
+                    data-testid="collab-request-row"
+                    data-request-id={r.id}
                     onClick={() => selectRequest(r.id)}
                     className={cn(
                       "rounded-lg border border-border p-3 cursor-pointer transition-all hover:bg-muted/30",
@@ -3136,7 +3138,7 @@ function WorkRequestsPage({ setRoute, route, me }) {
                         <p className="text-xs text-muted-foreground">They can reach you via your profile socials.</p>
                       )}
                       {selectedInbox.converted_gig_deal_id ? (
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2" data-testid="collab-converted-block">
                           <span className="text-sm text-muted-foreground">Converted to verified work.</span>
                           <Link
                             href="/profile/work"

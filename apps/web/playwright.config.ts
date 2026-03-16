@@ -33,6 +33,7 @@ export default defineConfig({
         "**/discovery-explore.spec.ts",
         "**/discover-people.spec.ts",
         "**/my-work.spec.ts",
+        "**/collab-verified-work-handshake.spec.ts",
       ],
     },
     {
@@ -47,6 +48,7 @@ export default defineConfig({
         "**/discovery-explore.spec.ts",
         "**/discover-people.spec.ts",
         "**/my-work.spec.ts",
+        "**/collab-verified-work-handshake.spec.ts",
       ],
     },
   ],

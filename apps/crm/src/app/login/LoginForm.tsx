@@ -14,9 +14,12 @@ export function LoginForm() {
     setLoading(true);
     setMessage(null);
     const supabase = createClient();
+    const baseUrl = typeof window !== "undefined"
+      ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin)
+      : (process.env.NEXT_PUBLIC_APP_URL || "");
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback` },
+      options: { emailRedirectTo: `${baseUrl.replace(/\/$/, "")}/auth/callback` },
     });
     setLoading(false);
     if (error) {

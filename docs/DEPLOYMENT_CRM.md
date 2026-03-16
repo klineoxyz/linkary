@@ -16,87 +16,86 @@ Deploy the CRM app as a **second Vercel project** from the same monorepo. No cha
 ## 1. Second Vercel project setup
 
 1. In [Vercel Dashboard](https://vercel.com/dashboard), click **Add New** → **Project**.
-2. **Import** the same GitHub repository you use for linkary.xyz (e.g. `klineoxyz/linkary`).
-3. Configure the project:
-   - **Project Name:** e.g. `linkary-crm`.
-   - **Root Directory:** set to **`apps/crm`** (not the repo root).
+2. **Import** the same GitHub repository you use for linkary.xyz.
+3. Configure:
+   - **Root Directory:** **`apps/crm`** (required).
    - **Framework Preset:** Next.js (auto-detected).
    - **Build Command:** leave default (`next build`).
    - **Output Directory:** leave default (`.next`).
-   - **Install Command:** leave default (`pnpm install` or `npm install`; if root is monorepo with pnpm, Vercel usually runs install from repo root).
+   - **Install Command:** leave default.
 
-4. If the repo root has `pnpm-workspace.yaml`, ensure the build runs from repo root so `pnpm install` installs all workspace packages, and the build is run in the context of `apps/crm`. In Vercel, setting **Root Directory** to `apps/crm` can change the install context; if build fails, try:
-   - **Root Directory:** leave empty (repo root), then set **Build Command** to `cd apps/crm && pnpm install && pnpm build`, and **Output Directory** to `apps/crm/.next` (or adjust to match Next.js output).
-   - Or keep **Root Directory:** `apps/crm` and ensure Vercel uses the root `package.json` for install (e.g. via "Override" for Install Command: `pnpm install --filter crm` or from root).
-
-   Recommended: set **Root Directory** to **`apps/crm`** and in **Settings → General** set **Install Command** to `pnpm install` (Vercel will run it in `apps/crm`; if the app has its own `package.json` there, it works). If you hit workspace dependency issues, use **Root Directory** empty and custom build command above.
-
-5. Deploy. Fix any env or build errors before adding the domain. If build fails with workspace deps, use **Root Directory** empty and **Build Command:** `pnpm install && pnpm --filter crm build`, **Output Directory:** `apps/crm/.next` if needed.
+4. Deploy. If the build fails (e.g. monorepo install), use **Settings → General** overrides as a fallback:
+   - **Root Directory:** leave empty.
+   - **Build Command:** `pnpm install && pnpm --filter crm build`
+   - **Output Directory:** `apps/crm/.next` (if your pipeline expects it).
 
 ---
 
 ## 2. Required env vars (CRM project)
 
-In the CRM Vercel project → **Settings → Environment Variables**, add:
+In the CRM Vercel project → **Settings → Environment Variables**:
 
 | Name                           | Value                    | Notes                    |
 |--------------------------------|--------------------------|--------------------------|
 | `NEXT_PUBLIC_SUPABASE_URL`     | `https://xxx.supabase.co`| Same as linkary.xyz      |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`| (anon key)               | Same as linkary.xyz      |
-| `NEXT_PUBLIC_COOKIE_DOMAIN`    | `.linkary.xyz`           | Share auth with linkary.xyz so users logged in there can access CRM without signing in again. Set in **both** Vercel projects (web + CRM). |
-
-Use the **same** Supabase project as linkary.xyz. For shared session across linkary.xyz and crm.linkary.xyz, set **NEXT_PUBLIC_COOKIE_DOMAIN** to `.linkary.xyz` in **both** the main app and the CRM project in production.
+| `NEXT_PUBLIC_APP_URL`          | `https://crm.linkary.xyz`| Canonical CRM URL for auth redirects and links. |
+| `NEXT_PUBLIC_COOKIE_DOMAIN`    | `.linkary.xyz`           | Share auth with linkary.xyz. Set in **both** Vercel projects (web + CRM). |
 
 Apply to **Production**, **Preview**, and **Development** as needed.
 
 ---
 
-## 3. Namecheap DNS (crm subdomain)
+## 3. Supabase auth redirect URLs
 
-Domain is managed in **Namecheap**. Existing **@** and **www** records stay as they are.
+In [Supabase Dashboard](https://supabase.com/dashboard) → your project → **Authentication → URL Configuration** → **Redirect URLs**, add:
 
-Add **one** new record:
-
-| Type  | Host | Value                          | TTL        |
-|-------|------|--------------------------------|------------|
-| CNAME | crm  | *(exact Vercel target below)*  | Automatic  |
-
-**Value (CNAME target):**
-
-1. In Vercel, open the **CRM project** → **Settings → Domains**.
-2. Add domain: **crm.linkary.xyz**.
-3. Vercel will show a **target** for the CNAME, e.g. `cname.vercel-dns.com` or a project-specific target like `linkary-crm-xxx.vercel.app`.
-4. Copy that **exact** value into Namecheap as the CNAME **Value** for host **crm**.
-
-**Do not change** existing **@** (A/ALIAS) or **www** (CNAME) records.
-
----
-
-## 4. Supabase auth redirect URLs
-
-In [Supabase Dashboard](https://supabase.com/dashboard) → your project → **Authentication → URL Configuration**:
-
-- **Redirect URLs:** add  
-  **`https://crm.linkary.xyz/auth/callback`**
+- **Production:** `https://crm.linkary.xyz/auth/callback`
+- **Local:** `http://localhost:3002/auth/callback`
 
 Keep existing linkary.xyz redirect URLs. Save.
 
 ---
 
-## 5. Post-deploy verification checklist
+## 4. Namecheap DNS (crm subdomain)
 
-- [ ] **CRM build passes** — Vercel build for the CRM project completes successfully.
-- [ ] **Domain verified** — In Vercel → Domains, `crm.linkary.xyz` shows as Verified (may take a few minutes after DNS propagates).
-- [ ] **crm.linkary.xyz loads** — Opening `https://crm.linkary.xyz` shows the CRM app (login or redirect to login/tasks).
-- [ ] **Auth callback works** — Sign in (e.g. magic link) and confirm redirect to CRM and session works; no redirect to linkary.xyz.
-- [ ] **No changes to apps/web** — linkary.xyz still works as before; no regression on the main app.
+- Add **one** CNAME record: **Host** = `crm`, **Value** = exact target from Vercel (CRM project → Settings → Domains → add `crm.linkary.xyz` → copy target), **TTL** = Automatic.
+- Leave existing **@** and **www** records unchanged.
 
 ---
 
-## 6. Optional: preview deployments
+## 5. Post-deploy verification checklist
 
-For PR previews, Vercel will assign a URL like `linkary-crm-xxx.vercel.app`. To test magic link on previews, add a wildcard in Supabase Redirect URLs, e.g.:
+- [ ] **CRM build passes** — Vercel build completes successfully.
+- [ ] **Domain verified** — `crm.linkary.xyz` shows Verified in Vercel Domains.
+- [ ] **crm.linkary.xyz loads** — Login or redirect to /tasks.
+- [ ] **Auth callback works** — Magic link sign-in redirects to CRM and session persists.
+- [ ] **No regression on apps/web** — linkary.xyz behavior unchanged.
+
+---
+
+## 6. CRM task-board verification checklist
+
+After deploy, verify creator task board and isolation:
+
+- [ ] **Create task** — Log in as creator → Tasks → New task → submit; task appears in list and opens in detail.
+- [ ] **Edit task** — On a **manual** task detail, edit title/description/platform/due date → Save; changes persist. Non-manual tasks must not show edit fields for title/description/platform/due.
+- [ ] **Status change** — Change status (e.g. to_do → in_progress → submitted) on any task you can access; update succeeds.
+- [ ] **Cross-user isolation** — As User A, create a task and note its ID. As User B (different account), open `/tasks/<User A's task ID>`; must get 404 or “not found”, not User A’s task. User B must not see User A’s tasks in the list.
+
+---
+
+## 7. RLS and access (reference)
+
+- **First login / no CRM records:** Creator gets a workspace and personal board via `getOrCreateCreatorWorkspaceAndBoard` (RLS allows insert when `owner_profile_id = auth`).
+- **Create manual task:** Insert into `crm_tasks` with `workspace_id`/`board_id` from the creator’s workspace (RLS allows insert when workspace member).
+- **Update task:** Server action loads the task by id (RLS: only if user can select it). Title/description/platform/due are applied only when `source_type = 'manual'`; status can always be updated by the user.
+- **Task detail `/tasks/[id]`:** `getTask(supabase, id)` runs with the user’s session; RLS limits select to tasks in workspaces the user is a member of, or where they are assigned_to/created_by. Another user’s task returns null → notFound().
+
+---
+
+## 8. Optional: preview deployments
+
+For PR previews, add in Supabase Redirect URLs (if you need auth on previews):
 
 - `https://*.vercel.app/auth/callback`
-
-(Only if you need auth on preview deployments.)

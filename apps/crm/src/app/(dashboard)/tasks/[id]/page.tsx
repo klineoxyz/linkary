@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { SetupRequired } from "@/components/SetupRequired";
 import { getTask } from "@/lib/tasks";
+import { fetchSubmissionsForTask } from "@/lib/submissions";
 import { TaskDetailClient } from "./TaskDetailClient";
 import { ArrowLeft } from "lucide-react";
 
@@ -25,6 +26,7 @@ export default async function TaskDetailPage({
 
   const { task } = data;
   const isManual = task.source_type === "manual";
+  const submissions = await fetchSubmissionsForTask(supabase, task.id);
 
   return (
     <div className="space-y-6">
@@ -91,6 +93,7 @@ export default async function TaskDetailPage({
           initialDescription={task.description ?? ""}
           initialPlatform={task.platform ?? ""}
           initialDueAt={task.due_at ?? ""}
+          submissions={submissions}
         />
       </div>
     </div>

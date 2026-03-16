@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { updateTaskAction } from "./actions";
+import { updateTaskAction, submitProofAction } from "./actions";
+import type { SubmissionRow } from "@/lib/submissions";
 
 const STATUS_OPTIONS = [
   "backlog",
@@ -14,6 +15,8 @@ const STATUS_OPTIONS = [
   "done",
 ] as const;
 
+const PLATFORM_OPTIONS = ["x", "youtube", "tiktok", "linkedin", "instagram", "other"] as const;
+
 export function TaskDetailClient({
   taskId,
   currentStatus,
@@ -22,6 +25,7 @@ export function TaskDetailClient({
   initialDescription,
   initialPlatform,
   initialDueAt,
+  submissions: initialSubmissions,
 }: {
   taskId: string;
   currentStatus: string;
@@ -30,6 +34,7 @@ export function TaskDetailClient({
   initialDescription: string;
   initialPlatform: string;
   initialDueAt: string;
+  submissions: SubmissionRow[];
 }) {
   const router = useRouter();
   const [status, setStatus] = useState(currentStatus);
@@ -40,6 +45,12 @@ export function TaskDetailClient({
   const [dueAt, setDueAt] = useState(initialDueAt.slice(0, 10));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [submissionUrl, setSubmissionUrl] = useState("");
+  const [submissionPlatform, setSubmissionPlatform] = useState("other");
+  const [submissionNotes, setSubmissionNotes] = useState("");
+  const [submissionLoading, setSubmissionLoading] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   async function handleStatusChange(newStatus: string) {
     setError(null);
@@ -70,6 +81,25 @@ export function TaskDetailClient({
       return;
     }
     setEditing(false);
+    router.refresh();
+  }
+
+  async function handleSubmitProof(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmissionError(null);
+    setSubmissionLoading(true);
+    const result = await submitProofAction(taskId, {
+      url: submissionUrl.trim(),
+      platform: submissionPlatform,
+      notes: submissionNotes.trim() || null,
+    });
+    setSubmissionLoading(false);
+    if (result.error) {
+      setSubmissionError(result.error);
+      return;
+    }
+    setSubmissionUrl("");
+    setSubmissionNotes("");
     router.refresh();
   }
 
@@ -164,6 +194,115 @@ export function TaskDetailClient({
           )}
         </>
       )}
+
+      <section className="mt-8 pt-6 border-t border-[var(--crm-border)] space-y-4">
+        <h3 className="font-medium text-[var(--crm-primary)]">Submission history</h3>
+        {initialSubmissions.length === 0 ? (
+          <p className="text-sm text-[var(--crm-muted)]">No submissions yet.</p>
+        ) : (
+          <ul className="space-y-3">
+            {initialSubmissions.map((s) => (
+              <li
+                key={s.id}
+                className="rounded-lg border border-[var(--crm-border)] p-3 text-sm"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-[var(--crm-primary)] underline"
+                  >
+                    {s.url}
+                  </a>
+                  <span
+                    className={`rounded px-2 py-0.5 text-xs ${
+                      s.status === "approved"
+                        ? "bg-green-100 text-green-800"
+                        : s.status === "rejected"
+                          ? "bg-red-100 text-red-800"
+                          : s.status === "needs_revision"
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {s.status.replace("_", " ")}
+                  </span>
+                  <span className="text-[var(--crm-muted)]">{s.platform}</span>
+                </div>
+                {s.notes && (
+                  <p className="mt-1 text-[var(--crm-muted)]">{s.notes}</p>
+                )}
+                {s.rejection_reason && (
+                  <p className="mt-1 text-red-600 text-xs">
+                    Rejection: {s.rejection_reason}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-[var(--crm-muted)]">
+                  {new Date(s.created_at).toLocaleString()}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form onSubmit={handleSubmitProof} className="space-y-3 max-w-md mt-4">
+          <h4 className="text-sm font-medium text-[var(--crm-primary)]">
+            Submit proof URL
+          </h4>
+          <div>
+            <label className="block text-xs font-medium text-[var(--crm-muted)] mb-1">
+              Proof URL *
+            </label>
+            <input
+              type="url"
+              value={submissionUrl}
+              onChange={(e) => setSubmissionUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--crm-muted)] mb-1">
+              Platform
+            </label>
+            <select
+              value={submissionPlatform}
+              onChange={(e) => setSubmissionPlatform(e.target.value)}
+              className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm text-[var(--crm-primary)] bg-[var(--crm-card)]"
+            >
+              {PLATFORM_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--crm-muted)] mb-1">
+              Notes (optional)
+            </label>
+            <textarea
+              value={submissionNotes}
+              onChange={(e) => setSubmissionNotes(e.target.value)}
+              rows={2}
+              className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
+              placeholder="Add context for the reviewer"
+            />
+          </div>
+          {submissionError && (
+            <p className="text-sm text-red-600">{submissionError}</p>
+          )}
+          <button
+            type="submit"
+            disabled={submissionLoading}
+            className="rounded-lg bg-[var(--crm-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {submissionLoading ? "Submitting…" : "Submit proof"}
+          </button>
+        </form>
+      </section>
     </div>
   );
 }

@@ -11,10 +11,12 @@ export async function GET(request: Request) {
     if (supabase) {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (!error) {
-        return NextResponse.redirect(`${origin}${next}`);
+        const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || origin;
+        return NextResponse.redirect(`${base}${next.startsWith("/") ? next : `/${next}`}`);
       }
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth`);
+  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || origin;
+  return NextResponse.redirect(`${base}/login?error=auth`);
 }

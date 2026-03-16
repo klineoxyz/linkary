@@ -24,6 +24,16 @@ function useEvmAddressFromCdp(): string | null {
   }
 }
 
+function useSignInWithOAuthFromCdp(): ((provider: string) => Promise<void>) | null {
+  try {
+    const { useSignInWithOAuth } = require("@coinbase/cdp-hooks");
+    const result = useSignInWithOAuth?.();
+    return result?.signInWithOAuth ?? null;
+  } catch {
+    return null;
+  }
+}
+
 type WalletStatus = {
   enabled: boolean;
   chain: string;
@@ -84,19 +94,26 @@ export default function WalletShell() {
   }, [fetchStatus]);
 
   const handleCreateWallet = useCallback(async () => {
-    const token = await getToken();
-    if (!token) return;
-    const addr = evmAddress;
-    if (!addr) {
+    if (!evmAddress) {
+      if (signInWithOAuth) {
+        setOauthStarting(true);
+        try {
+          await signInWithOAuth("x");
+        } finally {
+          setOauthStarting(false);
+        }
+      }
       return;
     }
+    const token = await getToken();
+    if (!token) return;
     setCreating(true);
     try {
       const base = typeof window !== "undefined" ? window.location.origin : "";
       const res = await fetch(`${base}/api/wallet/cdp/ensure`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ address: addr }),
+        body: JSON.stringify({ address: evmAddress }),
       });
       if (res.ok) {
         await fetchStatus();
@@ -106,7 +123,7 @@ export default function WalletShell() {
     } finally {
       setCreating(false);
     }
-  }, [getToken, fetchStatus, evmAddress]);
+  }, [getToken, fetchStatus, evmAddress, signInWithOAuth]);
 
   const handleCopyAddress = useCallback(() => {
     if (!status?.address) return;
@@ -135,7 +152,7 @@ export default function WalletShell() {
           </p>
           <button
             type="button"
-            disabled={creating || !evmAddress}
+            disabled={creating || oauthStarting || (!evmAddress && !signInWithOAuth)}
             onClick={handleCreateWallet}
             className={cn(
               "inline-flex items-center justify-center gap-2 rounded-lg font-medium h-10 px-4 text-sm",
@@ -143,7 +160,13 @@ export default function WalletShell() {
             )}
           >
             <WalletIcon className="h-4 w-4 stroke-[1.75]" />
-            {creating ? "Creating…" : evmAddress ? "Link wallet" : "Create wallet"}
+            {creating
+              ? "Creating…"
+              : oauthStarting
+                ? "Redirecting to X…"
+                : evmAddress
+                  ? "Link wallet"
+                  : "Create wallet"}
           </button>
         </div>
       </div>

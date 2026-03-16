@@ -79,19 +79,56 @@ Run: `pnpm test:route -- src/lib/buildPublicProfilePayload.test.ts` (from `apps/
 
 ---
 
-## 6. Remaining deferred items
+## 6. Route-level and E2E verification (added)
+
+### 6.1 Exact tests added
+
+| Layer | File | What it covers |
+|-------|------|----------------|
+| **Route** | `apps/web/src/app/api/public/profile/route.test.ts` | GET 400 when username missing or empty; GET 404 when entity not found; GET 200 with mocked entity/payload: response has `reviews.latest[].source` (collab/legacy), `caseStudies[].from_verified_work`, and no forbidden keys in payload. |
+| **E2E API** | `apps/web/e2e/public-profile-proof.spec.ts` | API: 400 missing username, 404 not found; 200 with proof shape when `E2E_FIXTURE_USERNAME` is set; response body has no forbidden keys. |
+| **E2E browser** | Same spec | Visit `/{E2E_FIXTURE_USERNAME}` when fixture enabled; assert reviews/case-studies sections, "From completed work", "Verified" badge, "From verified work"; no deal_id/gig_deal_id in page content. |
+
+### 6.2 Fixture and test-only branches
+
+- **`apps/web/src/lib/e2ePublicProfileFixture.ts`** — Exports `e2eProofFixture` and `E2E_FIXTURE_USERNAME = "e2e-proof-fixture"`.
+- **API route** — When `E2E_FIXTURE_USERNAME` env is set and norm matches, returns fixture JSON (no DB).
+- **`[username]` page** — When `E2E_FIXTURE_USERNAME` is set and segment matches, renders `PublicProfileContent` with fixture.
+- **Playwright webServer** — Passes `E2E_FIXTURE_USERNAME=e2e-proof-fixture` when starting dev server.
+
+### 6.3 Minimal selectors
+
+- `data-testid="public-profile-reviews"`, `public-profile-from-completed-work`, `public-profile-case-studies`.
+
+### 6.4 What live proof signals are verified
+
+Route test: reviews have `source`, case studies have `from_verified_work`, no forbidden keys in API response. E2E: Verified badge, "From verified work", "From completed work" visible; no private keys in DOM.
+
+### 6.5 Bugs found and fixed
+
+None. Fixture path is additive and gated by env.
+
+### 6.6 Remaining gaps
+
+- E2E against a real profile (no fixture) not added; optional env `E2E_PUBLIC_PROFILE_USERNAME` could be used with seed data.
+- Org public profile proof signals could be extended later.
+
+---
+
+## 7. Remaining deferred items
 
 - **E2E for public profile:** Optional Playwright test that loads `/{username}` and asserts presence of “Verified” on reviews and “From verified work” on case studies (and absence of deal_id/gig_deal_id in response or DOM). Not required for this deliverable.
 - **Org public profile:** Current proof indicators are implemented for profile-owned entities; org public profile behavior is unchanged and can be extended later if needed.
 - **Featured review/case study:** Featured items already receive the same `source` / `from_verified_work` treatment when rendered in PublicProfileContent.
+- **Real-profile E2E:** Optional test that visits a seeded or known real username (requires DB seed or env).
 
 ---
 
-## 7. Final regression checklist
+## 8. Final regression checklist
 
 - [ ] **Routes:** Public profile remains `/{username}`; `/profile/work` and `/profile/deals` remain internal authenticated surfaces; no new public routes added.
-- [ ] **Privacy:** No `deal_id`, `gig_deal_id`, or other internal workflow IDs in public payload or DOM; unit test enforces forbidden keys.
+- [ ] **Privacy:** No `deal_id`, `gig_deal_id`, or other internal workflow IDs in public payload or DOM; unit test and route test enforce forbidden keys; E2E asserts no private keys in API response and in page content.
 - [ ] **Proof rules:** Reviews only from completed verified work; case study “from verified work” only when linked to completed deal/gig_deal; no fake proof paths.
-- [ ] **UI:** Verified badge appears when `source === "collab"`; “From verified work” appears on case studies when `from_verified_work === true`; “From completed work” sublabel under Reviews when count > 0.
-- [ ] **Existing behavior:** Public profile layout, sections, and empty states unchanged except for the added indicators and sublabel.
-- [ ] **Tests:** `pnpm test:route` includes `buildPublicProfilePayload.test.ts` and all 5 tests pass.
+- [ ] **UI:** Verified badge appears when `source === "collab"`; “From verified work” appears on case studies when `from_verified_work === true`; “From completed work” sublabel under Reviews when count > 0; E2E fixture run verifies these in the browser.
+- [ ] **Existing behavior:** Public profile layout, sections, and empty states unchanged except for the added indicators, sublabel, and minimal data-testids.
+- [ ] **Tests:** `pnpm test:route` includes `buildPublicProfilePayload.test.ts` and `api/public/profile/route.test.ts`; `pnpm test:e2e` runs `public-profile-proof.spec.ts` (chromium; fixture enabled when webServer is started by Playwright with `E2E_FIXTURE_USERNAME`).

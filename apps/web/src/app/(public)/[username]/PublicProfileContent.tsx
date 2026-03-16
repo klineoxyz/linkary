@@ -986,7 +986,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               )
             : caseStudies;
         return (
-          <section className={rightSectionSpacing}>
+          <section className={rightSectionSpacing} data-testid="public-profile-case-studies">
             <div className={islandClass}>
               <SectionTitle>Case studies</SectionTitle>
               {sortedCaseStudies.length === 0 ? (
@@ -1142,10 +1142,10 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
         const topReview = sortedReviews[0] ?? null;
         const restReviews = sortedReviews.slice(1);
         return (
-          <section className={rightSectionSpacing}>
+          <section className={rightSectionSpacing} data-testid="public-profile-reviews">
             <div className={rightColumnIslandClass}>
               <SectionTitle>Reviews</SectionTitle>
-              {reviews.count > 0 && <p className="text-xs text-muted-foreground mt-0.5">From completed work</p>}
+              {reviews.count > 0 && <p className="text-xs text-muted-foreground mt-0.5" data-testid="public-profile-from-completed-work">From completed work</p>}
               {reviews.count === 0 ? (
               <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">Verified reviews appear after completed deals.</p>
             ) : (

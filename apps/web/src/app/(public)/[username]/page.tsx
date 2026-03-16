@@ -211,6 +211,17 @@ export default async function PublicUsernamePage({ params, searchParams }: Props
     }
 
     try {
+      if (process.env.E2E_FIXTURE_USERNAME && segmentLower === process.env.E2E_FIXTURE_USERNAME) {
+        const { e2eProofFixture } = await import("@/lib/e2ePublicProfileFixture");
+        const canonicalBase = canonicalBaseUrl();
+        return (
+          <PublicProfileContent
+            data={e2eProofFixture}
+            username={e2eProofFixture.profile?.username ?? segmentLower}
+            profileUrl={`${canonicalBase}/${encodeURIComponent(segmentLower)}`}
+          />
+        );
+      }
       const { getPublicEntityByUsername, getUsernameOwner } = await import("@/lib/publicData");
       const entityFromSlug = await getPublicEntityByUsername(segmentLower, serviceSupabase);
       if (entityFromSlug) {

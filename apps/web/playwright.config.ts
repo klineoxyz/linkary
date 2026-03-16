@@ -60,5 +60,6 @@ export default defineConfig({
           url: "http://localhost:3000",
           reuseExistingServer: !process.env.CI,
           timeout: 180000,
+          env: { ...process.env, E2E_FIXTURE_USERNAME: "e2e-proof-fixture" },
         },
 });

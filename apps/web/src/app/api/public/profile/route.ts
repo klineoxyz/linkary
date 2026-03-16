@@ -205,6 +205,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid username" }, { status: 400 });
   }
 
+  if (process.env.E2E_FIXTURE_USERNAME && norm === process.env.E2E_FIXTURE_USERNAME) {
+    const { e2eProofFixture } = await import("@/lib/e2ePublicProfileFixture");
+    return NextResponse.json(e2eProofFixture, {
+      headers: { "Cache-Control": CACHE_PUBLIC, Vary: "Accept-Encoding" },
+    });
+  }
+
   let serviceSupabase: ReturnType<typeof createServiceSupabase> | null = null;
   let serviceClientError: string | null = null;
   try {

@@ -9,6 +9,7 @@ import {
   getCampaignSubmissions,
   getCampaignTopContributors,
 } from "@/lib/campaigns";
+import { SubmissionReviewRow } from "./SubmissionReviewRow";
 import { ArrowLeft } from "lucide-react";
 
 function KpiCard({
@@ -284,42 +285,24 @@ export default async function CampaignDetailPage({
                   <th className="text-left p-3 font-medium text-[var(--crm-primary)]">
                     Date
                   </th>
+                  <th className="text-left p-3 font-medium text-[var(--crm-primary)]">
+                    Review
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {submissions.map((s) => (
-                  <tr
+                  <SubmissionReviewRow
                     key={s.id}
-                    className="border-b border-[var(--crm-border)] last:border-0"
-                  >
-                    <td className="p-3">{s.platform}</td>
-                    <td className="p-3">
-                      <a
-                        href={s.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[var(--crm-primary)] underline truncate max-w-[200px] inline-block"
-                      >
-                        {s.url}
-                      </a>
-                    </td>
-                    <td className="p-3">
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs ${
-                          s.status === "approved"
-                            ? "bg-green-100 text-green-800"
-                            : s.status === "rejected"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-[var(--crm-bg)] text-[var(--crm-muted)]"
-                        }`}
-                      >
-                        {s.status}
-                      </span>
-                    </td>
-                    <td className="p-3 text-[var(--crm-muted)]">
-                      {new Date(s.created_at).toLocaleString()}
-                    </td>
-                  </tr>
+                    submission={{
+                      id: s.id,
+                      platform: s.platform,
+                      url: s.url,
+                      status: s.status,
+                      created_at: s.created_at,
+                      rejection_reason: s.rejection_reason,
+                    }}
+                  />
                 ))}
               </tbody>
             </table>

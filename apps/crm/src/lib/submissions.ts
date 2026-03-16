@@ -93,16 +93,20 @@ export async function updateSubmissionStatus(
   supabase: SupabaseClient,
   submissionId: string,
   status: (typeof ALLOWED_STATUSES)[number],
-  rejectionReason?: string | null
+  rejectionReason?: string | null,
+  reviewerId?: string | null
 ): Promise<{ error?: string }> {
   if (!ALLOWED_STATUSES.includes(status)) return { error: "Invalid status" };
   const payload: Record<string, unknown> = {
     status,
     updated_at: new Date().toISOString(),
   };
-  if (status === "rejected" && rejectionReason != null) payload.rejection_reason = rejectionReason;
+  if (status === "rejected" || status === "needs_revision") {
+    if (rejectionReason != null) payload.rejection_reason = rejectionReason;
+  }
   if (status === "approved" || status === "rejected" || status === "needs_revision") {
     payload.reviewed_at = new Date().toISOString();
+    if (reviewerId) payload.reviewer_id = reviewerId;
   }
 
   const { error } = await supabase
@@ -112,4 +116,29 @@ export async function updateSubmissionStatus(
 
   if (error) return { error: error.message };
   return {};
+}
+
+/** Load submission and campaign workspace_id for permission checks. Returns null if not found or RLS denies. */
+export async function getSubmissionWithCampaignWorkspace(
+  supabase: SupabaseClient,
+  submissionId: string
+): Promise<{ submission: SubmissionRow; workspace_id: string } | null> {
+  const { data: sub } = await supabase
+    .from("crm_submissions")
+    .select("id, task_id, campaign_id, participant_profile_id, platform, url, title, notes, status, reviewer_id, reviewed_at, rejection_reason, created_at, updated_at")
+    .eq("id", submissionId)
+    .maybeSingle();
+
+  if (!sub || !(sub as { campaign_id: string | null }).campaign_id) return null;
+  const submission = sub as SubmissionRow;
+  const campaignId = submission.campaign_id;
+
+  const { data: camp } = await supabase
+    .from("crm_campaigns")
+    .select("workspace_id")
+    .eq("id", campaignId)
+    .maybeSingle();
+
+  if (!camp) return null;
+  return { submission, workspace_id: (camp as { workspace_id: string }).workspace_id };
 }

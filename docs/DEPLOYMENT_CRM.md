@@ -41,6 +41,8 @@ In the CRM Vercel project → **Settings → Environment Variables**:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`| (anon key)               | Same as linkary.xyz      |
 | `NEXT_PUBLIC_APP_URL`          | `https://crm.linkary.xyz`| Canonical CRM URL for auth redirects and links. |
 | `NEXT_PUBLIC_COOKIE_DOMAIN`    | `.linkary.xyz`           | **Production only.** Share auth with linkary.xyz. Set in **both** Vercel projects (web + CRM) for production. Leave **unset** for local and preview unless you intentionally need shared auth on preview. |
+| `CRM_SYNC_SECRET`             | (shared secret)          | **Optional.** Required for Linkary→CRM sync API. Set in CRM project; use same value in apps/web when calling the sync endpoint. |
+| `SUPABASE_SERVICE_ROLE_KEY`   | (service role key)       | **Optional.** Required in apps/crm for the sync API route only (server-side; never exposed to client). |
 
 Apply to **Production** for cookie domain; other vars as needed for Production, Preview, and Development.
 
@@ -117,7 +119,18 @@ After deploying the org campaign dashboard (M4):
 
 ---
 
-## 10. RLS and access (reference)
+## 10. Linkary sync + org submission review verification checklist
+
+- [ ] **Accepted Linkary sprint/gig creates CRM records once** — Trigger sync after acceptance; campaign, participant, task bundle, and tasks appear in CRM. Creator sees generated tasks (on /tasks when they have a creator workspace).
+- [ ] **Repeated sync does not duplicate records** — Trigger sync again with the same payload; no duplicate campaigns, participants, bundles, or tasks.
+- [ ] **Creator submits proof URL** — Creator opens task detail and submits a proof URL; submission appears with status “pending” and is visible in campaign submissions.
+- [ ] **Org can approve / reject / request revision** — On campaign detail, org user with workspace access sees “Approve”, “Reject”, “Needs revision” for pending submissions; optional note is stored; status and reviewer are updated.
+- [ ] **Unauthorized user cannot review submissions** — User who is not a member of the campaign’s workspace cannot call review action (server returns error). Creator cannot review their own submission (server returns “You cannot review your own submission”).
+- [ ] **Campaign detail reflects the resulting records** — After sync and submissions, campaign detail shows correct participant count, submission count, submissions table with statuses, and top contributors.
+
+---
+
+## 11. RLS and access (reference)
 
 - **First login / no CRM records:** Only **eligible** users (profile_type = individual) get a creator workspace and personal board via `getOrCreateCreatorWorkspaceAndBoard`; the `/tasks` page checks `canBootstrapCreatorWorkspace` before calling it. Ineligible users (org/project/company) see a no-access state on `/tasks` and do not get a creator workspace.
 - **Create manual task:** Insert into `crm_tasks` with `workspace_id`/`board_id` from the creator’s workspace (RLS allows insert when workspace member).
@@ -126,7 +139,7 @@ After deploying the org campaign dashboard (M4):
 
 ---
 
-## 11. Optional: preview deployments
+## 12. Optional: preview deployments
 
 For PR previews, add in Supabase Redirect URLs (if you need auth on previews):
 

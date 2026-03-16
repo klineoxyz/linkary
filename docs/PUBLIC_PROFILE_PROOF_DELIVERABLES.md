@@ -34,7 +34,7 @@ Audit and improvements to how **verified work, reviews, and proof-backed case st
 
 | File | Change |
 |------|--------|
-| **`apps/web/src/lib/buildPublicProfilePayload.ts`** | For reviews from the verified_deal query: set `source: "collab"`. For reviews from `dto.reviews` fallback: set `source: "legacy"`. For case studies: query `case_studies` with `select("id, deal_id, gig_deal_id")` for profile owner; filter in JS where `deal_id != null \|\| gig_deal_id != null` to build a `Set` of case study ids; add `from_verified_work: caseStudyLinkedIds.has(c.id)` to each case study. **No** `deal_id` or `gig_deal_id` returned to client. |
+| **`apps/web/src/lib/buildPublicProfilePayload.ts`** | For reviews from the verified_deal query: set `source: "collab"` (profile and org). For reviews from `dto.reviews` fallback: set `source: "legacy"`. For case studies: query `case_studies` with `select("id, deal_id, gig_deal_id")` for profile (`owner_type=profile`, `owner_profile_id`) or org (`owner_type=org`, `owner_org_id`); filter in JS where `deal_id != null \|\| gig_deal_id != null` to build a `Set` of case study ids; add `from_verified_work: caseStudyLinkedIds.has(c.id)` to each case study. **No** `deal_id` or `gig_deal_id` returned to client. |
 | **`apps/web/src/app/api/public/profile/route.ts`** | Extended `PublicProfileApiPayload` `caseStudies` item type with `from_verified_work?: boolean`. Documented `reviews.latest[].source` as `'collab' \| 'legacy'` for Verified badge. |
 | **`apps/web/src/components/public/CaseStudyCard.tsx`** | Added prop `fromVerifiedWork?: boolean`. When true, render “From verified work” badge (same visual style as Verified review badge). |
 | **`apps/web/src/app/(public)/[username]/PublicProfileContent.tsx`** | Pass `from_verified_work` into `CaseStudyCard` as `fromVerifiedWork`. Under Reviews section title, when `reviews.count > 0`, show sublabel “From completed work”. |
@@ -88,6 +88,7 @@ Run: `pnpm test:route -- src/lib/buildPublicProfilePayload.test.ts` (from `apps/
 | **Route** | `apps/web/src/app/api/public/profile/route.test.ts` | GET 400 when username missing or empty; GET 404 when entity not found; GET 200 with mocked entity/payload: response has `reviews.latest[].source` (collab/legacy), `caseStudies[].from_verified_work`, and no forbidden keys in payload. |
 | **E2E API** | `apps/web/e2e/public-profile-proof.spec.ts` | API: 400 missing username, 404 not found; 200 with proof shape when `E2E_FIXTURE_USERNAME` is set; response body has no forbidden keys. |
 | **E2E browser** | Same spec | Visit `/{E2E_FIXTURE_USERNAME}` when fixture enabled; assert reviews/case-studies sections, "From completed work", "Verified" badge, "From verified work"; no deal_id/gig_deal_id in page content. |
+| **E2E real profile** | Same spec | When `E2E_PUBLIC_PROFILE_USERNAME` is set: visit `/{username}`, assert profile loads (skip if "Claim this username") and no deal_id/gig_deal_id/collab_request_id/converted_gig_deal_id in DOM or API response. Optional; no seed required. |
 
 ### 6.2 Fixture and test-only branches
 
@@ -110,25 +111,76 @@ None. Fixture path is additive and gated by env.
 
 ### 6.6 Remaining gaps
 
-- E2E against a real profile (no fixture) not added; optional env `E2E_PUBLIC_PROFILE_USERNAME` could be used with seed data.
-- Org public profile proof signals could be extended later.
+- Real-profile E2E runs only when `E2E_PUBLIC_PROFILE_USERNAME` is set (optional; no seed required in fixture path).
+- Org public profile: proof parity implemented (see §9); verified reviews and “From verified work” for case studies now apply to orgs.
 
 ---
 
 ## 7. Remaining deferred items
 
-- **E2E for public profile:** Optional Playwright test that loads `/{username}` and asserts presence of “Verified” on reviews and “From verified work” on case studies (and absence of deal_id/gig_deal_id in response or DOM). Not required for this deliverable.
-- **Org public profile:** Current proof indicators are implemented for profile-owned entities; org public profile behavior is unchanged and can be extended later if needed.
 - **Featured review/case study:** Featured items already receive the same `source` / `from_verified_work` treatment when rendered in PublicProfileContent.
-- **Real-profile E2E:** Optional test that visits a seeded or known real username (requires DB seed or env).
+- **Real-profile E2E:** Optional; runs when `E2E_PUBLIC_PROFILE_USERNAME` is set (see §6.1 and §8).
 
 ---
 
-## 8. Final regression checklist
+## 8. Org public profile proof parity (implemented)
+
+- **Verified reviews:** The builder already used `reviewee_type: "org"` and `reviewee_org_id` for orgs; reviews from the verified_deal query get `source: "collab"` (same as profile). No change needed.
+- **Case study “From verified work”:** Previously only profile case studies were checked for `deal_id`/`gig_deal_id` linkage. **Implemented:** when `entity.type === "org"` and `ownerId` is set, the same `case_studies` query runs with `owner_type: "org"` and `owner_org_id: ownerId`; `from_verified_work` is set for org case studies linked to a completed deal/gig_deal. Same payload shape; no `deal_id`/`gig_deal_id`/`owner_org_id` exposed to the client.
+- **Data model:** `case_studies` already has `owner_type`, `owner_org_id`, `deal_id`, `gig_deal_id`; used server-side only to compute the boolean.
+
+---
+
+## 9. Final regression checklist
 
 - [ ] **Routes:** Public profile remains `/{username}`; `/profile/work` and `/profile/deals` remain internal authenticated surfaces; no new public routes added.
 - [ ] **Privacy:** No `deal_id`, `gig_deal_id`, or other internal workflow IDs in public payload or DOM; unit test and route test enforce forbidden keys; E2E asserts no private keys in API response and in page content.
 - [ ] **Proof rules:** Reviews only from completed verified work; case study “from verified work” only when linked to completed deal/gig_deal; no fake proof paths.
 - [ ] **UI:** Verified badge appears when `source === "collab"`; “From verified work” appears on case studies when `from_verified_work === true`; “From completed work” sublabel under Reviews when count > 0; E2E fixture run verifies these in the browser.
 - [ ] **Existing behavior:** Public profile layout, sections, and empty states unchanged except for the added indicators, sublabel, and minimal data-testids.
-- [ ] **Tests:** `pnpm test:route` includes `buildPublicProfilePayload.test.ts` and `api/public/profile/route.test.ts`; `pnpm test:e2e` runs `public-profile-proof.spec.ts` (chromium; fixture enabled when webServer is started by Playwright with `E2E_FIXTURE_USERNAME`).
+- [ ] **Tests:** `pnpm test:route` includes `buildPublicProfilePayload.test.ts` and `api/public/profile/route.test.ts`; `pnpm test:e2e` runs `public-profile-proof.spec.ts` (chromium; fixture enabled when webServer started with `E2E_FIXTURE_USERNAME`; real-profile assertions when `E2E_PUBLIC_PROFILE_USERNAME` set).
+- [ ] **Org proof parity:** Org public profiles get `source: "collab"` for verified reviews and `from_verified_work` for case studies linked to deal/gig_deal (same as profile); no private IDs exposed.
+
+---
+
+## 10. Tightening verification (latest round)
+
+### 10.1 Exact files changed
+
+| File | Change |
+|------|--------|
+| **`apps/web/src/lib/buildPublicProfilePayload.ts`** | Added org branch for `caseStudyLinkedIds`: when `entity.type === "org"` and `ownerId`, query `case_studies` with `owner_type: "org"` and `owner_org_id`; same `from_verified_work` logic, no IDs exposed. |
+| **`apps/web/e2e/public-profile-proof.spec.ts`** | Added real-profile describe: when `E2E_PUBLIC_PROFILE_USERNAME` set, visit `/{username}`, assert no private keys in DOM and in API response; skip if env unset or profile shows "Claim this username". |
+| **`apps/web/src/lib/buildPublicProfilePayload.test.ts`** | Added test: org-style payload has same proof shape and no `owner_org_id` or forbidden keys. |
+| **`docs/PUBLIC_PROFILE_PROOF_DELIVERABLES.md`** | §6.6: updated gaps (real-profile optional; org parity implemented). §7: removed stale "E2E optional / not required", clarified deferred items. §2: builder row now mentions org. §8: new "Org public profile proof parity (implemented)". §6.1: row for E2E real profile. §9: checklist item for org parity and real-profile test. §10: this summary. |
+
+### 10.2 Doc corrections made
+
+- Removed/rewrote line that said public-profile E2E was "optional" or "not required" — fixture-based E2E is implemented and runs when webServer has `E2E_FIXTURE_USERNAME`.
+- Deferred items (§7) now: only "Featured review/case study" note and "Real-profile E2E optional when env set".
+- Gaps (§6.6): real-profile E2E is optional (env-driven); org parity documented as implemented.
+
+### 10.3 Real-profile seeded testing
+
+- **Added:** One optional, env-driven real-profile E2E test. When `E2E_PUBLIC_PROFILE_USERNAME` is set, the test visits that username, asserts the profile loads (skips if "Claim this username") and that no `deal_id`, `gig_deal_id`, `collab_request_id`, or `converted_gig_deal_id` appear in the page content or in the public API response. No seed data required; use any known published username in CI or local.
+
+### 10.4 Org proof parity
+
+- **Implemented.** Org public profiles now get the same proof treatment as profiles: verified reviews already had `source: "collab"` (builder used `reviewee_org_id`); case studies now get `from_verified_work` by querying `case_studies` with `owner_type: "org"` and `owner_org_id` and computing the boolean server-side. No `deal_id`, `gig_deal_id`, or `owner_org_id` exposed.
+
+### 10.5 Tests added
+
+- **`buildPublicProfilePayload.test.ts`:** One test that an org-style payload has proof shape and no `owner_org_id` or forbidden keys.
+- **`public-profile-proof.spec.ts`:** One E2E test "real profile loads and has no private workflow metadata in DOM when E2E_PUBLIC_PROFILE_USERNAME set" (skips when env unset).
+
+### 10.6 Remaining gaps
+
+- Real-profile E2E does not assert presence of proof signals (Verified badge, "From verified work") when the profile has data; it only asserts no private metadata. Optional future: assert proof signals when profile has reviews/case studies.
+- Org proof parity is implemented; no further gap.
+
+### 10.7 Final regression checklist (this round)
+
+- [ ] Fixture-based E2E still passes with `E2E_FIXTURE_USERNAME`.
+- [ ] Real-profile E2E skips when `E2E_PUBLIC_PROFILE_USERNAME` unset; when set, no private keys in DOM or API response.
+- [ ] Org public profile: case studies linked to deal/gig_deal show "From verified work"; reviews from verified deals show Verified badge; no private IDs in payload.
+- [ ] All route and payload unit tests pass (`pnpm test:route`).

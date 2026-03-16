@@ -3,11 +3,12 @@
  * - API: 400/404 when username missing or not found.
  * - With E2E_FIXTURE_USERNAME set: load /{E2E_FIXTURE_USERNAME} (fixture payload), assert Verified badge,
  *   From verified work, From completed work, and no deal_id/gig_deal_id in DOM.
- * Run with E2E_FIXTURE_USERNAME=e2e-proof-fixture for full proof-signal coverage.
+ * - With E2E_PUBLIC_PROFILE_USERNAME set: load real profile, assert profile loads and no private keys in DOM (optional higher-fidelity path).
  */
 import { test, expect } from "@playwright/test";
 
 const FIXTURE_USERNAME = process.env.E2E_FIXTURE_USERNAME ?? "e2e-proof-fixture";
+const REAL_PROFILE_USERNAME = process.env.E2E_PUBLIC_PROFILE_USERNAME;
 
 test.describe("Public profile API", () => {
   test("returns 400 when username is missing", async ({ request }) => {
@@ -74,5 +75,39 @@ test.describe("Public profile page — proof signals and no private metadata", (
     const caseStudiesSection = page.getByTestId("public-profile-case-studies");
     await expect(caseStudiesSection).toBeVisible();
     await expect(page.getByText("From verified work", { exact: true }).first()).toBeVisible();
+  });
+});
+
+test.describe("Public profile page — real profile (optional)", () => {
+  test("real profile loads and has no private workflow metadata in DOM when E2E_PUBLIC_PROFILE_USERNAME set", async ({
+    page,
+  }) => {
+    if (!REAL_PROFILE_USERNAME?.trim()) {
+      test.skip(true, "Real-profile test is optional. Set E2E_PUBLIC_PROFILE_USERNAME to run.");
+      return;
+    }
+    await page.goto(`/${encodeURIComponent(REAL_PROFILE_USERNAME.trim())}`);
+    await page.waitForLoadState("domcontentloaded");
+
+    const body = await page.content();
+    if (body.includes("Claim this username")) {
+      test.skip(true, "Profile not found. Use a known published username for E2E_PUBLIC_PROFILE_USERNAME.");
+      return;
+    }
+
+    expect(body).not.toMatch(/"deal_id"/);
+    expect(body).not.toMatch(/"gig_deal_id"/);
+    expect(body).not.toMatch(/"collab_request_id"/);
+    expect(body).not.toMatch(/"converted_gig_deal_id"/);
+
+    const apiRes = await page.request.get(
+      `/api/public/profile?username=${encodeURIComponent(REAL_PROFILE_USERNAME.trim())}`
+    );
+    if (apiRes.ok()) {
+      const json = await apiRes.json();
+      const str = JSON.stringify(json);
+      expect(str).not.toMatch(/"deal_id"/);
+      expect(str).not.toMatch(/"gig_deal_id"/);
+    }
   });
 });

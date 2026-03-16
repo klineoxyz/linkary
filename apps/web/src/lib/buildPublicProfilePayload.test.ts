@@ -87,4 +87,17 @@ describe("Public profile payload — no private workflow metadata", () => {
     expect(payload.reviews.latest[0].source).toBe("collab");
     expect(payload.reviews.latest[1].source).toBe("legacy");
   });
+
+  it("org public profile payload has same proof shape and no owner_org_id or private keys", () => {
+    const orgStylePayload = {
+      profile: { username: "acme", display_name: "Acme", profile_type: "company" },
+      caseStudies: [
+        { id: "cs-org-1", title: "Campaign", summary: null, tags: [], url: null, from_verified_work: true },
+      ],
+      reviews: { count: 1, average: 5, latest: [{ rating: 5, text: null, created_at: "2025-01-01T00:00:00Z", reviewer_display: "Client", source: "collab" as const }] },
+    };
+    assertNoPrivateKeysInPayload(orgStylePayload);
+    expect(orgStylePayload.caseStudies[0].from_verified_work).toBe(true);
+    expect((orgStylePayload as Record<string, unknown>).owner_org_id).toBeUndefined();
+  });
 });

@@ -134,6 +134,15 @@ export async function buildPublicProfilePayloadFromEntity(
     for (const row of (linkedRows ?? []) as Array<{ id: string; deal_id: string | null; gig_deal_id: string | null }>) {
       if (row.deal_id != null || row.gig_deal_id != null) caseStudyLinkedIds.add(row.id);
     }
+  } else if (entity.type === "org" && ownerId) {
+    const { data: linkedRows } = await serviceSupabase
+      .from("case_studies")
+      .select("id, deal_id, gig_deal_id")
+      .eq("owner_type", "org")
+      .eq("owner_org_id", ownerId);
+    for (const row of (linkedRows ?? []) as Array<{ id: string; deal_id: string | null; gig_deal_id: string | null }>) {
+      if (row.deal_id != null || row.gig_deal_id != null) caseStudyLinkedIds.add(row.id);
+    }
   }
   const caseStudies = dto.caseStudies.map((c) => {
     const metrics = (entity.type === "profile" ? entity.caseStudies : entity.caseStudies).find(

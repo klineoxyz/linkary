@@ -2599,12 +2599,14 @@ function WorkRequestsPage({ setRoute, route, me }) {
   const [followupDraft, setFollowupDraft] = useState("");
   const [followupSavingId, setFollowupSavingId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [convertLoading, setConvertLoading] = useState<string | null>(null);
   const [hasReviewedForSelected, setHasReviewedForSelected] = useState<boolean | null>(null);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const markSeenDoneRef = useRef(false);
 
   const REQUESTER_FOLLOWUP_MAX = 500;
@@ -2675,7 +2677,7 @@ function WorkRequestsPage({ setRoute, route, me }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [router]);
+  }, [router, refreshKey]);
 
   useEffect(() => {
     const idFromUrl = route?.data?.id;
@@ -2797,6 +2799,28 @@ function WorkRequestsPage({ setRoute, route, me }) {
       const idx = newRaw.findIndex((r) => r.id === id);
       const nextId = stillThere ? selectedId : (newRaw[idx]?.id ?? newRaw[idx - 1]?.id ?? newRaw[0]?.id ?? null);
       selectRequest(nextId);
+    }
+  };
+
+  const convertToVerifiedWork = async (id: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = (session as { access_token?: string } | null)?.access_token;
+    if (!accessToken) return;
+    setConvertLoading(id);
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    try {
+      const res = await fetch(`${base}/api/collab-requests/${id}/convert`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const j = await res.json().catch(() => ({}));
+      if (j.ok) {
+        setRefreshKey((k) => k + 1);
+      } else {
+        setError(j.message ?? "Convert failed");
+      }
+    } finally {
+      setConvertLoading(null);
     }
   };
 
@@ -3111,6 +3135,25 @@ function WorkRequestsPage({ setRoute, route, me }) {
                       {!selectedInbox.reply_note && !selectedInbox.requester_followup_note && (
                         <p className="text-xs text-muted-foreground">They can reach you via your profile socials.</p>
                       )}
+                      {selectedInbox.converted_gig_deal_id ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm text-muted-foreground">Converted to verified work.</span>
+                          <Link
+                            href="/profile/work"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted/50"
+                          >
+                            View verified work
+                          </Link>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => convertToVerifiedWork(selectedInbox.id)}
+                          disabled={convertLoading === selectedInbox.id}
+                        >
+                          {convertLoading === selectedInbox.id ? "…" : "Convert to verified work"}
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" onClick={() => markDone(selectedInbox.id)} disabled={actionLoading === selectedInbox.id}>
                         {actionLoading === selectedInbox.id ? "…" : "Mark done"}
                       </Button>
@@ -3151,6 +3194,17 @@ function WorkRequestsPage({ setRoute, route, me }) {
                       >
                         {followupSavingId === selectedSent.id ? "Saving…" : "Save"}
                       </Button>
+                    </div>
+                  )}
+                  {selectedSent.status === "accepted" && selectedSent.converted_gig_deal_id && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Converted to verified work.</span>
+                      <Link
+                        href="/profile/work"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted/50"
+                      >
+                        View verified work
+                      </Link>
                     </div>
                   )}
                   {selectedSent.status === "accepted" && (

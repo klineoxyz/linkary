@@ -8,7 +8,7 @@
  */
 export const E2E_AUTH_STATE_FILE = "e2e-auth-state.json";
 
-import { fullConfig } from "@playwright/test";
+import type { FullConfig } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from "fs";
 import { resolve } from "path";
@@ -44,7 +44,7 @@ function buildStorageState(origin: string, authKey?: string, authValue?: string)
   return JSON.stringify({ cookies: [], origins });
 }
 
-export default async function globalSetup(config: typeof fullConfig) {
+export default async function globalSetup(config: FullConfig) {
   loadEnvLocal();
 
   const email = process.env.E2E_TEST_USER_EMAIL?.trim();

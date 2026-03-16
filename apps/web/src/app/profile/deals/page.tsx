@@ -283,7 +283,8 @@ export default function MyDealsPage() {
           </div>
           <h1 className="text-xl font-semibold text-foreground">Deals</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Deals from accepted gig applications. Complete or cancel as owner. Leave a verified review once the deal is done.
+            Deals from accepted gig applications. Complete or cancel as owner. Leave a verified review once the deal is done.{" "}
+            <Link href="/profile/work" className="text-primary hover:underline">View unified work history</Link>
           </p>
           {error && (
             <p className="mt-3 text-sm text-destructive">{error}</p>

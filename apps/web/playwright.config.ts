@@ -32,6 +32,7 @@ export default defineConfig({
         "**/cross-user-analytics.spec.ts",
         "**/discovery-explore.spec.ts",
         "**/discover-people.spec.ts",
+        "**/my-work.spec.ts",
       ],
     },
     {
@@ -45,6 +46,7 @@ export default defineConfig({
         "**/cross-user-analytics.spec.ts",
         "**/discovery-explore.spec.ts",
         "**/discover-people.spec.ts",
+        "**/my-work.spec.ts",
       ],
     },
   ],

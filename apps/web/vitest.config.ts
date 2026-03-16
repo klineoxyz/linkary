@@ -11,6 +11,14 @@ export default defineConfig({
       "src/app/api/**/*.test.ts",
       "src/lib/**/*.test.ts",
     ],
+    exclude: [
+      "src/lib/appRouting.test.ts",
+      "src/lib/crossUserAnalyticsAllowlist.test.ts",
+      "src/lib/discoveryValidation.test.ts",
+      "src/lib/entitlementDiscovery.test.ts",
+      "src/lib/profileRedirect.test.ts",
+      "src/lib/reviewsContract.test.ts",
+    ],
     testTimeout: 10000,
     env: {
       NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co",

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
       "Sign in with X. Claim your handle and create your profile.",
     type: "website",
   },
-  robots: "index, follow",
+  robots: { index: false, follow: false },
 };
 
 export default function LoginLayout({

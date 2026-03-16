@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { DashboardShell } from "@/components/DashboardShell";
+import { SetupRequired } from "@/components/SetupRequired";
 
 export default async function DashboardLayout({
   children,
@@ -8,6 +9,10 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createServerSupabase();
+  if (!supabase) {
+    return <SetupRequired />;
+  }
+
   const {
     data: { session },
   } = await supabase.auth.getSession();

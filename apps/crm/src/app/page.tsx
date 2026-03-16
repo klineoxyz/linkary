@@ -1,9 +1,13 @@
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
-import Link from "next/link";
+import { SetupRequired } from "@/components/SetupRequired";
 
 export default async function HomePage() {
   const supabase = await createServerSupabase();
+  if (!supabase) {
+    return <SetupRequired />;
+  }
+
   const {
     data: { session },
   } = await supabase.auth.getSession();

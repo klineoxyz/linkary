@@ -10,10 +10,12 @@ Campaign operations and task workspace for **crm.linkary.xyz**. Isolated from th
 
 ## Setup
 
-1. Copy `.env.example` to `.env.local` and set:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   (Same values as Linkary.xyz.)
+1. **Add Supabase env in the CRM app.** The CRM runs from `apps/crm` and does not load the repo root `.env`. Create `apps/crm/.env.local` with the same values as your main Linkary app:
+   ```bash
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   ```
+   (Copy from `apps/web/.env.local` if you have it.)
 
 2. Apply migrations (from repo root):
    ```bash

@@ -106,7 +106,18 @@ After deploy, verify creator task board and isolation:
 
 ---
 
-## 9. RLS and access (reference)
+## 9. M4 Org campaign dashboard verification checklist
+
+After deploying the org campaign dashboard (M4):
+
+- [ ] **Org-only user lands on /campaigns** — User with only org workspace(s) opens `/` and is redirected to `/campaigns`; they see the campaign list (or empty state) for their org workspaces only.
+- [ ] **Creator-only user does not see org campaign data** — User with only a creator workspace who opens `/campaigns` is redirected to `/` (no org workspaces). They must not see any org campaigns or campaign detail URLs for workspaces they are not members of.
+- [ ] **Dual-access user can enter org campaign view from switcher** — User with both creator and org workspaces sees the switcher at `/`; choosing “Campaigns” leads to `/campaigns` and the org campaign list.
+- [ ] **Campaign detail is scoped to accessible org workspace only** — Opening `/campaigns/[id]` for a campaign in a workspace the user is not a member of returns 404. Only campaigns in the user’s org workspaces are visible.
+
+---
+
+## 10. RLS and access (reference)
 
 - **First login / no CRM records:** Only **eligible** users (profile_type = individual) get a creator workspace and personal board via `getOrCreateCreatorWorkspaceAndBoard`; the `/tasks` page checks `canBootstrapCreatorWorkspace` before calling it. Ineligible users (org/project/company) see a no-access state on `/tasks` and do not get a creator workspace.
 - **Create manual task:** Insert into `crm_tasks` with `workspace_id`/`board_id` from the creator’s workspace (RLS allows insert when workspace member).
@@ -115,7 +126,7 @@ After deploy, verify creator task board and isolation:
 
 ---
 
-## 10. Optional: preview deployments
+## 11. Optional: preview deployments
 
 For PR previews, add in Supabase Redirect URLs (if you need auth on previews):
 

@@ -74,7 +74,19 @@ Keep existing linkary.xyz redirect URLs. Save.
 
 ---
 
-## 6. CRM task-board verification checklist
+## 6. Role-aware access verification checklist
+
+After shared auth (cookie domain) is in place, verify role-aware routing on crm.linkary.xyz:
+
+- [ ] **No second login** — Log in on linkary.xyz, then open crm.linkary.xyz in the same browser; you should land in CRM without being asked to sign in again.
+- [ ] **Individual user** — User with only a creator workspace lands on `/tasks` (task board) when opening `/`.
+- [ ] **Org / project user** — User with only org-style workspace(s) lands on `/campaigns` (org dashboard) when opening `/`.
+- [ ] **Dual-access user** — User with both creator and org workspaces sees the workspace switcher at `/` with options: “My tasks” and “Campaigns”.
+- [ ] **Unauthorized user** — User with no CRM workspaces sees the “No CRM access yet” / setup-needed page at `/`; they must not see other users’ tasks or org data. “Set up my task board” leads to `/tasks` and bootstraps creator workspace.
+
+---
+
+## 7. CRM task-board verification checklist
 
 After deploy, verify creator task board and isolation:
 
@@ -94,7 +106,7 @@ After deploy, verify creator task board and isolation:
 
 ---
 
-## 8. Optional: preview deployments
+## 9. Optional: preview deployments
 
 For PR previews, add in Supabase Redirect URLs (if you need auth on previews):
 

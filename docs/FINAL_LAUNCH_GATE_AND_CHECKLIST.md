@@ -41,7 +41,7 @@ Use this on **staging** after deploy (or before production). Check each item man
 
 - [ ] **Landing** — Open `/` → landing page loads; no 500.
 - [ ] **Public profile** — Open `/{published_username}` → profile loads; no `deal_id`/`gig_deal_id` in DOM or in `GET /api/public/profile?username=...` response; proof signals (Verified, From verified work, From completed work) when data exists.
-- [ ] **robots.txt** — `GET /robots.txt` → disallow includes `/app`, `/profile`, `/analytics`, `/deal`, `/settings`, `/api`, `/auth`, `/login`; allow `/`; sitemap and host present.
+- [ ] **robots.txt** — `GET /robots.txt` → disallow includes `/app`, `/profile`, `/analytics`, `/deal`, `/settings`, `/api`, `/auth`, `/login`, `/dashboard`, `/u`; allow `/`; sitemap and host present.
 - [ ] **sitemap.xml** — `GET /sitemap.xml` → includes homepage and published profiles/orgs (or minimal list if DB empty).
 - [ ] **noindex on internal pages** — Open `/app/profile`, `/analytics`, `/profile/deals`, `/login` → view source or inspect response; `<meta name="robots" content="noindex,...">` (or equivalent) present.
 
@@ -192,3 +192,11 @@ See **E2E_CI_AND_LOCAL.md** for full E2E setup.
 
 **Go:** Gate passed, staging smoke passed, env and migrations correct, post-deploy smoke passed.  
 **No-go:** Any of the above failed or incomplete; fix before production deploy.
+
+---
+
+## 8. Pre-staging verification (release manager sign-off)
+
+**Verified:** Package.json `release:gate` runs `build` → `test:route` → `test:profile-analytics` in that order. No duplication: Vitest excludes the 4 script-style lib tests; they run only via `test:profile-analytics`. `test:profile-analytics` runs exactly those 4 (crossUserAnalyticsAllowlist, profileRedirect, appRouting, reviewsContract); discoveryValidation and entitlementDiscovery remain optional follow-ups. Robots/noindex: `robots.ts` disallows `/app`, `/profile`, `/dashboard`, `/analytics`, `/deal`, `/u`, `/api`, `/auth`, `/login`, `/settings`; layout noindex applied on `/app`, `/analytics`, `/profile`, `/profile/deals` (via profile layout), `/profile/insights`, `/profile/inbox`, `/profile/requests`, `/deal`, `/settings`, `/login`, `/explore`, `/app/analytics/profile/[username]`, `/u/[username]`. Doc §2 robots.txt checklist updated to include `/dashboard` and `/u`. Routes and smoke checklist match current app structure.
+
+**Go for staging:** Proceed with staging deploy when release gate passes and env/migrations are set. No launch blocker identified.

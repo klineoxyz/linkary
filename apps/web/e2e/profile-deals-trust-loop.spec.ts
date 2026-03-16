@@ -3,8 +3,9 @@
  * Covers: Leave review only for completed (unreviewed), Create case study only for completed,
  * active/cancelled no CTAs, reviewed shows "Review submitted", case study modal and API payload.
  *
- * Requires: Authenticated session (page redirects to /login when unauthenticated).
- * Run with dev server and a logged-in browser, or use storageState from a prior login.
+ * Uses authenticated session from global setup (storageState). When E2E_TEST_USER_EMAIL and
+ * E2E_TEST_USER_PASSWORD are set, global setup obtains a Supabase session and saves it; otherwise
+ * tests that need auth will skip (locally) or fail in CI.
  */
 import { test, expect } from "@playwright/test";
 
@@ -79,24 +80,40 @@ test.describe("Profile deals — completed gig work trust-loop", () => {
   async function gotoDealsAndExpectList(page: import("@playwright/test").Page) {
     await page.goto("/profile/deals");
     await page.waitForLoadState("domcontentloaded");
-    // Allow time for client-side redirect when unauthenticated
     await page.waitForTimeout(2000);
     const url = page.url();
     if (url.includes("/login")) {
-      test.skip(true, "Profile deals tests require an authenticated session. Run with storageState or log in first.");
+      if (process.env.CI) {
+        throw new Error("Auth setup failed: redirected to /login. Set E2E_TEST_USER_EMAIL and E2E_TEST_USER_PASSWORD in CI.");
+      }
+      test.skip(true, "Profile deals tests require an authenticated session. Set E2E_TEST_USER_EMAIL and E2E_TEST_USER_PASSWORD.");
     }
     await expect(page.getByRole("heading", { name: "Deals" })).toBeVisible({ timeout: 10000 });
-    // List only exists when deals.length > 0; when unauthenticated or API returns empty, we see "You have no deals yet" and no list
     const list = page.getByTestId("profile-deals-list");
     try {
       await expect(list).toBeVisible({ timeout: 6000 });
     } catch {
-      test.skip(
-        true,
-        "Deals list not visible (page may show empty state). Log in so /api/deals/mine returns data, or run with storageState from a prior login."
-      );
+      if (process.env.CI) {
+        throw new Error("Deals list not visible after auth. Mocks for /api/deals/mine may not be applied or auth token invalid.");
+      }
+      test.skip(true, "Deals list not visible. Set E2E_TEST_USER_EMAIL and E2E_TEST_USER_PASSWORD and ensure mocks run.");
     }
   }
+
+  test("auth sanity: authenticated session lands on /profile/deals and not /login", async ({ page }) => {
+    await page.goto("/profile/deals");
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(3000);
+    const url = page.url();
+    if (url.includes("/login")) {
+      if (process.env.CI) {
+        throw new Error("Auth sanity check failed: redirected to /login. Set E2E_TEST_USER_EMAIL and E2E_TEST_USER_PASSWORD in CI.");
+      }
+      test.skip(true, "No authenticated session. Set E2E_TEST_USER_EMAIL and E2E_TEST_USER_PASSWORD to run profile-deals E2E.");
+    }
+    expect(url).not.toMatch(/\/login/);
+    await expect(page.getByRole("heading", { name: "Deals" })).toBeVisible({ timeout: 5000 });
+  });
 
   function dealRow(page: import("@playwright/test").Page, status: "completed" | "active" | "cancelled", id?: string) {
     const selector = id

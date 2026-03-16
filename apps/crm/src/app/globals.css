@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+:root {
+  --crm-bg: #f7f8fb;
+  --crm-card: #ffffff;
+  --crm-border: #e5e7eb;
+  --crm-primary: #0f172a;
+  --crm-muted: #64748b;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--crm-bg);
+  color: var(--crm-primary);
+}

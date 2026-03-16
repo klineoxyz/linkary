@@ -4084,11 +4084,13 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
 // -----------------------------
 // App shell (inner uses useSearchParams so must be in Suspense)
 // -----------------------------
-function LinkaryAppInner() {
+function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: string } = {}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [route, setRouteState] = useState(() => routeFromPathname(pathname ?? "/", searchParams));
+  const [route, setRouteState] = useState(() =>
+    initialRouteProp ? { name: initialRouteProp } : routeFromPathname(pathname ?? "/", searchParams)
+  );
   const [previousRoute, setPreviousRoute] = useState({ name: "overview" });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreateCircle, setShowCreateCircle] = useState(false);
@@ -4947,10 +4949,10 @@ function LinkaryAppInner() {
   );
 }
 
-export default function LinkaryApp() {
+export default function LinkaryApp({ initialRoute }: { initialRoute?: string } = {}) {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-pulse text-muted-foreground">Loading…</div></div>}>
-      <LinkaryAppInner />
+      <LinkaryAppInner initialRoute={initialRoute} />
     </Suspense>
   );
 }

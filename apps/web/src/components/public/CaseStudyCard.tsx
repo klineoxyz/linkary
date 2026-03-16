@@ -42,6 +42,8 @@ export type CaseStudyCardProps = {
   url?: string | null;
   /** Optional image URL (from proof_file_path signed URL). When absent or on load error, favicon or initials are used. */
   imageUrl?: string | null;
+  /** When true, show "From verified work" indicator (public profile only; no internal ids). */
+  fromVerifiedWork?: boolean;
   /** Optional top-right actions (e.g. Edit/Delete on edit page). */
   actions?: React.ReactNode;
   /** Optional metrics/details for expandable "Details" section (collapsed by default). Only shown when present and has entries. */
@@ -54,6 +56,7 @@ export function CaseStudyCard({
   tags = [],
   url,
   imageUrl,
+  fromVerifiedWork,
   actions,
   details,
 }: CaseStudyCardProps) {
@@ -102,9 +105,16 @@ export function CaseStudyCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            {title != null && title !== "" && (
-              <h3 className="font-semibold text-foreground line-clamp-1">{title}</h3>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {title != null && title !== "" && (
+                <h3 className="font-semibold text-foreground line-clamp-1">{title}</h3>
+              )}
+              {fromVerifiedWork && (
+                <span className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary shrink-0" aria-label="From verified work">
+                  From verified work
+                </span>
+              )}
+            </div>
             {highlight != null && (
               <p className="mt-1 text-sm text-muted-foreground line-clamp-1">{highlight}</p>
             )}

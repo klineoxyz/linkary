@@ -66,7 +66,7 @@ export type PublicProfileApiPayload = {
     youtube: string | null;
   };
   links: Array<{ title: string; url: string; icon?: string | null }>;
-  caseStudies: Array<{ id: string; title: string | null; summary: string | null; tags: string[]; url: string | null; imageUrl?: string | null }>;
+  caseStudies: Array<{ id: string; title: string | null; summary: string | null; tags: string[]; url: string | null; imageUrl?: string | null; /** True when linked to completed deal/gig_deal (no ids exposed). */ from_verified_work?: boolean }>;
   reviews: {
     average: number | null;
     count: number;

@@ -9,6 +9,7 @@ export default defineConfig({
       "src/**/*.route.test.ts",
       "src/**/*.api.test.ts",
       "src/app/api/**/*.test.ts",
+      "src/lib/**/*.test.ts",
     ],
     testTimeout: 10000,
     env: {

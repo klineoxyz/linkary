@@ -1014,6 +1014,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                         tags={c.tags}
                         url={c.url}
                         imageUrl={(c as { imageUrl?: string | null }).imageUrl}
+                        fromVerifiedWork={(c as { from_verified_work?: boolean }).from_verified_work}
                       />
                     </li>
                   ))}
@@ -1144,6 +1145,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
           <section className={rightSectionSpacing}>
             <div className={rightColumnIslandClass}>
               <SectionTitle>Reviews</SectionTitle>
+              {reviews.count > 0 && <p className="text-xs text-muted-foreground mt-0.5">From completed work</p>}
               {reviews.count === 0 ? (
               <p className="text-sm text-muted-foreground rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">Verified reviews appear after completed deals.</p>
             ) : (

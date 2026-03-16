@@ -85,6 +85,7 @@ export async function buildPublicProfilePayloadFromEntity(
           reviewer_display: reviewer?.display_name ?? "Anonymous",
           reviewer_avatar_url: reviewer?.avatar_url ?? null,
           verified_deal: true,
+          source: "collab" as const,
         };
       });
     }
@@ -101,6 +102,7 @@ export async function buildPublicProfilePayloadFromEntity(
         reviewer_display: null as string | null,
         reviewer_avatar_url: null,
         verified_deal: true,
+        source: "legacy" as const,
       }));
     }
   }
@@ -117,10 +119,22 @@ export async function buildPublicProfilePayloadFromEntity(
         reviewer_display: null as string | null,
         reviewer_avatar_url: null,
         verified_deal: true,
+        source: "legacy" as const,
       }));
     }
   }
 
+  let caseStudyLinkedIds = new Set<string>();
+  if (entity.type === "profile" && ownerId) {
+    const { data: linkedRows } = await serviceSupabase
+      .from("case_studies")
+      .select("id, deal_id, gig_deal_id")
+      .eq("owner_type", "profile")
+      .eq("owner_profile_id", ownerId);
+    for (const row of (linkedRows ?? []) as Array<{ id: string; deal_id: string | null; gig_deal_id: string | null }>) {
+      if (row.deal_id != null || row.gig_deal_id != null) caseStudyLinkedIds.add(row.id);
+    }
+  }
   const caseStudies = dto.caseStudies.map((c) => {
     const metrics = (entity.type === "profile" ? entity.caseStudies : entity.caseStudies).find(
       (x) => x.id === c.id
@@ -131,6 +145,7 @@ export async function buildPublicProfilePayloadFromEntity(
       summary: c.description ?? null,
       tags: metrics ? tagsFromMetrics(metrics) : [],
       url: c.proof_url ?? null,
+      from_verified_work: caseStudyLinkedIds.has(c.id),
     };
   });
 

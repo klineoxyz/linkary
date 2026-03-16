@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { SetupRequired } from "@/components/SetupRequired";
+import { resolveCrmAccess, canBootstrapCreatorWorkspace } from "@/lib/access";
 import { getOrCreateCreatorWorkspaceAndBoard } from "@/lib/workspace";
 import { fetchTasks } from "@/lib/tasks";
 import type { TaskFilter } from "@/lib/tasks";
@@ -17,6 +19,30 @@ const VALID_FILTERS: TaskFilter[] = [
   "approved",
 ];
 
+/** No-access state: user is not eligible for creator workspace and has none. */
+function TasksNoAccess() {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-[var(--crm-primary)]">Tasks</h1>
+      <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center space-y-4">
+        <p className="text-[var(--crm-primary)] font-medium">
+          You don’t have access to a personal task board
+        </p>
+        <p className="text-sm text-[var(--crm-muted)] max-w-md mx-auto">
+          Only individual creator accounts can create one. If you have org or campaign access, use{" "}
+          <Link href="/campaigns" className="underline text-[var(--crm-primary)]">
+            Campaigns
+          </Link>{" "}
+          from the sidebar or{" "}
+          <Link href="/" className="underline text-[var(--crm-primary)]">
+            home
+          </Link>.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default async function TasksPage({
   searchParams,
 }: {
@@ -29,6 +55,14 @@ export default async function TasksPage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user?.id) redirect("/login");
+
+  const access = await resolveCrmAccess(supabase, user.id);
+  const hasCreatorWorkspace = !!access.creatorWorkspace;
+  const eligibleToBootstrap = await canBootstrapCreatorWorkspace(supabase, user.id);
+
+  if (!hasCreatorWorkspace && !eligibleToBootstrap) {
+    return <TasksNoAccess />;
+  }
 
   const ws = await getOrCreateCreatorWorkspaceAndBoard(supabase, user.id);
   if (!ws) {

@@ -1,9 +1,37 @@
 /**
- * CRM: Role-aware access resolution. Determines where a logged-in user should land
- * based on profile/workspace/org data. All checks are server-side; do not rely on
- * client-only state.
+ * CRM: Role-aware access resolution and creator workspace eligibility.
+ * All checks are server-side; do not rely on client-only state.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * Who is allowed to get a creator workspace (personal task board)?
+ * Only users with profile_type = 'individual' may bootstrap a creator workspace.
+ * - individual: creator/individual account → eligible.
+ * - project / company: org-style profiles → not eligible for creator bootstrap
+ *   (they use org workspaces and campaigns; we do not auto-create a personal workspace).
+ * If the profile row is missing (e.g. not yet synced from Linkary), we treat as not eligible.
+ */
+export const CREATOR_BOOTSTRAP_PROFILE_TYPE = "individual" as const;
+
+/**
+ * Returns true only if the user is allowed to bootstrap a creator workspace.
+ * Call this before getOrCreateCreatorWorkspaceAndBoard; do not create a creator
+ * workspace for ineligible users.
+ */
+export async function canBootstrapCreatorWorkspace(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<boolean> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("profile_type")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const profileType = (profile as { profile_type?: string } | null)?.profile_type ?? null;
+  return profileType === CREATOR_BOOTSTRAP_PROFILE_TYPE;
+}
 
 /** Creator (individual) workspace: one per profile, type='creator', owner is the profile. */
 export type CreatorWorkspaceInfo = {

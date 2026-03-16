@@ -1,6 +1,10 @@
 /**
  * CRM: Creator workspace and board. Get or create personal workspace + board for a profile.
  * RLS-safe: owner_profile_id = profileId allows insert/select.
+ *
+ * Only call this for users who are eligible for creator bootstrap (see canBootstrapCreatorWorkspace).
+ * Callers (e.g. /tasks page) must check eligibility before calling when the user does not yet
+ * have a creator workspace; otherwise org-only or company profiles could get a creator workspace.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 

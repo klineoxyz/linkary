@@ -71,16 +71,17 @@ export default async function HomePage() {
     );
   }
 
-  // accessType === "none"
+  // accessType === "none" — no CRM workspaces yet; only eligible users can bootstrap creator
   return (
     <HomeShell>
       <div className="w-full max-w-md rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 shadow-sm text-center">
         <h1 className="text-xl font-semibold text-[var(--crm-primary)] mb-2">
-          No CRM access yet
+          No CRM workspace yet
         </h1>
         <p className="text-sm text-[var(--crm-muted)] mb-6">
-          You don’t have access to any CRM workspace. Set up your personal task
-          board to get started, or ask your org admin for access.
+          You don’t have access to any CRM workspace. If you’re an individual
+          creator, you can set up your personal task board below. Otherwise
+          request access from your org admin or use Campaigns when invited.
         </p>
         <div className="space-y-3">
           <Link
@@ -91,8 +92,9 @@ export default async function HomePage() {
             Set up my task board
           </Link>
           <p className="text-xs text-[var(--crm-muted)]">
-            This will create your creator workspace and personal board. You can
-            add tasks and submit proof from there.
+            Only individual creator accounts get a personal board. If your
+            account is org/project/company, you’ll see a no-access message on
+            Tasks and should use Campaigns instead.
           </p>
         </div>
       </div>

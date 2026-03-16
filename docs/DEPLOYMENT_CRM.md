@@ -40,9 +40,9 @@ In the CRM Vercel project → **Settings → Environment Variables**:
 | `NEXT_PUBLIC_SUPABASE_URL`     | `https://xxx.supabase.co`| Same as linkary.xyz      |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`| (anon key)               | Same as linkary.xyz      |
 | `NEXT_PUBLIC_APP_URL`          | `https://crm.linkary.xyz`| Canonical CRM URL for auth redirects and links. |
-| `NEXT_PUBLIC_COOKIE_DOMAIN`    | `.linkary.xyz`           | Share auth with linkary.xyz. Set in **both** Vercel projects (web + CRM). |
+| `NEXT_PUBLIC_COOKIE_DOMAIN`    | `.linkary.xyz`           | **Production only.** Share auth with linkary.xyz. Set in **both** Vercel projects (web + CRM) for production. Leave **unset** for local and preview unless you intentionally need shared auth on preview. |
 
-Apply to **Production**, **Preview**, and **Development** as needed.
+Apply to **Production** for cookie domain; other vars as needed for Production, Preview, and Development.
 
 ---
 
@@ -82,11 +82,20 @@ After shared auth (cookie domain) is in place, verify role-aware routing on crm.
 - [ ] **Individual user** — User with only a creator workspace lands on `/tasks` (task board) when opening `/`.
 - [ ] **Org / project user** — User with only org-style workspace(s) lands on `/campaigns` (org dashboard) when opening `/`.
 - [ ] **Dual-access user** — User with both creator and org workspaces sees the workspace switcher at `/` with options: “My tasks” and “Campaigns”.
-- [ ] **Unauthorized user** — User with no CRM workspaces sees the “No CRM access yet” / setup-needed page at `/`; they must not see other users’ tasks or org data. “Set up my task board” leads to `/tasks` and bootstraps creator workspace.
+- [ ] **No workspace yet** — User with no CRM workspaces sees the “No CRM workspace yet” page at `/`. Only **individual** creator accounts can use “Set up my task board” to bootstrap a creator workspace; org/project/company profiles do not get a personal board and see a no-access state on `/tasks` instead of bootstrapping.
 
 ---
 
-## 7. CRM task-board verification checklist
+## 7. Creator bootstrap and no-access verification checklist
+
+- [ ] **Org-only user cannot bootstrap creator** — User with only org workspace(s) and no creator workspace must not get a creator workspace when opening `/tasks`; they see the no-access state (“You don’t have access to a personal task board”) and are directed to Campaigns or home.
+- [ ] **Eligible individual user can bootstrap** — User with `profile_type = individual` and no workspace yet can open `/tasks` and get a creator workspace and personal board created; they then see their task board.
+- [ ] **Dual-access user still sees switcher** — User with both creator and org workspaces sees the workspace switcher at `/` with “My tasks” and “Campaigns”; no regression.
+- [ ] **No-access user does not gain unintended access** — User who is not eligible for creator bootstrap (e.g. org/project/company profile) and has no existing workspace must not see other users’ tasks or org data; they see the no-access / setup-needed flow only.
+
+---
+
+## 8. CRM task-board verification checklist
 
 After deploy, verify creator task board and isolation:
 
@@ -97,16 +106,16 @@ After deploy, verify creator task board and isolation:
 
 ---
 
-## 7. RLS and access (reference)
+## 9. RLS and access (reference)
 
-- **First login / no CRM records:** Creator gets a workspace and personal board via `getOrCreateCreatorWorkspaceAndBoard` (RLS allows insert when `owner_profile_id = auth`).
+- **First login / no CRM records:** Only **eligible** users (profile_type = individual) get a creator workspace and personal board via `getOrCreateCreatorWorkspaceAndBoard`; the `/tasks` page checks `canBootstrapCreatorWorkspace` before calling it. Ineligible users (org/project/company) see a no-access state on `/tasks` and do not get a creator workspace.
 - **Create manual task:** Insert into `crm_tasks` with `workspace_id`/`board_id` from the creator’s workspace (RLS allows insert when workspace member).
 - **Update task:** Server action loads the task by id (RLS: only if user can select it). Title/description/platform/due are applied only when `source_type = 'manual'`; status can always be updated by the user.
 - **Task detail `/tasks/[id]`:** `getTask(supabase, id)` runs with the user’s session; RLS limits select to tasks in workspaces the user is a member of, or where they are assigned_to/created_by. Another user’s task returns null → notFound().
 
 ---
 
-## 9. Optional: preview deployments
+## 10. Optional: preview deployments
 
 For PR previews, add in Supabase Redirect URLs (if you need auth on previews):
 

@@ -1337,7 +1337,7 @@ function OverviewPage({ setRoute, headerMedia, getAuthHeaders }) {
     reviews_verified?: number;
     rep_profiles?: number;
     missing_sources?: string[];
-  }>("/api/overview/stats", (url) => fetch(url).then((r) => r.json()), { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS });
+  }>("/api/overview/stats", (url) => fetch(url).then((r) => r.json()), { revalidateOnFocus: true, dedupingInterval: SWR_DEDUP_MS });
   const stats = overviewStats ?? {};
   const missing = new Set(stats.missing_sources ?? []);
   const isImageWithPath = headerMedia?.header_media_type === "IMAGE" && headerMedia?.header_media_file_path;

@@ -4889,7 +4889,7 @@ function LinkaryAppInner() {
                 {/* userProfile route is redirected to /{username} by effect above; do not render UserProfilePage (no mock data). */}
                 {route.name === "userProfile" && null}
                 {route.name === "profileInsights" && (
-                  <InsightsSnapshot setRoute={setRoute} me={me} getAuthHeaders={getAuthHeaders} />
+                  <InsightsSnapshot setRoute={setRoute} me={me} getAuthHeaders={getAuthHeaders} snapshotOnly />
                 )}
                 {route.name === "userInsights" && (
                   <InsightsSnapshot

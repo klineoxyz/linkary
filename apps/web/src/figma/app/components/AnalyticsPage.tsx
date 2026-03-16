@@ -10,6 +10,7 @@ import {
   PostingCadenceChart,
   ChartSkeleton,
 } from "@/figma/app/components/analytics";
+import { SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
 
 function formatIslandValue(n: number): string {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
@@ -156,7 +157,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
 
   const { data: res, isLoading } = useSWR<ApiResponse>(key, analyticsFetcher, {
     revalidateOnFocus: false,
-    dedupingInterval: 30_000,
+    dedupingInterval: SWR_DEDUP_MS,
   });
 
   const payload = res?.ok === true ? res.data : null;

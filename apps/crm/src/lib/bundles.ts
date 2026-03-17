@@ -1,8 +1,8 @@
 /**
  * CRM: Task bundle progress and creator campaign bundles. Uses stored data only; RLS-safe.
+ * Contribution % is read from DB (set by operator-side recalc); do not recalc from creator path.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { writeContribution } from "@/lib/contribution";
 
 export type TaskBundleProgress = {
   total: number;
@@ -169,12 +169,6 @@ export async function fetchMyCampaignBundles(
 
   const { weekStart, weekEnd } = getWeekRangeUtcForBundle();
 
-  const contributionByBundle = new Map<string, number>();
-  for (const cid of campaignIds) {
-    const rows = await writeContribution(supabase, cid, { weighted: true });
-    for (const r of rows) contributionByBundle.set(r.bundleId, r.contributionPercent);
-  }
-
   const result: MyCampaignBundleItem[] = [];
   for (const b of bundles as {
     id: string;
@@ -209,8 +203,7 @@ export async function fetchMyCampaignBundles(
       bundleTitle: b.title,
       expectedTaskCount: b.expected_task_count,
       progress,
-      contributionPercent:
-        contributionByBundle.get(b.id) ?? (b.contribution_percent != null ? Number(b.contribution_percent) : null),
+      contributionPercent: b.contribution_percent != null ? Number(b.contribution_percent) : null,
       requiredWeeklyPosts: campaign.weekly_required_posts ?? null,
       dailyEngagementRequired: campaign.daily_engagement_required ?? null,
       progressThisWeekWeekly,

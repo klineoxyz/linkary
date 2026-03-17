@@ -26,7 +26,7 @@
 - **Weighted (used in UI):** Same idea but each task contributes `weight(deliverable_type)`: weekly_post = 1, daily_engagement = 0.25, one_off = 1, custom = 0.5, null/other = 0.5. `contribution_percent = 100 * (bundle weighted sum) / (campaign total weighted)`.
 - **Rounding:** One decimal (e.g. 12.5%). Stored as numeric in DB.
 - **Write:** On each run, `writeContribution` updates `crm_task_bundles.contribution_percent` and `crm_campaign_participants.contribution_percent` for that campaign’s bundles/participants.
-- **When:** Operator loads campaign detail → `writeContribution(supabase, campaignId, { weighted: true })`. Creator loads /tasks (My campaign work) → `writeContribution` for each campaign they’re in, then bundles show updated %.
+- **When:** Operator loads campaign detail → `writeContribution(supabase, campaignId, { weighted: true })`. Creator only **reads** `contribution_percent` from DB (no recalc from creator path; see hardening audit).
 
 ---
 

@@ -2,6 +2,11 @@
  * CRM: Contribution scoring per creator per campaign.
  * Uses stored data only: approved/done tasks, deliverable_type, bundle membership.
  * Writes to crm_task_bundles.contribution_percent and crm_campaign_participants.contribution_percent.
+ *
+ * IMPORTANT: writeContribution must only be called with a client that has full campaign
+ * visibility (all bundles and all tasks for that campaign). Use from operator context only
+ * (e.g. campaign detail page). Do not call from creator /tasks path — RLS would expose
+ * only one bundle and produce incorrect campaign-wide percentages.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -27,7 +32,8 @@ export type ComputeContributionOptions = {
 
 /**
  * Compute contribution % per bundle for a campaign.
- * Only approved and done tasks count. Rejected, submitted, to_do, etc. do not count.
+ * Only approved and done tasks count (progress contribution). Rejected, submitted, to_do, etc. do not count.
+ * For final/reward reporting, prefer approved-only (future option).
  */
 export async function computeContribution(
   supabase: SupabaseClient,

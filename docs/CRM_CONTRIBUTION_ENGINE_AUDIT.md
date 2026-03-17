@@ -42,16 +42,16 @@ Rounding: round to 1 decimal or integer. We use one decimal (e.g. 12.5%) for tra
 ## 3. Where it runs
 
 - **Server-side only**, in the CRM app (e.g. `apps/crm/src/lib/contribution.ts`).
-- Uses the same Supabase client as the request (RLS applies; workspace member only sees their campaign’s data).
-- No cron required for MVP; can be triggered on-demand.
+- **Must run only in a context with full campaign visibility:** i.e. when an **operator** (workspace member) loads campaign detail or triggers recalc. The client must see all bundles and all tasks for the campaign. **Do not** run from the creator /tasks path — under RLS the creator sees only their own bundle and tasks, so recalc would produce incorrect campaign-wide percentages.
+- No cron required for MVP; can be triggered on-demand from operator context.
 
 ---
 
 ## 4. When it updates
 
-- **Operator:** When loading campaign detail page for a campaign, run compute + write for that campaign so the compliance/contribution table shows current % and rank.
-- **Creator:** When loading /tasks (My campaign work), run compute + write for each campaign the creator is in (so `contribution_percent` on their bundles is up to date). Alternatively, only update when operator views campaign; creator then sees last-written value (simpler, slightly staler). We choose: **update when operator views campaign** and **when creator loads /tasks** (update for each of their campaigns) so both see fresh data.
-- **Optional later:** When a task status changes to approved/done, trigger recalc for that campaign (e.g. from review action).
+- **Operator:** When loading campaign detail page for a campaign, run compute + write for that campaign so the compliance/contribution table shows current % and rank. Writes persist only if the client is a workspace member (RLS UPDATE policies allow workspace members to update contribution_percent).
+- **Creator:** Does **not** run recalc. Creator only **reads** `contribution_percent` from `crm_task_bundles` (set when an operator last viewed the campaign or triggered recalc). Slightly stale is acceptable; incorrect data is not.
+- **Optional later:** When a task status changes to approved/done, trigger recalc for that campaign from operator/review path (e.g. after reviewSubmissionAction).
 
 ---
 
@@ -64,13 +64,20 @@ Updates are by id (bundle) and by (campaign_id, participant_profile_id) for part
 
 ---
 
-## 6. Summary
+## 6. Progress vs final/reward
+
+- **Progress contribution (current):** Counts **approved + done**. Used for in-campaign “share of completed work” and display. Safe for operator-side recalc.
+- **Final/reward contribution (recommended for campaign-end):** Use **approved only** when computing share for rewards or formal reporting (operator-verified work). Future: optional param or separate “finalize” step that writes approved-only %.
+
+---
+
+## 7. Summary
 
 | Item | Choice |
 |------|--------|
-| What counts | Approved + done tasks only |
+| What counts | Approved + done tasks only (progress); approved only for final/reward when added |
 | Completion-based | contribution_percent = 100 * (bundle approved+done count) / (campaign total approved+done) |
 | Weighted | contribution_percent = 100 * (bundle weighted sum) / (campaign total weighted); weights by deliverable_type |
-| Where | Server, lib/contribution.ts |
-| When | Campaign detail load (operator), /tasks load (creator’s campaigns) |
-| Write | crm_task_bundles.contribution_percent, crm_campaign_participants.contribution_percent |
+| Where | Server, lib/contribution.ts; **operator context only** (full campaign visibility) |
+| When | Campaign detail load (operator). Creator only reads from DB. |
+| Write | crm_task_bundles.contribution_percent, crm_campaign_participants.contribution_percent (RLS: workspace members only) |

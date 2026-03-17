@@ -56,7 +56,7 @@ export function CreateTaskButton() {
                   id="title"
                   name="title"
                   required
-                  className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm text-[var(--crm-primary)]"
+                  className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm text-[var(--crm-foreground)] placeholder:text-[var(--crm-muted)]"
                   placeholder="e.g. Post 1 X thread"
                 />
               </div>

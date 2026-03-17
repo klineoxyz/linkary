@@ -174,6 +174,7 @@ export default async function CampaignDetailPage({
           </div>
         ) : (
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
@@ -215,6 +216,7 @@ export default async function CampaignDetailPage({
           </div>
         ) : (
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
@@ -270,6 +272,7 @@ export default async function CampaignDetailPage({
           </div>
         ) : (
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
@@ -306,6 +309,7 @@ export default async function CampaignDetailPage({
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </section>

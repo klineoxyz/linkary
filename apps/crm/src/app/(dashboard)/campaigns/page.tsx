@@ -34,7 +34,8 @@ export default async function CampaignsPage() {
         </div>
       ) : (
         <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
                 <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Campaign</th>
@@ -80,6 +81,7 @@ export default async function CampaignsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

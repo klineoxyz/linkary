@@ -87,18 +87,54 @@ export async function GET(
       return fail("USE_OWN_ANALYTICS", "Use /api/analytics/x for your own analytics", 400);
     }
 
-    const { data: rollup } = await serviceSupabase
-      .from("x_analytics_rollups")
-      .select(
-        "posts_7d, posts_30d, posts_90d, avg_likes_7d, avg_likes_30d, avg_likes_90d, avg_replies_7d, avg_replies_30d, avg_replies_90d, engagement_rate_7d, engagement_rate_30d, engagement_rate_90d, reach_proxy_7d, reach_proxy_30d, reach_proxy_90d"
-      )
-      .eq("profile_id", profileId)
-      .maybeSingle();
+    // Use same worker-populated source as own analytics (x_window_aggregates from xBackfill90d).
+    // x_analytics_rollups is only filled by weekly sync; backfill does not write it, so other-user
+    // would show zero after backfill if we used rollups only.
+    const { data: aggRows } = await serviceSupabase
+      .from("x_window_aggregates")
+      .select("window_days, as_of, posts_count, avg_likes_per_post, avg_replies_per_post, avg_engagement_rate, reach_avg")
+      .eq("owner_type", "profile")
+      .eq("owner_id", profileId)
+      .in("window_days", [7, 30, 90])
+      .order("as_of", { ascending: false });
+
+    const byWindow = (aggRows ?? []).reduce(
+      (acc: Record<number, Record<string, unknown>>, r: Record<string, unknown>) => {
+        const w = Number(r.window_days);
+        if (w in acc) return acc;
+        acc[w] = r;
+        return acc;
+      },
+      {}
+    );
+    const w7 = byWindow[7];
+    const w30 = byWindow[30];
+    const w90 = byWindow[90];
+    const rollup: Record<string, unknown> | null =
+      w7 || w30 || w90
+        ? {
+            posts_7d: w7?.posts_count ?? null,
+            posts_30d: w30?.posts_count ?? null,
+            posts_90d: w90?.posts_count ?? null,
+            avg_likes_7d: w7?.avg_likes_per_post ?? null,
+            avg_likes_30d: w30?.avg_likes_per_post ?? null,
+            avg_likes_90d: w90?.avg_likes_per_post ?? null,
+            avg_replies_7d: w7?.avg_replies_per_post ?? null,
+            avg_replies_30d: w30?.avg_replies_per_post ?? null,
+            avg_replies_90d: w90?.avg_replies_per_post ?? null,
+            engagement_rate_7d: w7?.avg_engagement_rate ?? null,
+            engagement_rate_30d: w30?.avg_engagement_rate ?? null,
+            engagement_rate_90d: w90?.avg_engagement_rate ?? null,
+            reach_proxy_7d: w7?.reach_avg ?? null,
+            reach_proxy_30d: w30?.reach_avg ?? null,
+            reach_proxy_90d: w90?.reach_avg ?? null,
+          }
+        : null;
 
     const { profile, analytics } = shapeCrossUserAnalyticsResponse(
       profileRow as { username: string | null; display_name: string | null; avatar_url: string | null },
       username,
-      rollup as Record<string, unknown> | null
+      rollup
     );
 
     return ok({ profile, analytics });

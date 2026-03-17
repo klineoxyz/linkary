@@ -103,5 +103,5 @@ Single operator-ready checklist for both live issues: CRM task board bootstrap a
 - CRM bootstrap root cause and debug: **docs/CRM_BOOTSTRAP_ROOT_CAUSE_AND_DEBUG.md**
 - CRM individual task setup (manual SQL, CTA, states): **docs/CRM_INDIVIDUAL_TASKS_SETUP.md**
 - Analytics behavior (same UI for all; X data when handle + sync): **docs/ANALYTICS_BEHAVIOR.md**
-- Analytics pipeline diagnostics (followers vs posts zero, stages, failure points): **docs/ANALYTICS_PIPELINE_DIAGNOSTICS.md**
+- Analytics pipeline diagnostics (followers vs posts zero, stages, failure points, other-user mapping, metric sources, truthfulness): **docs/ANALYTICS_PIPELINE_DIAGNOSTICS.md**
 - QA checklist (individual tasks): **docs/CRM_QA_CHECKLIST_INDIVIDUAL_TASKS.md**

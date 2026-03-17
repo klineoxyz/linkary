@@ -57,13 +57,14 @@ If a stage is missing in logs for a profile, the job failed before that stage.
 
 **Meaning:** DB has x_tweets and/or x_daily_snapshots / x_window_aggregates for the profile, but the analytics page shows zero.
 
-**Likely cause:** API reads by **session user id** (owner_id / profile_id). If the viewer is not the profile owner, the app may be showing “own” analytics. Or window filter (7d/30d/90d) has no data in that range. Or cache/staleness.
+**Likely cause:** Wrong profile id used when reading (e.g. session id instead of viewed profile), or window filter has no data in range, or cache/staleness.
 
 **Check:**
 
-1. **Who is viewing:** `/api/analytics/x` uses the **logged-in user’s id** for `owner_id` and `profile_id`. So the page shows **that user’s** analytics. For “other users” the product must use a different route or pass profile_id (if implemented).
-2. **Window:** API filters by `tweeted_at >= windowStart` and `day >= windowStart`. If all tweets are older than the selected window, counts will be zero. Try 90d.
-3. **Stale:** Force refresh; ensure no aggressive client cache.
+1. **Own analytics:** `/api/analytics/x` and `/api/analytics/x/summary` use the **logged-in user’s id** only. So the own analytics page always shows that user’s data. Correct.
+2. **Other-user analytics:** `/api/me/analytics/profile/[username]` resolves the **viewed profile** by username and reads **x_window_aggregates** with `owner_id = viewed profile id`. If the UI is the cross-user analytics page (e.g. /app/analytics/profile/other), it calls this route; no session/profile mix-up. If aggregates exist in DB for that profile but UI shows zero, check that the route is actually called with the correct username and that the profile is published.
+3. **Window:** Own API filters by `tweeted_at` and `day` in the selected window. Other-user uses latest x_window_aggregates row per window (7/30/90). If all tweets are outside the window, counts can be zero. Try 90d.
+4. **Stale:** Force refresh; ensure no aggressive client cache.
 
 ---
 
@@ -72,6 +73,41 @@ If a stage is missing in logs for a profile, the job failed before that stage.
 - **twitterapi.io** → worker `getRecentTweets` / `getUserInfo`
 - **Worker** → `ingestXTweets` → dedupe → upsert into **x_tweets**
 - **Worker** (xBackfill90d) → same or second fetch → **x_daily_snapshots** (per day) → **x_window_aggregates** (7/30/90d)
-- **apps/web** → GET `/api/analytics/x` → reads **x_daily_snapshots** (followers) + **x_tweets** (posts, engagement, impressions) by **session user id** → returns KPIs and chart series.
+- **Own analytics:** GET `/api/analytics/x` and GET `/api/analytics/x/summary` use **session user id** for `owner_id` / `profile_id`. They read **x_daily_snapshots** (followers) + **x_tweets** (posts, engagement, impressions) and **x_window_aggregates** (summary). All from stored tables.
+- **Other-user analytics:** GET `/api/me/analytics/profile/[username]` resolves the **viewed profile** by username, then reads **x_window_aggregates** for `owner_type=profile`, `owner_id=<viewed profile id>`. Same worker-populated source as own summary; no longer uses x_analytics_rollups (which backfill does not fill).
 
-All metrics come from these stored tables; no live fetch from twitterapi.io on page load.
+All metrics come from stored tables; no live fetch from twitterapi.io on page load.
+
+---
+
+## Other-user analytics: profile mapping
+
+- **Route:** `/api/me/analytics/profile/[username]`. URL username is normalized (trim, lower, strip @).
+- **Viewed profile:** Fetched from `public_profile_view` by `username`; `profileId = profileRow.id`. If `profileId === session user id`, the API returns 400 USE_OWN_ANALYTICS (caller must use `/api/analytics/x` for own data).
+- **Data source:** `x_window_aggregates` where `owner_type='profile'` and `owner_id=profileId` (the viewed profile). Latest row per `window_days` (7, 30, 90) is used; mapped to allowlisted analytics shape (posts_7d/30d/90d, avg_likes_30d, etc.).
+- **If “other-user” page shows zero:** Confirm in DB that `x_window_aggregates` has rows for that profile’s id. If backfill completed (worker logs `stage=aggregates_done`), aggregates exist; if not, run backfill for that profile.
+
+---
+
+## Metric sources (stored data only)
+
+| Metric | Own analytics (GET /api/analytics/x) | Other-user (GET /api/me/analytics/profile/[username]) |
+|--------|-------------------------------------|--------------------------------------------------------|
+| Followers | x_daily_snapshots (followers) + kpis.followers_latest | Not in allowlist; profile card only |
+| Posts (7d/30d/90d) | x_tweets in window → kpis.posts_total | x_window_aggregates.posts_count per window |
+| Impressions | x_tweets.impression_count in window | Not in allowlist |
+| Engagement rate | From x_tweets (engagements/impressions) in window | x_window_aggregates.avg_engagement_rate (30d) |
+| Avg likes/replies | From x_tweets in window | x_window_aggregates.avg_likes_per_post, avg_replies_per_post |
+| Reach proxy | kpis.potential_reach (impressions) | x_window_aggregates.reach_avg |
+
+Zero in the UI means either no data in that window or no synced data yet (backfill not run / failed). No fake or invented values.
+
+---
+
+## Truthfulness: stale vs missing vs zero
+
+- **No X handle connected:** Profile has no twitter_username / X not connected. Analytics entry points should direct to connect X (no metrics).
+- **No synced X data yet:** Backfill not run or failed. x_tweets / x_daily_snapshots / x_window_aggregates empty for that profile. UI should show “no data yet” or “building…” (e.g. init-status), not invented numbers.
+- **Synced but no data in this window:** Data exists for other windows or older dates; selected 7d/30d/90d has no tweets. Zero is correct; avoid implying “error”.
+- **Stale / old sync:** Data exists but last sync was long ago. Where we have `x_last_profile_sync_at` or `analytics_initialized_at`, own analytics can show “Last updated: X” (e.g. AnalyticsTabContent). We do not fake a last-sync time when we don’t have one.
+- **Partial data:** e.g. followers populated (from profile or one snapshot) but tweet-derived metrics zero because ingest failed after profile sync. Diagnostics above (“Followers present but posts zero”) apply.

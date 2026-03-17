@@ -17,7 +17,12 @@ const mockState = {
   rateLimitAllowed: true,
   rateLimitResetAt: "2025-01-01T12:00:00Z",
   profileViewData: { id: OTHER_PROFILE_ID, username: "other", display_name: "Other", avatar_url: null } as Record<string, unknown> | null,
-  rollupData: { posts_7d: 2, posts_30d: 10, posts_90d: 30, avg_likes_30d: 5, avg_replies_30d: 1, engagement_rate_30d: 2.5, reach_proxy_30d: 100 } as Record<string, unknown> | null,
+  /** x_window_aggregates rows (route reads these; one per window_days). Empty = null analytics. */
+  aggregateData: [
+    { window_days: 7, as_of: "2025-01-01", posts_count: 2, avg_likes_per_post: 4, avg_replies_per_post: 0.5, avg_engagement_rate: 2, reach_avg: 50 },
+    { window_days: 30, as_of: "2025-01-01", posts_count: 10, avg_likes_per_post: 5, avg_replies_per_post: 1, avg_engagement_rate: 2.5, reach_avg: 100 },
+    { window_days: 90, as_of: "2025-01-01", posts_count: 30, avg_likes_per_post: 6, avg_replies_per_post: 1.2, avg_engagement_rate: 2.8, reach_avg: 200 },
+  ] as Record<string, unknown>[] | null,
 };
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -53,10 +58,16 @@ vi.mock("@/lib/x-analytics-server", () => ({
       eq: () => chain(data),
       maybeSingle: () => Promise.resolve({ data }),
     });
+    const aggChain = {
+      select: () => aggChain,
+      eq: () => aggChain,
+      in: () => aggChain,
+      order: () => Promise.resolve({ data: mockState.aggregateData ?? [] }),
+    };
     return {
       from: (table: string) => {
         if (table === "public_profile_view") return chain(mockState.profileViewData);
-        if (table === "x_analytics_rollups") return chain(mockState.rollupData);
+        if (table === "x_window_aggregates") return aggChain;
         return chain(null);
       },
     };
@@ -92,15 +103,11 @@ describe("GET /api/me/analytics/profile/[username]", () => {
       display_name: "Other",
       avatar_url: null,
     };
-    mockState.rollupData = {
-      posts_7d: 2,
-      posts_30d: 10,
-      posts_90d: 30,
-      avg_likes_30d: 5,
-      avg_replies_30d: 1,
-      engagement_rate_30d: 2.5,
-      reach_proxy_30d: 100,
-    };
+    mockState.aggregateData = [
+      { window_days: 7, as_of: "2025-01-01", posts_count: 2, avg_likes_per_post: 4, avg_replies_per_post: 0.5, avg_engagement_rate: 2, reach_avg: 50 },
+      { window_days: 30, as_of: "2025-01-01", posts_count: 10, avg_likes_per_post: 5, avg_replies_per_post: 1, avg_engagement_rate: 2.5, reach_avg: 100 },
+      { window_days: 90, as_of: "2025-01-01", posts_count: 30, avg_likes_per_post: 6, avg_replies_per_post: 1.2, avg_engagement_rate: 2.8, reach_avg: 200 },
+    ];
   });
 
   it("returns 401 when no auth token", async () => {
@@ -190,8 +197,8 @@ describe("GET /api/me/analytics/profile/[username]", () => {
     }
   });
 
-  it("returns 200 with null analytics when no rollup", async () => {
-    mockState.rollupData = null;
+  it("returns 200 with null analytics when no aggregates", async () => {
+    mockState.aggregateData = [];
     const { GET } = await import("./route");
     const req = nextRequest("http://localhost/api/me/analytics/profile/other", {
       Authorization: "Bearer fake-token",

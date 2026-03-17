@@ -28,7 +28,7 @@ function KpiCard({
       <p className="text-xs font-medium text-[var(--crm-muted)] uppercase tracking-wide">
         {label}
         {insufficient && (
-          <span className="ml-1 normal-case text-amber-600">(no data yet)</span>
+          <span className="ml-1 normal-case text-[var(--crm-muted)]">(no data yet)</span>
         )}
       </p>
       <p className="mt-1 text-xl font-semibold text-[var(--crm-primary)]">
@@ -109,7 +109,7 @@ export default async function CampaignDetailPage({
           KPIs
         </h2>
         {noMetrics && (
-          <p className="text-sm text-amber-600 mb-4">
+          <p className="text-sm text-[var(--crm-muted)] mb-4">
             Stored metrics not yet available. Values below are from participant
             and submission counts only; views/engagements/CPV/CPE need daily
             metrics snapshots.

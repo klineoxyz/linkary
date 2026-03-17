@@ -167,7 +167,7 @@ export function TaskDetailClient({
                   className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
                 />
               </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <p className="text-sm text-[var(--crm-foreground)]">{error}</p>}
               <div className="flex gap-2">
                 <button
                   type="submit"
@@ -218,12 +218,12 @@ export function TaskDetailClient({
                   <span
                     className={`rounded px-2 py-0.5 text-xs ${
                       s.status === "approved"
-                        ? "bg-green-100 text-green-800"
+                        ? "bg-[var(--crm-accent)] text-[var(--crm-primary)]"
                         : s.status === "rejected"
-                          ? "bg-red-100 text-red-800"
+                          ? "bg-[var(--crm-muted)]/20 text-[var(--crm-foreground)]"
                           : s.status === "needs_revision"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-gray-100 text-gray-700"
+                            ? "bg-[var(--crm-accent)] text-[var(--crm-foreground)]"
+                            : "bg-[var(--crm-bg)] text-[var(--crm-muted)]"
                     }`}
                   >
                     {s.status.replace("_", " ")}
@@ -234,7 +234,7 @@ export function TaskDetailClient({
                   <p className="mt-1 text-[var(--crm-muted)]">{s.notes}</p>
                 )}
                 {s.rejection_reason && (
-                  <p className="mt-1 text-red-600 text-xs">
+                  <p className="mt-1 text-[var(--crm-foreground)] text-xs">
                     Rejection: {s.rejection_reason}
                   </p>
                 )}
@@ -292,7 +292,7 @@ export function TaskDetailClient({
             />
           </div>
           {submissionError && (
-            <p className="text-sm text-red-600">{submissionError}</p>
+            <p className="text-sm text-[var(--crm-foreground)]">{submissionError}</p>
           )}
           <button
             type="submit"

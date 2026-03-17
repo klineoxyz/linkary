@@ -95,7 +95,7 @@ export function CreateTaskButton() {
                 />
               </div>
               {error && (
-                <p className="text-sm text-red-600">{error}</p>
+                <p className="text-sm text-[var(--crm-foreground)]">{error}</p>
               )}
               <div className="flex gap-2 justify-end pt-2">
                 <button

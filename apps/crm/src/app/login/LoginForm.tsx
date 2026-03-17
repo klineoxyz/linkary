@@ -47,7 +47,7 @@ export function LoginForm() {
         {loading ? "Sending…" : "Send magic link"}
       </button>
       {message && (
-        <p className={`text-sm ${message.type === "err" ? "text-red-600" : "text-green-600"}`}>
+        <p className={`text-sm ${message.type === "err" ? "text-[var(--crm-foreground)]" : "text-[var(--crm-muted)]"}`}>
           {message.text}
         </p>
       )}

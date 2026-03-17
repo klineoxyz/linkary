@@ -19,17 +19,22 @@ function formatDue(due: string | null): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: d.getFullYear() !== today.getFullYear() ? "numeric" : undefined });
 }
 
-function statusColor(status: string): string {
+/* Linkary palette only: use CRM tokens for status badges */
+function statusBadgeClass(status: string): string {
+  const base = "inline-flex rounded-full px-2 py-0.5 text-xs font-medium ";
+  const positive = "bg-[var(--crm-accent)] text-[var(--crm-primary)]";
+  const neutral = "bg-[var(--crm-bg)] text-[var(--crm-muted)]";
+  const negative = "bg-[var(--crm-muted)]/20 text-[var(--crm-foreground)]";
   const m: Record<string, string> = {
-    backlog: "bg-gray-100 text-gray-700",
-    to_do: "bg-sky-100 text-sky-800",
-    in_progress: "bg-amber-100 text-amber-800",
-    submitted: "bg-purple-100 text-purple-800",
-    approved: "bg-green-100 text-green-800",
-    rejected: "bg-red-100 text-red-800",
-    done: "bg-emerald-100 text-emerald-800",
+    backlog: neutral,
+    to_do: "bg-[var(--crm-accent)] text-[var(--crm-foreground)]",
+    in_progress: positive,
+    submitted: neutral,
+    approved: positive,
+    rejected: negative,
+    done: positive,
   };
-  return m[status] ?? "bg-gray-100 text-gray-700";
+  return base + (m[status] ?? neutral);
 }
 
 export function TasksList({ tasks }: { tasks: TaskRow[] }) {
@@ -78,7 +83,7 @@ export function TasksList({ tasks }: { tasks: TaskRow[] }) {
                   {t.task_bundle_title ?? "—"}
                 </td>
                 <td className="py-3 px-4">
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusColor(t.status)}`}>
+                  <span className={statusBadgeClass(t.status)}>
                     {t.status.replace("_", " ")}
                   </span>
                 </td>

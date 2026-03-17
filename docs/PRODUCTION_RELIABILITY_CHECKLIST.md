@@ -84,6 +84,7 @@ Single operator-ready checklist for both live issues: CRM task board bootstrap a
 - **Who calls them:** Worker only (ingestXTweets → getRecentTweets, xBackfill90d → getUserInfo + getRecentTweets). Apps/web does not call twitterapi.io on page load; analytics UI reads from Supabase (x_tweets, x_daily_snapshots, etc.).
 - **How often:** Per backfill job once per profile (up to 1000 tweets in backfill); weekly sync runs ingestXTweets for profiles that need refresh. Rate limiting: delay between requests (e.g. 200–400 ms) in worker.
 - **Cost-effectiveness:** Data is stored once; app reads from DB. Backfill is one-time per profile (or on-demand); daily/weekly sync can be bounded by only syncing profiles with X handle and last_sync older than X days. No live fetch on page load.
+- **Note:** xBackfill90d currently calls getRecentTweets twice per run (once inside ingestXTweets, once for building dayMap for snapshots). A future optimization could reuse the same tweet list to halve tweet API calls per backfill; not changed in this pass.
 
 ---
 
@@ -102,4 +103,5 @@ Single operator-ready checklist for both live issues: CRM task board bootstrap a
 - CRM bootstrap root cause and debug: **docs/CRM_BOOTSTRAP_ROOT_CAUSE_AND_DEBUG.md**
 - CRM individual task setup (manual SQL, CTA, states): **docs/CRM_INDIVIDUAL_TASKS_SETUP.md**
 - Analytics behavior (same UI for all; X data when handle + sync): **docs/ANALYTICS_BEHAVIOR.md**
+- Analytics pipeline diagnostics (followers vs posts zero, stages, failure points): **docs/ANALYTICS_PIPELINE_DIAGNOSTICS.md**
 - QA checklist (individual tasks): **docs/CRM_QA_CHECKLIST_INDIVIDUAL_TASKS.md**

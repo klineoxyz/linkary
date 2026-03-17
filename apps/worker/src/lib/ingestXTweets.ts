@@ -119,10 +119,11 @@ export async function ingestXTweets(
   console.log("[X_TWEETS] normalized_handle=" + handle);
   const since = params.since ?? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19);
   const until = params.until ?? new Date().toISOString().slice(0, 19);
-  console.log("[X_TWEETS] start profile_id=" + profile_id + " handle=" + handle + " since=" + since + " until=" + until);
+  console.log("[X_TWEETS] stage=fetch_start profile_id=" + profile_id + " handle=" + handle + " since=" + since + " until=" + until);
 
   const tweets = await getRecentTweets(handle, maxTweets);
   const fetched_total = tweets.length;
+  console.log("[X_TWEETS] stage=fetch_done profile_id=" + profile_id + " fetched=" + fetched_total);
   let skipped_retweets = 0;
   let skipped_outliers = 0;
   const rows: Record<string, unknown>[] = [];
@@ -157,7 +158,7 @@ export async function ingestXTweets(
     return true;
   });
   if (deduped.length < rows.length) {
-    console.log("[X_TWEETS] deduped " + rows.length + " -> " + deduped.length + " rows (duplicate tweet_id in batch)");
+    console.log("[X_TWEETS] stage=dedupe profile_id=" + profile_id + " rows_before=" + rows.length + " rows_after=" + deduped.length);
   }
 
   const { count: countBefore } = await supabase
@@ -200,7 +201,9 @@ export async function ingestXTweets(
   const inserted = Math.max(0, after - before);
   const upserted = deduped.length;
   console.log(
-    "[X_TWEETS] fetched=" +
+    "[X_TWEETS] stage=upsert_done profile_id=" +
+      profile_id +
+      " fetched=" +
       fetched_total +
       " skipped_retweets=" +
       skipped_retweets +
@@ -222,6 +225,6 @@ export async function ingestXTweets(
     throw new Error(msg);
   }
 
-  console.log("[X_TWEETS] done");
+  console.log("[X_TWEETS] stage=done profile_id=" + profile_id + " upserted=" + upserted);
   return { fetched: fetched_total, upserted, inserted, skipped_outliers };
 }

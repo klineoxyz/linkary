@@ -124,6 +124,7 @@ export async function runXBackfill90d(
   }
   full90Days.sort((a, b) => a.localeCompare(b));
 
+  const snapshotDays = full90Days.length;
   for (const day of full90Days) {
     const agg = dayMap.get(day) ?? zeroBucket;
     const { error } = await supabase.from("x_daily_snapshots").upsert(
@@ -140,8 +141,12 @@ export async function runXBackfill90d(
       },
       { onConflict: "owner_type,owner_id,day" }
     );
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      console.error("[X_BACKFILL_90D] stage=snapshots_failed profile_id=" + job.owner_id + " day=" + day + " error=" + error.message);
+      return { ok: false, error: error.message };
+    }
   }
+  console.log("[X_BACKFILL_90D] stage=snapshots_done profile_id=" + job.owner_id + " days=" + snapshotDays);
 
   const asOf = todayStr;
 
@@ -222,8 +227,12 @@ export async function runXBackfill90d(
     const { error: aggErr } = await supabase.from("x_window_aggregates").upsert(agg, {
       onConflict: "owner_type,owner_id,window_days,as_of",
     });
-    if (aggErr) return { ok: false, error: aggErr.message };
+    if (aggErr) {
+      console.error("[X_BACKFILL_90D] stage=aggregates_failed profile_id=" + job.owner_id + " window_days=" + windowDays + " error=" + aggErr.message);
+      return { ok: false, error: aggErr.message };
+    }
   }
+  console.log("[X_BACKFILL_90D] stage=aggregates_done profile_id=" + job.owner_id + " windows=7,30,90");
 
   // Set only after x_daily_snapshots and x_window_aggregates succeeded (no finally — never set on failure).
   if (job.owner_type === "profile" && job.owner_id) {
@@ -233,7 +242,7 @@ export async function runXBackfill90d(
       .eq("id", job.owner_id);
   }
 
-  console.log("[ROLLUP] profile_id=" + job.owner_id + " updated");
+  console.log("[X_BACKFILL_90D] stage=done profile_id=" + job.owner_id + " upserted=" + result.upserted);
   return {
     ok: true,
     upserted: result.upserted,

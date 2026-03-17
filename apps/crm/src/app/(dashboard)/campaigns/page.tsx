@@ -4,6 +4,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { SetupRequired } from "@/components/SetupRequired";
 import { resolveCrmAccess } from "@/lib/access";
 import { fetchCampaignsForUser } from "@/lib/campaigns";
+import { ListTodo } from "lucide-react";
 
 export default async function CampaignsPage() {
   const supabase = await createServerSupabase();
@@ -15,8 +16,32 @@ export default async function CampaignsPage() {
   if (!user?.id) redirect("/login");
 
   const access = await resolveCrmAccess(supabase, user.id);
+
+  // Always show Campaigns page; no redirect to home so nav stays consistent.
   if (access.orgWorkspaces.length === 0) {
-    redirect("/");
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Campaigns</h1>
+        <p className="text-sm text-[var(--crm-muted)]">
+          Org campaign dashboard. View performance, contributors, and submissions.
+        </p>
+        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center">
+          <p className="text-sm font-medium text-[var(--crm-foreground)] mb-1">
+            No org workspace access
+          </p>
+          <p className="text-sm text-[var(--crm-muted)] mb-6 max-w-sm mx-auto">
+            Campaigns are available when you&apos;re a member of an org or project workspace. Use Tasks for your personal task board.
+          </p>
+          <Link
+            href="/tasks"
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--crm-primary)] px-4 py-2 text-sm font-medium text-[var(--crm-primary-foreground)] hover:opacity-90"
+          >
+            <ListTodo className="h-4 w-4" />
+            Go to Tasks
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const campaigns = await fetchCampaignsForUser(supabase);

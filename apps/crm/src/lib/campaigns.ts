@@ -1,7 +1,11 @@
 /**
  * CRM: Campaign list and detail for org workspaces. Uses stored data only; RLS-safe.
+ * Campaign definition: workspace_id = operator; promoted_org_id = who is promoted; promoted_social_handles = accounts to track.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+/** One social account to track for growth/reporting (e.g. { platform: "x", handle: "@acme" }). */
+export type PromotedSocialHandle = { platform: string; handle: string };
 
 export type CampaignRow = {
   id: string;
@@ -15,6 +19,15 @@ export type CampaignRow = {
   status: string;
   created_at: string;
   updated_at: string;
+  // Campaign definition extension
+  reward_date?: string | null;
+  campaign_value_usd?: number | null;
+  token_or_usdt?: string | null;
+  required_platforms?: string[] | null;
+  weekly_required_posts?: number | null;
+  daily_engagement_required?: string | null;
+  promoted_org_id?: string | null;
+  promoted_social_handles?: PromotedSocialHandle[] | null;
 };
 
 export type CampaignListItem = CampaignRow & {
@@ -87,7 +100,7 @@ export async function fetchCampaignsForUser(
 
   const { data: campaigns } = await supabase
     .from("crm_campaigns")
-    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at")
+    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at, reward_date, campaign_value_usd, token_or_usdt, required_platforms, weekly_required_posts, daily_engagement_required, promoted_org_id, promoted_social_handles")
     .in("workspace_id", orgWorkspaceIds)
     .order("updated_at", { ascending: false });
 
@@ -117,11 +130,17 @@ export async function getCampaign(
 ): Promise<CampaignRow | null> {
   const { data } = await supabase
     .from("crm_campaigns")
-    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at")
+    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at, reward_date, campaign_value_usd, token_or_usdt, required_platforms, weekly_required_posts, daily_engagement_required, promoted_org_id, promoted_social_handles")
     .eq("id", campaignId)
     .maybeSingle();
 
-  return data as CampaignRow | null;
+  if (!data) return null;
+  const row = data as Record<string, unknown>;
+  const handles = row.promoted_social_handles;
+  return {
+    ...row,
+    promoted_social_handles: Array.isArray(handles) ? handles as PromotedSocialHandle[] : null,
+  } as CampaignRow;
 }
 
 /**

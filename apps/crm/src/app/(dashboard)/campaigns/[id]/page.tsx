@@ -104,6 +104,91 @@ export default async function CampaignDetailPage({
         )}
       </div>
 
+      {/* Campaign definition: operator = workspace_id; promoted = promoted_org_id + promoted_social_handles */}
+      {(campaign.reward_date != null ||
+        campaign.campaign_value_usd != null ||
+        campaign.token_or_usdt ||
+        (campaign.required_platforms?.length ?? 0) > 0 ||
+        campaign.weekly_required_posts != null ||
+        campaign.daily_engagement_required ||
+        campaign.promoted_org_id ||
+        (campaign.promoted_social_handles?.length ?? 0) > 0) && (
+        <section>
+          <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
+            Campaign definition
+          </h2>
+          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 space-y-3 text-sm">
+            <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {campaign.reward_date != null && (
+                <>
+                  <dt className="text-[var(--crm-muted)]">Reward date</dt>
+                  <dd className="text-[var(--crm-foreground)]">
+                    {new Date(campaign.reward_date).toLocaleDateString()}
+                  </dd>
+                </>
+              )}
+              {campaign.campaign_value_usd != null && (
+                <>
+                  <dt className="text-[var(--crm-muted)]">Campaign value (USD)</dt>
+                  <dd className="text-[var(--crm-foreground)]">
+                    {Number(campaign.campaign_value_usd).toLocaleString()}
+                  </dd>
+                </>
+              )}
+              {campaign.token_or_usdt && (
+                <>
+                  <dt className="text-[var(--crm-muted)]">Token / USDT</dt>
+                  <dd className="text-[var(--crm-foreground)]">{campaign.token_or_usdt}</dd>
+                </>
+              )}
+              {(campaign.required_platforms?.length ?? 0) > 0 && (
+                <>
+                  <dt className="text-[var(--crm-muted)]">Required platforms</dt>
+                  <dd className="text-[var(--crm-foreground)]">
+                    {campaign.required_platforms!.join(", ")}
+                  </dd>
+                </>
+              )}
+              {campaign.weekly_required_posts != null && (
+                <>
+                  <dt className="text-[var(--crm-muted)]">Weekly required posts</dt>
+                  <dd className="text-[var(--crm-foreground)]">{campaign.weekly_required_posts}</dd>
+                </>
+              )}
+              {campaign.daily_engagement_required && (
+                <>
+                  <dt className="text-[var(--crm-muted)]">Daily engagement</dt>
+                  <dd className="text-[var(--crm-foreground)]">{campaign.daily_engagement_required}</dd>
+                </>
+              )}
+              {campaign.promoted_org_id && (
+                <>
+                  <dt className="text-[var(--crm-muted)]">Promoted project</dt>
+                  <dd className="text-[var(--crm-foreground)] font-mono text-xs">
+                    {campaign.promoted_org_id.slice(0, 8)}…
+                  </dd>
+                </>
+              )}
+            </dl>
+            {(campaign.promoted_social_handles?.length ?? 0) > 0 && (
+              <div>
+                <p className="text-[var(--crm-muted)] mb-1">Promoted social accounts (for reporting)</p>
+                <ul className="flex flex-wrap gap-2">
+                  {campaign.promoted_social_handles!.map((h, i) => (
+                    <li
+                      key={i}
+                      className="rounded px-2 py-1 bg-[var(--crm-bg)] text-[var(--crm-foreground)] text-xs"
+                    >
+                      {h.platform}: {h.handle}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       <section>
         <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
           KPIs

@@ -11,6 +11,9 @@ export type TaskFilter =
   | "submitted"
   | "approved";
 
+/** Structured deliverable type for campaign tasks. */
+export type DeliverableType = "one_off" | "weekly_post" | "daily_engagement" | "custom";
+
 export type TaskRow = {
   id: string;
   workspace_id: string;
@@ -30,6 +33,7 @@ export type TaskRow = {
   updated_at: string;
   campaign_title?: string | null;
   task_bundle_title?: string | null;
+  deliverable_type?: DeliverableType | string | null;
 };
 
 function startOfTodayUtc(): string {
@@ -56,7 +60,7 @@ export async function fetchTasks(
   let query = supabase
     .from("crm_tasks")
     .select(
-      "id, workspace_id, board_id, campaign_id, task_bundle_id, source_type, title, description, platform, status, priority, due_at, created_by, assigned_to, created_at, updated_at"
+      "id, workspace_id, board_id, campaign_id, task_bundle_id, source_type, title, description, platform, status, priority, due_at, created_by, assigned_to, created_at, updated_at, deliverable_type"
     )
     .eq("board_id", boardId)
     .order("due_at", { ascending: true, nullsFirst: false })
@@ -131,7 +135,7 @@ export async function getTask(
   const { data: task, error } = await supabase
     .from("crm_tasks")
     .select(
-      "id, workspace_id, board_id, campaign_id, task_bundle_id, source_type, title, description, platform, status, priority, due_at, created_by, assigned_to, created_at, updated_at"
+      "id, workspace_id, board_id, campaign_id, task_bundle_id, source_type, title, description, platform, status, priority, due_at, created_by, assigned_to, created_at, updated_at, deliverable_type"
     )
     .eq("id", taskId)
     .maybeSingle();

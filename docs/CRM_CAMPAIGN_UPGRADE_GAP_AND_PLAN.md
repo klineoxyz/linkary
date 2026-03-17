@@ -190,7 +190,44 @@ Order: **M5.5 first** (bundle + creator view), then M6, then M7, then M8/M9 as n
 
 ---
 
-## 6. Files to touch (M5.5 only — first pass)
+## 6. Campaign definition extension (M9): data flow and implementation
+
+### 6.1 How the new fields flow
+
+| Layer | Field / concept | Role |
+|-------|------------------|------|
+| **Operator workspace** | `crm_campaigns.workspace_id` | Unchanged. Who runs and manages the campaign. RLS and “my campaigns” use this. |
+| **Promoted project/client** | `crm_campaigns.promoted_org_id` (FK → `public.orgs`) | The Linkary org (project or client) being promoted. Set when operator is agency/brand running on behalf of another; can equal the operator’s linked org when project runs its own campaign. |
+| **Promoted social accounts** | `crm_campaigns.promoted_social_handles` (JSONB array of `{ platform, handle }`) | The accounts to use for growth and reporting (e.g. X handle). Must be the promoted project/client’s accounts, not automatically the operator’s. Future snapshots and reports key off this. |
+| **Creator bundles** | `crm_task_bundles` unchanged; `crm_tasks.deliverable_type` | Tasks can be typed as one_off, weekly_post, daily_engagement, custom. Sync does not set deliverable_type yet; optional in payload later. |
+| **Future reporting** | Campaign detail + `reward_date`, `campaign_value_usd`, `required_platforms`, `weekly_required_posts`, `daily_engagement_required` | Report can show “Promoted: &lt;org&gt;”, “Accounts: …”, reward date, value, and required work. Metrics/snapshots use promoted_social_handles. |
+
+### 6.2 Campaign creation / sync
+
+- **Current sync** (Linkary → CRM): Upserts campaign with `workspace_id`, `source_linkary_campaign_id`, `title`, `status`, `updated_at` only. All new columns are nullable; sync is unchanged and safe.
+- **Setting extended fields:** No CRM UI yet to create campaigns; they come from sync. Operator can set promoted_org_id and promoted_social_handles (and other definition fields) via a future campaign edit form or API. Until then, fields can be backfilled or set by an admin/script.
+
+### 6.3 Schema changes (M9 implemented)
+
+- **Migration:** `supabase/migrations/20260412000000_crm_campaign_definition_extension.sql`
+  - `crm_campaigns`: reward_date, campaign_value_usd, token_or_usdt, required_platforms (text[]), weekly_required_posts, daily_engagement_required, promoted_org_id (FK orgs), promoted_social_handles (jsonb). Index on promoted_org_id.
+  - `crm_tasks`: deliverable_type (text, nullable, CHECK one_off | weekly_post | daily_engagement | custom).
+
+### 6.4 What was implemented now
+
+- Migration applied; types and selects updated in `campaigns.ts` and `tasks.ts`; campaign detail page shows a “Campaign definition” section when any new field is set (reward date, value, token, required platforms, weekly/daily requirements, promoted org, promoted social handles).
+- Manual tasks, sync, RLS, bundle view, and existing CRM behavior unchanged.
+
+### 6.5 What becomes possible next
+
+- **Contribution engine (M6):** Can use `required_platforms`, `weekly_required_posts`, and `deliverable_type` to weight or categorize completion.
+- **Reporting (M7):** Can show reward_date, campaign value, token, and “Promoted” + “Accounts” from promoted_org_id and promoted_social_handles.
+- **Growth tracking (M8):** Snapshot table can key off campaign_id + (platform, handle) from promoted_social_handles; no dependency on operator workspace accounts.
+- **Campaign edit UI:** Form to set/update definition fields (including promoted project and promoted social accounts) without changing sync.
+
+---
+
+## 7. Files to touch (M5.5 only — first pass)
 
 - **New:** `apps/crm/src/lib/bundles.ts` — getTaskBundleProgress, fetchMyCampaignBundles.
 - **Update:** `apps/crm/src/app/(dashboard)/tasks/page.tsx` — fetch my bundles, pass to new section; support `campaign` query param and filter tasks by campaign_id.
@@ -201,3 +238,5 @@ Order: **M5.5 first** (bundle + creator view), then M6, then M7, then M8/M9 as n
 No migration in M5.5; progress is computed from existing `crm_tasks` and `crm_task_bundles`.
 
 **M5.5 first pass implemented:** `apps/crm/src/lib/bundles.ts` (getTaskBundleProgress, fetchMyCampaignBundles), tasks page "My campaign work" section with MyCampaignBundles component, `/tasks?campaign=<id>` filter, TasksFilters campaign pill and clear link.
+
+**M9 campaign definition implemented:** Migration `20260412000000_crm_campaign_definition_extension.sql`; `apps/crm/src/lib/campaigns.ts` (CampaignRow + PromotedSocialHandle, getCampaign/fetchCampaignsForUser select new fields); `apps/crm/src/lib/tasks.ts` (DeliverableType, TaskRow.deliverable_type, select deliverable_type); `apps/crm/src/app/(dashboard)/campaigns/[id]/page.tsx` (Campaign definition section when any new field present). Sync unchanged.

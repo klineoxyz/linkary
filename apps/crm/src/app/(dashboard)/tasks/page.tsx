@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { SetupRequired } from "@/components/SetupRequired";
 import { resolveCrmAccess, CREATOR_BOOTSTRAP_PROFILE_TYPE } from "@/lib/access";
@@ -11,6 +10,11 @@ import { TasksList } from "./TasksList";
 import { TasksFilters } from "./TasksFilters";
 import { CreateTaskButton } from "./CreateTaskButton";
 import { MyCampaignBundles } from "./MyCampaignBundles";
+import {
+  TasksNoProfile,
+  TasksWrongProfileType,
+  TasksWorkspaceCreationFailed,
+} from "./TasksOnboarding";
 
 const VALID_FILTERS: TaskFilter[] = [
   "all",
@@ -20,30 +24,6 @@ const VALID_FILTERS: TaskFilter[] = [
   "submitted",
   "approved",
 ];
-
-/** No-access state: user is not eligible for creator workspace and has none. */
-function TasksNoAccess() {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
-      <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center space-y-4">
-        <p className="text-[var(--crm-foreground)] font-medium">
-          You don’t have access to a personal task board
-        </p>
-        <p className="text-sm text-[var(--crm-muted)] max-w-md mx-auto">
-          Only individual creator accounts can create one. If you have org or campaign access, use{" "}
-          <Link href="/campaigns" className="underline text-[var(--crm-primary)]">
-            Campaigns
-          </Link>{" "}
-          from the sidebar or{" "}
-          <Link href="/" className="underline text-[var(--crm-primary)]">
-            home
-          </Link>.
-        </p>
-      </div>
-    </div>
-  );
-}
 
 export default async function TasksPage({
   searchParams,
@@ -73,18 +53,11 @@ export default async function TasksPage({
       const { error: insertErr } = await supabase.from("profiles").insert({
         id: user.id,
         profile_type: CREATOR_BOOTSTRAP_PROFILE_TYPE,
+        published: false,
       });
       if (insertErr) {
         const { message, hint } = workspaceBootstrapMessage("no_profile");
-        return (
-          <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
-            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center space-y-2">
-              <p className="text-[var(--crm-foreground)]">{message}</p>
-              {hint && <p className="text-sm text-[var(--crm-muted)]">{hint}</p>}
-            </div>
-          </div>
-        );
+        return <TasksNoProfile message={message} hint={hint} />;
       }
       profileRow = { id: user.id, profile_type: CREATOR_BOOTSTRAP_PROFILE_TYPE } as { id: string; profile_type: string };
     }
@@ -92,7 +65,7 @@ export default async function TasksPage({
     const eligibleToBootstrap =
       (profileRow as { profile_type?: string }).profile_type === CREATOR_BOOTSTRAP_PROFILE_TYPE;
     if (!eligibleToBootstrap) {
-      return <TasksNoAccess />;
+      return <TasksWrongProfileType />;
     }
   }
 
@@ -100,15 +73,7 @@ export default async function TasksPage({
   if (!wsResult || "error" in wsResult) {
     const reason = wsResult && "error" in wsResult ? wsResult.error : "unknown";
     const { message, hint } = workspaceBootstrapMessage(reason);
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
-        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center space-y-2">
-          <p className="text-[var(--crm-foreground)]">{message}</p>
-          {hint && <p className="text-sm text-[var(--crm-muted)]">{hint}</p>}
-        </div>
-      </div>
-    );
+    return <TasksWorkspaceCreationFailed message={message} hint={hint} />;
   }
   const ws = wsResult;
 

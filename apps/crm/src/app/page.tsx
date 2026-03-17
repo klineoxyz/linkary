@@ -74,28 +74,26 @@ export default async function HomePage() {
   // accessType === "none" — no CRM workspaces yet; only eligible users can bootstrap creator
   return (
     <HomeShell>
-      <div className="w-full max-w-md rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 shadow-sm text-center">
+      <div className="w-full max-w-md rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 shadow-sm text-center">
+        <div className="flex justify-center mb-4">
+          <ListTodo className="h-12 w-12 text-[var(--crm-primary)]" aria-hidden />
+        </div>
         <h1 className="text-xl font-semibold text-[var(--crm-foreground)] mb-2">
-          No workspace yet
+          Get your personal task board
         </h1>
         <p className="text-sm text-[var(--crm-muted)] mb-6">
-          You don’t have access to any CRM workspace yet. If you’re an individual
-          creator, set up your personal task board below. Otherwise request
-          access from your org admin or use Campaigns when invited.
+          You don’t have a task board yet. Click below to create one — you’ll be able to add and manage tasks right away.
         </p>
-        <div className="space-y-3">
-          <Link
-            href="/tasks"
-            className="inline-flex items-center gap-2 rounded-lg bg-[var(--crm-primary)] px-4 py-2.5 text-sm font-medium text-[var(--crm-primary-foreground)] hover:opacity-90"
-          >
-            <ListTodo className="h-4 w-4" />
-            Set up my task board
-          </Link>
-          <p className="text-xs text-[var(--crm-muted)]">
-            Only individual creator accounts get a personal board. Org/project/company
-            accounts see a no-access message on Tasks and should use Campaigns instead.
-          </p>
-        </div>
+        <Link
+          href="/tasks"
+          className="inline-flex items-center gap-2 rounded-lg bg-[var(--crm-primary)] px-5 py-2.5 text-sm font-medium text-[var(--crm-primary-foreground)] hover:opacity-90"
+        >
+          <ListTodo className="h-4 w-4" />
+          Create my task board
+        </Link>
+        <p className="text-xs text-[var(--crm-muted)] mt-6">
+          Individual creator accounts get a personal board. Org or project accounts should use Campaigns or request access from an admin.
+        </p>
       </div>
     </HomeShell>
   );

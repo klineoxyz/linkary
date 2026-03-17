@@ -66,3 +66,22 @@ That means **workspace** or **board** creation failed (e.g. RLS or duplicate slu
 | "Could not create your workspace" | Profile exists but workspace/board insert failed | Ensure profile exists for `auth.uid()`; check Supabase logs and RLS. |
 
 No code changes are required for **Campaigns** or **reporting**; this only affects the **Tasks** (personal task board) flow for individuals.
+
+---
+
+## Backend vs UI vs remaining (individual task experience)
+
+**Backend / access logic only (no visible UI change):**
+- Profile bootstrap: when no profile exists, CRM tries to insert `profiles(id, profile_type, published)` so workspace creation can run; `createTaskAction` uses `getOrCreateCreatorWorkspaceAndBoard` so adding a task also resolves workspace/board.
+- RLS and workspace/board creation logic are unchanged; only the minimal profile insert and the way we render failure states changed.
+
+**Actual visible UI changes:**
+- **Home (no workspace yet):** Headline is now “Get your personal task board”; one short line of copy; primary CTA “Create my task board”; smaller note about individual vs org.
+- **Tasks — no profile:** Dedicated “Set up your account for Tasks” card with icon, message, hint, and “Back to home” link.
+- **Tasks — wrong profile type:** Dedicated “Personal task board isn’t available” card with icon, short explanation, and “Go to Campaigns” / “Home” CTAs.
+- **Tasks — workspace creation failed:** Dedicated “We couldn’t create your task board” card with icon, message, “Try again” (link to `/tasks`) and note to sign out/in; support note at bottom.
+
+**What still remains for a better individual creator task experience:**
+- Optional: progress or step indicator on home (“Step 1: Create your board”) and a brief “You’re all set” moment on first load of /tasks after bootstrap.
+- Optional: empty state on the task list (e.g. “No tasks yet — add your first task”) with a prominent “New task” CTA.
+- If `profiles` has more NOT NULL columns in your deployment, the minimal profile insert may still fail; then the “Set up your account for Tasks” state is shown and the doc above applies.

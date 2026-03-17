@@ -121,12 +121,12 @@ After deploying the org campaign dashboard (M4):
 
 ## 10. Linkary sync + org submission review verification checklist
 
-- [ ] **Accepted Linkary sprint/gig creates CRM records once** — Trigger sync after acceptance; campaign, participant, task bundle, and tasks appear in CRM. Creator sees generated tasks (on /tasks when they have a creator workspace).
-- [ ] **Repeated sync does not duplicate records** — Trigger sync again with the same payload; no duplicate campaigns, participants, bundles, or tasks.
-- [ ] **Creator submits proof URL** — Creator opens task detail and submits a proof URL; submission appears with status “pending” and is visible in campaign submissions.
-- [ ] **Org can approve / reject / request revision** — On campaign detail, org user with workspace access sees “Approve”, “Reject”, “Needs revision” for pending submissions; optional note is stored; status and reviewer are updated.
-- [ ] **Unauthorized user cannot review submissions** — User who is not a member of the campaign’s workspace cannot call review action (server returns error). Creator cannot review their own submission (server returns “You cannot review your own submission”).
-- [ ] **Campaign detail reflects the resulting records** — After sync and submissions, campaign detail shows correct participant count, submission count, submissions table with statuses, and top contributors.
+- [ ] **Real acceptance triggers sync** — Accept a job application (org job) as org owner/admin; sync runs after success. Campaign, participant, task bundle, and tasks appear in CRM. Acceptance response succeeds even if sync fails (sync is non-blocking).
+- [ ] **Org → CRM workspace mapping resolves** — The org that owns the job has a CRM workspace with `linked_org_id` set to that org’s id. Sync receives `org_id` and resolves workspace correctly; no manual workspace_id needed.
+- [ ] **Accepted creator sees synced tasks** — Accepted creator (profile_type = individual) sees generated tasks on **/tasks** (creator workspace is bootstrapped if needed; tasks are on their personal board). Non-eligible participant gets tasks on org board and is added as workspace member so they have access.
+- [ ] **Repeated sync stays idempotent** — Trigger sync again with the same payload; no duplicate campaigns, participants, bundles, or tasks.
+- [ ] **Org review still works** — Creator submits proof URL; org user can approve/reject/request revision on campaign detail. Unauthorized user cannot review; creator cannot review own submission.
+- [ ] **No regression in apps/web acceptance flow** — Accepting an application still returns 200 and deal; no UI change; sync runs in background and does not block or alter the response.
 
 ---
 

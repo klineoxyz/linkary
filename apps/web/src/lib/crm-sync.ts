@@ -3,7 +3,10 @@
  * Requires CRM_APP_URL and CRM_SYNC_SECRET in env. See docs/LINKARY_CRM_SYNC.md.
  */
 export type LinkarySyncPayload = {
-  workspace_id: string;
+  /** CRM workspace id (use when you have it). */
+  workspace_id?: string;
+  /** Linkary org id (CRM resolves workspace via crm_workspaces.linked_org_id). Prefer when accepting org jobs. */
+  org_id?: string;
   source_linkary_campaign_id: string;
   campaign_title?: string;
   participant_profile_id: string;

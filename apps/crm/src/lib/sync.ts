@@ -1,9 +1,10 @@
 /**
  * CRM: Idempotent Linkary → CRM sync. Creates/upserts campaign, participant, task bundle, tasks.
- * Uses source identifiers to avoid duplicates when sync is triggered multiple times.
- * Call from API route only, with service-role client.
+ * Uses source identifiers to avoid duplicates. Call from API route only, with service-role client.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { canBootstrapCreatorWorkspace } from "@/lib/access";
+import { getOrCreateCreatorWorkspaceAndBoard } from "@/lib/workspace";
 
 export type LinkarySyncTask = {
   linkary_task_id: string;
@@ -12,8 +13,10 @@ export type LinkarySyncTask = {
   platform?: string | null;
 };
 
+/** workspace_id or org_id (Linkary org uuid); CRM resolves workspace from org via crm_workspaces.linked_org_id. */
 export type LinkarySyncPayload = {
-  workspace_id: string;
+  workspace_id?: string;
+  org_id?: string;
   source_linkary_campaign_id: string;
   campaign_title?: string;
   participant_profile_id: string;
@@ -28,23 +31,65 @@ export type LinkarySyncResult = {
   error?: string;
 };
 
+const ORG_WORKSPACE_TYPES = ["org", "project", "brand", "agency"] as const;
+
 /**
- * Get or create a board for the workspace (kind 'campaign' or 'ops'). Used for synced tasks.
+ * Resolve CRM workspace id from Linkary org id. Source of truth: crm_workspaces.linked_org_id.
+ * When creating an org workspace in CRM, set linked_org_id to the Linkary org id so this resolution works.
  */
+export async function getCrmWorkspaceIdByOrgId(
+  supabase: SupabaseClient,
+  orgId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("crm_workspaces")
+    .select("id")
+    .eq("linked_org_id", orgId)
+    .in("type", ORG_WORKSPACE_TYPES)
+    .limit(1)
+    .maybeSingle();
+
+  return (data as { id?: string } | null)?.id ?? null;
+}
+
+/**
+ * Ensure profile is a member of the workspace so they can see tasks on the org board (fallback when not eligible for creator workspace).
+ */
+async function ensureWorkspaceMember(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  profileId: string
+): Promise<{ error?: string }> {
+  const { data: existing } = await supabase
+    .from("crm_workspace_members")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("profile_id", profileId)
+    .maybeSingle();
+
+  if (existing?.id) return {};
+
+  const { error } = await supabase.from("crm_workspace_members").insert({
+    workspace_id: workspaceId,
+    profile_id: profileId,
+    role: "member",
+  });
+  if (error) return { error: error.message };
+  return {};
+}
+
 async function getOrCreateOrgBoard(
   supabase: SupabaseClient,
   workspaceId: string
 ): Promise<string | null> {
-  const { data: existingList } = await supabase
+  const { data: list } = await supabase
     .from("crm_boards")
     .select("id")
     .eq("workspace_id", workspaceId)
     .in("kind", ["campaign", "ops"])
     .limit(1);
-  const existing = Array.isArray(existingList) ? existingList[0] : existingList;
-
-  if (existing && (existing as { id?: string }).id) return (existing as { id: string }).id;
-
+  const first = Array.isArray(list) ? list[0] : list;
+  if (first && (first as { id?: string }).id) return (first as { id: string }).id;
   const { data: inserted, error } = await supabase
     .from("crm_boards")
     .insert({
@@ -54,36 +99,80 @@ async function getOrCreateOrgBoard(
     })
     .select("id")
     .single();
-
   if (error || !inserted?.id) return null;
   return inserted.id as string;
 }
 
 /**
+ * Validate payload and resolve workspace_id. Returns [workspace_id, error].
+ */
+async function resolveWorkspaceAndValidate(
+  supabase: SupabaseClient,
+  payload: LinkarySyncPayload
+): Promise<[string | null, string | null]> {
+  const { workspace_id, org_id, source_linkary_campaign_id, participant_profile_id, tasks } = payload;
+
+  if (typeof source_linkary_campaign_id !== "string" || !source_linkary_campaign_id.trim()) {
+    return [null, "source_linkary_campaign_id is required"];
+  }
+  if (typeof participant_profile_id !== "string" || !participant_profile_id.trim()) {
+    return [null, "participant_profile_id is required"];
+  }
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return [null, "At least one task is required"];
+  }
+  for (let i = 0; i < tasks.length; i++) {
+    const t = tasks[i];
+    if (!t || typeof t !== "object" || typeof (t as LinkarySyncTask).title !== "string" || !(t as LinkarySyncTask).title.trim()) {
+      return [null, `tasks[${i}].title is required`];
+    }
+    const lid = (t as LinkarySyncTask).linkary_task_id;
+    if (lid !== undefined && (typeof lid !== "string" || !lid.trim())) {
+      return [null, `tasks[${i}].linkary_task_id must be a non-empty string when provided`];
+    }
+  }
+
+  let workspaceId: string | null = null;
+  if (workspace_id && typeof workspace_id === "string" && workspace_id.trim()) {
+    workspaceId = workspace_id.trim();
+  } else if (org_id && typeof org_id === "string" && org_id.trim()) {
+    workspaceId = await getCrmWorkspaceIdByOrgId(supabase, org_id.trim());
+    if (!workspaceId) {
+      return [null, "No CRM workspace linked to this org; create an org workspace in CRM with linked_org_id set"];
+    }
+  }
+  if (!workspaceId) {
+    return [null, "Either workspace_id or org_id is required"];
+  }
+  return [workspaceId, null];
+}
+
+/**
  * Idempotent sync: create or upsert campaign, participant, task bundle, and tasks.
- * Uses source_linkary_campaign_id for campaign; (campaign_id, participant_profile_id) for participant and bundle;
- * (task_bundle_id, metadata->>'linkary_task_id') for task deduplication.
+ * Creator task visibility: if participant is eligible for creator workspace, bootstrap and put tasks on creator board; else add as org workspace member and put tasks on org board.
  */
 export async function runLinkarySync(
   supabase: SupabaseClient,
   payload: LinkarySyncPayload
 ): Promise<LinkarySyncResult> {
+  const [workspace_id, validationError] = await resolveWorkspaceAndValidate(supabase, payload);
+  if (validationError || !workspace_id) {
+    return { ok: false, error: validationError ?? "Invalid payload" };
+  }
+
   const {
-    workspace_id,
     source_linkary_campaign_id,
     campaign_title,
     participant_profile_id,
-    tasks,
+    tasks: taskListRaw,
   } = payload;
 
-  if (!workspace_id || !source_linkary_campaign_id || !participant_profile_id) {
-    return { ok: false, error: "workspace_id, source_linkary_campaign_id, and participant_profile_id are required" };
-  }
-
-  const taskList = Array.isArray(tasks) ? tasks : [];
-  if (taskList.length === 0) {
-    return { ok: false, error: "At least one task is required" };
-  }
+  const taskList = taskListRaw.map((t) => ({
+    linkary_task_id: (t as LinkarySyncTask).linkary_task_id ?? (t as LinkarySyncTask).title,
+    title: (t as LinkarySyncTask).title.trim(),
+    description: (t as LinkarySyncTask).description ?? null,
+    platform: (t as LinkarySyncTask).platform ?? null,
+  }));
 
   let campaignId: string;
 
@@ -115,7 +204,7 @@ export async function runLinkarySync(
       .single();
 
     if (campErr || !insertedCampaign?.id) {
-      return { ok: false, error: campErr?.message ?? "Failed to create campaign" };
+      return { ok: false, error: "Failed to create campaign" };
     }
     campaignId = insertedCampaign.id as string;
   }
@@ -136,7 +225,7 @@ export async function runLinkarySync(
       accepted_at: new Date().toISOString(),
     });
     if (partErr) {
-      return { ok: false, campaign_id: campaignId, error: partErr.message };
+      return { ok: false, campaign_id: campaignId, error: "Failed to add participant" };
     }
   }
 
@@ -164,12 +253,12 @@ export async function runLinkarySync(
       .single();
 
     if (bundleErr || !insertedBundle?.id) {
-      return { ok: false, campaign_id: campaignId, error: bundleErr?.message ?? "Failed to create task bundle" };
+      return { ok: false, campaign_id: campaignId, error: "Failed to create task bundle" };
     }
     taskBundleId = insertedBundle.id as string;
   }
 
-  // Prefer creator's personal board so tasks appear on /tasks for the participant
+  // Prefer creator's personal board so tasks appear on /tasks
   const { data: creatorWs } = await supabase
     .from("crm_workspaces")
     .select("id")
@@ -194,8 +283,24 @@ export async function runLinkarySync(
   }
 
   if (!boardId) {
+    const eligible = await canBootstrapCreatorWorkspace(supabase, participant_profile_id);
+    if (eligible) {
+      const creatorBoard = await getOrCreateCreatorWorkspaceAndBoard(supabase, participant_profile_id);
+      if (creatorBoard) {
+        boardId = creatorBoard.boardId;
+        taskWorkspaceId = creatorBoard.workspaceId;
+      }
+    }
+  }
+
+  if (!boardId) {
+    const ensure = await ensureWorkspaceMember(supabase, workspace_id, participant_profile_id);
+    if (ensure.error) {
+      return { ok: false, campaign_id: campaignId, task_bundle_id: taskBundleId, error: "Failed to add participant to workspace" };
+    }
     boardId = await getOrCreateOrgBoard(supabase, workspace_id);
   }
+
   if (!boardId) {
     return { ok: false, campaign_id: campaignId, task_bundle_id: taskBundleId, error: "Failed to get or create board" };
   }
@@ -234,7 +339,7 @@ export async function runLinkarySync(
         campaign_id: campaignId,
         task_bundle_id: taskBundleId,
         tasks_created: tasksCreated,
-        error: taskErr.message,
+        error: "Failed to create task",
       };
     }
     tasksCreated++;

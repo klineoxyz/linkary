@@ -39,7 +39,7 @@ export async function POST(
 
   const { data: job, error: jobErr } = await supabase
     .from("jobs")
-    .select("id, org_id, status")
+    .select("id, org_id, status, title")
     .eq("id", app.job_id)
     .maybeSingle();
 
@@ -95,6 +95,19 @@ export async function POST(
       await createNotification(profileId, "application_accepted", { entity_type: "application", entity_id: applicationId, payload: { job_id: job.id, org_id: job.org_id } });
     } catch (_) {
       /* non-blocking */
+    }
+    try {
+      const { triggerLinkaryCrmSync } = await import("@/lib/crm-sync");
+      const jobTitle = (job as { title?: string }).title?.trim() || "Deliverables";
+      await triggerLinkaryCrmSync({
+        org_id: job.org_id,
+        source_linkary_campaign_id: job.id,
+        campaign_title: jobTitle,
+        participant_profile_id: profileId,
+        tasks: [{ linkary_task_id: job.id, title: jobTitle }],
+      });
+    } catch (_) {
+      /* non-blocking; sync failure does not fail acceptance */
     }
     return NextResponse.json({ ok: true, deal });
   }

@@ -16,8 +16,9 @@ Idempotent sync from Linkary (sprint/gig acceptance) into CRM: campaign, partici
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `workspace_id` | string (UUID) | Yes | CRM workspace id (org/project/brand/agency). Caller must resolve Linkary org → CRM workspace. |
-| `source_linkary_campaign_id` | string | Yes | Linkary campaign/sprint/gig identifier. Used for idempotent campaign upsert. |
+| `workspace_id` | string (UUID) | One of these | CRM workspace id (org/project/brand/agency). Use when you already have it. |
+| `org_id` | string (UUID) | One of these | **Linkary org id.** CRM resolves workspace via `crm_workspaces.linked_org_id`. Prefer this for job/sprint acceptance. |
+| `source_linkary_campaign_id` | string | Yes | Linkary campaign/sprint/job identifier. Used for idempotent campaign upsert. |
 | `campaign_title` | string | No | Campaign title; applied on create and on subsequent sync (upsert). |
 | `participant_profile_id` | string (UUID) | Yes | `profiles.id` of the creator who accepted. |
 | `tasks` | array | Yes | At least one task. Each item: see below. |
@@ -59,12 +60,25 @@ Repeated POSTs with the same payload do not create duplicate campaigns, particip
 
 ---
 
-## 4. Where to trigger (apps/web)
+## 4. Org → CRM workspace mapping
 
-Call the sync **once** after a sprint/gig is accepted (creator has accepted participation). Prefer a single server-side call from the handler that performs the acceptance (e.g. after updating collab_request status to accepted or after creating a gig_deal).
+**Source of truth:** `crm_workspaces.linked_org_id` (references Linkary `orgs.id`). When you create an org workspace in CRM, set `linked_org_id` to the Linkary org id so sync can resolve it.
 
-- **Minimal integration:** In apps/web, call `triggerLinkaryCrmSync(payload)` from server-side only (see `apps/web/src/lib/crm-sync.ts`). Set `CRM_APP_URL` (e.g. `https://crm.linkary.xyz`) and `CRM_SYNC_SECRET` (same as in CRM) in apps/web env.
-- **Resolving `workspace_id`:** You need the CRM workspace id for the org that owns the sprint/gig. Options: store `crm_workspace_id` on the Linkary org, or have a small mapping table/API that returns CRM workspace id by Linkary org id.
+- **Using `org_id` in payload:** Pass Linkary `orgs.id`. CRM resolves `workspace_id` by selecting the CRM workspace where `linked_org_id = org_id` and type is org/project/brand/agency. If none exists, sync returns a clear error: "No CRM workspace linked to this org".
+- **Using `workspace_id` in payload:** Use when you already have the CRM workspace id (e.g. from another flow).
+
+## 5. Creator task visibility
+
+- **Eligible creators (profile_type = individual):** If the participant has no creator workspace yet, sync bootstraps one (same as `/tasks` eligibility) and creates tasks on their personal board so they appear on **/tasks**.
+- **Existing creator workspace:** Tasks are created on the participant’s personal board.
+- **Not eligible (e.g. org/profile company):** Participant is added as a **member** of the org workspace and tasks are created on the org campaign board; they can see tasks via workspace membership (e.g. in Campaigns or a future "my campaign tasks" view).
+
+## 6. Where to trigger (apps/web)
+
+Sync is **wired** for **job application acceptance:** when an org owner/admin accepts an application via `POST /api/applications/[id]/accept`, the handler calls `triggerLinkaryCrmSync` with `org_id`, `job.id`, job title, and the applicant’s profile id. No UI change; server-side only.
+
+- **Payload:** Use `org_id` (Linkary org id) so CRM resolves the workspace. Set `CRM_APP_URL` and `CRM_SYNC_SECRET` in apps/web env.
+- **Other flows (e.g. gig acceptance):** Call `triggerLinkaryCrmSync(payload)` from the relevant server-side handler when you have org_id or workspace_id and task list.
 
 ---
 
@@ -75,6 +89,6 @@ Call the sync **once** after a sprint/gig is accepted (creator has accepted part
 
 ---
 
-## 6. Logging
+## 8. Logging
 
 Sync failures are logged server-side with `[CRM sync]` and the error message. The API returns 4xx/5xx with a short `error` message; do not expose internal details to the client.

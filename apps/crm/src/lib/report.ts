@@ -12,7 +12,7 @@ import {
   type CampaignSubmissionRow,
   type TopContributor,
 } from "@/lib/campaigns";
-import { getAccountGrowth, type AccountGrowth } from "@/lib/snapshots";
+import { getAccountGrowth, getEndSnapshotStatus, type AccountGrowth, type EndSnapshotStatus } from "@/lib/snapshots";
 import type { ContributionRow } from "@/lib/contribution";
 import { computeContribution } from "@/lib/contribution";
 
@@ -50,6 +50,8 @@ export type CampaignReportData = {
   account_growth: AccountGrowth[];
   has_metrics: boolean;
   finalized_at: string | null;
+  /** End snapshot coverage for promoted_social_handles; used for finalize safety and report completeness. */
+  end_snapshot_status: EndSnapshotStatus;
 };
 
 /**
@@ -64,7 +66,8 @@ export async function getCampaignReportData(
   if (!campaign) return null;
 
   const useFinalShare = !!campaign.finalized_at;
-  const [kpis, submissions, topContributors, dailyRows, contributionRows, accountGrowth] =
+  const promotedHandles = campaign.promoted_social_handles ?? [];
+  const [kpis, submissions, topContributors, dailyRows, contributionRows, accountGrowth, endSnapshotStatus] =
     await Promise.all([
       getCampaignKpis(supabase, campaignId, {
         budget: campaign.budget,
@@ -82,6 +85,7 @@ export async function getCampaignReportData(
         ...(useFinalShare ? { statuses: ["approved"] as const } : {}),
       }),
       getAccountGrowth(supabase, campaignId),
+      getEndSnapshotStatus(supabase, campaignId, promotedHandles),
     ]);
 
   const contributionByProfile = new Map(
@@ -147,6 +151,7 @@ export async function getCampaignReportData(
     account_growth: accountGrowth,
     has_metrics: kpis.has_metrics,
     finalized_at: campaign.finalized_at ?? null,
+    end_snapshot_status: endSnapshotStatus,
   };
 }
 
@@ -162,6 +167,11 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
   rows.push({ section: "overview", label: "Start date", value: fmt(data.start_date) });
   rows.push({ section: "overview", label: "End date", value: fmt(data.end_date) });
   rows.push({ section: "overview", label: "Finalized at", value: fmt(data.finalized_at) });
+  rows.push({
+    section: "overview",
+    label: "End snapshots (promoted accounts)",
+    value: `${data.end_snapshot_status.endSnapshotCount}/${data.end_snapshot_status.promotedCount}`,
+  });
 
   rows.push({ section: "campaign_period", label: "Total posts (campaign-period)", value: data.total_posts });
   rows.push({ section: "campaign_period", label: "Total views (campaign-period)", value: data.total_views });

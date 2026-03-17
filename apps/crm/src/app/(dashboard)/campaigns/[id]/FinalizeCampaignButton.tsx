@@ -1,17 +1,40 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { finalizeCampaignAction } from "./actions";
+import type { EndSnapshotStatus } from "@/lib/snapshots";
 
-export function FinalizeCampaignButton({ campaignId }: { campaignId: string }) {
+export function FinalizeCampaignButton({
+  campaignId,
+  endSnapshotStatus,
+}: {
+  campaignId: string;
+  endSnapshotStatus: EndSnapshotStatus;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  const { promotedCount, endSnapshotCount, hasAllEndSnapshots } = endSnapshotStatus;
+  const missingEndSnapshots = promotedCount > 0 && !hasAllEndSnapshots;
+
   async function handleClick() {
     if (busy) return;
-    if (!confirm("Finalize this campaign? Contribution will be set to approved-only and won’t be overwritten by progress recalc.")) return;
+    if (missingEndSnapshots) {
+      const proceed = confirm(
+        `${endSnapshotCount}/${promotedCount} promoted accounts have end snapshots. ` +
+          `Growth data will be incomplete for the rest. Record end snapshots on the report page first, or finalize anyway?`
+      );
+      if (!proceed) return;
+    }
+    if (
+      !confirm(
+        "Finalize this campaign? Contribution will be set to approved-only and won't be overwritten by progress recalc."
+      )
+    )
+      return;
     setBusy(true);
     setError(null);
     const result = await finalizeCampaignAction(campaignId);
@@ -24,7 +47,7 @@ export function FinalizeCampaignButton({ campaignId }: { campaignId: string }) {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <button
         type="button"
         onClick={handleClick}
@@ -33,6 +56,14 @@ export function FinalizeCampaignButton({ campaignId }: { campaignId: string }) {
       >
         {busy ? "Finalizing…" : "Finalize campaign"}
       </button>
+      {promotedCount > 0 && (
+        <Link
+          href={`/campaigns/${campaignId}/report`}
+          className="text-sm text-[var(--crm-muted)] hover:text-[var(--crm-primary)] underline"
+        >
+          Record end snapshots
+        </Link>
+      )}
       {error && (
         <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
       )}

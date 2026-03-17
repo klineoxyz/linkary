@@ -15,13 +15,14 @@
 
 - **Manual recording:** Report page has "Record snapshot" form. Operator chooses type (baseline / daily / end), optional date, and optional metric fields. One snapshot row is inserted per promoted_social_handles entry with the same metrics and snapshot_at. Stored data only; no fake metrics.
 - **API:** `recordSnapshotAction(campaignId, formData)` in `apps/crm/src/app/(dashboard)/campaigns/[id]/actions.ts`. Form fields: `snapshot_type`, `snapshot_at` (optional), `followers`, `views`, `likes`, `replies`, `quotes`, `reposts`, `engagement_total` (all optional).
-- **Worker-ready:** Same `upsertAccountSnapshot` in `@/lib/snapshots` can be called from a cron/worker with the same payload shape (campaign_id, platform, handle, snapshot_type, snapshot_at, metrics).
+- **Worker-ready:** `recordSnapshotFromPayloadAction(campaignId, snapshotType, snapshotAt, metrics)` in same actions file. Same effect as the form; accepts explicit params for cron/bulk. RLS: caller must be workspace member. Core logic remains `upsertAccountSnapshot` in `@/lib/snapshots`.
 
 ---
 
 ## 3. Finalize campaign flow (implemented)
 
-- **UI:** Campaign detail page shows "Finalize campaign" button when `finalized_at` is null. Confirmation before submit.
+- **UI:** Campaign detail page shows "Finalize campaign" button when `finalized_at` is null. "Record end snapshots" link goes to report. Confirmation before submit.
+- **End snapshot safety:** Before finalizing, if the campaign has promoted_social_handles but not all have end snapshots, operator sees a warning: "X/Y promoted accounts have end snapshots. Growth data will be incomplete… Record end snapshots on the report page first, or finalize anyway?" They can cancel and use the link to record, or confirm twice to finalize anyway.
 - **Server action:** `finalizeCampaignAction(campaignId)`:
   1. Sets `crm_campaigns.finalized_at = now()` via `setCampaignFinalized`.
   2. Runs `writeContribution(supabase, campaignId, { weighted: true, statuses: ['approved'] })` to write final share to `crm_task_bundles.contribution_percent` and `crm_campaign_participants.contribution_percent`.
@@ -40,6 +41,7 @@
 
 - **Labels:** Report metrics section separates "Campaign-period" (posts, views, engagements from crm_campaign_metrics_daily) and "Promoted-account snapshot totals" (likes, replies, quotes, reposts from end snapshots). Each of likes/replies/quotes/reposts is labeled "end snapshots" and "Promoted-account totals" so it is clear they are not campaign-attributed.
 - **Growth:** "Promoted-account growth (baseline → end)" table shows deltas from getAccountGrowth only.
+- **Snapshot completeness:** Report shows "End snapshots: X/Y promoted accounts". When campaign is finalized and not all promoted accounts have end snapshots, report shows: "Growth data is partial (not all promoted accounts have end snapshots)." CSV export includes one row "End snapshots (promoted accounts)" with value "X/Y".
 
 ---
 
@@ -63,11 +65,13 @@
 | Report labels (campaign vs snapshot) | Implemented |
 | Export-ready shape | reportRowsForExport implemented |
 | CSV export | Implemented; Download CSV on report page |
+| End snapshot status | getEndSnapshotStatus in snapshots; report + finalize use it |
+| Finalize + end snapshot safety | Warn when missing; "Record end snapshots" link; optional finalize anyway |
+| Worker-ready snapshot | recordSnapshotFromPayloadAction(campaignId, type, at, metrics) |
 
 ---
 
 ## 8. What should come next
 
 - **PDF export (optional):** Add "Download PDF" on report page using same report data and export rows if needed; CSV is done.
-- **Optional end snapshots at finalize:** If desired, finalize flow could call record snapshot (type=end) for each promoted handle with metrics provided in a modal or separate step; currently operator records end snapshots manually before/after finalize.
-- **Scheduled snapshot ingestion:** If daily snapshots should be automated, add a worker/cron that reads campaigns with promoted_social_handles and calls an API or internal job to record daily snapshots (metrics would need to come from an external source or manual bulk upload).
+- **Scheduled snapshot ingestion:** Cron/worker can call `recordSnapshotFromPayloadAction` (with an authenticated client or API route that validates a cron secret). Metrics would need to come from an external source or manual bulk entry; no full external API automation in this pass.

@@ -11,6 +11,7 @@ import {
 } from "@/lib/campaigns";
 import { getCampaignCompliance } from "@/lib/compliance";
 import { writeContribution } from "@/lib/contribution";
+import { getEndSnapshotStatus } from "@/lib/snapshots";
 import { SubmissionReviewRow } from "./SubmissionReviewRow";
 import { CampaignDefinitionForm } from "./CampaignDefinitionForm";
 import { GenerateRecurringTasksButton } from "./GenerateRecurringTasksButton";
@@ -63,7 +64,8 @@ export default async function CampaignDetailPage({
   const campaign = await getCampaign(supabase, id);
   if (!campaign) notFound();
 
-  const [kpis, contributors, submissions, topContributors, workspaceRow, complianceResult, contributionRows] =
+  const promotedHandles = campaign.promoted_social_handles ?? [];
+  const [kpis, contributors, submissions, topContributors, workspaceRow, complianceResult, contributionRows, endSnapshotStatus] =
     await Promise.all([
       getCampaignKpis(supabase, id, {
         budget: campaign.budget,
@@ -75,6 +77,7 @@ export default async function CampaignDetailPage({
       supabase.from("crm_workspaces").select("slug").eq("id", campaign.workspace_id).maybeSingle(),
       getCampaignCompliance(supabase, id),
       writeContribution(supabase, id, { weighted: true }),
+      getEndSnapshotStatus(supabase, id, promotedHandles),
     ]);
 
   const contributionByBundle = new Map(
@@ -132,7 +135,10 @@ export default async function CampaignDetailPage({
             View report
           </Link>
           {!campaign.finalized_at && (
-            <FinalizeCampaignButton campaignId={id} />
+            <FinalizeCampaignButton
+              campaignId={id}
+              endSnapshotStatus={endSnapshotStatus}
+            />
           )}
         </div>
       </div>

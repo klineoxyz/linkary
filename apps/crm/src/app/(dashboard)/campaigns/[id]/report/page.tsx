@@ -73,7 +73,11 @@ export default async function CampaignReportPage({
     account_growth,
     has_metrics,
     finalized_at,
+    end_snapshot_status,
   } = data;
+
+  const { promotedCount, endSnapshotCount, hasAllEndSnapshots } = end_snapshot_status;
+  const growthPartial = finalized_at && promotedCount > 0 && !hasAllEndSnapshots;
 
   const maxChart = Math.max(
     1,
@@ -105,6 +109,16 @@ export default async function CampaignReportPage({
         <p className="mt-1 text-sm text-[var(--crm-muted)]">
           Stored data only. Promoted project and tracked accounts from campaign definition.
         </p>
+        {promotedCount > 0 && (
+          <p className="mt-2 text-sm text-[var(--crm-muted)]">
+            End snapshots: {endSnapshotCount}/{promotedCount} promoted accounts
+            {growthPartial && (
+              <span className="ml-1 text-amber-600 dark:text-amber-400">
+                — Growth data is partial (not all promoted accounts have end snapshots).
+              </span>
+            )}
+          </p>
+        )}
       </div>
 
       <ReportSection title="Campaign overview">

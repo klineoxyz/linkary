@@ -131,3 +131,40 @@ export async function getAccountGrowth(
 
   return result;
 }
+
+export type EndSnapshotStatus = {
+  promotedCount: number;
+  endSnapshotCount: number;
+  hasAllEndSnapshots: boolean;
+};
+
+/**
+ * For a campaign and its promoted handles, how many have an end snapshot.
+ * Used to warn before finalize and to show report completeness.
+ */
+export async function getEndSnapshotStatus(
+  supabase: SupabaseClient,
+  campaignId: string,
+  promotedHandles: { platform: string; handle: string }[]
+): Promise<EndSnapshotStatus> {
+  const promotedCount = promotedHandles.length;
+  if (promotedCount === 0) {
+    return { promotedCount: 0, endSnapshotCount: 0, hasAllEndSnapshots: true };
+  }
+
+  const endSnapshots = await getAccountSnapshots(supabase, campaignId, {
+    snapshotType: "end",
+  });
+  const endKeys = new Set(endSnapshots.map((r) => `${r.platform}:${r.handle}`));
+  const keys = new Set(promotedHandles.map((h) => `${h.platform}:${h.handle}`));
+  let endSnapshotCount = 0;
+  for (const key of keys) {
+    if (endKeys.has(key)) endSnapshotCount++;
+  }
+
+  return {
+    promotedCount,
+    endSnapshotCount,
+    hasAllEndSnapshots: endSnapshotCount === promotedCount,
+  };
+}

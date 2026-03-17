@@ -14,7 +14,7 @@ import {
 import { generateRecurringTasksForCampaignWeek } from "@/lib/recurring";
 import { writeContribution } from "@/lib/contribution";
 import { upsertAccountSnapshot } from "@/lib/snapshots";
-import type { SnapshotType } from "@/lib/snapshots";
+import type { SnapshotMetrics, SnapshotType } from "@/lib/snapshots";
 import { revalidatePath } from "next/cache";
 
 const REVIEW_STATUSES = ["approved", "rejected", "needs_revision"] as const;
@@ -209,6 +209,55 @@ export async function recordSnapshotAction(
       snapshotType,
       snapshotAt,
       metrics
+    );
+    if (out.error) return { error: out.error };
+  }
+
+  revalidatePath(`/campaigns/${campaignId}`);
+  revalidatePath(`/campaigns/${campaignId}/report`);
+  return {};
+}
+
+/**
+ * Record snapshots from explicit payload (same effect as recordSnapshotAction form).
+ * For worker/cron or bulk entry: pass campaignId, snapshotType, snapshotAt (ISO), and metrics.
+ * Records one row per promoted_social_handles with the same metrics. RLS: caller must be workspace member.
+ */
+export async function recordSnapshotFromPayloadAction(
+  campaignId: string,
+  snapshotType: SnapshotType,
+  snapshotAt: string,
+  metrics: SnapshotMetrics
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabase();
+  if (!supabase) return { error: "Not configured" };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Unauthorized" };
+
+  const campaign = await getCampaign(supabase, campaignId);
+  if (!campaign) return { error: "Campaign not found or access denied" };
+
+  const handles = campaign.promoted_social_handles ?? [];
+  if (handles.length === 0) return { error: "No promoted social handles; add them in campaign definition" };
+
+  if (!["baseline", "daily", "end"].includes(snapshotType)) {
+    return { error: "Invalid snapshot_type" };
+  }
+
+  const at = snapshotAt ? new Date(snapshotAt).toISOString() : new Date().toISOString();
+
+  for (const { platform, handle } of handles) {
+    const out = await upsertAccountSnapshot(
+      supabase,
+      campaignId,
+      platform,
+      handle,
+      snapshotType,
+      at,
+      metrics ?? {}
     );
     if (out.error) return { error: out.error };
   }

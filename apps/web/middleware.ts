@@ -6,7 +6,6 @@ import { createClient } from "@supabase/supabase-js";
 /** Canonical host (apex). Session cookies are set here; www must redirect here so /username recognizes the owner. */
 const CANONICAL_APEX = "linkary.xyz";
 
-const INVITE_ONLY = process.env.LINKARY_INVITE_ONLY === "true";
 const ADMIN_TWITTER_HANDLE = "muazxinthi";
 
 /**
@@ -112,8 +111,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Invite-only gate: signed-in users without redeemed invite cannot use /app/* (server-side enforcement)
-  if (INVITE_ONLY && pathname.startsWith("/app")) {
+  // Invite gate: signed-in users without redeemed invite cannot use /app/* (compulsory invite on first login; no skipping)
+  if (pathname.startsWith("/app")) {
     const response = NextResponse.next();
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

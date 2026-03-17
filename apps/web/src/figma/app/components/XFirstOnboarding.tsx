@@ -10,8 +10,7 @@ type Step = "invite" | "role" | "profession";
 
 /**
  * X-first onboarding: referral (always) → role (Individual/Org) → profession(s).
- * - Invite-only ON: referral code required.
- * - Invite-only OFF: referral optional but shown and captured for attribution if entered.
+ * Invite code is compulsory on first login: no skipping. User must enter a valid code before continuing.
  */
 export default function XFirstOnboarding({
   userId,
@@ -29,7 +28,8 @@ export default function XFirstOnboarding({
   onComplete: () => void;
   onAccessGranted?: () => void;
 }) {
-  const referralRequired = inviteOnly === true && accessAllowed === false;
+  /** Invite code required on first login (when not yet redeemed). No skipping. Only optional if we know they are already allowed. */
+  const referralRequired = accessAllowed !== true;
   const [step, setStep] = useState<Step>("invite");
   const [inviteCode, setInviteCode] = useState("");
   const [accountType, setAccountType] = useState<"individual" | "company" | null>(null);
@@ -47,12 +47,12 @@ export default function XFirstOnboarding({
     setStep("role");
   };
 
-  // Step 1: Referral / invite code. Required when invite-only ON and not redeemed; optional otherwise (still captured for attribution).
+  // Step 1: Referral / invite code. Compulsory on first login (when not yet redeemed); no skip.
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = inviteCode.trim();
     if (referralRequired && !trimmed) {
-      setError("Enter an invite code.");
+      setError("Enter an invite code to continue.");
       return;
     }
     if (!referralRequired && !trimmed) {
@@ -166,7 +166,7 @@ export default function XFirstOnboarding({
               <h1 className="text-xl font-semibold text-foreground">Referral or invite code</h1>
               <p className="text-sm text-muted-foreground">
                 {referralRequired
-                  ? "Linkary is invite-only. Enter your referral or invite code to continue."
+                  ? "An invite code is required to continue. Enter your referral or invite code."
                   : "Have a referral or invite code? (Optional — we use it for attribution.)"}
               </p>
             </div>

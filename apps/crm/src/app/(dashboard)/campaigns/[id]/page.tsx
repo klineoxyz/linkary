@@ -260,6 +260,7 @@ export default async function CampaignDetailPage({
               </tbody>
             </table>
           </div>
+          </div>
         )}
       </section>
 

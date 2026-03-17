@@ -48,7 +48,7 @@ function TasksNoAccess() {
 export default async function TasksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; campaign?: string }>;
 }) {
   const supabase = await createServerSupabase();
   if (!supabase) return <SetupRequired />;

@@ -1,7 +1,8 @@
 "use server";
 
 import { createServerSupabase } from "@/lib/supabase/server";
-import { getCampaign } from "@/lib/campaigns";
+import { getCampaign, updateCampaignDefinition } from "@/lib/campaigns";
+import type { PromotedSocialHandle } from "@/lib/campaigns";
 import {
   getSubmissionWithCampaignWorkspace,
   updateSubmissionStatus,
@@ -49,6 +50,69 @@ export async function reviewSubmissionAction(
 
   if (result.error) return result;
   revalidatePath(`/campaigns/${submission.campaign_id}`);
+  revalidatePath("/campaigns");
+  return {};
+}
+
+/**
+ * Update campaign definition (operator workspace unchanged).
+ * RLS: caller must be member of campaign's workspace.
+ */
+export async function updateCampaignDefinitionAction(
+  campaignId: string,
+  formData: FormData
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabase();
+  if (!supabase) return { error: "Not configured" };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Unauthorized" };
+
+  const campaign = await getCampaign(supabase, campaignId);
+  if (!campaign) return { error: "Campaign not found or access denied" };
+
+  const rewardDateRaw = (formData.get("reward_date") as string | null)?.trim() || null;
+  const reward_date = rewardDateRaw ? rewardDateRaw : null;
+  const campaignValueRaw = formData.get("campaign_value_usd") as string | null;
+  const campaign_value_usd =
+    campaignValueRaw != null && campaignValueRaw !== ""
+      ? Number(campaignValueRaw)
+      : null;
+  const token_or_usdt = (formData.get("token_or_usdt") as string | null)?.trim() || null;
+  const requiredPlatformsRaw = (formData.get("required_platforms") as string | null)?.trim();
+  const required_platforms =
+    requiredPlatformsRaw ? requiredPlatformsRaw.split(/[\s,]+/).filter(Boolean) : [];
+  const weeklyRaw = formData.get("weekly_required_posts") as string | null;
+  const weekly_required_posts =
+    weeklyRaw != null && weeklyRaw !== "" ? Number(weeklyRaw) : null;
+  const daily_engagement_required = (formData.get("daily_engagement_required") as string | null)?.trim() || null;
+  const promoted_org_id = (formData.get("promoted_org_id") as string | null)?.trim() || null;
+  const promotedHandlesRaw = (formData.get("promoted_social_handles") as string | null)?.trim();
+  let promoted_social_handles: PromotedSocialHandle[] = [];
+  if (promotedHandlesRaw) {
+    const lines = promotedHandlesRaw.split(/\n/).filter((s) => s.trim());
+    for (const line of lines) {
+      const [platform, ...rest] = line.split(",").map((s) => s.trim());
+      const handle = rest.join(",").trim();
+      if (platform && handle) promoted_social_handles.push({ platform, handle });
+    }
+  }
+
+  const result = await updateCampaignDefinition(supabase, campaignId, {
+    reward_date,
+    campaign_value_usd: Number.isNaN(campaign_value_usd) ? null : campaign_value_usd,
+    token_or_usdt,
+    required_platforms: required_platforms.length ? required_platforms : [],
+    weekly_required_posts: Number.isNaN(weekly_required_posts) ? null : weekly_required_posts,
+    daily_engagement_required,
+    promoted_org_id: promoted_org_id || null,
+    promoted_social_handles,
+  });
+
+  if (result.error) return result;
+  revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath("/campaigns");
   return {};
 }

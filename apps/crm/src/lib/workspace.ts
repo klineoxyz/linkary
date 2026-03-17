@@ -98,19 +98,39 @@ export async function getOrCreateCreatorWorkspaceAndBoard(
       .single();
     if (insertWs || !inserted?.id) {
       const code = insertWs?.code ?? "unknown";
-      logBootstrapFailure("workspace_insert", `code=${code}`);
-      return { error: "workspace_insert" };
+      // Race: another request may have created the workspace (duplicate slug 23505). Re-select and continue.
+      if (code === "23505") {
+        const { data: raceExisting } = await supabase
+          .from("crm_workspaces")
+          .select("id")
+          .eq("owner_profile_id", profileId)
+          .eq("type", "creator")
+          .maybeSingle();
+        if (raceExisting?.id) {
+          workspaceId = raceExisting.id;
+        } else {
+          logBootstrapFailure("workspace_insert", `code=${code} no_race_row`);
+          return { error: "workspace_insert" };
+        }
+      } else {
+        logBootstrapFailure("workspace_insert", `code=${code}`);
+        return { error: "workspace_insert" };
+      }
+    } else {
+      workspaceId = inserted.id;
     }
-    workspaceId = inserted.id;
 
-    const { error: memberErr } = await supabase.from("crm_workspace_members").insert({
-      workspace_id: workspaceId,
-      profile_id: profileId,
-      role: "owner",
-    });
-    if (memberErr) {
-      logBootstrapFailure("workspace_member_insert", `code=${memberErr.code}`);
-      return { error: "workspace_member_insert" };
+    if (workspaceId) {
+      const { error: memberErr } = await supabase.from("crm_workspace_members").insert({
+        workspace_id: workspaceId,
+        profile_id: profileId,
+        role: "owner",
+      });
+      // Ignore duplicate member (23505): we may have lost the race and another request added us.
+      if (memberErr && memberErr.code !== "23505") {
+        logBootstrapFailure("workspace_member_insert", `code=${memberErr.code}`);
+        return { error: "workspace_member_insert" };
+      }
     }
   }
 

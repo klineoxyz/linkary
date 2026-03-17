@@ -179,23 +179,31 @@ export async function createTask(
     due_at?: string | null;
     created_by: string;
     assigned_to?: string | null;
+    campaign_id?: string | null;
+    task_bundle_id?: string | null;
+    deliverable_type?: DeliverableType | string | null;
   }
 ): Promise<{ id: string } | { error: string }> {
+  const insert: Record<string, unknown> = {
+    workspace_id: params.workspace_id,
+    board_id: params.board_id,
+    source_type: "manual",
+    title: params.title,
+    description: params.description ?? null,
+    platform: params.platform ?? null,
+    due_at: params.due_at ?? null,
+    status: "to_do",
+    priority: "medium",
+    created_by: params.created_by,
+    assigned_to: params.assigned_to ?? params.created_by,
+  };
+  if (params.campaign_id !== undefined) insert.campaign_id = params.campaign_id ?? null;
+  if (params.task_bundle_id !== undefined) insert.task_bundle_id = params.task_bundle_id ?? null;
+  if (params.deliverable_type !== undefined) insert.deliverable_type = params.deliverable_type ?? null;
+
   const { data, error } = await supabase
     .from("crm_tasks")
-    .insert({
-      workspace_id: params.workspace_id,
-      board_id: params.board_id,
-      source_type: "manual",
-      title: params.title,
-      description: params.description ?? null,
-      platform: params.platform ?? null,
-      due_at: params.due_at ?? null,
-      status: "to_do",
-      priority: "medium",
-      created_by: params.created_by,
-      assigned_to: params.assigned_to ?? params.created_by,
-    })
+    .insert(insert)
     .select("id")
     .single();
 
@@ -214,6 +222,7 @@ export async function updateTask(
     status?: string;
     priority?: string;
     due_at?: string | null;
+    deliverable_type?: DeliverableType | string | null;
   }
 ): Promise<{ error?: string }> {
   const { error } = await supabase

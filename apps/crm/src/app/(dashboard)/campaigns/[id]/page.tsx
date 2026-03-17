@@ -10,6 +10,7 @@ import {
   getCampaignTopContributors,
 } from "@/lib/campaigns";
 import { SubmissionReviewRow } from "./SubmissionReviewRow";
+import { CampaignDefinitionForm } from "./CampaignDefinitionForm";
 import { ArrowLeft } from "lucide-react";
 
 function KpiCard({
@@ -58,7 +59,7 @@ export default async function CampaignDetailPage({
   const campaign = await getCampaign(supabase, id);
   if (!campaign) notFound();
 
-  const [kpis, contributors, submissions, topContributors] = await Promise.all([
+  const [kpis, contributors, submissions, topContributors, workspaceRow] = await Promise.all([
     getCampaignKpis(supabase, id, {
       budget: campaign.budget,
       currency: campaign.currency,
@@ -66,9 +67,12 @@ export default async function CampaignDetailPage({
     getCampaignContributors(supabase, id),
     getCampaignSubmissions(supabase, id),
     getCampaignTopContributors(supabase, id),
+    supabase.from("crm_workspaces").select("slug").eq("id", campaign.workspace_id).maybeSingle(),
   ]);
 
   const noMetrics = !kpis.has_metrics;
+  const workspaceSlug =
+    (workspaceRow?.data as { slug?: string } | null)?.slug ?? campaign.workspace_id.slice(0, 8);
 
   return (
     <div className="space-y-8">
@@ -105,19 +109,22 @@ export default async function CampaignDetailPage({
       </div>
 
       {/* Campaign definition: operator = workspace_id; promoted = promoted_org_id + promoted_social_handles */}
-      {(campaign.reward_date != null ||
-        campaign.campaign_value_usd != null ||
-        campaign.token_or_usdt ||
-        (campaign.required_platforms?.length ?? 0) > 0 ||
-        campaign.weekly_required_posts != null ||
-        campaign.daily_engagement_required ||
-        campaign.promoted_org_id ||
-        (campaign.promoted_social_handles?.length ?? 0) > 0) && (
-        <section>
-          <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
-            Campaign definition
-          </h2>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 space-y-3 text-sm">
+      <section>
+        <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
+          Campaign definition
+        </h2>
+        <p className="text-sm text-[var(--crm-muted)] mb-4">
+          Who runs this campaign (operator), who is promoted (project/client), and which accounts are tracked for reporting.
+        </p>
+        {(campaign.reward_date != null ||
+          campaign.campaign_value_usd != null ||
+          campaign.token_or_usdt ||
+          (campaign.required_platforms?.length ?? 0) > 0 ||
+          campaign.weekly_required_posts != null ||
+          campaign.daily_engagement_required ||
+          campaign.promoted_org_id ||
+          (campaign.promoted_social_handles?.length ?? 0) > 0) && (
+          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 space-y-3 text-sm mb-6">
             <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {campaign.reward_date != null && (
                 <>
@@ -186,8 +193,16 @@ export default async function CampaignDetailPage({
               </div>
             )}
           </div>
-        </section>
-      )}
+        )}
+        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 mt-4">
+          <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-4">Edit definition</h3>
+          <CampaignDefinitionForm
+            campaignId={id}
+            campaign={campaign}
+            workspaceSlug={workspaceSlug}
+          />
+        </div>
+      </section>
 
       <section>
         <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { SetupRequired } from "@/components/SetupRequired";
-import { resolveCrmAccess, canBootstrapCreatorWorkspace } from "@/lib/access";
+import { resolveCrmAccess, CREATOR_BOOTSTRAP_PROFILE_TYPE } from "@/lib/access";
 import { getOrCreateCreatorWorkspaceAndBoard, workspaceBootstrapMessage } from "@/lib/workspace";
 import { fetchTasks } from "@/lib/tasks";
 import type { TaskFilter } from "@/lib/tasks";
@@ -60,10 +60,32 @@ export default async function TasksPage({
 
   const access = await resolveCrmAccess(supabase, user.id);
   const hasCreatorWorkspace = !!access.creatorWorkspace;
-  const eligibleToBootstrap = await canBootstrapCreatorWorkspace(supabase, user.id);
 
-  if (!hasCreatorWorkspace && !eligibleToBootstrap) {
-    return <TasksNoAccess />;
+  if (!hasCreatorWorkspace) {
+    // Missing profile → show actionable message (sign in on linkary.xyz first).
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("id, profile_type")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!profileRow?.id) {
+      const { message, hint } = workspaceBootstrapMessage("no_profile");
+      return (
+        <div className="space-y-6">
+          <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
+          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center space-y-2">
+            <p className="text-[var(--crm-foreground)]">{message}</p>
+            {hint && <p className="text-sm text-[var(--crm-muted)]">{hint}</p>}
+          </div>
+        </div>
+      );
+    }
+    // Profile exists but not individual → no access to personal task board.
+    const eligibleToBootstrap =
+      (profileRow as { profile_type?: string }).profile_type === CREATOR_BOOTSTRAP_PROFILE_TYPE;
+    if (!eligibleToBootstrap) {
+      return <TasksNoAccess />;
+    }
   }
 
   const wsResult = await getOrCreateCreatorWorkspaceAndBoard(supabase, user.id);

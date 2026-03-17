@@ -243,3 +243,43 @@ export async function getCampaignTopContributors(
     .sort((a, b) => b.submission_count - a.submission_count)
     .slice(0, 10);
 }
+
+/** Payload for updating campaign definition (operator = workspace_id is unchanged). */
+export type UpdateCampaignDefinitionPayload = {
+  reward_date?: string | null;
+  campaign_value_usd?: number | null;
+  token_or_usdt?: string | null;
+  required_platforms?: string[] | null;
+  weekly_required_posts?: number | null;
+  daily_engagement_required?: string | null;
+  promoted_org_id?: string | null;
+  promoted_social_handles?: PromotedSocialHandle[] | null;
+};
+
+/**
+ * Update campaign definition fields. RLS: caller must be workspace member.
+ * Does not change workspace_id (operator). Sync is unchanged.
+ */
+export async function updateCampaignDefinition(
+  supabase: SupabaseClient,
+  campaignId: string,
+  payload: UpdateCampaignDefinitionPayload
+): Promise<{ error?: string }> {
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (payload.reward_date !== undefined) update.reward_date = payload.reward_date?.trim() || null;
+  if (payload.campaign_value_usd !== undefined) update.campaign_value_usd = payload.campaign_value_usd;
+  if (payload.token_or_usdt !== undefined) update.token_or_usdt = payload.token_or_usdt?.trim() || null;
+  if (payload.required_platforms !== undefined) update.required_platforms = payload.required_platforms ?? [];
+  if (payload.weekly_required_posts !== undefined) update.weekly_required_posts = payload.weekly_required_posts;
+  if (payload.daily_engagement_required !== undefined)
+    update.daily_engagement_required = payload.daily_engagement_required?.trim() || null;
+  if (payload.promoted_org_id !== undefined) update.promoted_org_id = payload.promoted_org_id?.trim() || null;
+  if (payload.promoted_social_handles !== undefined)
+    update.promoted_social_handles = Array.isArray(payload.promoted_social_handles)
+      ? payload.promoted_social_handles
+      : [];
+
+  const { error } = await supabase.from("crm_campaigns").update(update).eq("id", campaignId);
+  if (error) return { error: error.message };
+  return {};
+}

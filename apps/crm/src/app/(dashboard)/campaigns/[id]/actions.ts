@@ -1,13 +1,20 @@
 "use server";
 
 import { createServerSupabase } from "@/lib/supabase/server";
-import { getCampaign, updateCampaignDefinition } from "@/lib/campaigns";
+import {
+  getCampaign,
+  setCampaignFinalized,
+  updateCampaignDefinition,
+} from "@/lib/campaigns";
 import type { PromotedSocialHandle } from "@/lib/campaigns";
 import {
   getSubmissionWithCampaignWorkspace,
   updateSubmissionStatus,
 } from "@/lib/submissions";
 import { generateRecurringTasksForCampaignWeek } from "@/lib/recurring";
+import { writeContribution } from "@/lib/contribution";
+import { upsertAccountSnapshot } from "@/lib/snapshots";
+import type { SnapshotType } from "@/lib/snapshots";
 import { revalidatePath } from "next/cache";
 
 const REVIEW_STATUSES = ["approved", "rejected", "needs_revision"] as const;
@@ -143,4 +150,102 @@ export async function generateRecurringTasksAction(
   revalidatePath("/campaigns");
   revalidatePath("/tasks");
   return { tasks_created: result.tasks_created ?? 0 };
+}
+
+function parseOptionalNumber(v: string | null): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
+
+/**
+ * Record baseline / daily / end snapshots for all promoted_social_handles with the same metrics and timestamp.
+ * Stored data only; no fake metrics. RLS: caller must be workspace member.
+ */
+export async function recordSnapshotAction(
+  campaignId: string,
+  formData: FormData
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabase();
+  if (!supabase) return { error: "Not configured" };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Unauthorized" };
+
+  const campaign = await getCampaign(supabase, campaignId);
+  if (!campaign) return { error: "Campaign not found or access denied" };
+
+  const handles = campaign.promoted_social_handles ?? [];
+  if (handles.length === 0) return { error: "No promoted social handles; add them in campaign definition" };
+
+  const snapshotType = (formData.get("snapshot_type") as string | null)?.trim() as SnapshotType | undefined;
+  if (!snapshotType || !["baseline", "daily", "end"].includes(snapshotType)) {
+    return { error: "Invalid snapshot_type" };
+  }
+
+  const snapshotAtRaw = (formData.get("snapshot_at") as string | null)?.trim();
+  const snapshotAt = snapshotAtRaw
+    ? new Date(snapshotAtRaw).toISOString()
+    : new Date().toISOString();
+
+  const metrics = {
+    followers: parseOptionalNumber(formData.get("followers") as string | null),
+    views: parseOptionalNumber(formData.get("views") as string | null),
+    likes: parseOptionalNumber(formData.get("likes") as string | null),
+    replies: parseOptionalNumber(formData.get("replies") as string | null),
+    quotes: parseOptionalNumber(formData.get("quotes") as string | null),
+    reposts: parseOptionalNumber(formData.get("reposts") as string | null),
+    engagement_total: parseOptionalNumber(formData.get("engagement_total") as string | null),
+  };
+
+  for (const { platform, handle } of handles) {
+    const out = await upsertAccountSnapshot(
+      supabase,
+      campaignId,
+      platform,
+      handle,
+      snapshotType,
+      snapshotAt,
+      metrics
+    );
+    if (out.error) return { error: out.error };
+  }
+
+  revalidatePath(`/campaigns/${campaignId}`);
+  revalidatePath(`/campaigns/${campaignId}/report`);
+  return {};
+}
+
+/**
+ * Finalize campaign: set finalized_at, write contribution in approved-only mode (final share).
+ * Does not overwrite contribution after this unless explicitly re-finalized. RLS: caller must be workspace member.
+ */
+export async function finalizeCampaignAction(campaignId: string): Promise<{ error?: string }> {
+  const supabase = await createServerSupabase();
+  if (!supabase) return { error: "Not configured" };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Unauthorized" };
+
+  const campaign = await getCampaign(supabase, campaignId);
+  if (!campaign) return { error: "Campaign not found or access denied" };
+
+  if (campaign.finalized_at) return { error: "Campaign already finalized" };
+
+  const err = await setCampaignFinalized(supabase, campaignId);
+  if (err.error) return err;
+
+  await writeContribution(supabase, campaignId, {
+    weighted: true,
+    statuses: ["approved"],
+  });
+
+  revalidatePath(`/campaigns/${campaignId}`);
+  revalidatePath(`/campaigns/${campaignId}/report`);
+  revalidatePath("/campaigns");
+  return {};
 }

@@ -14,6 +14,7 @@ import { writeContribution } from "@/lib/contribution";
 import { SubmissionReviewRow } from "./SubmissionReviewRow";
 import { CampaignDefinitionForm } from "./CampaignDefinitionForm";
 import { GenerateRecurringTasksButton } from "./GenerateRecurringTasksButton";
+import { FinalizeCampaignButton } from "./FinalizeCampaignButton";
 import { ArrowLeft } from "lucide-react";
 
 function KpiCard({
@@ -123,12 +124,17 @@ export default async function CampaignDetailPage({
           </p>
         )}
         </div>
-        <Link
-          href={`/campaigns/${id}/report`}
-          className="shrink-0 rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-2 text-sm font-medium text-[var(--crm-foreground)] hover:bg-[var(--crm-bg)]"
-        >
-          View report
-        </Link>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Link
+            href={`/campaigns/${id}/report`}
+            className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-2 text-sm font-medium text-[var(--crm-foreground)] hover:bg-[var(--crm-bg)]"
+          >
+            View report
+          </Link>
+          {!campaign.finalized_at && (
+            <FinalizeCampaignButton campaignId={id} />
+          )}
+        </div>
       </div>
 
       {/* Campaign definition: operator = workspace_id; promoted = promoted_org_id + promoted_social_handles */}

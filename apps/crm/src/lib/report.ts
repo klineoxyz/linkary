@@ -63,6 +63,7 @@ export async function getCampaignReportData(
   const campaign = await getCampaign(supabase, campaignId);
   if (!campaign) return null;
 
+  const useFinalShare = !!campaign.finalized_at;
   const [kpis, submissions, topContributors, dailyRows, contributionRows, accountGrowth] =
     await Promise.all([
       getCampaignKpis(supabase, campaignId, {
@@ -76,7 +77,10 @@ export async function getCampaignReportData(
         .select("day, total_views, total_engagements, total_posts")
         .eq("campaign_id", campaignId)
         .order("day", { ascending: true }),
-      computeContribution(supabase, campaignId, { weighted: true }),
+      computeContribution(supabase, campaignId, {
+        weighted: true,
+        ...(useFinalShare ? { statuses: ["approved"] as const } : {}),
+      }),
       getAccountGrowth(supabase, campaignId),
     ]);
 
@@ -144,4 +148,64 @@ export async function getCampaignReportData(
     has_metrics: kpis.has_metrics,
     finalized_at: campaign.finalized_at ?? null,
   };
+}
+
+/** Flat rows for CSV/export: section, label, value. No client-only state. */
+export type ReportExportRow = { section: string; label: string; value: string | number };
+
+export function reportRowsForExport(data: CampaignReportData): ReportExportRow[] {
+  const rows: ReportExportRow[] = [];
+  const fmt = (v: string | number | null | undefined) =>
+    v == null ? "" : String(v);
+
+  rows.push({ section: "overview", label: "Campaign name", value: data.campaign.title });
+  rows.push({ section: "overview", label: "Start date", value: fmt(data.start_date) });
+  rows.push({ section: "overview", label: "End date", value: fmt(data.end_date) });
+  rows.push({ section: "overview", label: "Finalized at", value: fmt(data.finalized_at) });
+
+  rows.push({ section: "campaign_period", label: "Total posts", value: data.total_posts });
+  rows.push({ section: "campaign_period", label: "Total views", value: data.total_views });
+  rows.push({ section: "campaign_period", label: "Total engagements", value: data.total_engagements });
+  rows.push({ section: "campaign_period", label: "Contributors", value: data.contributor_count });
+
+  rows.push({
+    section: "snapshot_totals",
+    label: "Likes (from promoted-account end snapshots)",
+    value: data.likes ?? "",
+  });
+  rows.push({
+    section: "snapshot_totals",
+    label: "Replies (from promoted-account end snapshots)",
+    value: data.replies ?? "",
+  });
+  rows.push({
+    section: "snapshot_totals",
+    label: "Quotes (from promoted-account end snapshots)",
+    value: data.quotes ?? "",
+  });
+  rows.push({
+    section: "snapshot_totals",
+    label: "Reposts (from promoted-account end snapshots)",
+    value: data.reposts ?? "",
+  });
+
+  for (const g of data.account_growth) {
+    rows.push({
+      section: "growth",
+      label: `${g.platform}:${g.handle} follower growth`,
+      value: g.follower_growth ?? "",
+    });
+    rows.push({
+      section: "growth",
+      label: `${g.platform}:${g.handle} views growth`,
+      value: g.views_growth ?? "",
+    });
+    rows.push({
+      section: "growth",
+      label: `${g.platform}:${g.handle} engagement growth`,
+      value: g.engagement_growth ?? "",
+    });
+  }
+
+  return rows;
 }

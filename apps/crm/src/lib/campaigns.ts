@@ -284,3 +284,18 @@ export async function updateCampaignDefinition(
   if (error) return { error: error.message };
   return {};
 }
+
+/**
+ * Set campaign finalized_at to now. Used by finalize flow. RLS: caller must be workspace member.
+ */
+export async function setCampaignFinalized(
+  supabase: SupabaseClient,
+  campaignId: string
+): Promise<{ error?: string }> {
+  const { error } = await supabase
+    .from("crm_campaigns")
+    .update({ finalized_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", campaignId);
+  if (error) return { error: error.message };
+  return {};
+}

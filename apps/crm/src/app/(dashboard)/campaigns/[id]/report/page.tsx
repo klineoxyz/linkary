@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { SetupRequired } from "@/components/SetupRequired";
 import { getCampaignReportData } from "@/lib/report";
+import { RecordSnapshotForm } from "./RecordSnapshotForm";
 import { ArrowLeft } from "lucide-react";
 
 function ReportSection({
@@ -151,50 +152,57 @@ export default async function CampaignReportPage({
             No daily metrics yet. Populate crm_campaign_metrics_daily and account snapshots for full report.
           </p>
         )}
+        <p className="text-xs text-[var(--crm-muted)] mb-3">
+          Campaign-period metrics come from crm_campaign_metrics_daily. Likes/replies/quotes/reposts are from promoted-account end snapshots (totals across tracked accounts, not campaign-attributed).
+        </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Total posts</p>
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Total posts (campaign period)</p>
             <p className="text-xl font-semibold text-[var(--crm-primary)]">{total_posts}</p>
           </div>
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Total views / reach</p>
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Total views (campaign period)</p>
             <p className="text-xl font-semibold text-[var(--crm-primary)]">
               {total_views.toLocaleString()}
             </p>
           </div>
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Total engagements</p>
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Total engagements (campaign period)</p>
             <p className="text-xl font-semibold text-[var(--crm-primary)]">
               {total_engagements.toLocaleString()}
             </p>
           </div>
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Likes</p>
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Contributors</p>
+            <p className="text-xl font-semibold text-[var(--crm-primary)]">{contributor_count}</p>
+          </div>
+          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Likes (end snapshots)</p>
             <p className="text-xl font-semibold text-[var(--crm-primary)]">
               {likes != null ? likes.toLocaleString() : "—"}
             </p>
+            <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">Promoted-account totals</p>
           </div>
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Replies</p>
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Replies (end snapshots)</p>
             <p className="text-xl font-semibold text-[var(--crm-primary)]">
               {replies != null ? replies.toLocaleString() : "—"}
             </p>
+            <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">Promoted-account totals</p>
           </div>
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Quotes</p>
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Quotes (end snapshots)</p>
             <p className="text-xl font-semibold text-[var(--crm-primary)]">
               {quotes != null ? quotes.toLocaleString() : "—"}
             </p>
+            <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">Promoted-account totals</p>
           </div>
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Reposts</p>
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Reposts (end snapshots)</p>
             <p className="text-xl font-semibold text-[var(--crm-primary)]">
               {reposts != null ? reposts.toLocaleString() : "—"}
             </p>
-          </div>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Contributors</p>
-            <p className="text-xl font-semibold text-[var(--crm-primary)]">{contributor_count}</p>
+            <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">Promoted-account totals</p>
           </div>
         </div>
       </ReportSection>
@@ -265,6 +273,10 @@ export default async function CampaignReportPage({
       </ReportSection>
 
       <ReportSection title="Promoted-account growth (baseline → end)">
+        <RecordSnapshotForm
+          campaignId={id}
+          hasHandles={promoted_social_handles.length > 0}
+        />
         {account_growth.length === 0 ? (
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
             No account snapshots. Record baseline and end snapshots for promoted_social_handles to see growth.

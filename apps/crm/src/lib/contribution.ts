@@ -28,6 +28,8 @@ export type ContributionRow = {
 export type ComputeContributionOptions = {
   /** If true, weight by deliverable_type; else completion-based (count only). */
   weighted?: boolean;
+  /** Task statuses that count. Default approved+done (progress). Use ['approved'] for final/reward share. */
+  statuses?: ("approved" | "done")[];
 };
 
 /**
@@ -35,12 +37,15 @@ export type ComputeContributionOptions = {
  * Only approved and done tasks count (progress contribution). Rejected, submitted, to_do, etc. do not count.
  * For final/reward reporting, prefer approved-only (future option).
  */
+const DEFAULT_CONTRIBUTION_STATUSES = ["approved", "done"] as const;
+
 export async function computeContribution(
   supabase: SupabaseClient,
   campaignId: string,
   options?: ComputeContributionOptions
 ): Promise<ContributionRow[]> {
   const weighted = options?.weighted ?? false;
+  const statuses = options?.statuses ?? [...DEFAULT_CONTRIBUTION_STATUSES];
 
   const { data: bundles, error: bundleErr } = await supabase
     .from("crm_task_bundles")
@@ -54,7 +59,7 @@ export async function computeContribution(
     .from("crm_tasks")
     .select("id, task_bundle_id, status, deliverable_type")
     .in("task_bundle_id", bundleIds)
-    .in("status", ["approved", "done"]);
+    .in("status", statuses);
 
   if (taskErr) return [];
 
@@ -98,14 +103,25 @@ export async function computeContribution(
 /**
  * Compute contribution for a campaign and write to crm_task_bundles and crm_campaign_participants.
  * Safe and idempotent. Returns the computed rows (e.g. for display).
+ * When campaign is finalized: skips DB updates for progress (approved+done); only writes when
+ * options.statuses is ['approved'] (finalize run), so final share is not overwritten by later progress.
  */
 export async function writeContribution(
   supabase: SupabaseClient,
   campaignId: string,
   options?: ComputeContributionOptions
 ): Promise<ContributionRow[]> {
+  const { getCampaign } = await import("@/lib/campaigns");
+  const campaign = await getCampaign(supabase, campaignId);
+  const statuses = options?.statuses ?? [...DEFAULT_CONTRIBUTION_STATUSES];
+  const isFinalizeRun = statuses.length === 1 && statuses[0] === "approved";
+
   const rows = await computeContribution(supabase, campaignId, options);
   if (rows.length === 0) return [];
+
+  if (campaign?.finalized_at && !isFinalizeRun) {
+    return rows;
+  }
 
   for (const row of rows) {
     await supabase

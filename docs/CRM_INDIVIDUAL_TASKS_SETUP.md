@@ -89,7 +89,10 @@ No code changes are required for **Campaigns** or **reporting**; this only affec
 - **Tasks — workspace creation failed:** Dedicated “We couldn’t create your task board” card with icon, message, “Try again” (link to `/tasks`) and note to sign out/in; support note at bottom.
 
 **First-success experience (implemented):**
-- When bootstrap succeeds and there are no tasks: "You're all set" welcome card and short explanation; empty state with "No tasks yet" and a prominent "New task" CTA; Manual vs Campaign badges in the task list.
+- **Workspace hero:** "Your workspace" header with one-line description and primary "New task" CTA.
+- **First-run:** "Setup complete" section with "This is your personal workspace" and short explanation; strong CTA to add first task; note about campaign tasks.
+- **Empty state:** "Your board is ready" / "No tasks match this filter" with icon, copy, and CTA; campaign hint when empty.
+- **Task list:** "All tasks" section with personal/campaign counts; Type column with Personal (file icon) vs Campaign (megaphone icon) badges; campaign rows with subtle tint; rounded cards and spacing.
 
 **What still remains (optional / edge cases):**
 - Optional: progress or step indicator on home (e.g. "Step 1: Create your board").

@@ -58,10 +58,26 @@ export default async function TasksPage({
         published: false,
       });
       if (insertErr) {
-        const { message, hint } = workspaceBootstrapMessage("no_profile");
-        return <TasksNoProfile message={message} hint={hint} />;
+        // Race: profile may have been created by trigger or another request (23505). Re-fetch and continue.
+        if (insertErr.code === "23505") {
+          const { data: refetched } = await supabase
+            .from("profiles")
+            .select("id, profile_type")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (refetched?.id) {
+            profileRow = refetched as { id: string; profile_type: string };
+          } else {
+            const { message, hint } = workspaceBootstrapMessage("no_profile");
+            return <TasksNoProfile message={message} hint={hint} />;
+          }
+        } else {
+          const { message, hint } = workspaceBootstrapMessage("no_profile");
+          return <TasksNoProfile message={message} hint={hint} />;
+        }
+      } else {
+        profileRow = { id: user.id, profile_type: CREATOR_BOOTSTRAP_PROFILE_TYPE } as { id: string; profile_type: string };
       }
-      profileRow = { id: user.id, profile_type: CREATOR_BOOTSTRAP_PROFILE_TYPE } as { id: string; profile_type: string };
     }
     // Profile exists but not individual → no access to personal task board.
     const eligibleToBootstrap =
@@ -108,24 +124,74 @@ export default async function TasksPage({
       : null;
 
   const isEmpty = tasks.length === 0;
+  const manualCount = tasks.filter((t) => t.source_type === "manual").length;
+  const campaignCount = tasks.filter((t) => t.source_type !== "manual").length;
 
   return (
-    <div className="space-y-6">
-      {isEmpty && (
-        <div className="rounded-xl border border-[var(--crm-primary)]/20 bg-[var(--crm-card)] p-6">
-          <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-1">You&apos;re all set</h2>
-          <p className="text-sm text-[var(--crm-muted)]">
-            Your personal task board is ready. Add tasks to track your work, or wait for campaign tasks to appear when you&apos;re in a campaign.
-          </p>
+    <div className="space-y-8">
+      {/* Workspace hero / summary */}
+      <header className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] px-6 py-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--crm-foreground)]">
+              Your workspace
+            </h1>
+            <p className="mt-1 text-sm text-[var(--crm-muted)]">
+              Your personal task board — add tasks here or work from campaigns.
+            </p>
+          </div>
+          <CreateTaskButton />
         </div>
+      </header>
+
+      {/* First-run welcome (only when no tasks) */}
+      {isEmpty && (
+        <section className="rounded-2xl border-2 border-[var(--crm-primary)]/30 bg-gradient-to-b from-[var(--crm-primary)]/5 to-transparent p-8">
+          <div className="max-w-xl">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--crm-primary)] mb-2">
+              Setup complete
+            </p>
+            <h2 className="text-xl font-semibold text-[var(--crm-foreground)] mb-2">
+              This is your personal workspace
+            </h2>
+            <p className="text-sm text-[var(--crm-muted)] mb-6">
+              Add your own tasks to track work, or join campaigns to get assigned tasks here. Everything stays in one place.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <CreateTaskButton />
+              <span className="text-sm text-[var(--crm-muted)]">
+                or wait for campaign tasks when you&apos;re in a campaign
+              </span>
+            </div>
+          </div>
+        </section>
       )}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
-        <CreateTaskButton />
-      </div>
+
       <MyCampaignBundles bundles={myBundles} currentCampaignId={campaignId} />
-      <TasksFilters campaignId={campaignId} campaignTitle={campaignTitle} />
-      <TasksList tasks={tasks} emptyStateCTA={isEmpty ? <CreateTaskButton /> : undefined} />
+
+      {/* Tasks section */}
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold text-[var(--crm-foreground)]">
+            {isEmpty ? "Tasks" : "All tasks"}
+          </h2>
+          {!isEmpty && (
+            <p className="text-sm text-[var(--crm-muted)]">
+              {manualCount > 0 && campaignCount > 0
+                ? `${manualCount} personal · ${campaignCount} campaign`
+                : manualCount > 0
+                  ? `${manualCount} personal`
+                  : `${campaignCount} campaign`}
+            </p>
+          )}
+        </div>
+        <TasksFilters campaignId={campaignId} campaignTitle={campaignTitle} />
+        <TasksList
+          tasks={tasks}
+          emptyStateCTA={isEmpty ? <CreateTaskButton /> : undefined}
+          isEmpty={isEmpty}
+        />
+      </section>
     </div>
   );
 }

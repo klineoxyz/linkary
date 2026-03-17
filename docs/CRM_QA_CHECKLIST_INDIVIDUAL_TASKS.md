@@ -36,10 +36,10 @@ Use this after deploying the bootstrap observability and first-success UI to ver
 
 ## 4. Empty state and welcome when no tasks
 
-- [ ] When there are no tasks: "You're all set" (or equivalent) welcome card is visible.
-- [ ] Short explanation of the personal board is visible.
-- [ ] Empty state shows "No tasks yet" and a clear CTA to add a task (e.g. "New task" / Create task button).
-- [ ] CTA in the empty state works (opens create-task flow).
+- [ ] **Workspace hero** at top: "Your workspace" with one-line description and "New task" button.
+- [ ] **First-run block:** "Setup complete" and "This is your personal workspace" with short explanation and primary CTA.
+- [ ] **Empty list:** "Your board is ready" (or "No tasks match this filter" when filtered) with icon and CTA.
+- [ ] CTA opens create-task flow; optional hint about campaign tasks showing up when in a campaign.
 
 ---
 
@@ -53,8 +53,8 @@ Use this after deploying the bootstrap observability and first-success UI to ver
 
 ## 6. Manual vs campaign
 
-- [ ] Manual tasks are clearly distinguished (e.g. "Manual" badge).
-- [ ] Campaign-sourced tasks show as "Campaign" (or equivalent).
+- [ ] **Type column:** Personal (file icon) vs Campaign (megaphone icon) badges; campaign rows have subtle tint.
+- [ ] Summary line when tasks exist: "X personal · Y campaign" (or single type).
 - [ ] Filters (All, This week, Campaign, etc.) work as before.
 
 ---

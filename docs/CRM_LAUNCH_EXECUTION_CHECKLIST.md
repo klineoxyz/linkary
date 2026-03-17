@@ -166,6 +166,21 @@ Keep existing linkary.xyz URLs. Save.
 
 ---
 
+## Phase 3.5 — Pre-E2E: /tasks workspace load
+
+Before running full E2E, confirm that a **fresh individual user** can open Tasks and that the creator workspace and personal board load without error.
+
+1. Use (or create) a user that has a **`public.profiles`** row with **`profile_type = 'individual'`**.
+2. Sign in to **crm.linkary.xyz** (or open it after signing in on linkary.xyz so the session is shared).
+3. Open **/tasks**.
+4. **Check:** The Tasks page loads with the personal board; there is **no** “Could not load workspace” (or similar) error.
+
+If you see a workspace-load error, see [CRM_TASKS_WORKSPACE_BOOTSTRAP.md](./CRM_TASKS_WORKSPACE_BOOTSTRAP.md) for root causes and the verification checklist.
+
+- [ ] Fresh individual user can open /tasks; creator workspace and personal board load successfully; no “Could not load workspace” error.
+
+---
+
 ## Phase 4 — Full E2E flow
 
 ### Step 4.1 Acceptance → sync → proof → review

@@ -264,7 +264,7 @@ export async function runLinkarySync(
     const eligible = await canBootstrapCreatorWorkspace(supabase, participant_profile_id);
     if (eligible) {
       const creatorBoard = await getOrCreateCreatorWorkspaceAndBoard(supabase, participant_profile_id);
-      if (creatorBoard) {
+      if (creatorBoard && !("error" in creatorBoard)) {
         boardId = creatorBoard.boardId;
         taskWorkspaceId = creatorBoard.workspaceId;
       }

@@ -15,7 +15,7 @@ export async function createTaskAction(formData: FormData): Promise<{ error?: st
 
   const { getOrCreateCreatorWorkspaceAndBoard } = await import("@/lib/workspace");
   const ws = await getOrCreateCreatorWorkspaceAndBoard(supabase, user.id);
-  if (!ws) return { error: "Workspace not found" };
+  if (!ws || "error" in ws) return { error: "Workspace not found" };
 
   const title = formData.get("title") as string | null;
   if (!title?.trim()) return { error: "Title is required" };

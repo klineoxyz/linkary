@@ -13,12 +13,66 @@ export type CreatorWorkspaceBoard = {
   boardId: string;
 };
 
+/** Failure reason for observability and user-facing message. Not exposed to client except via safe copy. */
+export type BootstrapFailureReason =
+  | "no_profile"
+  | "workspace_insert"
+  | "workspace_member_insert"
+  | "board_insert"
+  | "unknown";
+
+export type GetOrCreateCreatorResult =
+  | CreatorWorkspaceBoard
+  | { error: BootstrapFailureReason };
+
+/** User-facing message and optional hint for each bootstrap failure reason. */
+export function workspaceBootstrapMessage(
+  reason: BootstrapFailureReason
+): { message: string; hint: string | null } {
+  switch (reason) {
+    case "no_profile":
+      return {
+        message: "Your account isn’t set up for Tasks yet.",
+        hint: "Sign in on linkary.xyz first, then open Tasks again. If it persists, try signing out and back in.",
+      };
+    case "workspace_insert":
+    case "workspace_member_insert":
+    case "board_insert":
+      return {
+        message: "Could not create your workspace. Try signing out and back in.",
+        hint: "If the problem continues, contact support.",
+      };
+    default:
+      return {
+        message: "Could not load workspace. Try signing out and back in.",
+        hint: null,
+      };
+  }
+}
+
+const LOG_PREFIX = "[CRM tasks]";
+
+function logBootstrapFailure(reason: BootstrapFailureReason, detail?: string) {
+  const detailStr = detail ? ` ${detail}` : "";
+  console.warn(`${LOG_PREFIX} workspace bootstrap failed: reason=${reason}${detailStr}`);
+}
+
 export async function getOrCreateCreatorWorkspaceAndBoard(
   supabase: SupabaseClient,
   profileId: string
-): Promise<CreatorWorkspaceBoard | null> {
+): Promise<GetOrCreateCreatorResult> {
   const slug = `creator-${profileId.slice(0, 8)}`;
   const name = "My workspace";
+
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", profileId)
+    .maybeSingle();
+  if (!profileRow?.id) {
+    logBootstrapFailure("no_profile");
+    return { error: "no_profile" };
+  }
 
   const { data: existing } = await supabase
     .from("crm_workspaces")
@@ -42,14 +96,22 @@ export async function getOrCreateCreatorWorkspaceAndBoard(
       })
       .select("id")
       .single();
-    if (insertWs || !inserted?.id) return null;
+    if (insertWs || !inserted?.id) {
+      const code = insertWs?.code ?? "unknown";
+      logBootstrapFailure("workspace_insert", `code=${code}`);
+      return { error: "workspace_insert" };
+    }
     workspaceId = inserted.id;
 
-    await supabase.from("crm_workspace_members").insert({
+    const { error: memberErr } = await supabase.from("crm_workspace_members").insert({
       workspace_id: workspaceId,
       profile_id: profileId,
       role: "owner",
     });
+    if (memberErr) {
+      logBootstrapFailure("workspace_member_insert", `code=${memberErr.code}`);
+      return { error: "workspace_member_insert" };
+    }
   }
 
   const { data: board } = await supabase
@@ -72,7 +134,11 @@ export async function getOrCreateCreatorWorkspaceAndBoard(
       })
       .select("id")
       .single();
-    if (insertBoard || !insertedBoard?.id) return null;
+    if (insertBoard || !insertedBoard?.id) {
+      const code = insertBoard?.code ?? "unknown";
+      logBootstrapFailure("board_insert", `code=${code}`);
+      return { error: "board_insert" };
+    }
     boardId = insertedBoard.id;
   }
 

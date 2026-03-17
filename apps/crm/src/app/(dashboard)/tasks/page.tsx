@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { SetupRequired } from "@/components/SetupRequired";
 import { resolveCrmAccess, canBootstrapCreatorWorkspace } from "@/lib/access";
-import { getOrCreateCreatorWorkspaceAndBoard } from "@/lib/workspace";
+import { getOrCreateCreatorWorkspaceAndBoard, workspaceBootstrapMessage } from "@/lib/workspace";
 import { fetchTasks } from "@/lib/tasks";
 import type { TaskFilter } from "@/lib/tasks";
 import { TasksList } from "./TasksList";
@@ -64,17 +64,21 @@ export default async function TasksPage({
     return <TasksNoAccess />;
   }
 
-  const ws = await getOrCreateCreatorWorkspaceAndBoard(supabase, user.id);
-  if (!ws) {
+  const wsResult = await getOrCreateCreatorWorkspaceAndBoard(supabase, user.id);
+  if (!wsResult || "error" in wsResult) {
+    const reason = wsResult && "error" in wsResult ? wsResult.error : "unknown";
+    const { message, hint } = workspaceBootstrapMessage(reason);
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
-        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center text-[var(--crm-muted)]">
-          Could not load workspace. Try signing out and back in.
+        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center space-y-2">
+          <p className="text-[var(--crm-foreground)]">{message}</p>
+          {hint && <p className="text-sm text-[var(--crm-muted)]">{hint}</p>}
         </div>
       </div>
     );
   }
+  const ws = wsResult;
 
   const params = await searchParams;
   const filterRaw = params.filter ?? "all";

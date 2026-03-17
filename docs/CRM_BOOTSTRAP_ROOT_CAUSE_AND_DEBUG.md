@@ -61,7 +61,13 @@ Server logs use: `[CRM bootstrap] failed: reason=<code> stage=<stage> detail=<co
 
 ---
 
-## What was changed in this pass
+## See also
+
+- **Production reliability (CRM + analytics):** **docs/PRODUCTION_RELIABILITY_CHECKLIST.md** — operator checklist for both CRM bootstrap and X analytics ingestion, env/config, and twitterapi.io usage.
+
+---
+
+## What was changed in this pass (bootstrap only)
 
 - **Observability:** Stable failure reason + stage in logs; optional `?debug=1` on the failure screen.
 - **23505 handling:** Short delay (150ms) then re-select on duplicate slug so race with another request usually recovers.

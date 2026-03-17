@@ -22,6 +22,8 @@ X metrics (followers, posts, impressions, engagement rate, etc.) appear only whe
 
 If any of these is missing, the analytics UI still shows the same layout but X metrics will be **empty or zero** (consistent empty/default state). We do **not** invent or fake numbers.
 
+**Followers populated but posts/impressions/engagement zero:** Usually means profile-level sync (e.g. follower count) ran but **tweet ingestion** failed or did not run — so `x_tweets` is empty or stale. See **docs/PRODUCTION_RELIABILITY_CHECKLIST.md** (X analytics ingestion) for how to verify and re-run.
+
 ---
 
 ## Empty / default state

@@ -166,18 +166,26 @@ export async function ingestXTweets(
     .eq("profile_id", profile_id);
   const before = countBefore ?? 0;
 
-  const { error } = await supabase.from("x_tweets").upsert(rows, {
+  // Must upsert deduped only; same batch cannot contain duplicate (profile_id, tweet_id) or Postgres errors.
+  const { error } = await supabase.from("x_tweets").upsert(deduped, {
     onConflict: X_TWEETS_CONFLICT,
   });
 
   if (error) {
+    const sampleKeys =
+      deduped.length > 0
+        ? deduped
+            .slice(0, 3)
+            .map((r) => String(r.profile_id) + ":" + String(r.tweet_id))
+            .join("; ")
+        : "none";
     const msg =
       "[X_TWEETS] upsert failed. conflict_target=" +
       X_TWEETS_CONFLICT +
-      " key_columns=profile_id,tweet_id payload_keys=" +
-      Object.keys(rows[0] ?? {}).join(",") +
-      " table_columns=" +
-      X_TWEETS_COLUMNS.join(",") +
+      " payload_rows=" +
+      deduped.length +
+      " sample_keys=" +
+      sampleKeys +
       " error=" +
       error.message;
     console.error(msg);
@@ -191,7 +199,16 @@ export async function ingestXTweets(
   const after = countAfter ?? before + deduped.length;
   const inserted = Math.max(0, after - before);
   const upserted = deduped.length;
-  console.log("[X_TWEETS] fetched_total=" + fetched_total + " skipped_retweets=" + skipped_retweets + " upserted=" + upserted);
+  console.log(
+    "[X_TWEETS] fetched=" +
+      fetched_total +
+      " skipped_retweets=" +
+      skipped_retweets +
+      " deduped=" +
+      deduped.length +
+      " upserted=" +
+      upserted
+  );
 
   if (fetched_total > 0 && upserted === 0) {
     const msg =

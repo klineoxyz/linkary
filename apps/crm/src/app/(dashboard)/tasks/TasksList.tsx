@@ -41,10 +41,12 @@ function statusBadgeClass(status: string): string {
 export function TasksList({
   tasks,
   emptyStateCTA,
+  isEmpty,
 }: {
   tasks: TaskRow[];
   /** Rendered in the empty state (e.g. CreateTaskButton) for strong first-task CTA. */
   emptyStateCTA?: ReactNode;
+  /** True when this is the first-run empty board (no tasks at all). */
   isEmpty?: boolean;
 }) {
   if (tasks.length === 0) {

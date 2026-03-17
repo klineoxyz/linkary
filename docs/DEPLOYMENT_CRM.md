@@ -125,6 +125,8 @@ After deploying the org campaign dashboard (M4):
 - [ ] **Org → CRM workspace mapping resolves** — The org that owns the job has a CRM workspace with `linked_org_id` set to that org’s id. Sync receives `org_id` and resolves workspace correctly; no manual workspace_id needed.
 - [ ] **Accepted creator sees synced tasks** — Accepted creator (profile_type = individual) sees generated tasks on **/tasks** (creator workspace is bootstrapped if needed; tasks are on their personal board). Non-eligible participant gets tasks on org board and is added as workspace member so they have access.
 - [ ] **Repeated sync stays idempotent** — Trigger sync again with the same payload; no duplicate campaigns, participants, bundles, or tasks.
+- [ ] **Concurrent duplicate sync safe** — Two identical sync requests in parallel result in one campaign, one participant, one bundle, and correct tasks (no duplicates; DB constraints enforce idempotency).
+- [ ] **Sync failure recoverable** — On sync failure, a row is written to `crm_sync_failures`; retry by POSTing the same payload again (idempotent). apps/web logs `sync_failure_id` when present.
 - [ ] **Org review still works** — Creator submits proof URL; org user can approve/reject/request revision on campaign detail. Unauthorized user cannot review; creator cannot review own submission.
 - [ ] **No regression in apps/web acceptance flow** — Accepting an application still returns 200 and deal; no UI change; sync runs in background and does not block or alter the response.
 

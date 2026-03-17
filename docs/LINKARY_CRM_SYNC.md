@@ -1,6 +1,6 @@
 # Linkary → CRM sync contract
 
-Idempotent sync from Linkary (sprint/gig acceptance) into CRM: campaign, participant, task bundle, and tasks. Duplicate triggers do not duplicate records.
+Idempotent sync from Linkary (sprint/gig acceptance) into CRM: campaign, participant, task bundle, and tasks. Duplicate or concurrent triggers do not duplicate records. Failures are logged for recovery.
 
 ---
 
@@ -27,7 +27,7 @@ Idempotent sync from Linkary (sprint/gig acceptance) into CRM: campaign, partici
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `linkary_task_id` | string | Yes | Unique id for this task in Linkary. Used to avoid duplicate tasks on re-sync. |
+| `linkary_task_id` | string | Yes | Unique id for this task in Linkary. Stored in `crm_tasks.linkary_task_id` for idempotency. |
 | `title` | string | Yes | Task title. |
 | `description` | string | No | Optional. |
 | `platform` | string | No | Optional. |
@@ -49,14 +49,18 @@ Idempotent sync from Linkary (sprint/gig acceptance) into CRM: campaign, partici
 
 ---
 
-## 3. Source identifiers and idempotency
+## 3. Idempotency (code and database)
 
-- **Campaign:** `(workspace_id, source_linkary_campaign_id)`. If a campaign exists with this `source_linkary_campaign_id` in the workspace, it is updated (e.g. title); otherwise created.
-- **Participant:** `(campaign_id, participant_profile_id)`. Insert only if not present.
-- **Task bundle:** `(campaign_id, participant_profile_id)`. One bundle per participant per campaign; create only if not present.
-- **Tasks:** `(task_bundle_id, metadata->>'linkary_task_id')`. Each task’s `linkary_task_id` is stored in `metadata.linkary_task_id`. If a task with the same bundle and `linkary_task_id` exists, it is skipped.
+Idempotency is enforced in code and at the database level so concurrent duplicate sync calls are safe.
 
-Repeated POSTs with the same payload do not create duplicate campaigns, participants, bundles, or tasks.
+| Entity | Uniqueness (DB) | Behavior |
+|--------|-----------------|----------|
+| Campaign | `UNIQUE(workspace_id, source_linkary_campaign_id)` | Upsert; existing campaign is updated (e.g. title). |
+| Participant | `UNIQUE(campaign_id, participant_profile_id)` | Upsert; insert only if not present. |
+| Task bundle | `UNIQUE(campaign_id, participant_profile_id)` | Upsert; one bundle per participant per campaign. |
+| Task | `UNIQUE(task_bundle_id, linkary_task_id)` + column `crm_tasks.linkary_task_id` | Insert; duplicate key is ignored (no duplicate task). |
+
+Repeated or concurrent POSTs with the same payload do not create duplicate campaigns, participants, bundles, or tasks.
 
 ---
 
@@ -67,11 +71,14 @@ Repeated POSTs with the same payload do not create duplicate campaigns, particip
 - **Using `org_id` in payload:** Pass Linkary `orgs.id`. CRM resolves `workspace_id` by selecting the CRM workspace where `linked_org_id = org_id` and type is org/project/brand/agency. If none exists, sync returns a clear error: "No CRM workspace linked to this org".
 - **Using `workspace_id` in payload:** Use when you already have the CRM workspace id (e.g. from another flow).
 
+---
+
 ## 5. Creator task visibility
 
-- **Eligible creators (profile_type = individual):** If the participant has no creator workspace yet, sync bootstraps one (same as `/tasks` eligibility) and creates tasks on their personal board so they appear on **/tasks**.
-- **Existing creator workspace:** Tasks are created on the participant’s personal board.
-- **Not eligible (e.g. org/profile company):** Participant is added as a **member** of the org workspace and tasks are created on the org campaign board; they can see tasks via workspace membership (e.g. in Campaigns or a future "my campaign tasks" view).
+- **Eligible creators (profile_type = individual):** If the participant has no creator workspace yet, sync bootstraps one (same as `/tasks` eligibility) and creates tasks on their **personal board** so they appear on **/tasks**. Existing creator workspace: tasks go to their personal board.
+- **Not eligible (e.g. org / company profile):** Sync does **not** create a creator workspace. The participant is added as a **member** of the org workspace and tasks are created on the **org campaign board**. They can see tasks via workspace membership (e.g. Campaigns or a “my campaign tasks” view). This fallback ensures tasks are never created in a place the intended participant cannot access.
+
+---
 
 ## 6. Where to trigger (apps/web)
 
@@ -82,13 +89,29 @@ Sync is **wired** for **job application acceptance:** when an org owner/admin ac
 
 ---
 
-## 5. CRM env vars (for sync)
+## 7. Sync failure handling and recovery
+
+- **Non-blocking:** Acceptance in apps/web succeeds even if sync fails; sync does not block or alter the 200 response.
+- **Durable log:** On sync failure, the CRM API writes a row to `crm_sync_failures` (payload + `error_message`). The API response may include `sync_failure_id` for traceability; apps/web logs it when present.
+- **Recovery:** Retry by sending the **same payload** again to `POST /api/sync/linkary`. Sync is idempotent, so repeated calls do not create duplicates. No separate retry endpoint; use the same sync endpoint with the same body (e.g. from `crm_sync_failures.payload`).
+
+---
+
+## 8. CRM env vars (for sync)
 
 - `CRM_SYNC_SECRET` — Required for the sync API. Set the same value in apps/web when calling the sync.
 - `SUPABASE_SERVICE_ROLE_KEY` — Required in apps/crm for the sync route so it can perform upserts (RLS is bypassed for this route only; the route is protected by `CRM_SYNC_SECRET`).
 
 ---
 
-## 8. Logging
+## 9. Logging
 
-Sync failures are logged server-side with `[CRM sync]` and the error message. The API returns 4xx/5xx with a short `error` message; do not expose internal details to the client.
+Sync failures are logged server-side with `[CRM sync]` and the error message. The API returns 4xx/5xx with a short `error` message; internal details are not exposed to the client.
+
+---
+
+## 10. Verification checklist (concurrent / duplicate sync)
+
+- [ ] **Concurrent duplicate calls:** Send two identical sync requests in parallel; only one campaign, one participant, one task bundle, and the expected tasks are created; no duplicate key errors.
+- [ ] **Repeated sync idempotent:** Send the same payload multiple times sequentially; no duplicate campaigns, participants, bundles, or tasks.
+- [ ] **Failure then retry:** Cause a sync failure (e.g. wrong org_id), then fix and POST the same payload again; sync succeeds and records appear; no duplicates from the failed attempt.

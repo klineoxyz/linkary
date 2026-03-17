@@ -174,89 +174,67 @@ export async function runLinkarySync(
     platform: (t as LinkarySyncTask).platform ?? null,
   }));
 
-  let campaignId: string;
-
-  const { data: existingCampaign } = await supabase
+  // DB-level uniqueness: (workspace_id, source_linkary_campaign_id). Safe under concurrency.
+  const { data: campaignRow, error: campErr } = await supabase
     .from("crm_campaigns")
-    .select("id")
-    .eq("workspace_id", workspace_id)
-    .eq("source_linkary_campaign_id", source_linkary_campaign_id)
-    .maybeSingle();
-
-  if (existingCampaign?.id) {
-    campaignId = existingCampaign.id as string;
-    if (campaign_title) {
-      await supabase
-        .from("crm_campaigns")
-        .update({ title: campaign_title, updated_at: new Date().toISOString() })
-        .eq("id", campaignId);
-    }
-  } else {
-    const { data: insertedCampaign, error: campErr } = await supabase
-      .from("crm_campaigns")
-      .insert({
+    .upsert(
+      {
         workspace_id,
         source_linkary_campaign_id,
         title: campaign_title ?? "Synced campaign",
         status: "active",
-      })
-      .select("id")
-      .single();
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "workspace_id,source_linkary_campaign_id",
+        ignoreDuplicates: false,
+      }
+    )
+    .select("id")
+    .single();
 
-    if (campErr || !insertedCampaign?.id) {
-      return { ok: false, error: "Failed to create campaign" };
-    }
-    campaignId = insertedCampaign.id as string;
+  if (campErr || !campaignRow?.id) {
+    return { ok: false, error: "Failed to create campaign" };
   }
+  const campaignId = campaignRow.id as string;
 
-  const { data: existingParticipant } = await supabase
+  // DB-level UNIQUE(campaign_id, participant_profile_id). Safe under concurrency.
+  const { error: partErr } = await supabase
     .from("crm_campaign_participants")
-    .select("id")
-    .eq("campaign_id", campaignId)
-    .eq("participant_profile_id", participant_profile_id)
-    .maybeSingle();
-
-  if (!existingParticipant?.id) {
-    const { error: partErr } = await supabase.from("crm_campaign_participants").insert({
-      campaign_id: campaignId,
-      participant_profile_id,
-      role: "contributor",
-      status: "accepted",
-      accepted_at: new Date().toISOString(),
-    });
-    if (partErr) {
-      return { ok: false, campaign_id: campaignId, error: "Failed to add participant" };
-    }
+    .upsert(
+      {
+        campaign_id: campaignId,
+        participant_profile_id,
+        role: "contributor",
+        status: "accepted",
+        accepted_at: new Date().toISOString(),
+      },
+      { onConflict: "campaign_id,participant_profile_id", ignoreDuplicates: true }
+    );
+  if (partErr) {
+    return { ok: false, campaign_id: campaignId, error: "Failed to add participant" };
   }
 
-  const { data: existingBundle } = await supabase
+  // DB-level UNIQUE(campaign_id, participant_profile_id). Upsert to get id under concurrency.
+  const { data: bundleRow, error: bundleErr } = await supabase
     .from("crm_task_bundles")
-    .select("id")
-    .eq("campaign_id", campaignId)
-    .eq("participant_profile_id", participant_profile_id)
-    .maybeSingle();
-
-  let taskBundleId: string;
-  if (existingBundle?.id) {
-    taskBundleId = existingBundle.id as string;
-  } else {
-    const { data: insertedBundle, error: bundleErr } = await supabase
-      .from("crm_task_bundles")
-      .insert({
+    .upsert(
+      {
         workspace_id,
         campaign_id: campaignId,
         participant_profile_id,
         title: "Synced bundle",
         expected_task_count: taskList.length,
-      })
-      .select("id")
-      .single();
+      },
+      { onConflict: "campaign_id,participant_profile_id", ignoreDuplicates: false }
+    )
+    .select("id")
+    .single();
 
-    if (bundleErr || !insertedBundle?.id) {
-      return { ok: false, campaign_id: campaignId, error: "Failed to create task bundle" };
-    }
-    taskBundleId = insertedBundle.id as string;
+  if (bundleErr || !bundleRow?.id) {
+    return { ok: false, campaign_id: campaignId, error: "Failed to create task bundle" };
   }
+  const taskBundleId = bundleRow.id as string;
 
   // Prefer creator's personal board so tasks appear on /tasks
   const { data: creatorWs } = await supabase
@@ -305,17 +283,11 @@ export async function runLinkarySync(
     return { ok: false, campaign_id: campaignId, task_bundle_id: taskBundleId, error: "Failed to get or create board" };
   }
 
+  // DB-level UNIQUE(task_bundle_id, linkary_task_id). Insert and ignore duplicate for concurrency-safe idempotency.
   let tasksCreated = 0;
   for (const task of taskList) {
-    const linkaryTaskId = task.linkary_task_id ?? task.title;
-    const { data: existingTask } = await supabase
-      .from("crm_tasks")
-      .select("id")
-      .eq("task_bundle_id", taskBundleId)
-      .eq("metadata->>linkary_task_id", linkaryTaskId)
-      .maybeSingle();
-
-    if (existingTask?.id) continue;
+    const linkaryTaskId = (task.linkary_task_id ?? task.title).trim();
+    if (!linkaryTaskId) continue;
 
     const { error: taskErr } = await supabase.from("crm_tasks").insert({
       workspace_id: taskWorkspaceId,
@@ -330,10 +302,13 @@ export async function runLinkarySync(
       priority: "medium",
       assigned_to: participant_profile_id,
       created_by: participant_profile_id,
+      linkary_task_id: linkaryTaskId,
       metadata: { linkary_task_id: linkaryTaskId },
     });
 
     if (taskErr) {
+      const isDuplicate = taskErr.code === "23505";
+      if (isDuplicate) continue;
       return {
         ok: false,
         campaign_id: campaignId,

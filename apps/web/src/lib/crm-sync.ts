@@ -54,9 +54,11 @@ export async function triggerLinkaryCrmSync(
       campaign_id?: string;
       task_bundle_id?: string;
       tasks_created?: number;
+      sync_failure_id?: string;
     };
     if (!res.ok) {
-      console.error("[CRM sync] Sync failed:", res.status, data.error);
+      const failureId = data.sync_failure_id ? ` (sync_failure_id=${data.sync_failure_id})` : "";
+      console.error("[CRM sync] Sync failed:", res.status, data.error, failureId);
       return {
         ok: false,
         error: data.error ?? `HTTP ${res.status}`,

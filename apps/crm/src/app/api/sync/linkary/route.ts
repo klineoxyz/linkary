@@ -84,8 +84,23 @@ export async function POST(request: Request) {
   const result = await runLinkarySync(supabase, body as LinkarySyncPayload);
   if (!result.ok) {
     console.error("[CRM sync] Sync failed:", result.error);
+    let syncFailureId: string | undefined;
+    const { data: failRow } = await supabase
+      .from("crm_sync_failures")
+      .insert({
+        payload: body as Record<string, unknown>,
+        error_message: result.error,
+      })
+      .select("id")
+      .single();
+    if (failRow?.id) syncFailureId = failRow.id as string;
     return NextResponse.json(
-      { ok: false, error: result.error, campaign_id: result.campaign_id },
+      {
+        ok: false,
+        error: result.error,
+        campaign_id: result.campaign_id,
+        ...(syncFailureId && { sync_failure_id: syncFailureId }),
+      },
       { status: 400 }
     );
   }

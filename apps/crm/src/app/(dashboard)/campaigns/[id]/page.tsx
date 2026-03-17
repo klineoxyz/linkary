@@ -10,6 +10,7 @@ import {
   getCampaignTopContributors,
 } from "@/lib/campaigns";
 import { getCampaignCompliance } from "@/lib/compliance";
+import { writeContribution } from "@/lib/contribution";
 import { SubmissionReviewRow } from "./SubmissionReviewRow";
 import { CampaignDefinitionForm } from "./CampaignDefinitionForm";
 import { GenerateRecurringTasksButton } from "./GenerateRecurringTasksButton";
@@ -61,7 +62,7 @@ export default async function CampaignDetailPage({
   const campaign = await getCampaign(supabase, id);
   if (!campaign) notFound();
 
-  const [kpis, contributors, submissions, topContributors, workspaceRow, complianceResult] =
+  const [kpis, contributors, submissions, topContributors, workspaceRow, complianceResult, contributionRows] =
     await Promise.all([
       getCampaignKpis(supabase, id, {
         budget: campaign.budget,
@@ -72,7 +73,17 @@ export default async function CampaignDetailPage({
       getCampaignTopContributors(supabase, id),
       supabase.from("crm_workspaces").select("slug").eq("id", campaign.workspace_id).maybeSingle(),
       getCampaignCompliance(supabase, id),
+      writeContribution(supabase, id, { weighted: true }),
     ]);
+
+  const contributionByBundle = new Map(
+    (contributionRows ?? []).map((r) => [r.bundleId, r.contributionPercent])
+  );
+  const complianceWithContribution = (complianceResult?.compliance ?? []).map((row) => ({
+    ...row,
+    contributionPercent: contributionByBundle.get(row.bundleId) ?? null,
+  }));
+  complianceWithContribution.sort((a, b) => (b.contributionPercent ?? 0) - (a.contributionPercent ?? 0));
 
   const noMetrics = !kpis.has_metrics;
   const workspaceSlug =
@@ -219,16 +230,19 @@ export default async function CampaignDetailPage({
           <div className="mb-4">
             <GenerateRecurringTasksButton campaignId={id} />
           </div>
-          {complianceResult && complianceResult.compliance.length > 0 && (
+          {complianceResult && complianceWithContribution.length > 0 && (
             <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
               <p className="text-xs text-[var(--crm-muted)] p-3 border-b border-[var(--crm-border)]">
                 Week: {new Date(complianceResult.weekStart).toLocaleDateString()} – {new Date(complianceResult.weekEnd).toLocaleDateString()}
+                {" · "}
+                Contribution: weighted by deliverable type (approved/done tasks only).
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
                       <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
+                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Contribution</th>
                       <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Weekly (approved)</th>
                       <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Daily (done)</th>
                       <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Overdue</th>
@@ -236,10 +250,13 @@ export default async function CampaignDetailPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {complianceResult.compliance.map((row) => (
+                    {complianceWithContribution.map((row, index) => (
                       <tr key={row.bundleId} className="border-b border-[var(--crm-border)] last:border-0">
                         <td className="p-3 font-mono text-xs text-[var(--crm-muted)]">
-                          {row.participant_profile_id.slice(0, 8)}…
+                          #{index + 1} {row.participant_profile_id.slice(0, 8)}…
+                        </td>
+                        <td className="p-3 text-right font-medium text-[var(--crm-primary)]">
+                          {row.contributionPercent != null ? `${row.contributionPercent}%` : "—"}
                         </td>
                         <td className="p-3 text-right">
                           {row.approvedWeeklyThisWeek}/{row.requiredWeeklyPosts}
@@ -276,6 +293,47 @@ export default async function CampaignDetailPage({
               </div>
             </div>
           )}
+        </section>
+      )}
+
+      {!(campaign.weekly_required_posts != null || campaign.daily_engagement_required) &&
+        contributionRows &&
+        contributionRows.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
+            Contribution
+          </h2>
+          <p className="text-sm text-[var(--crm-muted)] mb-4">
+            Share of approved/done tasks per participant (weighted by deliverable type).
+          </p>
+          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">#</th>
+                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Contribution</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contributionRows
+                    .sort((a, b) => b.contributionPercent - a.contributionPercent)
+                    .map((r, i) => (
+                      <tr key={r.bundleId} className="border-b border-[var(--crm-border)] last:border-0">
+                        <td className="p-3 text-[var(--crm-muted)]">{i + 1}</td>
+                        <td className="p-3 font-mono text-xs text-[var(--crm-muted)]">
+                          {r.participant_profile_id.slice(0, 8)}…
+                        </td>
+                        <td className="p-3 text-right font-medium text-[var(--crm-primary)]">
+                          {r.contributionPercent}%
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </section>
       )}
 

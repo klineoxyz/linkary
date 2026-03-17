@@ -114,8 +114,8 @@ export function MyCampaignBundles({
                 />
               </div>
               {item.contributionPercent != null && (
-                <p className="mt-2 text-xs text-[var(--crm-muted)]">
-                  Your contribution: {item.contributionPercent}%
+                <p className="mt-2 text-xs font-medium text-[var(--crm-primary)]">
+                  Your share: {item.contributionPercent}% of campaign
                 </p>
               )}
             </Link>

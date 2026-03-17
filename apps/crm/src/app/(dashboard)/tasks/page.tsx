@@ -62,23 +62,31 @@ export default async function TasksPage({
   const hasCreatorWorkspace = !!access.creatorWorkspace;
 
   if (!hasCreatorWorkspace) {
-    // Missing profile → show actionable message (sign in on linkary.xyz first).
-    const { data: profileRow } = await supabase
+    // Missing profile → try to create minimal profile for individual (CRM-only users), then retry.
+    let { data: profileRow } = await supabase
       .from("profiles")
       .select("id, profile_type")
       .eq("id", user.id)
       .maybeSingle();
+
     if (!profileRow?.id) {
-      const { message, hint } = workspaceBootstrapMessage("no_profile");
-      return (
-        <div className="space-y-6">
-          <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center space-y-2">
-            <p className="text-[var(--crm-foreground)]">{message}</p>
-            {hint && <p className="text-sm text-[var(--crm-muted)]">{hint}</p>}
+      const { error: insertErr } = await supabase.from("profiles").insert({
+        id: user.id,
+        profile_type: CREATOR_BOOTSTRAP_PROFILE_TYPE,
+      });
+      if (insertErr) {
+        const { message, hint } = workspaceBootstrapMessage("no_profile");
+        return (
+          <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
+            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center space-y-2">
+              <p className="text-[var(--crm-foreground)]">{message}</p>
+              {hint && <p className="text-sm text-[var(--crm-muted)]">{hint}</p>}
+            </div>
           </div>
-        </div>
-      );
+        );
+      }
+      profileRow = { id: user.id, profile_type: CREATOR_BOOTSTRAP_PROFILE_TYPE } as { id: string; profile_type: string };
     }
     // Profile exists but not individual → no access to personal task board.
     const eligibleToBootstrap =

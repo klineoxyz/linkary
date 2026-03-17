@@ -9,8 +9,10 @@ import {
   getCampaignSubmissions,
   getCampaignTopContributors,
 } from "@/lib/campaigns";
+import { getCampaignCompliance } from "@/lib/compliance";
 import { SubmissionReviewRow } from "./SubmissionReviewRow";
 import { CampaignDefinitionForm } from "./CampaignDefinitionForm";
+import { GenerateRecurringTasksButton } from "./GenerateRecurringTasksButton";
 import { ArrowLeft } from "lucide-react";
 
 function KpiCard({
@@ -59,16 +61,18 @@ export default async function CampaignDetailPage({
   const campaign = await getCampaign(supabase, id);
   if (!campaign) notFound();
 
-  const [kpis, contributors, submissions, topContributors, workspaceRow] = await Promise.all([
-    getCampaignKpis(supabase, id, {
-      budget: campaign.budget,
-      currency: campaign.currency,
-    }),
-    getCampaignContributors(supabase, id),
-    getCampaignSubmissions(supabase, id),
-    getCampaignTopContributors(supabase, id),
-    supabase.from("crm_workspaces").select("slug").eq("id", campaign.workspace_id).maybeSingle(),
-  ]);
+  const [kpis, contributors, submissions, topContributors, workspaceRow, complianceResult] =
+    await Promise.all([
+      getCampaignKpis(supabase, id, {
+        budget: campaign.budget,
+        currency: campaign.currency,
+      }),
+      getCampaignContributors(supabase, id),
+      getCampaignSubmissions(supabase, id),
+      getCampaignTopContributors(supabase, id),
+      supabase.from("crm_workspaces").select("slug").eq("id", campaign.workspace_id).maybeSingle(),
+      getCampaignCompliance(supabase, id),
+    ]);
 
   const noMetrics = !kpis.has_metrics;
   const workspaceSlug =
@@ -203,6 +207,77 @@ export default async function CampaignDetailPage({
           />
         </div>
       </section>
+
+      {(campaign.weekly_required_posts != null || campaign.daily_engagement_required) && (
+        <section>
+          <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
+            Recurring tasks & compliance
+          </h2>
+          <p className="text-sm text-[var(--crm-muted)] mb-4">
+            Generate this week&apos;s tasks from campaign definition (weekly posts + daily engagement). Compliance is computed from task statuses for the current week.
+          </p>
+          <div className="mb-4">
+            <GenerateRecurringTasksButton campaignId={id} />
+          </div>
+          {complianceResult && complianceResult.compliance.length > 0 && (
+            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
+              <p className="text-xs text-[var(--crm-muted)] p-3 border-b border-[var(--crm-border)]">
+                Week: {new Date(complianceResult.weekStart).toLocaleDateString()} – {new Date(complianceResult.weekEnd).toLocaleDateString()}
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+                      <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
+                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Weekly (approved)</th>
+                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Daily (done)</th>
+                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Overdue</th>
+                      <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {complianceResult.compliance.map((row) => (
+                      <tr key={row.bundleId} className="border-b border-[var(--crm-border)] last:border-0">
+                        <td className="p-3 font-mono text-xs text-[var(--crm-muted)]">
+                          {row.participant_profile_id.slice(0, 8)}…
+                        </td>
+                        <td className="p-3 text-right">
+                          {row.approvedWeeklyThisWeek}/{row.requiredWeeklyPosts}
+                        </td>
+                        <td className="p-3 text-right">
+                          {row.dailyRequired
+                            ? `${row.dailyCompletedThisWeek}/${row.dailyTotalThisWeek}`
+                            : "—"}
+                        </td>
+                        <td className="p-3 text-right">
+                          {row.overdueCount > 0 ? (
+                            <span className="text-amber-600 dark:text-amber-400">{row.overdueCount}</span>
+                          ) : (
+                            "0"
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <span
+                            className={`rounded px-2 py-0.5 text-xs ${
+                              row.status === "compliant"
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                : row.status === "behind"
+                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                  : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                            }`}
+                          >
+                            {row.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       <section>
         <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">

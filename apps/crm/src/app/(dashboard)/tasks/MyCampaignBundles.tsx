@@ -65,6 +65,20 @@ export function MyCampaignBundles({
               <p className="mt-2 text-xs text-[var(--crm-muted)]">
                 {formatDateRange(item.campaignStartsAt, item.campaignEndsAt)}
               </p>
+              {(item.requiredWeeklyPosts != null || item.dailyEngagementRequired) && (
+                <div className="mt-2 text-xs text-[var(--crm-muted)]">
+                  {item.requiredWeeklyPosts != null && item.requiredWeeklyPosts > 0 && (
+                    <span className="mr-3">
+                      This week: {(item.progressThisWeekWeekly?.approved ?? 0) + (item.progressThisWeekWeekly?.done ?? 0)}/{item.requiredWeeklyPosts} weekly posts
+                    </span>
+                  )}
+                  {item.dailyEngagementRequired && item.progressThisWeekDaily && (
+                    <span>
+                      Daily: {(item.progressThisWeekDaily.approved ?? 0) + (item.progressThisWeekDaily.done ?? 0)}/{item.progressThisWeekDaily.total || 7} this week
+                    </span>
+                  )}
+                </div>
+              )}
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                 <span className="text-[var(--crm-foreground)]">
                   {completed}/{progress.total} completed

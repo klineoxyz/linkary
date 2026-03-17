@@ -7,6 +7,7 @@ import {
   getSubmissionWithCampaignWorkspace,
   updateSubmissionStatus,
 } from "@/lib/submissions";
+import { generateRecurringTasksForCampaignWeek } from "@/lib/recurring";
 import { revalidatePath } from "next/cache";
 
 const REVIEW_STATUSES = ["approved", "rejected", "needs_revision"] as const;
@@ -115,4 +116,31 @@ export async function updateCampaignDefinitionAction(
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath("/campaigns");
   return {};
+}
+
+/**
+ * Generate recurring tasks for the current week (weekly_post + daily_engagement from campaign definition).
+ * RLS: caller must be member of campaign's workspace.
+ */
+export async function generateRecurringTasksAction(
+  campaignId: string
+): Promise<{ error?: string; tasks_created?: number }> {
+  const supabase = await createServerSupabase();
+  if (!supabase) return { error: "Not configured" };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Unauthorized" };
+
+  const campaign = await getCampaign(supabase, campaignId);
+  if (!campaign) return { error: "Campaign not found or access denied" };
+
+  const result = await generateRecurringTasksForCampaignWeek(supabase, campaignId);
+  if (!result.ok) return { error: result.error ?? "Generation failed" };
+
+  revalidatePath(`/campaigns/${campaignId}`);
+  revalidatePath("/campaigns");
+  revalidatePath("/tasks");
+  return { tasks_created: result.tasks_created ?? 0 };
 }

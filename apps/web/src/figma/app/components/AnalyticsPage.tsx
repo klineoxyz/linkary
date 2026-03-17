@@ -251,6 +251,20 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           </div>
         ) : (
           <>
+        {/* Same layout for all profiles; empty state when no X handle or no synced data */}
+        {payload && payload.kpis.posts_total === 0 && payload.kpis.followers_latest == null && (
+          <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
+            <p className="text-sm text-muted-foreground">
+              X metrics appear when your profile has an X handle connected and sync has run. Add your handle in Integrations and run sync to populate data here.
+            </p>
+            <a
+              href="/app/settings/integrations"
+              className="inline-block mt-2 text-xs font-medium text-primary hover:underline underline-offset-2"
+            >
+              Go to Integrations
+            </a>
+          </div>
+        )}
         <header className="rounded-xl border border-border bg-card py-2.5 px-4">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

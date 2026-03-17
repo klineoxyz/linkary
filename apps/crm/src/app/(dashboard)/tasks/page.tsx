@@ -94,15 +94,25 @@ export default async function TasksPage({
       ? myBundles.find((b) => b.campaignId === campaignId)!.campaignTitle
       : null;
 
+  const isEmpty = tasks.length === 0;
+
   return (
     <div className="space-y-6">
+      {isEmpty && (
+        <div className="rounded-xl border border-[var(--crm-primary)]/20 bg-[var(--crm-card)] p-6">
+          <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-1">You&apos;re all set</h2>
+          <p className="text-sm text-[var(--crm-muted)]">
+            Your personal task board is ready. Add tasks to track your work, or wait for campaign tasks to appear when you&apos;re in a campaign.
+          </p>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
         <CreateTaskButton />
       </div>
       <MyCampaignBundles bundles={myBundles} currentCampaignId={campaignId} />
       <TasksFilters campaignId={campaignId} campaignTitle={campaignTitle} />
-      <TasksList tasks={tasks} />
+      <TasksList tasks={tasks} emptyStateCTA={isEmpty ? <CreateTaskButton /> : undefined} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import type { TaskRow } from "@/lib/tasks";
 import { Calendar, FileText } from "lucide-react";
@@ -37,15 +38,25 @@ function statusBadgeClass(status: string): string {
   return base + (m[status] ?? neutral);
 }
 
-export function TasksList({ tasks }: { tasks: TaskRow[] }) {
+export function TasksList({
+  tasks,
+  emptyStateCTA,
+}: {
+  tasks: TaskRow[];
+  /** Rendered in the empty state (e.g. CreateTaskButton) for strong first-task CTA. */
+  emptyStateCTA?: ReactNode;
+}) {
   if (tasks.length === 0) {
     return (
-      <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-12 text-center">
-        <FileText className="mx-auto h-12 w-12 text-[var(--crm-muted)] mb-4" />
-        <h3 className="font-medium text-[var(--crm-foreground)] mb-1">No tasks yet</h3>
-        <p className="text-sm text-[var(--crm-muted)]">
-          Create a task above or wait for campaign tasks to appear here.
-        </p>
+      <div className="space-y-4">
+        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center">
+          <FileText className="mx-auto h-12 w-12 text-[var(--crm-muted)] mb-4" aria-hidden />
+          <h3 className="font-medium text-[var(--crm-foreground)] mb-1">No tasks yet</h3>
+          <p className="text-sm text-[var(--crm-muted)] max-w-md mx-auto mb-6">
+            Add your own tasks to track work, or wait for campaign tasks to appear here when you’re in a campaign.
+          </p>
+          {emptyStateCTA && <div className="flex justify-center">{emptyStateCTA}</div>}
+        </div>
       </div>
     );
   }
@@ -92,7 +103,17 @@ export function TasksList({ tasks }: { tasks: TaskRow[] }) {
                   {formatDue(t.due_at)}
                 </td>
                 <td className="py-3 px-4 text-[var(--crm-muted)]">{t.platform ?? "—"}</td>
-                <td className="py-3 px-4 text-[var(--crm-muted)]">{t.source_type.replace("_", " ")}</td>
+                <td className="py-3 px-4">
+                  <span
+                    className={
+                      t.source_type === "manual"
+                        ? "inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-[var(--crm-bg)] text-[var(--crm-muted)]"
+                        : "inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-[var(--crm-accent)] text-[var(--crm-primary)]"
+                    }
+                  >
+                    {t.source_type === "manual" ? "Manual" : "Campaign"}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>

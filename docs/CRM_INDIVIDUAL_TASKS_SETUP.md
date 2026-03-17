@@ -58,6 +58,8 @@ That means **workspace** or **board** creation failed (e.g. RLS or duplicate slu
 
 - **Supabase logs** (Database or API) for the failing INSERT (e.g. `crm_workspaces`, `crm_workspace_members`, `crm_boards`).
 - That **`crm_current_profile_id()`** returns your user id (it does `SELECT id FROM profiles WHERE id = auth.uid()`). If there is no profile for `auth.uid()`, it returns NULL and RLS blocks the insert.
+- **Debug:** Add `?debug=1` to the URL (e.g. `/tasks?debug=1`) to see the failure reason and stage on the error screen. Server logs show `[CRM bootstrap] failed: reason=... stage=...`.
+- **Full root-cause guide:** See **`docs/CRM_BOOTSTRAP_ROOT_CAUSE_AND_DEBUG.md`** for likely causes (e.g. cookie domain for crm.linkary.xyz, RLS, profile existence) and production checklist.
 
 ---
 
@@ -86,7 +88,10 @@ No code changes are required for **Campaigns** or **reporting**; this only affec
 - **Tasks — wrong profile type:** Dedicated “Personal task board isn’t available” card with icon, short explanation, and “Go to Campaigns” / “Home” CTAs.
 - **Tasks — workspace creation failed:** Dedicated “We couldn’t create your task board” card with icon, message, “Try again” (link to `/tasks`) and note to sign out/in; support note at bottom.
 
-**What still remains for a better individual creator task experience:**
-- Optional: progress or step indicator on home (“Step 1: Create your board”) and a brief “You’re all set” moment on first load of /tasks after bootstrap.
-- Optional: empty state on the task list (e.g. “No tasks yet — add your first task”) with a prominent “New task” CTA.
-- If `profiles` has more NOT NULL columns in your deployment, the minimal profile insert may still fail; then the “Set up your account for Tasks” state is shown and the doc above applies.
+**First-success experience (implemented):**
+- When bootstrap succeeds and there are no tasks: "You're all set" welcome card and short explanation; empty state with "No tasks yet" and a prominent "New task" CTA; Manual vs Campaign badges in the task list.
+
+**What still remains (optional / edge cases):**
+- Optional: progress or step indicator on home (e.g. "Step 1: Create your board").
+- If `profiles` has more NOT NULL columns in your deployment, the minimal profile insert may still fail; then the "Set up your account for Tasks" state is shown and the doc above applies.
+- If workspace/board creation fails, use `?debug=1` on `/tasks` and see **docs/CRM_BOOTSTRAP_ROOT_CAUSE_AND_DEBUG.md** for root-cause and production checklist.

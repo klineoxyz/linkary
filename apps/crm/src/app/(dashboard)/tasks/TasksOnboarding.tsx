@@ -72,9 +72,15 @@ export function TasksWrongProfileType() {
 export function TasksWorkspaceCreationFailed({
   message,
   hint,
+  reasonCode,
+  stage,
+  showDebug,
 }: {
   message: string;
   hint: string | null;
+  reasonCode?: string;
+  stage?: string;
+  showDebug?: boolean;
 }) {
   return (
     <div className="space-y-6">
@@ -86,6 +92,11 @@ export function TasksWorkspaceCreationFailed({
         <h2 className={headlineClass}>We couldn’t create your task board</h2>
         <p className="text-[var(--crm-foreground)] font-medium mb-2">{message}</p>
         {hint && <p className={bodyClass}>{hint}</p>}
+        {showDebug && (reasonCode || stage) && (
+          <p className="text-xs font-mono text-[var(--crm-muted)] mb-4 p-2 rounded bg-[var(--crm-bg)]">
+            Debug: reason={reasonCode ?? "—"} stage={stage ?? "—"}
+          </p>
+        )}
         <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
           <Link href="/tasks" className={ctaPrimaryClass}>
             Try again

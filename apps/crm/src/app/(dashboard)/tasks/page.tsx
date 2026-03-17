@@ -28,7 +28,7 @@ const VALID_FILTERS: TaskFilter[] = [
 export default async function TasksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string; campaign?: string }>;
+  searchParams: Promise<{ filter?: string; campaign?: string; debug?: string }>;
 }) {
   const supabase = await createServerSupabase();
   if (!supabase) return <SetupRequired />;
@@ -36,7 +36,9 @@ export default async function TasksPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user?.id) redirect("/login");
+  if (!user?.id) {
+    redirect("/login");
+  }
 
   const access = await resolveCrmAccess(supabase, user.id);
   const hasCreatorWorkspace = !!access.creatorWorkspace;
@@ -72,8 +74,19 @@ export default async function TasksPage({
   const wsResult = await getOrCreateCreatorWorkspaceAndBoard(supabase, user.id);
   if (!wsResult || "error" in wsResult) {
     const reason = wsResult && "error" in wsResult ? wsResult.error : "unknown";
+    const stage = wsResult && "stage" in wsResult ? wsResult.stage : undefined;
     const { message, hint } = workspaceBootstrapMessage(reason);
-    return <TasksWorkspaceCreationFailed message={message} hint={hint} />;
+    const params = await searchParams;
+    const showDebug = params.debug === "1";
+    return (
+      <TasksWorkspaceCreationFailed
+        message={message}
+        hint={hint}
+        reasonCode={reason}
+        stage={stage}
+        showDebug={showDebug}
+      />
+    );
   }
   const ws = wsResult;
 

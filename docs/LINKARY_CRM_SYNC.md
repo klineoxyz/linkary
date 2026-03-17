@@ -66,10 +66,11 @@ Repeated or concurrent POSTs with the same payload do not create duplicate campa
 
 ## 4. Org → CRM workspace mapping
 
-**Source of truth:** `crm_workspaces.linked_org_id` (references Linkary `orgs.id`). When you create an org workspace in CRM, set `linked_org_id` to the Linkary org id so sync can resolve it.
+**Source of truth:** `crm_workspaces.linked_org_id` (references Linkary `orgs.id`). When you create an org workspace in CRM, set `linked_org_id` to the Linkary org id so sync can resolve it. A unique constraint ensures at most one org/project/brand/agency workspace per Linkary org.
 
 - **Using `org_id` in payload:** Pass Linkary `orgs.id`. CRM resolves `workspace_id` by selecting the CRM workspace where `linked_org_id = org_id` and type is org/project/brand/agency. If none exists, sync returns a clear error: "No CRM workspace linked to this org".
 - **Using `workspace_id` in payload:** Use when you already have the CRM workspace id (e.g. from another flow).
+- **Backfill / verification:** See `docs/CRM_PRE_LAUNCH_VERIFICATION.md` for auditing and backfilling `linked_org_id` on existing org-style workspaces.
 
 ---
 

@@ -4,6 +4,42 @@ Deploy the CRM app as a **second Vercel project** from the same monorepo. No cha
 
 ---
 
+## Pre-launch / launch checklist
+
+Use this before going live with Linkary → CRM sync and org review.
+
+**Required env vars (both Vercel projects):**
+
+| Project   | Variable                     | Required for              |
+|-----------|------------------------------|----------------------------|
+| **apps/web**  | `CRM_APP_URL`             | Sync trigger (e.g. `https://crm.linkary.xyz`) |
+| **apps/web**  | `CRM_SYNC_SECRET`         | Sync API auth (same value as CRM)              |
+| **apps/crm**  | `CRM_SYNC_SECRET`         | Sync API auth                                |
+| **apps/crm**  | `SUPABASE_SERVICE_ROLE_KEY` | Sync route (server-side only)                 |
+| Both (prod)   | `NEXT_PUBLIC_COOKIE_DOMAIN`  | `.linkary.xyz` for shared auth                |
+
+**Required migrations (Supabase):** Apply in order. CRM sync and uniqueness depend on them.
+
+- `20260405000000_crm_schema_tables.sql`
+- `20260405000001_crm_rls.sql`
+- `20260405100000_crm_submissions_campaign_nullable.sql` (if present)
+- `20260406100000_crm_sync_idempotency_and_failures.sql`
+- `20260406100001_crm_linked_org_id_index_and_unique.sql`
+
+**linked_org_id mapping checks:**
+
+- [ ] Run verification SQL in `docs/CRM_PRE_LAUNCH_VERIFICATION.md` (§2.1, §2.2) — no duplicate campaigns, no duplicate tasks.
+- [ ] Run §2.3 — list org-style workspaces with missing `linked_org_id`; backfill any that will receive job-acceptance sync (see §1 backfill plan in same doc).
+
+**End-to-end test (acceptance → sync → proof → review):**
+
+- [ ] As org owner, accept a job application for an org that has a CRM workspace with `linked_org_id` set. Acceptance returns 200.
+- [ ] In CRM, confirm campaign and tasks exist; accepted creator sees tasks on **/tasks** (or on org board if not eligible for creator workspace).
+- [ ] As creator, open a synced task and submit a proof URL; status shows pending.
+- [ ] As org user, open campaign detail; approve or reject the submission. Unauthorized user cannot review.
+
+---
+
 ## Production structure
 
 | App        | Vercel project     | Domain            |

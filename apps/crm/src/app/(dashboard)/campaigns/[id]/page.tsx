@@ -99,11 +99,12 @@ export default async function CampaignDetailPage({
         Back to campaigns
       </Link>
 
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">
-          {campaign.title}
-        </h1>
-        <div className="mt-2 flex flex-wrap gap-2 text-sm text-[var(--crm-muted)]">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">
+            {campaign.title}
+          </h1>
+          <div className="mt-2 flex flex-wrap gap-2 text-sm text-[var(--crm-muted)]">
           <span className="rounded px-2 py-0.5 bg-[var(--crm-bg)]">
             {campaign.status}
           </span>
@@ -121,6 +122,13 @@ export default async function CampaignDetailPage({
             {campaign.description}
           </p>
         )}
+        </div>
+        <Link
+          href={`/campaigns/${id}/report`}
+          className="shrink-0 rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-2 text-sm font-medium text-[var(--crm-foreground)] hover:bg-[var(--crm-bg)]"
+        >
+          View report
+        </Link>
       </div>
 
       {/* Campaign definition: operator = workspace_id; promoted = promoted_org_id + promoted_social_handles */}

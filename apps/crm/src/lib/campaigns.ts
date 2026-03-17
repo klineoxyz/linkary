@@ -28,6 +28,7 @@ export type CampaignRow = {
   daily_engagement_required?: string | null;
   promoted_org_id?: string | null;
   promoted_social_handles?: PromotedSocialHandle[] | null;
+  finalized_at?: string | null;
 };
 
 export type CampaignListItem = CampaignRow & {
@@ -130,7 +131,7 @@ export async function getCampaign(
 ): Promise<CampaignRow | null> {
   const { data } = await supabase
     .from("crm_campaigns")
-    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at, reward_date, campaign_value_usd, token_or_usdt, required_platforms, weekly_required_posts, daily_engagement_required, promoted_org_id, promoted_social_handles")
+    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at, reward_date, campaign_value_usd, token_or_usdt, required_platforms, weekly_required_posts, daily_engagement_required, promoted_org_id, promoted_social_handles, finalized_at")
     .eq("id", campaignId)
     .maybeSingle();
 

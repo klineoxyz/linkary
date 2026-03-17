@@ -23,9 +23,9 @@ const VALID_FILTERS: TaskFilter[] = [
 function TasksNoAccess() {
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-[var(--crm-primary)]">Tasks</h1>
+      <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
       <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center space-y-4">
-        <p className="text-[var(--crm-primary)] font-medium">
+        <p className="text-[var(--crm-foreground)] font-medium">
           You don’t have access to a personal task board
         </p>
         <p className="text-sm text-[var(--crm-muted)] max-w-md mx-auto">
@@ -68,7 +68,7 @@ export default async function TasksPage({
   if (!ws) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-[var(--crm-primary)]">Tasks</h1>
+        <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
         <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center text-[var(--crm-muted)]">
           Could not load workspace. Try signing out and back in.
         </div>
@@ -87,7 +87,7 @@ export default async function TasksPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-[var(--crm-primary)]">Tasks</h1>
+        <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
         <CreateTaskButton />
       </div>
       <TasksFilters />

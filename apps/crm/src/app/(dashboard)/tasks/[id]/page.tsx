@@ -41,7 +41,7 @@ export default async function TaskDetailPage({
       <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-xl font-bold text-[var(--crm-primary)]">{task.title}</h1>
+            <h1 className="text-xl font-bold text-[var(--crm-foreground)]">{task.title}</h1>
             <div className="flex flex-wrap gap-2 mt-2 text-sm text-[var(--crm-muted)]">
               <span>Status: {task.status.replace("_", " ")}</span>
               <span>•</span>
@@ -66,7 +66,7 @@ export default async function TaskDetailPage({
           {task.task_bundle_title && (
             <>
               <dt className="font-medium text-[var(--crm-muted)]">Task bundle</dt>
-              <dd className="text-[var(--crm-primary)]">{task.task_bundle_title}</dd>
+              <dd className="text-[var(--crm-foreground)]">{task.task_bundle_title}</dd>
             </>
           )}
           <dt className="font-medium text-[var(--crm-muted)]">Due date</dt>
@@ -80,7 +80,7 @@ export default async function TaskDetailPage({
           {task.description && (
             <>
               <dt className="font-medium text-[var(--crm-muted)]">Description</dt>
-              <dd className="text-[var(--crm-primary)] whitespace-pre-wrap">{task.description}</dd>
+              <dd className="text-[var(--crm-foreground)] whitespace-pre-wrap">{task.description}</dd>
             </>
           )}
         </dl>

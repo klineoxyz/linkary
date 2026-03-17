@@ -105,12 +105,12 @@ export function TaskDetailClient({
 
   return (
     <div className="mt-6 pt-6 border-t border-[var(--crm-border)] space-y-4">
-      <h3 className="font-medium text-[var(--crm-primary)]">Update status</h3>
+      <h3 className="font-medium text-[var(--crm-foreground)]">Update status</h3>
       <select
         value={status}
         onChange={(e) => handleStatusChange(e.target.value)}
         disabled={loading}
-        className="rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm text-[var(--crm-primary)] bg-[var(--crm-card)]"
+        className="rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm text-[var(--crm-foreground)] bg-[var(--crm-card)]"
       >
         {STATUS_OPTIONS.map((s) => (
           <option key={s} value={s}>
@@ -172,7 +172,7 @@ export function TaskDetailClient({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="rounded-lg bg-[var(--crm-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  className="rounded-lg bg-[var(--crm-primary)] px-4 py-2 text-sm font-medium text-[var(--crm-primary-foreground)] hover:opacity-90 disabled:opacity-50"
                 >
                   {loading ? "Saving…" : "Save"}
                 </button>
@@ -247,7 +247,7 @@ export function TaskDetailClient({
         )}
 
         <form onSubmit={handleSubmitProof} className="space-y-3 max-w-md mt-4">
-          <h4 className="text-sm font-medium text-[var(--crm-primary)]">
+          <h4 className="text-sm font-medium text-[var(--crm-foreground)]">
             Submit proof URL
           </h4>
           <div>
@@ -270,7 +270,7 @@ export function TaskDetailClient({
             <select
               value={submissionPlatform}
               onChange={(e) => setSubmissionPlatform(e.target.value)}
-              className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm text-[var(--crm-primary)] bg-[var(--crm-card)]"
+              className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm text-[var(--crm-foreground)] bg-[var(--crm-card)]"
             >
               {PLATFORM_OPTIONS.map((p) => (
                 <option key={p} value={p}>
@@ -297,7 +297,7 @@ export function TaskDetailClient({
           <button
             type="submit"
             disabled={submissionLoading}
-            className="rounded-lg bg-[var(--crm-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-[var(--crm-primary)] px-4 py-2 text-sm font-medium text-[var(--crm-primary-foreground)] hover:opacity-90 disabled:opacity-50"
           >
             {submissionLoading ? "Submitting…" : "Submit proof"}
           </button>

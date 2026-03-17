@@ -25,13 +25,13 @@ export function HomeShell({
   return (
     <div className="min-h-screen flex flex-col bg-[var(--crm-bg)]">
       <header className="border-b border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="font-semibold text-[var(--crm-primary)]">
-          Linkary CRM
+        <Link href="/" className="font-semibold text-[var(--crm-foreground)]">
+          <span className="text-[var(--crm-primary)]">Linkary</span> CRM
         </Link>
         <button
           type="button"
           onClick={signOut}
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--crm-muted)] hover:bg-[var(--crm-border)] hover:text-[var(--crm-primary)]"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--crm-muted)] hover:bg-[var(--crm-accent)] hover:text-[var(--crm-foreground)]"
         >
           <LogOut className="h-4 w-4" />
           Sign out

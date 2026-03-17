@@ -23,7 +23,7 @@ export default async function CampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-[var(--crm-primary)]">Campaigns</h1>
+      <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Campaigns</h1>
       <p className="text-sm text-[var(--crm-muted)]">
         Org campaign dashboard. View performance, contributors, and submissions.
       </p>
@@ -37,12 +37,12 @@ export default async function CampaignsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
-                <th className="text-left p-3 font-medium text-[var(--crm-primary)]">Campaign</th>
-                <th className="text-left p-3 font-medium text-[var(--crm-primary)]">Status</th>
-                <th className="text-left p-3 font-medium text-[var(--crm-primary)]">Date range</th>
-                <th className="text-right p-3 font-medium text-[var(--crm-primary)]">Budget</th>
-                <th className="text-right p-3 font-medium text-[var(--crm-primary)]">Participants</th>
-                <th className="text-right p-3 font-medium text-[var(--crm-primary)]">Submissions</th>
+                <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Campaign</th>
+                <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Status</th>
+                <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Date range</th>
+                <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Budget</th>
+                <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Participants</th>
+                <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Submissions</th>
               </tr>
             </thead>
             <tbody>

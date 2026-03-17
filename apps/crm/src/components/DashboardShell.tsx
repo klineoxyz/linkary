@@ -7,20 +7,15 @@ import {
   LayoutDashboard,
   ListTodo,
   Megaphone,
-  FileCheck,
-  BarChart3,
-  Settings,
   LogOut,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
+/* Only production-ready tabs. Submissions, Reports, Settings are placeholder routes and hidden until implemented. */
 const nav = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
-  { href: "/submissions", label: "Submissions", icon: FileCheck },
-  { href: "/reports", label: "Reports", icon: BarChart3 },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function DashboardShell({
@@ -42,7 +37,9 @@ export function DashboardShell({
     <div className="min-h-screen flex flex-col lg:flex-row">
       <aside className="w-full lg:w-56 border-b lg:border-b-0 lg:border-r border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
         <div className="flex items-center gap-2 mb-6">
-          <span className="font-semibold text-[var(--crm-primary)]">Linkary CRM</span>
+          <span className="font-semibold text-[var(--crm-foreground)]">
+            <span className="text-[var(--crm-primary)]">Linkary</span> CRM
+          </span>
         </div>
         <nav className="space-y-1">
           {nav.map(({ href, label, icon: Icon }) => {
@@ -53,8 +50,8 @@ export function DashboardShell({
                 href={href}
                 className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-[var(--crm-primary)] text-white"
-                    : "text-[var(--crm-muted)] hover:bg-[var(--crm-border)] hover:text-[var(--crm-primary)]"
+                    ? "bg-[var(--crm-primary)] text-[var(--crm-primary-foreground)]"
+                    : "text-[var(--crm-muted)] hover:bg-[var(--crm-accent)] hover:text-[var(--crm-foreground)]"
                 }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -70,7 +67,7 @@ export function DashboardShell({
           <button
             type="button"
             onClick={signOut}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--crm-muted)] hover:bg-[var(--crm-border)] hover:text-[var(--crm-primary)]"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--crm-muted)] hover:bg-[var(--crm-accent)] hover:text-[var(--crm-foreground)]"
           >
             <LogOut className="h-4 w-4" />
             Sign out

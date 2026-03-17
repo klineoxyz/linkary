@@ -37,7 +37,7 @@ export function TasksList({ tasks }: { tasks: TaskRow[] }) {
     return (
       <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-12 text-center">
         <FileText className="mx-auto h-12 w-12 text-[var(--crm-muted)] mb-4" />
-        <h3 className="font-medium text-[var(--crm-primary)] mb-1">No tasks yet</h3>
+        <h3 className="font-medium text-[var(--crm-foreground)] mb-1">No tasks yet</h3>
         <p className="text-sm text-[var(--crm-muted)]">
           Create a task above or wait for campaign tasks to appear here.
         </p>

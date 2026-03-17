@@ -81,7 +81,7 @@ export default async function CampaignDetailPage({
       </Link>
 
       <div>
-        <h1 className="text-2xl font-bold text-[var(--crm-primary)]">
+        <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">
           {campaign.title}
         </h1>
         <div className="mt-2 flex flex-wrap gap-2 text-sm text-[var(--crm-muted)]">
@@ -105,7 +105,7 @@ export default async function CampaignDetailPage({
       </div>
 
       <section>
-        <h2 className="text-lg font-semibold text-[var(--crm-primary)] mb-4">
+        <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
           KPIs
         </h2>
         {noMetrics && (
@@ -165,7 +165,7 @@ export default async function CampaignDetailPage({
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-[var(--crm-primary)] mb-4">
+        <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
           Top contributors
         </h2>
         {topContributors.length === 0 ? (
@@ -177,10 +177,10 @@ export default async function CampaignDetailPage({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
-                  <th className="text-left p-3 font-medium text-[var(--crm-primary)]">
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
                     Contributor
                   </th>
-                  <th className="text-right p-3 font-medium text-[var(--crm-primary)]">
+                  <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">
                     Submissions
                   </th>
                 </tr>
@@ -206,7 +206,7 @@ export default async function CampaignDetailPage({
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-[var(--crm-primary)] mb-4">
+        <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
           Contributors
         </h2>
         {contributors.length === 0 ? (
@@ -218,16 +218,16 @@ export default async function CampaignDetailPage({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
-                  <th className="text-left p-3 font-medium text-[var(--crm-primary)]">
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
                     Participant
                   </th>
-                  <th className="text-left p-3 font-medium text-[var(--crm-primary)]">
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
                     Role
                   </th>
-                  <th className="text-left p-3 font-medium text-[var(--crm-primary)]">
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
                     Status
                   </th>
-                  <th className="text-left p-3 font-medium text-[var(--crm-primary)]">
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
                     Accepted
                   </th>
                 </tr>
@@ -261,7 +261,7 @@ export default async function CampaignDetailPage({
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-[var(--crm-primary)] mb-4">
+        <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
           Submissions
         </h2>
         {submissions.length === 0 ? (
@@ -273,19 +273,19 @@ export default async function CampaignDetailPage({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
-                  <th className="text-left p-3 font-medium text-[var(--crm-primary)]">
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
                     Platform
                   </th>
-                  <th className="text-left p-3 font-medium text-[var(--crm-primary)]">
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
                     URL
                   </th>
-                  <th className="text-left p-3 font-medium text-[var(--crm-primary)]">
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
                     Status
                   </th>
-                  <th className="text-left p-3 font-medium text-[var(--crm-primary)]">
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
                     Date
                   </th>
-                  <th className="text-left p-3 font-medium text-[var(--crm-primary)]">
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
                     Review
                   </th>
                 </tr>

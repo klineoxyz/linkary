@@ -20,8 +20,8 @@ export default async function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--crm-bg)] p-4">
       <div className="w-full max-w-sm rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 shadow-sm">
-        <h1 className="text-xl font-semibold text-[var(--crm-primary)] mb-2">
-          Linkary CRM
+        <h1 className="text-xl font-semibold text-[var(--crm-foreground)] mb-2">
+          <span className="text-[var(--crm-primary)]">Linkary</span> CRM
         </h1>
         <p className="text-sm text-[var(--crm-muted)] mb-6">
           Sign in with your Linkary account (same as linkary.xyz).

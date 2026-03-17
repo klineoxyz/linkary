@@ -1,15 +1,36 @@
 @import "tailwindcss";
 
+/*
+  CRM uses Linkary design language (same palette as apps/web).
+  Allowed: #FFFFFF, #130600, #FF5300. No extra saturated hues.
+*/
 :root {
-  --crm-bg: #f7f8fb;
+  --crm-bg: #ffffff;
   --crm-card: #ffffff;
-  --crm-border: #e5e7eb;
-  --crm-primary: #0f172a;
-  --crm-muted: #64748b;
+  --crm-border: rgba(19, 6, 0, 0.12);
+  --crm-primary: #FF5300;
+  --crm-primary-foreground: #ffffff;
+  --crm-foreground: #130600;
+  --crm-muted: rgba(19, 6, 0, 0.62);
+  --crm-accent: rgba(255, 83, 0, 0.10);
+  --crm-radius: 0.625rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --crm-bg: #130600;
+    --crm-card: #130600;
+    --crm-border: rgba(255, 255, 255, 0.12);
+    --crm-primary: #FF5300;
+    --crm-primary-foreground: #ffffff;
+    --crm-foreground: #ffffff;
+    --crm-muted: rgba(255, 255, 255, 0.65);
+    --crm-accent: rgba(255, 255, 255, 0.08);
+  }
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   background: var(--crm-bg);
-  color: var(--crm-primary);
+  color: var(--crm-foreground);
 }

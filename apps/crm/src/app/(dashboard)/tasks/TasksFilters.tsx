@@ -29,7 +29,7 @@ export function TasksFilters() {
             href={href}
             className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               isActive
-                ? "bg-[var(--crm-primary)] text-white"
+                ? "bg-[var(--crm-primary)] text-[var(--crm-primary-foreground)]"
                 : "bg-[var(--crm-card)] border border-[var(--crm-border)] text-[var(--crm-muted)] hover:bg-[var(--crm-border)] hover:text-[var(--crm-primary)]"
             }`}
           >

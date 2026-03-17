@@ -6,9 +6,11 @@ import { resolveCrmAccess, canBootstrapCreatorWorkspace } from "@/lib/access";
 import { getOrCreateCreatorWorkspaceAndBoard, workspaceBootstrapMessage } from "@/lib/workspace";
 import { fetchTasks } from "@/lib/tasks";
 import type { TaskFilter } from "@/lib/tasks";
+import { fetchMyCampaignBundles } from "@/lib/bundles";
 import { TasksList } from "./TasksList";
 import { TasksFilters } from "./TasksFilters";
 import { CreateTaskButton } from "./CreateTaskButton";
+import { MyCampaignBundles } from "./MyCampaignBundles";
 
 const VALID_FILTERS: TaskFilter[] = [
   "all",
@@ -85,8 +87,17 @@ export default async function TasksPage({
   const filter: TaskFilter = VALID_FILTERS.includes(filterRaw as TaskFilter)
     ? (filterRaw as TaskFilter)
     : "all";
+  const campaignId = params.campaign?.trim() || null;
 
-  const tasks = await fetchTasks(supabase, ws.boardId, filter);
+  const [tasks, myBundles] = await Promise.all([
+    fetchTasks(supabase, ws.boardId, filter, campaignId ? { campaignId } : undefined),
+    fetchMyCampaignBundles(supabase, user.id),
+  ]);
+
+  const campaignTitle =
+    campaignId && myBundles.find((b) => b.campaignId === campaignId)
+      ? myBundles.find((b) => b.campaignId === campaignId)!.campaignTitle
+      : null;
 
   return (
     <div className="space-y-6">
@@ -94,7 +105,8 @@ export default async function TasksPage({
         <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Tasks</h1>
         <CreateTaskButton />
       </div>
-      <TasksFilters />
+      <MyCampaignBundles bundles={myBundles} currentCampaignId={campaignId} />
+      <TasksFilters campaignId={campaignId} campaignTitle={campaignTitle} />
       <TasksList tasks={tasks} />
     </div>
   );

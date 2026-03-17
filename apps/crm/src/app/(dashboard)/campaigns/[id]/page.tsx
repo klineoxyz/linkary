@@ -203,6 +203,7 @@ export default async function CampaignDetailPage({
               </tbody>
             </table>
           </div>
+          </div>
         )}
       </section>
 
@@ -309,7 +310,7 @@ export default async function CampaignDetailPage({
                 ))}
               </tbody>
             </table>
-            </div>
+          </div>
           </div>
         )}
       </section>

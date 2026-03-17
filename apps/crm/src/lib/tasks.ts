@@ -50,7 +50,8 @@ function endOfWeekUtc(): string {
 export async function fetchTasks(
   supabase: SupabaseClient,
   boardId: string,
-  filter: TaskFilter
+  filter: TaskFilter,
+  options?: { campaignId?: string }
 ): Promise<TaskRow[]> {
   let query = supabase
     .from("crm_tasks")
@@ -60,6 +61,10 @@ export async function fetchTasks(
     .eq("board_id", boardId)
     .order("due_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
+
+  if (options?.campaignId) {
+    query = query.eq("campaign_id", options.campaignId);
+  }
 
   const now = new Date().toISOString();
   const todayStart = startOfTodayUtc();

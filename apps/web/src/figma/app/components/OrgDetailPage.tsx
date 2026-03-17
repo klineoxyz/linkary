@@ -600,7 +600,11 @@ export default function OrgDetailPage({
           <div>
             <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{org.name}</h1>
             {org.tagline && <p className="text-zinc-600 dark:text-zinc-400 text-sm mt-0.5">{org.tagline}</p>}
-            <p className="text-xs text-zinc-500 mt-1">@{org.slug} · {org.org_type}</p>
+            <p className="text-xs text-zinc-500 mt-1">
+              {admin
+                ? `Your ${org.org_type.charAt(0).toUpperCase() + org.org_type.slice(1)}`
+                : `@${org.slug} · ${org.org_type}`}
+            </p>
             {metrics && (
               <div className="flex gap-4 mt-2 text-xs text-zinc-500">
                 <span>Followers: {(metrics.combined_followers ?? 0).toLocaleString()}</span>

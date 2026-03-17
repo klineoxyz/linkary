@@ -45,7 +45,8 @@
 
 ## 6. Export preparation
 
-- **Data shape:** `reportRowsForExport(data: CampaignReportData)` in `@/lib/report.ts` returns `ReportExportRow[]` (section, label, value) for CSV/PDF. Sections: overview, campaign_period, snapshot_totals, growth. No client-only state; straightforward to add download CSV/PDF in a future pass.
+- **Data shape:** `reportRowsForExport(data: CampaignReportData)` in `@/lib/report.ts` returns `ReportExportRow[]` (section, label, value). Sections: overview, campaign_period, snapshot_totals, growth, top_contributors, submissions. Labels preserve trust (campaign-period, end snapshots, promoted-account growth, contribution % final share when finalized).
+- **CSV export:** Implemented. "Download CSV" on report page calls `getReportCsvAction(campaignId)` (uses same `getCampaignReportData` as report; finalized campaigns get approved-only contribution). Filename: `campaign-report-{id-prefix}-{date}.csv`.
 
 ---
 
@@ -61,11 +62,12 @@
 | Report uses promoted_* | Yes; report shows promoted org and tracked accounts |
 | Report labels (campaign vs snapshot) | Implemented |
 | Export-ready shape | reportRowsForExport implemented |
+| CSV export | Implemented; Download CSV on report page |
 
 ---
 
 ## 8. What should come next
 
-- **CSV/PDF export:** Add "Download CSV" (and optionally PDF) on report page using `reportRowsForExport(data)` and existing report data.
+- **PDF export (optional):** Add "Download PDF" on report page using same report data and export rows if needed; CSV is done.
 - **Optional end snapshots at finalize:** If desired, finalize flow could call record snapshot (type=end) for each promoted handle with metrics provided in a modal or separate step; currently operator records end snapshots manually before/after finalize.
 - **Scheduled snapshot ingestion:** If daily snapshots should be automated, add a worker/cron that reads campaigns with promoted_social_handles and calls an API or internal job to record daily snapshots (metrics would need to come from an external source or manual bulk upload).

@@ -5,6 +5,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { SetupRequired } from "@/components/SetupRequired";
 import { getCampaignReportData } from "@/lib/report";
 import { RecordSnapshotForm } from "./RecordSnapshotForm";
+import { DownloadReportCsvButton } from "./DownloadReportCsvButton";
 import { ArrowLeft } from "lucide-react";
 
 function ReportSection({
@@ -89,6 +90,7 @@ export default async function CampaignReportPage({
           <ArrowLeft className="h-4 w-4" />
           Back to campaign
         </Link>
+        <DownloadReportCsvButton campaignId={id} />
         {finalized_at && (
           <span className="rounded px-2 py-1 text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
             Finalized {new Date(finalized_at).toLocaleDateString()}

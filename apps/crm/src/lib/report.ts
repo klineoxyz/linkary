@@ -163,9 +163,9 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
   rows.push({ section: "overview", label: "End date", value: fmt(data.end_date) });
   rows.push({ section: "overview", label: "Finalized at", value: fmt(data.finalized_at) });
 
-  rows.push({ section: "campaign_period", label: "Total posts", value: data.total_posts });
-  rows.push({ section: "campaign_period", label: "Total views", value: data.total_views });
-  rows.push({ section: "campaign_period", label: "Total engagements", value: data.total_engagements });
+  rows.push({ section: "campaign_period", label: "Total posts (campaign-period)", value: data.total_posts });
+  rows.push({ section: "campaign_period", label: "Total views (campaign-period)", value: data.total_views });
+  rows.push({ section: "campaign_period", label: "Total engagements (campaign-period)", value: data.total_engagements });
   rows.push({ section: "campaign_period", label: "Contributors", value: data.contributor_count });
 
   rows.push({
@@ -192,18 +192,39 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
   for (const g of data.account_growth) {
     rows.push({
       section: "growth",
-      label: `${g.platform}:${g.handle} follower growth`,
+      label: `${g.platform}:${g.handle} follower growth (promoted-account)`,
       value: g.follower_growth ?? "",
     });
     rows.push({
       section: "growth",
-      label: `${g.platform}:${g.handle} views growth`,
+      label: `${g.platform}:${g.handle} views growth (promoted-account)`,
       value: g.views_growth ?? "",
     });
     rows.push({
       section: "growth",
-      label: `${g.platform}:${g.handle} engagement growth`,
+      label: `${g.platform}:${g.handle} engagement growth (promoted-account)`,
       value: g.engagement_growth ?? "",
+    });
+  }
+
+  for (const t of data.top_contributors) {
+    rows.push({
+      section: "top_contributors",
+      label: `${t.participant_profile_id} submissions`,
+      value: t.submission_count,
+    });
+    rows.push({
+      section: "top_contributors",
+      label: `${t.participant_profile_id} contribution % (final share when campaign finalized)`,
+      value: t.contribution_percent ?? "",
+    });
+  }
+
+  for (const s of data.submissions) {
+    rows.push({
+      section: "submissions",
+      label: `${s.platform}: ${s.url}`,
+      value: `${s.status} | ${s.created_at}`,
     });
   }
 

@@ -183,6 +183,29 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const insufficientCadence = activeDaysCadence > 0 && activeDaysCadence < 3;
   const followerInsufficient = followerPoints.length < 3;
 
+  const freshness = payload?.freshness as { has_x_handle?: boolean; last_sync_at?: string | null; data_state?: "none" | "partial" | "full" } | undefined;
+  const hasXHandle = freshness?.has_x_handle ?? true;
+  const lastSyncAt = freshness?.last_sync_at ?? null;
+  const dataState = freshness?.data_state ?? "none";
+  function freshnessLabel(): string {
+    if (!hasXHandle) return "Connect X in Integrations to see analytics.";
+    if (!lastSyncAt && dataState === "none") return "Sync from Integrations to populate data.";
+    if (lastSyncAt) {
+      const d = new Date(lastSyncAt);
+      if (!isNaN(d.getTime())) {
+        const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+        if (sec < 60) return "Last updated: just now";
+        if (sec < 3600) return "Last updated: " + Math.floor(sec / 60) + "m ago";
+        if (sec < 86400) return "Last updated: " + Math.floor(sec / 3600) + "h ago";
+        if (sec < 604800) return "Last updated: " + Math.floor(sec / 86400) + "d ago";
+        return "Last updated: " + d.toLocaleDateString();
+      }
+    }
+    if (dataState === "partial") return "Building history…";
+    if (dataState === "none" && hasXHandle) return "No activity in this window. Try 90d or sync from Integrations.";
+    return "";
+  }
+
   if (res?.ok === false) {
     return (
       <div className="min-h-screen bg-background" data-page="analytics">
@@ -255,7 +278,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         {payload && payload.kpis.posts_total === 0 && payload.kpis.followers_latest == null && (
           <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
             <p className="text-sm text-muted-foreground">
-              X metrics appear when your profile has an X handle connected and sync has run. Add your handle in Integrations and run sync to populate data here.
+              {!hasXHandle
+                ? "Connect your X handle in Integrations to see analytics here."
+                : dataState === "none" && !lastSyncAt
+                  ? "Sync from Integrations to populate data. No synced data yet."
+                  : dataState === "none"
+                    ? "No activity in this time window. Try 90d or sync again from Integrations."
+                    : "X metrics appear when your profile has an X handle connected and sync has run. Add your handle in Integrations and run sync to populate data here."}
             </p>
             <a
               href="/app/settings/integrations"
@@ -281,6 +310,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                 </a>
               )}
               <h1 className="text-base font-semibold text-foreground tracking-tight">X</h1>
+              {payload && freshnessLabel() && (
+                <span className="text-xs text-muted-foreground" aria-live="polite">
+                  {freshnessLabel()}
+                </span>
+              )}
             </div>
             <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5" role="group" aria-label="Time window">
               {(["7d", "30d", "90d"] as const).map((w) => (

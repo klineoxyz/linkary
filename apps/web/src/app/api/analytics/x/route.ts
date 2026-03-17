@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     const tweetsFrom = new Date(priorStartUTC);
     const tweetsFromStr = tweetsFrom.toISOString();
 
-    const [dailySnapshotsRes, tweetsRes] = await Promise.all([
+    const [dailySnapshotsRes, tweetsRes, profileRes] = await Promise.all([
       supabase
         .from("x_daily_snapshots")
         .select("day, followers")
@@ -104,6 +104,11 @@ export async function GET(request: NextRequest) {
         .eq("profile_id", userId)
         .gte("tweeted_at", tweetsFromStr)
         .order("tweeted_at", { ascending: true }),
+      supabase
+        .from("profiles")
+        .select("twitter_username, x_last_profile_sync_at")
+        .eq("id", userId)
+        .maybeSingle(),
     ]);
 
     type SnapshotRow = { day: string; followers: number | null };
@@ -261,6 +266,13 @@ export async function GET(request: NextRequest) {
       prior_avg_replies_per_post: prior_posts > 0 ? prior_replies / prior_posts : 0,
     };
 
+    const profileRow = profileRes.data as { twitter_username?: string | null; x_last_profile_sync_at?: string | null } | null;
+    const hasXHandle = !!(profileRow?.twitter_username ?? "").trim().replace(/^@/, "");
+    const lastSyncAt = profileRow?.x_last_profile_sync_at ?? null;
+    const hasAnyData = follower_data_coverage_days > 0 || posts_total > 0;
+    const dataState: "none" | "partial" | "full" =
+      !hasAnyData ? "none" : follower_data_coverage_days >= 7 && posts_total > 0 ? "full" : "partial";
+
     const payload: Record<string, unknown> = {
       window_days: windowDays,
       window_start: windowStart,
@@ -268,6 +280,11 @@ export async function GET(request: NextRequest) {
       follower_data_coverage_days,
       chart_points,
       kpis,
+      freshness: {
+        has_x_handle: hasXHandle,
+        last_sync_at: lastSyncAt,
+        data_state: dataState,
+      },
     };
 
     if (debug) {

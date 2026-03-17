@@ -8,6 +8,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getRecentTweets } from "./twitterapi.js";
 import type { TweetRaw } from "./twitterapi.js";
 
+/** When set, ingestXTweets skips fetch and uses this list (same normalization/filter/dedupe/upsert). */
+export type PreFetchedTweets = TweetRaw[];
+
 /** True if text is a retweet (starts with "RT @" after trim). */
 export function isRetweetText(text: string | null | undefined): boolean {
   if (text == null || typeof text !== "string") return false;
@@ -90,6 +93,8 @@ export type IngestXTweetsParams = {
   maxTweets?: number;
   /** If set, tweets with outlier engagement (vs followers_total) are skipped and logged. */
   followers_total?: number | null;
+  /** When set, skip getRecentTweets and use this list (e.g. from backfill to avoid double fetch). */
+  preFetchedTweets?: PreFetchedTweets;
 };
 
 export type IngestXTweetsResult = {
@@ -108,7 +113,7 @@ export async function ingestXTweets(
   supabase: SupabaseClient,
   params: IngestXTweetsParams
 ): Promise<IngestXTweetsResult> {
-  const { profile_id, twitter_username, maxTweets = 50, followers_total } = params;
+  const { profile_id, twitter_username, maxTweets = 50, followers_total, preFetchedTweets } = params;
   const username = twitter_username.trim().replace(/^@/, "");
   const handle = username.toLowerCase();
   if (!handle) {
@@ -116,14 +121,21 @@ export async function ingestXTweets(
     return { fetched: 0, upserted: 0, inserted: 0 };
   }
 
-  console.log("[X_TWEETS] normalized_handle=" + handle);
-  const since = params.since ?? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19);
-  const until = params.until ?? new Date().toISOString().slice(0, 19);
-  console.log("[X_TWEETS] stage=fetch_start profile_id=" + profile_id + " handle=" + handle + " since=" + since + " until=" + until);
-
-  const tweets = await getRecentTweets(handle, maxTweets);
+  let tweets: TweetRaw[];
+  if (preFetchedTweets != null && Array.isArray(preFetchedTweets)) {
+    tweets = preFetchedTweets;
+    console.log("[X_TWEETS] stage=fetch_skip profile_id=" + profile_id + " handle=" + handle + " preFetched=" + tweets.length);
+  } else {
+    console.log("[X_TWEETS] normalized_handle=" + handle);
+    const since = params.since ?? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19);
+    const until = params.until ?? new Date().toISOString().slice(0, 19);
+    console.log("[X_TWEETS] stage=fetch_start profile_id=" + profile_id + " handle=" + handle + " since=" + since + " until=" + until);
+    tweets = await getRecentTweets(handle, maxTweets);
+  }
   const fetched_total = tweets.length;
-  console.log("[X_TWEETS] stage=fetch_done profile_id=" + profile_id + " fetched=" + fetched_total);
+  if (preFetchedTweets == null) {
+    console.log("[X_TWEETS] stage=fetch_done profile_id=" + profile_id + " fetched=" + fetched_total);
+  }
   let skipped_retweets = 0;
   let skipped_outliers = 0;
   const rows: Record<string, unknown>[] = [];

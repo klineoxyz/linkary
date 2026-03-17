@@ -51,11 +51,18 @@ export async function runXBackfill90d(
   await sleep(200);
   const followersToday = userInfo?.followers ?? null;
 
+  // Single fetch: reuse same tweets for x_tweets upsert and for dayMap/snapshots/aggregates.
+  console.log("[X_BACKFILL_90D] stage=fetch_start profile_id=" + profileId + " handle=" + handle);
+  const tweets = await getRecentTweets(handle, MAX_TWEETS);
+  await sleep(DELAY_MS);
+  console.log("[X_BACKFILL_90D] stage=fetch_done profile_id=" + profileId + " fetched=" + tweets.length);
+
   const result = await ingestXTweets(supabase, {
     profile_id: profileId,
     twitter_username: handle as string,
     maxTweets: MAX_TWEETS,
     followers_total: followersToday ?? undefined,
+    preFetchedTweets: tweets,
   });
   if (result.fetched > 0 && result.upserted === 0) {
     return {
@@ -65,14 +72,12 @@ export async function runXBackfill90d(
     };
   }
   if (result.fetched === 0) {
-    console.log("[X_TWEETS] verified no new tweets");
+    console.log("[X_BACKFILL_90D] verified no new tweets (ingest no-op)");
   }
   if (result.skipped_outliers != null && result.skipped_outliers > 0) {
     console.log("[X_BACKFILL_90D] skipped_outliers=" + result.skipped_outliers);
   }
-
-  const tweets = await getRecentTweets(handle, MAX_TWEETS);
-  await sleep(DELAY_MS);
+  console.log("[X_BACKFILL_90D] stage=ingest_done profile_id=" + job.owner_id + " upserted=" + result.upserted + " (snapshots next)");
 
   const now = new Date();
   const todayStr = toDay(now.toISOString());
@@ -142,11 +147,11 @@ export async function runXBackfill90d(
       { onConflict: "owner_type,owner_id,day" }
     );
     if (error) {
-      console.error("[X_BACKFILL_90D] stage=snapshots_failed profile_id=" + job.owner_id + " day=" + day + " error=" + error.message);
-      return { ok: false, error: error.message };
+      console.error("[X_BACKFILL_90D] stage=snapshots_failed profile_id=" + job.owner_id + " day=" + day + " error=" + error.message + " (x_tweets may be populated; snapshots/aggregates not)");
+      return { ok: false, error: "snapshots_write_failed: " + error.message };
     }
   }
-  console.log("[X_BACKFILL_90D] stage=snapshots_done profile_id=" + job.owner_id + " days=" + snapshotDays);
+  console.log("[X_BACKFILL_90D] stage=snapshots_done profile_id=" + job.owner_id + " days=" + snapshotDays + " (aggregates next)");
 
   const asOf = todayStr;
 
@@ -228,8 +233,8 @@ export async function runXBackfill90d(
       onConflict: "owner_type,owner_id,window_days,as_of",
     });
     if (aggErr) {
-      console.error("[X_BACKFILL_90D] stage=aggregates_failed profile_id=" + job.owner_id + " window_days=" + windowDays + " error=" + aggErr.message);
-      return { ok: false, error: aggErr.message };
+      console.error("[X_BACKFILL_90D] stage=aggregates_failed profile_id=" + job.owner_id + " window_days=" + windowDays + " error=" + aggErr.message + " (x_tweets and snapshots may be populated; aggregates not)");
+      return { ok: false, error: "aggregates_write_failed: " + aggErr.message };
     }
   }
   console.log("[X_BACKFILL_90D] stage=aggregates_done profile_id=" + job.owner_id + " windows=7,30,90");

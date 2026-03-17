@@ -45,8 +45,8 @@ Single operator-ready checklist for both live issues: CRM task board bootstrap a
 
 ### Which jobs do what
 
-- **xBackfill90d:** For one profile, fetches user info (followers), fetches recent tweets (twitterapi.io), upserts into `x_tweets` (deduped on profile_id,tweet_id), then fills `x_daily_snapshots` and `x_window_aggregates`. Sets `analytics_initialized_at` on success.
-- **ingestXTweets:** Used by backfill and by sync_x_tweets_weekly. Fetches tweets, skips retweets and (optionally) outliers, dedupes by (profile_id, tweet_id), upserts into `x_tweets`.
+- **xBackfill90d:** For one profile, fetches user info (followers), fetches recent tweets **once**, passes them to ingestXTweets (preFetchedTweets), upserts into `x_tweets`, then builds dayMap from the same tweet list and fills `x_daily_snapshots` and `x_window_aggregates`. Sets `analytics_initialized_at` on success. Logs: fetch_start → fetch_done → ingest_done → snapshots_done → aggregates_done → done.
+- **ingestXTweets:** Used by backfill (with preFetchedTweets) and by sync_x_tweets_weekly (fetches itself). Skips retweets and (optionally) outliers, dedupes by (profile_id, tweet_id), upserts into `x_tweets`.
 - **sync_x_tweets_weekly:** Runs ingestXTweets for profiles that need it (e.g. weekly refresh).
 
 ### Tables that should have data after successful ingestion
@@ -84,7 +84,7 @@ Single operator-ready checklist for both live issues: CRM task board bootstrap a
 - **Who calls them:** Worker only (ingestXTweets → getRecentTweets, xBackfill90d → getUserInfo + getRecentTweets). Apps/web does not call twitterapi.io on page load; analytics UI reads from Supabase (x_tweets, x_daily_snapshots, etc.).
 - **How often:** Per backfill job once per profile (up to 1000 tweets in backfill); weekly sync runs ingestXTweets for profiles that need refresh. Rate limiting: delay between requests (e.g. 200–400 ms) in worker.
 - **Cost-effectiveness:** Data is stored once; app reads from DB. Backfill is one-time per profile (or on-demand); daily/weekly sync can be bounded by only syncing profiles with X handle and last_sync older than X days. No live fetch on page load.
-- **Note:** xBackfill90d currently calls getRecentTweets twice per run (once inside ingestXTweets, once for building dayMap for snapshots). A future optimization could reuse the same tweet list to halve tweet API calls per backfill; not changed in this pass.
+- **Single-fetch backfill:** xBackfill90d now fetches tweets once, passes them to ingestXTweets via `preFetchedTweets`, and reuses the same list for dayMap/snapshots/aggregates. Logs: `[X_BACKFILL_90D] stage=fetch_done` then `[X_TWEETS] stage=fetch_skip preFetched=N`.
 
 ---
 
@@ -104,4 +104,5 @@ Single operator-ready checklist for both live issues: CRM task board bootstrap a
 - CRM individual task setup (manual SQL, CTA, states): **docs/CRM_INDIVIDUAL_TASKS_SETUP.md**
 - Analytics behavior (same UI for all; X data when handle + sync): **docs/ANALYTICS_BEHAVIOR.md**
 - Analytics pipeline diagnostics (followers vs posts zero, stages, failure points, other-user mapping, metric sources, truthfulness): **docs/ANALYTICS_PIPELINE_DIAGNOSTICS.md**
+- Analytics phase operator checklist (single-fetch verification, tables, logs, freshness, Sync now recommendation): **docs/ANALYTICS_PHASE_OPERATOR_CHECKLIST.md**
 - QA checklist (individual tasks): **docs/CRM_QA_CHECKLIST_INDIVIDUAL_TASKS.md**

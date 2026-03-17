@@ -135,14 +135,21 @@ export type Application = {
   analytics_snapshot_json?: Record<string, unknown> | null;
   shared_cv?: boolean;
   cv_file_path?: string | null;
+  /** Resolved for display: profile handle (no user id). */
+  applicant_profile?: { username: string | null } | null;
+  /** Resolved for display: org slug/name (no org id). */
+  applicant_org?: { slug: string | null; name: string | null } | null;
 };
 
-/** List applications for given job IDs (e.g. org's jobs). RLS: applications_select_public. */
+/** List applications for given job IDs (e.g. org's jobs). Joins profile/org for display handle only (no ids). */
 export async function listApplicationsForJobs(jobIds: string[]): Promise<Application[]> {
   if (jobIds.length === 0) return [];
   const { data, error } = await supabase
     .from(APPLICATIONS)
-    .select("id, job_id, applicant_type, applicant_profile_id, applicant_org_id, message, status, created_at, shared_analytics, analytics_snapshot_json, shared_cv, cv_file_path")
+    .select(
+      "id, job_id, applicant_type, applicant_profile_id, applicant_org_id, message, status, created_at, shared_analytics, analytics_snapshot_json, shared_cv, cv_file_path, " +
+        "applicant_profile:profiles!applicant_profile_id(username), applicant_org:orgs!applicant_org_id(slug, name)"
+    )
     .in("job_id", jobIds)
     .order("created_at", { ascending: false });
   if (error) return [];

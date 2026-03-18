@@ -144,7 +144,6 @@ import {
 
 // Import UserProfilePage, BrandProfilePage, CreatorProfilePage, AgencyProfilePage, ComponentShowcase
 import UserProfilePage from "./components/UserProfilePage";
-import InsightsSnapshot from "./components/profile/InsightsSnapshot";
 import BrandProfilePage from "./components/BrandProfilePage";
 import CreatorProfilePage from "./components/CreatorProfilePage";
 import AgencyProfilePage from "./components/AgencyProfilePage";
@@ -182,7 +181,6 @@ import KOLListsPage from "./components/circles/KOLListsPage";
 import CapitalPartnersPage from "./components/circles/CapitalPartnersPage";
 import ConnectionsPage from "./components/ConnectionsPage";
 import DiscoveryPage from "./components/DiscoveryPage";
-import CrossUserAnalyticsPage from "./components/CrossUserAnalyticsPage";
 import WatchlistPage from "./components/WatchlistPage";
 import InviteRequiredView from "./components/InviteRequiredView";
 
@@ -197,11 +195,19 @@ const ProfileEditPage = dynamic(() => import("./components/ProfileEditPage").the
 
 const DashboardPage = dynamic(
   () => import("./components/DashboardPage").then((m) => m.default),
-  { ssr: false }
+  { ssr: false, loading: routeChunkFallback }
 );
 const AnalyticsPage = dynamic(
   () => import("./components/AnalyticsPage").then((m) => m.default),
-  { ssr: false }
+  { ssr: false, loading: routeChunkFallback }
+);
+const InsightsSnapshotLazy = dynamic(
+  () => import("./components/profile/InsightsSnapshot").then((m) => m.default),
+  { ssr: false, loading: routeChunkFallback }
+);
+const CrossUserAnalyticsPageLazy = dynamic(
+  () => import("./components/CrossUserAnalyticsPage").then((m) => m.default),
+  { ssr: false, loading: routeChunkFallback }
 );
 
 // Import Monetization system components
@@ -3961,16 +3967,17 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
           Public preview
         </button>
         <a
-          href="/app/profile/insights"
-          className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary"
+          href="/app/analytics"
+          className="rounded-lg px-3 py-2 text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
         >
-          View Insights
+          Full analytics
         </a>
         <a
-          href="/app/analytics"
-          className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary"
+          href="/app/profile/insights"
+          className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary border border-border"
+          title="Short reputation snapshot — charts and backfill live under Full analytics"
         >
-          Analytics
+          Quick snapshot
         </a>
       </div>
       {tab === "publicPreview" ? (
@@ -5338,15 +5345,19 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
                 {/* userProfile route is redirected to /{username} by effect above; do not render UserProfilePage (no mock data). */}
                 {route.name === "userProfile" && null}
                 {route.name === "profileInsights" && (
-                  <InsightsSnapshot setRoute={setRoute} me={me} getAuthHeaders={getAuthHeaders} />
+                  <InsightsSnapshotLazy
+                    setRoute={setRoute}
+                    me={me}
+                    getAuthHeaders={getAuthHeaders}
+                    snapshotOnly
+                  />
                 )}
                 {route.name === "userInsights" && (
-                  <InsightsSnapshot
+                  <InsightsSnapshotLazy
                     setRoute={setRoute}
                     me={me}
                     username={route.handle ?? route.data?.username ?? undefined}
                     getAuthHeaders={getAuthHeaders}
-                    snapshotOnly
                   />
                 )}
                 {route.name === "brandProfile" && <BrandProfilePage setRoute={setRoute} brandData={route.data} />}
@@ -5365,7 +5376,7 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
                 {route.name === "dealDetail" && <DealDetailPage setRoute={setRoute} dealId={route.data?.dealId} />}
                 {route.name === "analytics" && <AnalyticsPage setRoute={setRoute} />}
                 {route.name === "analyticsProfile" && (
-                  <CrossUserAnalyticsPage
+                  <CrossUserAnalyticsPageLazy
                     username={route.data?.username ?? ""}
                     setRoute={setRoute}
                   />

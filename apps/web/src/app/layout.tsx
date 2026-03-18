@@ -16,13 +16,30 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const site = (process.env.NEXT_PUBLIC_APP_URL ?? "https://linkary.xyz").replace(/\/$/, "");
+
 export const metadata: Metadata = {
-  title: "Linkary",
-  description: "Web3 reputation-driven gigs and reviews",
+  metadataBase: new URL(site),
+  title: { default: "Linkary", template: "%s · Linkary" },
+  description: "Link-in-bio, verified gigs, and reputation for Web3 creators and projects.",
   icons: {
     icon: "/icons/linkary-icon.png",
     apple: "/icons/linkary-icon.png",
   },
+  openGraph: {
+    type: "website",
+    siteName: "Linkary",
+    locale: "en_US",
+    url: site,
+    title: "Linkary",
+    description: "Link-in-bio, verified gigs, and reputation for Web3 creators and projects.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Linkary",
+    description: "Link-in-bio, verified gigs, and reputation for Web3 creators and projects.",
+  },
+  alternates: { canonical: site },
 };
 
 export default function RootLayout({

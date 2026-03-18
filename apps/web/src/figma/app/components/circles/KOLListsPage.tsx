@@ -492,6 +492,17 @@ export default function KOLListsPage({
                   ? `${activeOrgName ?? "This org"} is sourcing: shortlist creators, invite them to a real job/sprint or creator program. States reflect saved invites and, for jobs, applications and active deals.`
                   : "Create lists of creators for campaigns and gigs. Switch to org workspace for org shortlist + invites."}
               </p>
+              {activeOrgContextId && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRoute?.({ name: "orgDetail", data: { orgId: activeOrgContextId, tab: "dashboard" } })
+                  }
+                  className="mt-3 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  Workspace — full invite pipeline (shortlist → invited → applied → deal)
+                </button>
+              )}
             </div>
           </div>
         </div>

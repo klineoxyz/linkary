@@ -164,7 +164,21 @@ export default function OrgDetailPage({
   const [operatorActiveDeals, setOperatorActiveDeals] = useState<Array<{ id: string; job_id: string | null }>>([]);
   const [operatorKolListCount, setOperatorKolListCount] = useState(0);
   const [sourcingData, setSourcingData] = useState<{
-    job_invites?: Array<{ job_id: string; profile_id: string; has_application?: boolean; has_active_deal?: boolean }>;
+    job_invites?: Array<{
+      job_id: string;
+      profile_id: string;
+      job_title?: string;
+      has_application?: boolean;
+      has_active_deal?: boolean;
+      invited_at?: string;
+    }>;
+    program_invites?: Array<{
+      creator_program_id: string;
+      profile_id: string;
+      program_title?: string;
+      status: string;
+      invited_at?: string;
+    }>;
     summary?: {
       job_invites_count: number;
       program_invites_pending: number;
@@ -172,7 +186,52 @@ export default function OrgDetailPage({
       job_invites_active_deal: number;
     };
     shortlisted_org_members_count?: number;
+    shortlisted_people?: Array<{
+      profile_id: string;
+      username: string | null;
+      display_name: string | null;
+      list_names: string[];
+    }>;
+    pipeline?: {
+      job_awaiting_apply: Array<{
+        profile_id: string;
+        username: string | null;
+        display_name: string | null;
+        job_id: string;
+        job_title: string;
+        invited_at: string;
+      }>;
+      job_applied_after_invite: Array<{
+        profile_id: string;
+        username: string | null;
+        display_name: string | null;
+        job_id: string;
+        job_title: string;
+      }>;
+      job_active_deal: Array<{
+        profile_id: string;
+        username: string | null;
+        display_name: string | null;
+        job_id: string;
+        job_title: string;
+      }>;
+      program_awaiting_response: Array<{
+        profile_id: string;
+        username: string | null;
+        display_name: string | null;
+        program_title: string;
+        status: string;
+      }>;
+      program_progressed: Array<{
+        profile_id: string;
+        username: string | null;
+        display_name: string | null;
+        program_title: string;
+        status: string;
+      }>;
+    };
   } | null>(null);
+  const [jobInvitesExpandedId, setJobInvitesExpandedId] = useState<string | null>(null);
 
   const loadSession = useCallback(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -989,6 +1048,83 @@ export default function OrgDetailPage({
                         >
                           Org KOL lists — shortlist &amp; invite →
                         </button>
+                        {sourcingData.pipeline && (
+                          <div className="mt-4 pt-4 border-t border-amber-200/60 dark:border-amber-900/40 space-y-3">
+                            <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">Invite pipeline (by stage)</p>
+                            <div className="grid sm:grid-cols-2 gap-3 text-[11px]">
+                              <div className="rounded-lg bg-white/60 dark:bg-zinc-900/40 p-2 border border-zinc-200/80 dark:border-zinc-700">
+                                <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                  Shortlisted ({sourcingData.shortlisted_people?.length ?? 0})
+                                </p>
+                                <ul className="max-h-28 overflow-y-auto space-y-0.5 text-zinc-600 dark:text-zinc-400">
+                                  {(sourcingData.shortlisted_people ?? []).slice(0, 20).map((p) => (
+                                    <li key={p.profile_id} className="truncate" title={p.list_names.join(", ")}>
+                                      @{p.username ?? p.profile_id.slice(0, 8)}
+                                      {p.list_names.length ? ` · ${p.list_names[0]}${p.list_names.length > 1 ? ` +${p.list_names.length - 1}` : ""}` : ""}
+                                    </li>
+                                  ))}
+                                  {(sourcingData.shortlisted_people?.length ?? 0) > 20 && (
+                                    <li className="text-zinc-500">+ more in KOL lists</li>
+                                  )}
+                                </ul>
+                              </div>
+                              <div className="rounded-lg bg-white/60 dark:bg-zinc-900/40 p-2 border border-zinc-200/80 dark:border-zinc-700">
+                                <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                  Job invite — awaiting apply ({sourcingData.pipeline.job_awaiting_apply?.length ?? 0})
+                                </p>
+                                <ul className="max-h-28 overflow-y-auto space-y-0.5 text-zinc-600 dark:text-zinc-400">
+                                  {(sourcingData.pipeline.job_awaiting_apply ?? []).slice(0, 12).map((r) => (
+                                    <li key={`${r.profile_id}-${r.job_id}`} className="truncate">
+                                      @{r.username ?? "—"} → {r.job_title}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div className="rounded-lg bg-white/60 dark:bg-zinc-900/40 p-2 border border-zinc-200/80 dark:border-zinc-700">
+                                <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                  Applied after job invite ({sourcingData.pipeline.job_applied_after_invite?.length ?? 0})
+                                </p>
+                                <ul className="max-h-28 overflow-y-auto space-y-0.5 text-zinc-600 dark:text-zinc-400">
+                                  {(sourcingData.pipeline.job_applied_after_invite ?? []).slice(0, 12).map((r) => (
+                                    <li key={`${r.profile_id}-${r.job_id}`} className="truncate">
+                                      @{r.username ?? "—"} → {r.job_title}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div className="rounded-lg bg-white/60 dark:bg-zinc-900/40 p-2 border border-zinc-200/80 dark:border-zinc-700">
+                                <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                  Active deal (from invite path) ({sourcingData.pipeline.job_active_deal?.length ?? 0})
+                                </p>
+                                <ul className="max-h-28 overflow-y-auto space-y-0.5 text-zinc-600 dark:text-zinc-400">
+                                  {(sourcingData.pipeline.job_active_deal ?? []).slice(0, 12).map((r) => (
+                                    <li key={`${r.profile_id}-${r.job_id}`} className="truncate">
+                                      @{r.username ?? "—"} → {r.job_title}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div className="rounded-lg bg-white/60 dark:bg-zinc-900/40 p-2 border border-zinc-200/80 dark:border-zinc-700 sm:col-span-2">
+                                <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                  Creator programs — awaiting response ({sourcingData.pipeline.program_awaiting_response?.length ?? 0}) · in progress (
+                                  {sourcingData.pipeline.program_progressed?.length ?? 0})
+                                </p>
+                                <ul className="max-h-24 overflow-y-auto space-y-0.5 text-zinc-600 dark:text-zinc-400 columns-1 sm:columns-2 gap-2">
+                                  {(sourcingData.pipeline.program_awaiting_response ?? []).map((r) => (
+                                    <li key={`p-${r.profile_id}-${r.program_title}`} className="truncate break-inside-avoid">
+                                      @{r.username ?? "—"} → {r.program_title} (invited)
+                                    </li>
+                                  ))}
+                                  {(sourcingData.pipeline.program_progressed ?? []).map((r) => (
+                                    <li key={`pp-${r.profile_id}-${r.program_title}-${r.status}`} className="truncate break-inside-avoid">
+                                      @{r.username ?? "—"} → {r.program_title} ({r.status})
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                     <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
@@ -1693,6 +1829,58 @@ export default function OrgDetailPage({
                           </div>
                         </div>
                       ))}
+                      {(() => {
+                        const invitesForJob = (sourcingData?.job_invites ?? []).filter((inv) => inv.job_id === j.id);
+                        if (invitesForJob.length === 0) return null;
+                        const creatorLabel = (pid: string) => {
+                          const rows = [
+                            ...(sourcingData?.pipeline?.job_awaiting_apply ?? []),
+                            ...(sourcingData?.pipeline?.job_applied_after_invite ?? []),
+                            ...(sourcingData?.pipeline?.job_active_deal ?? []),
+                          ];
+                          const x = rows.find((r) => r.profile_id === pid && r.job_id === j.id);
+                          if (x?.username) return `@${x.username}`;
+                          if (x?.display_name) return x.display_name;
+                          return pid.slice(0, 8) + "…";
+                        };
+                        return (
+                          <div className="border-t border-zinc-200 dark:border-zinc-700 pt-3 mt-2">
+                            <button
+                              type="button"
+                              onClick={() => setJobInvitesExpandedId((id) => (id === j.id ? null : j.id))}
+                              className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                            >
+                              {jobInvitesExpandedId === j.id ? "Hide" : "Show"} KOL invites for this job ({invitesForJob.length})
+                            </button>
+                            {jobInvitesExpandedId === j.id && (
+                              <div className="mt-2 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700 text-[11px]">
+                                <table className="w-full text-left">
+                                  <thead className="bg-zinc-50 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400">
+                                    <tr>
+                                      <th className="px-2 py-1.5 font-medium">Creator</th>
+                                      <th className="px-2 py-1.5 font-medium">Invited</th>
+                                      <th className="px-2 py-1.5 font-medium">Applied</th>
+                                      <th className="px-2 py-1.5 font-medium">Active deal</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {invitesForJob.map((inv) => (
+                                      <tr key={inv.profile_id + inv.job_id} className="border-t border-zinc-100 dark:border-zinc-800">
+                                        <td className="px-2 py-1.5">{creatorLabel(inv.profile_id)}</td>
+                                        <td className="px-2 py-1.5 text-zinc-500">
+                                          {inv.invited_at ? new Date(inv.invited_at).toLocaleDateString() : "—"}
+                                        </td>
+                                        <td className="px-2 py-1.5">{inv.has_application ? "Yes" : "—"}</td>
+                                        <td className="px-2 py-1.5">{inv.has_active_deal ? "Yes" : "—"}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })
@@ -1731,9 +1919,20 @@ export default function OrgDetailPage({
                   </div>
                 ) : (
                   <ul className="space-y-2">
-                    {orgPrograms.map((p) => (
-                      <li key={p.id} className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-medium text-zinc-900 dark:text-zinc-100">{p.title}</span>
+                    {orgPrograms.map((p) => {
+                      const progInv = (sourcingData?.program_invites ?? []).filter((x) => x.creator_program_id === p.id);
+                      const pend = progInv.filter((x) => x.status === "invited").length;
+                      const progressed = progInv.filter((x) => !["invited", "declined", "removed"].includes(x.status)).length;
+                      return (
+                      <li key={p.id} className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100">{p.title}</span>
+                          {progInv.length > 0 && (
+                            <p className="text-[11px] text-zinc-500 mt-1">
+                              Invites: {pend} awaiting response · {progressed} in progress (accepted/applied/active) · {progInv.length} total tracked
+                            </p>
+                          )}
+                        </div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-zinc-500">{p.status} · {p.invites_count} invite(s)</span>
                           <button
@@ -1752,7 +1951,8 @@ export default function OrgDetailPage({
                           </button>
                         </div>
                       </li>
-                    ))}
+                    );
+                    })}
                   </ul>
                 )}
               </div>

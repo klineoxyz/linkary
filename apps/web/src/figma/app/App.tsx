@@ -191,6 +191,7 @@ const OrgDetailPage = dynamic(() => import("./components/OrgDetailPage").then((m
 const DealDetailPage = dynamic(() => import("./components/DealDetailPage").then((m) => m.default), { ssr: false, loading: routeChunkFallback });
 const InviteLineagePage = dynamic(() => import("./components/InviteLineagePage").then((m) => m.default), { ssr: false, loading: routeChunkFallback });
 const AdminInvitesPage = dynamic(() => import("./components/AdminInvitesPage").then((m) => m.default), { ssr: false, loading: routeChunkFallback });
+const CreatorOrgInvitesPage = dynamic(() => import("./components/CreatorOrgInvitesPage").then((m) => m.default), { ssr: false, loading: routeChunkFallback });
 const ProfileEditPage = dynamic(() => import("./components/ProfileEditPage").then((m) => m.default), { ssr: false, loading: routeChunkFallback });
 
 const DashboardPage = dynamic(
@@ -794,6 +795,7 @@ function pathFromRoute(route: { name: string; data?: any; handle?: string }): st
     monetizationShowcase: "/app/monetization",
     monetizationFlowShowcase: "/app/monetization-flow",
     kolLists: "/app/kol-lists",
+    creatorOrgInvites: "/app/org-invites",
     inviteLineage: "/app/invites/lineage",
     capitalPartners: "/app/capital-partners",
     connections: "/app/connections",
@@ -880,6 +882,9 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   }
   if (parts[0] === "admin" && parts[1] === "invites") {
     return { name: "adminInvites" };
+  }
+  if (parts[0] === "org-invites") {
+    return { name: "creatorOrgInvites" };
   }
   const path = parts[0] || "";
   if (!path) return { name: "landing" };
@@ -1291,6 +1296,7 @@ function Sidebar({
               <NavLink name="connections" icon={UserPlus} label="Connections" />
               <NavLink name="watchlist" icon={Bookmark} label="Watchlist" />
               <NavLink name="kolLists" icon={Star} label="KOL Lists" />
+              <NavLink name="creatorOrgInvites" icon={Send} label="Org invites" />
               <NavLink name="inviteLineage" icon={Share2} label="Invite lineage" />
               <a
                 href="/xspaces"
@@ -4658,7 +4664,7 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
     "landing", "overview", "dashboard", "profile", "profileEdit", "profileInsights", "userProfile", "userInsights", "market", "messages", "workRequests",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding", "accountType",
     "orgDetail", "brandProfile", "creatorProfile", "agencyProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
-    "circles", "circleDetail", "connections", "kolLists", "inviteLineage", "calendar", "xspaces", "capitalPartners", "watchlist", "explore", "adminInvites",
+    "circles", "circleDetail", "connections", "kolLists", "creatorOrgInvites", "inviteLineage", "calendar", "xspaces", "capitalPartners", "watchlist", "explore", "adminInvites",
     "leaderboards", "hostDashboard", "availability", "monetizationShowcase", "monetizationFlowShowcase",
   ]);
   useEffect(() => {
@@ -5308,6 +5314,7 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
                     onConsumeInviteHint={() => setKolListsInviteHint(null)}
                   />
                 )}
+                {route.name === "creatorOrgInvites" && <CreatorOrgInvitesPage setRoute={setRoute} />}
                 {route.name === "inviteLineage" && <InviteLineagePage setRoute={setRoute} />}
                 {route.name === "adminInvites" && <AdminInvitesPage setRoute={setRoute} me={me} />}
                 {route.name === "capitalPartners" && <CapitalPartnersPage setRoute={setRoute} />}

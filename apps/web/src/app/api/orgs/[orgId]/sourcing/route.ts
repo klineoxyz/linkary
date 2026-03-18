@@ -132,10 +132,12 @@ export async function GET(
   let shortlistedOrgCount = 0;
   const { data: orgKolListIds } = await supabase
     .from("kol_lists")
-    .select("id")
+    .select("id, name")
     .eq("owner_type", "org")
     .eq("owner_id", orgId);
-  const kolIds = (orgKolListIds ?? []).map((r: { id: string }) => r.id);
+  const kolListMeta = Object.fromEntries((orgKolListIds ?? []).map((r: { id: string; name: string }) => [r.id, r.name]));
+  const kolIds = Object.keys(kolListMeta);
+  const shortlistedByProfile: Record<string, Set<string>> = {};
   if (kolIds.length > 0) {
     const { count } = await supabase
       .from("kol_list_members")
@@ -143,12 +145,87 @@ export async function GET(
       .eq("shortlisted", true)
       .in("kol_list_id", kolIds);
     shortlistedOrgCount = count ?? 0;
+    const { data: sm } = await supabase
+      .from("kol_list_members")
+      .select("profile_id, kol_list_id")
+      .eq("shortlisted", true)
+      .in("kol_list_id", kolIds);
+    for (const row of sm ?? []) {
+      const r = row as { profile_id: string; kol_list_id: string };
+      if (!shortlistedByProfile[r.profile_id]) shortlistedByProfile[r.profile_id] = new Set();
+      const ln = kolListMeta[r.kol_list_id];
+      if (ln) shortlistedByProfile[r.profile_id].add(ln);
+    }
   }
+
+  const allProfileIds = [...new Set([...profileIds, ...Object.keys(shortlistedByProfile)])];
+  const profileMap: Record<string, { username: string | null; display_name: string | null }> = {};
+  if (allProfileIds.length > 0) {
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, username, display_name")
+      .in("id", allProfileIds);
+    for (const p of profs ?? []) {
+      const r = p as { id: string; username: string | null; display_name: string | null };
+      profileMap[r.id] = { username: r.username, display_name: r.display_name };
+    }
+  }
+
+  const withProf = (profileId: string) => ({
+    profile_id: profileId,
+    username: profileMap[profileId]?.username ?? null,
+    display_name: profileMap[profileId]?.display_name ?? null,
+  });
+
+  const shortlisted_people = Object.entries(shortlistedByProfile).map(([profile_id, names]) => ({
+    ...withProf(profile_id),
+    list_names: [...names],
+  }));
+
+  const job_awaiting_apply = jobInvitesOut
+    .filter((j) => !j.has_application && !j.has_active_deal)
+    .map((j) => ({
+      ...j,
+      ...withProf(j.profile_id),
+    }));
+  const job_applied_after_invite = jobInvitesOut
+    .filter((j) => j.has_application && !j.has_active_deal)
+    .map((j) => ({
+      ...j,
+      ...withProf(j.profile_id),
+    }));
+  const job_active_deal = jobInvitesOut
+    .filter((j) => j.has_active_deal)
+    .map((j) => ({
+      ...j,
+      ...withProf(j.profile_id),
+    }));
+
+  const program_awaiting = programInvitesOut
+    .filter((p) => p.status === "invited")
+    .map((p) => ({
+      ...p,
+      ...withProf(p.profile_id),
+    }));
+  const program_progressed = programInvitesOut
+    .filter((p) => p.status !== "invited" && p.status !== "declined" && p.status !== "removed")
+    .map((p) => ({
+      ...p,
+      ...withProf(p.profile_id),
+    }));
 
   return NextResponse.json({
     job_invites: jobInvitesOut,
     program_invites: programInvitesOut,
     shortlisted_org_members_count: shortlistedOrgCount,
+    shortlisted_people,
+    pipeline: {
+      job_awaiting_apply,
+      job_applied_after_invite,
+      job_active_deal,
+      program_awaiting_response: program_awaiting,
+      program_progressed,
+    },
     summary: {
       job_invites_count: jobInvitesOut.length,
       program_invites_pending: programInvitesOut.filter((p) => p.status === "invited").length,

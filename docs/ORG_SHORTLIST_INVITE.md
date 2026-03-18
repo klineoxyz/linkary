@@ -1,70 +1,102 @@
-# Org shortlist + invite (implementation)
+# Org shortlist + invite pipeline
 
 ## Expert roles (this pass)
 
-| Area | Owner |
-|------|--------|
-| Product / org workflow | Shortlist → invite → apply/deal funnel |
-| Marketplace / jobs | `org_job_invites`, applications, deals |
-| KOL / programs | `kol_list_members.shortlisted`, `creator_program_invites` |
-| Next.js App Router | API routes + Figma `App.tsx` / pages |
-| Supabase / RLS | Migrations, `org_members`, org-owned KOL lists |
-| QA / launch | Checklist below |
-| Org-mode UI | `KOLListsPage`, `OrgDetailPage` hub + Jobs tab |
+| Expert | Role |
+|--------|------|
+| Product / org workflow | Pipeline stages, operator clarity |
+| Marketplace / jobs / applicants / deals | Job invites, applications, deals |
+| Creator lifecycle / notifications | Creator inbox (no new notification events) |
+| Next.js App Router + session | `/api/me/org-invites`, routes |
+| Supabase / RLS | Invitee `SELECT` on `org_job_invites` |
+| QA / launch | Checklists below |
+| Org-mode UI | Workspace pipeline, Jobs/Programs polish |
 
-## Schema (additive)
+---
 
-| Change | Purpose |
-|--------|---------|
-| `kol_list_members.shortlisted` boolean default false | Org list shortlist (meaningful only for org-owned lists; personal lists ignore in UI) |
-| `org_job_invites` | `(org_id, job_id, profile_id)` unique; optional `kol_list_id`; RLS via `org_members` |
+## Part 1 — Audit: end-to-end invite flow
 
-## API
+| Question | Answer |
+|----------|--------|
+| **Where stored?** | `org_job_invites` (job/sprint), `creator_program_invites` (program), `kol_list_members.shortlisted` (shortlist only). |
+| **Operator sees again?** | Org Workspace hub (counts + **pipeline detail**), KOL lists (per-row badges), Jobs tab (**per-job invite table**), Programs (**per-program invite breakdown**). |
+| **Creator saw anything before?** | **No** for job invites (RLS blocked). Program rows were readable by invitee via existing policy; **no dedicated UI**. |
+| **Applied / active deal?** | **Derived**: `applications` + `deals` joined to job invites (same `job_id` + `profile_id`). Not stored on invite row. |
+| **Fragmentation** | Operator had counts but not a single grouped view; creators had no job-invite visibility. |
 
-| Route | Method | Notes |
-|-------|--------|-------|
-| `/api/kol-lists/[id]` | GET | Members include `shortlisted` |
-| `/api/kol-lists/[id]/members/shortlist` | PATCH | `{ profile_id, shortlisted }`; **org-owned lists only** (403 otherwise) |
-| `/api/orgs/[orgId]/job-invites` | POST | `{ job_id, profile_id, kol_list_id? }`; job must belong to org |
-| `/api/orgs/[orgId]/sourcing` | GET | Job invites + program invites + derived `has_application` / `has_active_deal` (jobs); summary counts |
-| `/api/creator-programs/[id]/invites` | POST | Existing; `source_type: kol_list`, `source_id: list id` |
+**Implemented vs implied**
 
-## UI surfaces
+- **Implemented (persisted):** shortlist flag, job invite row, program invite row + status.
+- **Implied (joins only):** “applied after invite”, “active deal” for jobs — true only when application/deal exists for that profile+job.
 
-1. **Org context → KOL lists** (`KOLListsPage`): Shortlist toggle, Invite dialog (job vs program), filters (shortlisted / invited), badges (job invite, applied, active deal, program status).
-2. **Org Workspace hub**: Sourcing block — shortlisted count, job invite counts, applied, active deals, program pending invites; link to KOL lists.
-3. **Jobs tab**: Per job — “X invited (KOL)”, **Invite from KOL lists** (preselects job in invite flow).
-4. **Creator programs**: **Invite from KOL lists** (preselects program).
+---
+
+## Schema / API
+
+| Piece | Notes |
+|-------|--------|
+| `kol_list_members.shortlisted` | Org lists |
+| `org_job_invites` | RLS: org members + **invitee `profile_id = auth.uid()`** (migration `20260419100000`) |
+| `creator_program_invites` | Existing RLS (org + invitee) |
+
+| Route | Purpose |
+|-------|---------|
+| `GET /api/orgs/[orgId]/sourcing` | + `shortlisted_people`, `pipeline.{job_*,program_*}` |
+| `GET /api/me/org-invites` | Creator: job + program invites, grounded CTAs |
+
+---
+
+## Org UI
+
+1. **Workspace hub** — Under “Sourcing & invites”: compact **pipeline by stage** (shortlisted, job awaiting apply, applied, active deal, program awaiting / in progress).
+2. **Jobs tab** — “Show KOL invites for this job” → table: creator, invited date, applied, active deal.
+3. **Creator programs** — Line per program: awaiting / in progress / total.
+4. **KOL lists** — Link to Workspace for full pipeline.
+
+---
+
+## Creator UI
+
+- **Personal → Network → “Org invites”** (`/app/org-invites`).
+- **Job:** org name, role title, **Go to apply** (marketplace / apply URL), **Open deal** if active deal exists.
+- **Program:** status, **Browse programs**, **Accept / Decline** when `status === invited'` (existing PATCH API).
+
+No new notification rows or email — visibility only from real invite tables.
+
+---
 
 ## States (grounded)
 
-| State | Source |
+| Shown | Source |
 |-------|--------|
 | Shortlisted | `kol_list_members.shortlisted` |
-| Invited (job) | Row in `org_job_invites` |
-| Invited (program) | `creator_program_invites.status` (e.g. invited, applied, active, …) |
-| Applied (job) | Row in `applications` for that `job_id` + profile |
-| Active deal (job) | `deals.status = active` for org + job + profile |
+| Job invited (awaiting apply) | `org_job_invites` ∧ no application |
+| Applied (after job invite) | invite + `applications` row |
+| Active deal | invite + `deals.status = active` |
+| Program invited / accepted / declined / … | `creator_program_invites.status` |
 
-No invented metrics.
+---
 
 ## Guardrails
 
-- Authority: **org_members** (RLS + API checks). No `profile_type` for org authority.
-- Personal mode: no shortlist/invite UI on personal KOL lists; list behavior unchanged.
-- No CRM / analytics / invite-onboarding changes in this pass.
+- `org_members` for operator actions; creators see **only their** job invites (RLS).
+- No CRM, analytics, invite-onboarding changes.
+- Personal org-mode separation preserved; creator inbox is **personal** nav.
+
+---
 
 ## QA checklist
 
-- [ ] Migration `20260419000000_org_kol_shortlist_job_invites.sql` applied (`pnpm db:push`).
-- [ ] Org member: shortlist toggles persist; personal list has no shortlist UI in personal workspace.
-- [ ] Invite to job (duplicate → 409).
-- [ ] Invite to program (duplicate → silent skip per existing API).
-- [ ] Sourcing summary on hub matches DB.
-- [ ] Job row shows invite count; KOL prefill opens with job selected.
-- [ ] Dual-access user: personal KOL unchanged; org context shows org pipeline only.
+- [ ] Migrations: `20260419000000` + `20260419100000` applied.
+- [ ] Creator logged in: `/app/org-invites` lists real job + program invites.
+- [ ] Org admin: Workspace pipeline lists match sourcing API.
+- [ ] Jobs tab expand shows correct applied/deal columns.
+- [ ] Program Accept/Decline updates status and refreshes list.
 
-## Limitations (later)
+---
 
-- No in-app creator notification email for job/program invite (invite is operator-side record).
-- Program “applied” vs job “applied” differ (program uses invite status; job uses applications table).
+## Later (fuller “sourcing CRM”)
+
+- Email/in-app **delivery** events for job invites.
+- Decline/dismiss for job invites (schema).
+- Deeper program discovery deep-links per program id.

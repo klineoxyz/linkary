@@ -32,7 +32,7 @@ export function MyCampaignBundles({
           Tasks from each gig/campaign appear here after you accept work on Linkary and sync completes. Open a card to filter tasks below.
         </p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 min-w-0">
         {bundles.map((item) => {
           const { progress } = item;
           const completed = progress.approved + progress.done;
@@ -47,7 +47,7 @@ export function MyCampaignBundles({
             <Link
               key={item.bundleId}
               href={href}
-              className={`rounded-xl border bg-[var(--crm-card)] p-4 text-left transition-colors hover:border-[var(--crm-primary)] ${
+              className={`rounded-xl border bg-[var(--crm-card)] p-3 sm:p-4 text-left transition-colors hover:border-[var(--crm-primary)] min-w-0 ${
                 isActive
                   ? "border-[var(--crm-primary)] ring-1 ring-[var(--crm-primary)]"
                   : "border-[var(--crm-border)]"

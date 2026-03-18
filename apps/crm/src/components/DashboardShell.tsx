@@ -77,7 +77,7 @@ export function DashboardShell({
           </button>
         </div>
       </aside>
-      <main className="flex-1 p-6 lg:p-10 overflow-auto">
+      <main className="flex-1 p-3 sm:p-6 lg:p-10 overflow-auto min-w-0">
         {children}
       </main>
     </div>

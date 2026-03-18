@@ -58,7 +58,9 @@ export function SubmissionReviewRow({ submission }: { submission: SubmissionItem
                   : "bg-[var(--crm-bg)] text-[var(--crm-muted)]"
           }`}
         >
-          {status.replace("_", " ")}
+          {status === "needs_revision"
+            ? "Needs revision"
+            : status.replace(/_/g, " ")}
         </span>
       </td>
       <td className="p-3 text-[var(--crm-muted)]">

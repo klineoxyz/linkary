@@ -41,35 +41,46 @@ function statusBadgeClass(status: string): string {
 export function TasksList({
   tasks,
   emptyStateCTA,
-  isEmpty,
+  isBoardTotallyEmpty = false,
+  campaignFilterActive = false,
+  enrolledInFilteredCampaign = false,
 }: {
   tasks: TaskRow[];
-  /** Rendered in the empty state (e.g. CreateTaskButton) for strong first-task CTA. */
   emptyStateCTA?: ReactNode;
-  /** True when this is the first-run empty board (no tasks at all). */
-  isEmpty?: boolean;
+  /** No tasks on the board at all (any filter). */
+  isBoardTotallyEmpty?: boolean;
+  /** URL has ?campaign= */
+  campaignFilterActive?: boolean;
+  /** User is in that campaign but list is empty (sync / not generated yet). */
+  enrolledInFilteredCampaign?: boolean;
 }) {
   if (tasks.length === 0) {
+    const filterOnly = !isBoardTotallyEmpty;
     return (
       <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
-        <div className="p-10 text-center">
+        <div className="p-6 sm:p-10 text-center px-4">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--crm-bg)] text-[var(--crm-muted)] mb-6" aria-hidden>
             <ListTodo className="h-7 w-7" />
           </div>
           <h3 className="text-lg font-semibold text-[var(--crm-foreground)] mb-2">
-            {isEmpty ? "Your board is ready" : "No tasks match this filter"}
+            {isBoardTotallyEmpty ? "Your board is ready" : "No tasks match this view"}
           </h3>
           <p className="text-sm text-[var(--crm-muted)] max-w-md mx-auto mb-2">
-            {isEmpty
-              ? "Add your first task to get started, or tasks will appear here when you join campaigns."
-              : "Try a different filter or add a new task."}
+            {isBoardTotallyEmpty
+              ? "Add a personal task, or wait for campaign tasks after you accept work on Linkary."
+              : "Try another filter or clear the campaign filter to see all tasks."}
           </p>
+          {filterOnly && campaignFilterActive && enrolledInFilteredCampaign && (
+            <p className="text-xs text-[var(--crm-muted)] max-w-md mx-auto mb-3 rounded-lg bg-[var(--crm-bg)] px-3 py-2">
+              If you just accepted this campaign, tasks may still be syncing—refresh in a minute. Weekly/recurring tasks may appear after the org generates them.
+            </p>
+          )}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6">
             {emptyStateCTA && <div className="flex justify-center">{emptyStateCTA}</div>}
-            {isEmpty && (
-              <p className="text-xs text-[var(--crm-muted)] flex items-center gap-1.5">
-                <Megaphone className="h-3.5 w-3.5" />
-                Campaign tasks show up here when you&apos;re in a campaign
+            {isBoardTotallyEmpty && (
+              <p className="text-xs text-[var(--crm-muted)] flex items-center gap-1.5 max-w-xs justify-center">
+                <Megaphone className="h-3.5 w-3.5 shrink-0" />
+                Campaign work syncs from Linkary after you accept
               </p>
             )}
           </div>

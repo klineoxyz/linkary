@@ -175,7 +175,7 @@
 ## SECTION 7 — Routing & App State
 
 - **Main app:** Next.js App Router; middleware only normalizes `/@username` → `/{username}` (no auth redirect in middleware). Protected vs public is per-route (layout/pages and API auth).
-- **ALLOWED_ROUTES / routeFromPathname / pathFromRoute:** Present in **figma** App.tsx (stateful SPA routing). Main app uses file-based routes (e.g. `/[username]`, `/dashboard`, `/profile/edit`). No single ALLOWED_ROUTES in main app; deep links are by path.
+- **ALLOWED_ROUTES / routeFromPathname / pathFromRoute:** Present in **figma** `App.tsx` for the **/app/*** shell. Routes not in the set redirect to Overview (historically caused broken deep links). **Include** `profileDeals`, `profileApplications`, `analyticsProfile` for in-shell deals, applications, and cross-user analytics. Standalone pages under `/profile/*` are separate Next routes.
 - **Public routes:** e.g. `/[username]`, `/login`, `/auth/callback`. Protected routes require session (client/server checks).
 - **Symmetry:** In figma, pathFromRoute and routeFromPathname are aligned; main app does not use the same route enum.
 

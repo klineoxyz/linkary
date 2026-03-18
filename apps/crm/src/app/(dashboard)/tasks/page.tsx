@@ -113,9 +113,10 @@ export default async function TasksPage({
     : "all";
   const campaignId = params.campaign?.trim() || null;
 
-  const [tasks, myBundles] = await Promise.all([
+  const [tasks, myBundles, allBoardTasks] = await Promise.all([
     fetchTasks(supabase, ws.boardId, filter, campaignId ? { campaignId } : undefined),
     fetchMyCampaignBundles(supabase, user.id),
+    fetchTasks(supabase, ws.boardId, "all", undefined),
   ]);
 
   const campaignTitle =
@@ -123,14 +124,16 @@ export default async function TasksPage({
       ? myBundles.find((b) => b.campaignId === campaignId)!.campaignTitle
       : null;
 
-  const isEmpty = tasks.length === 0;
+  const isBoardEmpty = allBoardTasks.length === 0;
+  const enrolledInFilteredCampaign =
+    !!campaignId && myBundles.some((b) => b.campaignId === campaignId);
   const manualCount = tasks.filter((t) => t.source_type === "manual").length;
   const campaignCount = tasks.filter((t) => t.source_type !== "manual").length;
 
   return (
     <div className="space-y-8">
       {/* Workspace hero / summary */}
-      <header className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] px-6 py-5">
+      <header className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-[var(--crm-foreground)]">
@@ -144,22 +147,26 @@ export default async function TasksPage({
         </div>
       </header>
 
-      {/* First-run welcome (only when no tasks) */}
-      {isEmpty && (
-        <section className="rounded-2xl border-2 border-[var(--crm-primary)]/30 bg-gradient-to-b from-[var(--crm-primary)]/5 to-transparent p-8">
+      {/* Whole board empty, or on campaigns but nothing synced yet */}
+      {isBoardEmpty && (
+        <section className="rounded-2xl border-2 border-[var(--crm-primary)]/30 bg-gradient-to-b from-[var(--crm-primary)]/5 to-transparent p-4 sm:p-8">
           <div className="max-w-xl">
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--crm-primary)] mb-2">
-              Setup complete
+              {myBundles.length > 0 ? "Almost there" : "Setup complete"}
             </p>
-            <h2 className="text-xl font-semibold text-[var(--crm-foreground)] mb-2">
-              No tasks yet — here&apos;s why
+            <h2 className="text-lg sm:text-xl font-semibold text-[var(--crm-foreground)] mb-2">
+              {myBundles.length > 0
+                ? "You’re on a campaign — tasks may still be syncing"
+                : "No tasks yet — here’s what to expect"}
             </h2>
             <p className="text-sm text-[var(--crm-muted)] mb-4">
-              <strong className="text-[var(--crm-foreground)]">Campaign tasks</strong> are created on Linkary when you accept a gig, sprint, or program slot. They sync into CRM shortly after (same login). If you just accepted, wait a minute and refresh.
+              <strong className="text-[var(--crm-foreground)]">Campaign tasks</strong> are created when you accept work on Linkary. They usually appear in CRM within a few minutes (same account). If nothing shows after ~10 minutes, confirm the deal was accepted on Linkary, then refresh.
             </p>
-            <p className="text-sm text-[var(--crm-muted)] mb-6">
-              You can also add <strong className="text-[var(--crm-foreground)]">personal tasks</strong> below to track your own to-dos.
-            </p>
+            {myBundles.length === 0 && (
+              <p className="text-sm text-[var(--crm-muted)] mb-6">
+                Add <strong className="text-[var(--crm-foreground)]">personal tasks</strong> anytime to track your own to-dos.
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-3">
               <CreateTaskButton />
             </div>
@@ -173,9 +180,9 @@ export default async function TasksPage({
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-lg font-semibold text-[var(--crm-foreground)]">
-            {isEmpty ? "Tasks" : "All tasks"}
+            {tasks.length > 0 ? "All tasks" : "Tasks"}
           </h2>
-          {!isEmpty && (
+          {tasks.length > 0 && (
             <p className="text-sm text-[var(--crm-muted)]">
               {manualCount > 0 && campaignCount > 0
                 ? `${manualCount} personal · ${campaignCount} campaign`
@@ -188,8 +195,10 @@ export default async function TasksPage({
         <TasksFilters campaignId={campaignId} campaignTitle={campaignTitle} />
         <TasksList
           tasks={tasks}
-          emptyStateCTA={isEmpty ? <CreateTaskButton /> : undefined}
-          isEmpty={isEmpty}
+          emptyStateCTA={isBoardEmpty ? <CreateTaskButton /> : undefined}
+          isBoardTotallyEmpty={isBoardEmpty}
+          campaignFilterActive={!!campaignId}
+          enrolledInFilteredCampaign={enrolledInFilteredCampaign}
         />
       </section>
     </div>

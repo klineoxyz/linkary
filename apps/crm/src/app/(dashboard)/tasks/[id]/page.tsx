@@ -27,9 +27,13 @@ export default async function TaskDetailPage({
   const { task } = data;
   const isManual = task.source_type === "manual";
   const submissions = await fetchSubmissionsForTask(supabase, task.id);
+  const sourceLabel =
+    task.source_type === "manual"
+      ? "Personal task"
+      : "From campaign (Linkary)";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 max-w-full px-1 sm:px-0">
       <Link
         href="/tasks"
         className="inline-flex items-center gap-2 text-sm font-medium text-[var(--crm-muted)] hover:text-[var(--crm-primary)]"
@@ -38,14 +42,14 @@ export default async function TaskDetailPage({
         Back to tasks
       </Link>
 
-      <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6">
+      <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 sm:p-6 overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-xl font-bold text-[var(--crm-foreground)]">{task.title}</h1>
-            <div className="flex flex-wrap gap-2 mt-2 text-sm text-[var(--crm-muted)]">
-              <span>Status: {task.status.replace("_", " ")}</span>
-              <span>•</span>
-              <span>Source: {task.source_type.replace("_", " ")}</span>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-[var(--crm-foreground)] break-words">{task.title}</h1>
+            <div className="flex flex-wrap gap-x-2 gap-y-1 mt-2 text-sm text-[var(--crm-muted)]">
+              <span className="capitalize">Status: {task.status.replace(/_/g, " ")}</span>
+              <span aria-hidden>•</span>
+              <span>{sourceLabel}</span>
               {task.platform && (
                 <>
                   <span>•</span>

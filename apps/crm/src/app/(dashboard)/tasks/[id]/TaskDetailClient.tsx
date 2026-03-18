@@ -89,10 +89,14 @@ export function TaskDetailClient({
   async function handleSubmitProof(e: React.FormEvent) {
     e.preventDefault();
     setSubmissionError(null);
-    setSubmissionLoading(true);
     const urls = [submissionUrl1, submissionUrl2, submissionUrl3]
       .map((u) => u.trim())
       .filter(Boolean);
+    if (urls.length === 0) {
+      setSubmissionError("Add at least one proof URL.");
+      return;
+    }
+    setSubmissionLoading(true);
     const result = await submitProofAction(taskId, {
       urls,
       platform: submissionPlatform,
@@ -233,7 +237,9 @@ export function TaskDetailClient({
                             : "bg-[var(--crm-bg)] text-[var(--crm-muted)]"
                     }`}
                   >
-                    {s.status.replace("_", " ")}
+                    {s.status === "needs_revision"
+                      ? "Needs revision"
+                      : s.status.replace(/_/g, " ")}
                   </span>
                   <span className="text-[var(--crm-muted)]">{s.platform}</span>
                 </div>

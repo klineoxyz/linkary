@@ -66,7 +66,7 @@ export function MyApplicationsPanel({
 
   return (
     <div className={variant === "standalone" ? "min-h-screen bg-background text-foreground" : ""}>
-      <main className="mx-auto max-w-2xl px-4 py-8">
+      <main className="mx-auto max-w-2xl px-3 sm:px-4 py-6 sm:py-8 min-w-0 break-words">
         <div className="mb-6 flex items-center gap-4">
           <Link
             href="/app/profile"

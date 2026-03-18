@@ -524,12 +524,15 @@ export default async function CampaignDetailPage({
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
-          Submissions
+        <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-2">
+          Creator submissions
         </h2>
+        <p className="text-sm text-[var(--crm-muted)] mb-4 max-w-2xl">
+          Approve or reject proof links here. Creators submit from their task view after posting.
+        </p>
         {submissions.length === 0 ? (
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
-            No submissions yet.
+            No submissions yet. When creators add proof URLs on their tasks, they appear here for review.
           </div>
         ) : (
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">

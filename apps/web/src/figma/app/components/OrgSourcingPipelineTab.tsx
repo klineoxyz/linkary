@@ -22,6 +22,9 @@ import {
   Trash2,
   Rows3,
   AlignJustify,
+  UserCircle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 type Prof = { profile_id: string; username: string | null; display_name: string | null };
@@ -52,6 +55,13 @@ type ProgPipeRow = Prof & {
 
 type ShortlistRow = Prof & { list_names: string[]; has_any_job_invite: boolean };
 
+export type CreatorWorkflowRow = {
+  assignee_user_id: string | null;
+  follow_up_status: string;
+  internal_note: string | null;
+  updated_at: string | null;
+};
+
 export type SavedViewFilters = {
   search: string;
   priorityFilter: string;
@@ -61,6 +71,7 @@ export type SavedViewFilters = {
   listFilter: string;
   compact: boolean;
   archiveOpen: boolean;
+  teamAssignFilter: string;
 };
 
 export type OrgSourcingPipelineTabProps = {
@@ -92,6 +103,9 @@ export type OrgSourcingPipelineTabProps = {
   onOpenOrgKolLists?: (orgId: string, hint?: { suggestJobId?: string; suggestProgramId?: string }) => void;
   setRoute: (r: { name: string; data?: Record<string, unknown> }) => void;
   onSourcingRefresh?: () => void | Promise<void>;
+  creatorWorkflowByProfile?: Record<string, CreatorWorkflowRow>;
+  orgAssignableMembers?: Array<{ user_id: string; username: string | null; display_name: string | null }>;
+  currentUserId?: string | null;
 };
 
 type Waiting = "org" | "creator" | "settled" | "both";
@@ -128,6 +142,17 @@ function matchesSearch(row: Prof, q: string) {
   );
 }
 
+const FOLLOW_UP_ACTIVE = new Set(["needs_review", "follow_up_needed", "waiting_internal", "blocked"]);
+
+const FOLLOW_UP_LABELS: Record<string, string> = {
+  none: "None",
+  needs_review: "Needs review",
+  follow_up_needed: "Follow-up needed",
+  waiting_internal: "Waiting internal",
+  blocked: "Blocked",
+  resolved: "Resolved",
+};
+
 function filtersPayload(
   search: string,
   priorityFilter: string,
@@ -136,9 +161,20 @@ function filtersPayload(
   programFilter: string,
   listFilter: string,
   compact: boolean,
-  archiveOpen: boolean
+  archiveOpen: boolean,
+  teamAssignFilter: string
 ): SavedViewFilters {
-  return { search, priorityFilter, stageFilter, jobFilter, programFilter, listFilter, compact, archiveOpen };
+  return {
+    search,
+    priorityFilter,
+    stageFilter,
+    jobFilter,
+    programFilter,
+    listFilter,
+    compact,
+    archiveOpen,
+    teamAssignFilter,
+  };
 }
 
 export default function OrgSourcingPipelineTab({
@@ -154,8 +190,14 @@ export default function OrgSourcingPipelineTab({
   onOpenOrgKolLists,
   setRoute,
   onSourcingRefresh,
+  creatorWorkflowByProfile: workflowProp,
+  orgAssignableMembers = [],
+  currentUserId = null,
 }: OrgSourcingPipelineTabProps) {
+  const creatorWorkflowByProfile = workflowProp ?? {};
   const [search, setSearch] = useState("");
+  const [teamAssignFilter, setTeamAssignFilter] = useState<"all" | "mine" | "unassigned" | "follow_up">("all");
+  const [followUpQueueOpen, setFollowUpQueueOpen] = useState(true);
   const [priorityFilter, setPriorityFilter] = useState<"all" | "needs_org" | "awaiting_creator" | "unresolved">("all");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [jobFilter, setJobFilter] = useState("");
@@ -173,6 +215,22 @@ export default function OrgSourcingPipelineTab({
   const [bulkListId, setBulkListId] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [wfDraftAssignee, setWfDraftAssignee] = useState("");
+  const [wfDraftStatus, setWfDraftStatus] = useState("none");
+  const [wfDraftNote, setWfDraftNote] = useState("");
+  const [wfSaving, setWfSaving] = useState(false);
+
+  const wDrawer = drawerProfileId ? creatorWorkflowByProfile[drawerProfileId] : undefined;
+  const drawerWfKey = drawerProfileId
+    ? `${drawerProfileId}:${wDrawer?.assignee_user_id ?? ""}:${wDrawer?.follow_up_status ?? "none"}:${wDrawer?.internal_note ?? ""}`
+    : "";
+  useEffect(() => {
+    if (!drawerProfileId) return;
+    const w = creatorWorkflowByProfile[drawerProfileId];
+    setWfDraftAssignee(w?.assignee_user_id ?? "");
+    setWfDraftStatus(w?.follow_up_status ?? "none");
+    setWfDraftNote(w?.internal_note ?? "");
+  }, [drawerProfileId, drawerWfKey]);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -188,6 +246,7 @@ export default function OrgSourcingPipelineTab({
     setListFilter(f.listFilter ?? "");
     setCompact(!!f.compact);
     setArchiveOpen(!!f.archiveOpen);
+    setTeamAssignFilter((f.teamAssignFilter as typeof teamAssignFilter) || "all");
   }, []);
 
   const loadSavedViews = useCallback(async () => {
@@ -313,7 +372,7 @@ export default function OrgSourcingPipelineTab({
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [programInvitesFull]);
 
-  const filtered = useMemo(() => {
+  const baseFiltered = useMemo(() => {
     return flatRows.filter((r) => {
       if (!matchesSearch(r, search)) return false;
       if (stageFilter !== "all" && r.stageId !== stageFilter) return false;
@@ -336,6 +395,33 @@ export default function OrgSourcingPipelineTab({
       return true;
     });
   }, [flatRows, search, stageFilter, jobFilter, programFilter, listFilter, priorityFilter, jobInvitesFull]);
+
+  const filtered = useMemo(() => {
+    return baseFiltered.filter((r) => {
+      const wf = creatorWorkflowByProfile[r.profile_id];
+      if (teamAssignFilter === "mine") return wf?.assignee_user_id === currentUserId;
+      if (teamAssignFilter === "unassigned") return !wf?.assignee_user_id;
+      if (teamAssignFilter === "follow_up") return !!(wf && FOLLOW_UP_ACTIVE.has(wf.follow_up_status));
+      return true;
+    });
+  }, [baseFiltered, teamAssignFilter, creatorWorkflowByProfile, currentUserId]);
+
+  const followUpQueueRows = useMemo(() => {
+    return baseFiltered.filter((r) => {
+      const st = creatorWorkflowByProfile[r.profile_id]?.follow_up_status;
+      return st && FOLLOW_UP_ACTIVE.has(st);
+    });
+  }, [baseFiltered, creatorWorkflowByProfile]);
+
+  const assigneeLabel = useCallback(
+    (uid: string | null | undefined) => {
+      if (!uid) return "—";
+      if (currentUserId && uid === currentUserId) return "You";
+      const m = orgAssignableMembers.find((x) => x.user_id === uid);
+      return m?.display_name?.trim() || (m?.username ? `@${m.username}` : `${uid.slice(0, 8)}…`);
+    },
+    [orgAssignableMembers, currentUserId]
+  );
 
   const filteredProfileIds = useMemo(() => [...new Set(filtered.map((r) => r.profile_id))], [filtered]);
 
@@ -409,12 +495,41 @@ export default function OrgSourcingPipelineTab({
     }
   };
 
+  const saveDrawerWorkflow = async () => {
+    if (!drawerProfileId) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    setWfSaving(true);
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/orgs/${encodeURIComponent(orgId)}/sourcing/creator-workflow`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profile_id: drawerProfileId,
+          assignee_user_id: wfDraftAssignee.trim() || null,
+          follow_up_status: wfDraftStatus,
+          internal_note: wfDraftNote.trim() || null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast("Team workflow saved");
+        await onSourcingRefresh?.();
+      } else showToast(data.error ?? "Save failed");
+    } finally {
+      setWfSaving(false);
+    }
+  };
+
   const exportCsv = () => {
-    const lines = ["creator,stage,track,context,waiting,profile_id"];
+    const lines = ["creator,stage,track,context,waiting,assignee,follow_up,profile_id"];
     filtered.forEach((r) => {
       const w = r.waiting === "org" ? "you" : r.waiting === "creator" ? "creator" : r.waiting;
+      const wf = creatorWorkflowByProfile[r.profile_id];
       lines.push(
-        `"${profLabel(r).replace(/"/g, '""')}","${r.stage}","${r.track}","${r.detail.replace(/"/g, '""')}","${w}","${r.profile_id}"`
+        `"${profLabel(r).replace(/"/g, '""')}","${r.stage}","${r.track}","${r.detail.replace(/"/g, '""')}","${w}","${(assigneeLabel(wf?.assignee_user_id) || "").replace(/"/g, '""')}","${(wf?.follow_up_status ?? "none").replace(/"/g, '""')}","${r.profile_id}"`
       );
     });
     void navigator.clipboard.writeText(lines.join("\n"));
@@ -572,11 +687,19 @@ export default function OrgSourcingPipelineTab({
                 <th className={`px-2 ${py} font-medium`}>Track</th>
                 <th className={`px-2 ${py} font-medium`}>Context</th>
                 <th className={`px-2 ${py} font-medium`}>Waiting</th>
+                {!compact && (
+                  <>
+                    <th className={`px-2 ${py} font-medium whitespace-nowrap`}>Assignee</th>
+                    <th className={`px-2 ${py} font-medium whitespace-nowrap`}>Follow-up</th>
+                  </>
+                )}
                 <th className={`px-2 ${py} font-medium text-right w-[1%]`}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.map((r) => {
+                const wf = creatorWorkflowByProfile[r.profile_id];
+                return (
                 <tr
                   key={r.key}
                   className="border-t border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 cursor-pointer transition-colors"
@@ -604,6 +727,17 @@ export default function OrgSourcingPipelineTab({
                         </Link>
                       )}
                     </div>
+                    {compact && (
+                      <div className="text-[10px] text-zinc-500 mt-0.5">
+                        {assigneeLabel(wf?.assignee_user_id)}
+                        {wf?.follow_up_status && wf.follow_up_status !== "none" && (
+                          <span className="text-teal-700 dark:text-teal-300">
+                            {" "}
+                            · {FOLLOW_UP_LABELS[wf.follow_up_status] ?? wf.follow_up_status}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className={`px-2 ${py} text-zinc-700 dark:text-zinc-300 whitespace-nowrap`}>{r.stage}</td>
                   <td className={`px-2 ${py}`}>
@@ -631,11 +765,27 @@ export default function OrgSourcingPipelineTab({
                     {r.waiting === "both" && <span>Both</span>}
                     {r.waiting === "settled" && <span className="text-zinc-400">Settled</span>}
                   </td>
+                  {!compact && (
+                    <>
+                      <td className={`px-2 ${py} text-[11px] text-zinc-600 dark:text-zinc-400 max-w-[100px] truncate`} title={assigneeLabel(wf?.assignee_user_id)}>
+                        {assigneeLabel(wf?.assignee_user_id)}
+                      </td>
+                      <td className={`px-2 ${py}`}>
+                        {wf?.follow_up_status && wf.follow_up_status !== "none" ? (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-100 dark:bg-teal-900/40 text-teal-900 dark:text-teal-100 whitespace-nowrap">
+                            {FOLLOW_UP_LABELS[wf.follow_up_status] ?? wf.follow_up_status}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400 text-[11px]">—</span>
+                        )}
+                      </td>
+                    </>
+                  )}
                   <td className={`px-2 ${py}`} onClick={(e) => e.stopPropagation()}>
                     {renderRowActions(r)}
                   </td>
                 </tr>
-              ))}
+              );})}
             </tbody>
           </table>
         </div>
@@ -650,6 +800,7 @@ export default function OrgSourcingPipelineTab({
     setProgramFilter("");
     setListFilter("");
     setPriorityFilter("all");
+    setTeamAssignFilter("all");
     setActiveViewId(null);
   };
 
@@ -665,7 +816,17 @@ export default function OrgSourcingPipelineTab({
     setSaveBusy(true);
     try {
       const base = typeof window !== "undefined" ? window.location.origin : "";
-      const filters = filtersPayload(search, priorityFilter, stageFilter, jobFilter, programFilter, listFilter, compact, archiveOpen);
+      const filters = filtersPayload(
+        search,
+        priorityFilter,
+        stageFilter,
+        jobFilter,
+        programFilter,
+        listFilter,
+        compact,
+        archiveOpen,
+        teamAssignFilter
+      );
       const res = await fetch(`${base}/api/orgs/${encodeURIComponent(orgId)}/sourcing/saved-views`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -736,7 +897,7 @@ export default function OrgSourcingPipelineTab({
               Sourcing workbench
             </h1>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400 max-w-2xl">
-              Volume tools: saved views, multi-select, bulk shortlist (list members only), export. Grounded rows only.
+              Team workflow: assignee + follow-up metadata (separate from pipeline truth). Saved views, bulk shortlist, export.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -800,7 +961,13 @@ export default function OrgSourcingPipelineTab({
               <AlignJustify className="h-3.5 w-3.5" />
               Compact
             </button>
-            {(search || stageFilter !== "all" || jobFilter || programFilter || listFilter || priorityFilter !== "all") && (
+            {(search ||
+              stageFilter !== "all" ||
+              jobFilter ||
+              programFilter ||
+              listFilter ||
+              priorityFilter !== "all" ||
+              teamAssignFilter !== "all") && (
               <button
                 type="button"
                 onClick={resetFilters}
@@ -912,6 +1079,34 @@ export default function OrgSourcingPipelineTab({
             </button>
           ))}
         </div>
+        <div className="flex flex-wrap gap-2 items-center border-t border-zinc-100 dark:border-zinc-800 pt-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Team</span>
+          {(
+            [
+              ["all", "Everyone", Users],
+              ["mine", "Assigned to me", UserCircle],
+              ["unassigned", "Unassigned", LayoutList],
+              ["follow_up", "Needs follow-up", Zap],
+            ] as const
+          ).map(([id, label, Icon]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                setTeamAssignFilter(id);
+                setActiveViewId(null);
+              }}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                teamAssignFilter === id
+                  ? "bg-teal-600 text-white"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              }`}
+            >
+              <Icon className="h-3 w-3" />
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-wrap gap-2 items-end">
           <div className="flex flex-col gap-0.5">
             <label className="text-[10px] text-zinc-500">Stage</label>
@@ -1008,6 +1203,64 @@ export default function OrgSourcingPipelineTab({
 
       {filtered.length > 0 && (
         <div className="space-y-5">
+          {followUpQueueRows.length > 0 && (
+            <div className="rounded-2xl border border-teal-200/80 dark:border-teal-900/50 bg-teal-50/40 dark:bg-teal-950/20 overflow-hidden shadow-sm">
+              <button
+                type="button"
+                onClick={() => setFollowUpQueueOpen(!followUpQueueOpen)}
+                className="w-full px-4 py-3 flex items-center justify-between text-left text-sm font-medium text-teal-900 dark:text-teal-100 hover:bg-teal-100/50 dark:hover:bg-teal-950/40"
+              >
+                <span className="flex items-center gap-2">
+                  <UserCircle className="h-4 w-4" />
+                  Team follow-up queue ({followUpQueueRows.length})
+                  <span className="text-[11px] font-normal text-teal-700/80 dark:text-teal-300/80">
+                    org-side status only — not invite/application state
+                  </span>
+                </span>
+                {followUpQueueOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {followUpQueueOpen && (
+                <div className="border-t border-teal-200/60 dark:border-teal-900/40 px-2 pb-2 max-h-[280px] overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="text-teal-800/70 dark:text-teal-300/70">
+                        <th className="p-2">Creator</th>
+                        <th className="p-2">Stage</th>
+                        <th className="p-2">Follow-up</th>
+                        <th className="p-2">Assignee</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {followUpQueueRows.slice(0, 25).map((r) => {
+                        const wf = creatorWorkflowByProfile[r.profile_id];
+                        return (
+                          <tr
+                            key={r.key}
+                            className="border-t border-teal-100 dark:border-teal-900/30 hover:bg-white/60 dark:hover:bg-zinc-900/40 cursor-pointer"
+                            onClick={() => setDrawerProfileId(r.profile_id)}
+                          >
+                            <td className="p-2 font-medium text-zinc-900 dark:text-zinc-100">{profLabel(r)}</td>
+                            <td className="p-2 text-zinc-600 dark:text-zinc-400">{r.stage}</td>
+                            <td className="p-2">
+                              <span className="px-1.5 py-0.5 rounded bg-teal-200/60 dark:bg-teal-900/50 text-teal-900 dark:text-teal-100 text-[10px] font-semibold">
+                                {FOLLOW_UP_LABELS[wf?.follow_up_status ?? "none"] ?? wf?.follow_up_status}
+                              </span>
+                            </td>
+                            <td className="p-2 text-zinc-600 dark:text-zinc-400">{assigneeLabel(wf?.assignee_user_id)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {followUpQueueRows.length > 25 && (
+                    <p className="text-[11px] text-teal-800/70 dark:text-teal-300/70 px-2 py-1">
+                      +{followUpQueueRows.length - 25} more — use filters to narrow
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           <TableBlock
             title="Needs your attention"
             subtitle="Review applications · Invite shortlisted creators who have no job invite yet"
@@ -1219,6 +1472,74 @@ export default function OrgSourcingPipelineTab({
                   KOL lists
                 </button>
               </div>
+
+              <section className="rounded-xl border border-teal-200 dark:border-teal-900/50 bg-teal-50/40 dark:bg-teal-950/25 p-4 space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-teal-800 dark:text-teal-200 flex items-center gap-1">
+                  <UserCircle className="h-3.5 w-3.5" /> Team workflow
+                </h3>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-snug">
+                  Assignee and follow-up are org-only coordination metadata. They do not change shortlist, invites, applications, or deals.
+                </p>
+                <div>
+                  <label className="text-[10px] font-medium text-zinc-500">Assignee</label>
+                  <select
+                    value={wfDraftAssignee}
+                    onChange={(e) => setWfDraftAssignee(e.target.value)}
+                    className="mt-1 w-full text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-2 px-2"
+                  >
+                    <option value="">Unassigned</option>
+                    {orgAssignableMembers.map((m) => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.display_name?.trim() || (m.username ? `@${m.username}` : m.user_id.slice(0, 8) + "…")}
+                        {currentUserId === m.user_id ? " (you)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {currentUserId && (
+                  <button
+                    type="button"
+                    onClick={() => setWfDraftAssignee(currentUserId)}
+                    className="text-[11px] font-medium text-teal-700 dark:text-teal-300 hover:underline"
+                  >
+                    Assign to me
+                  </button>
+                )}
+                <div>
+                  <label className="text-[10px] font-medium text-zinc-500">Follow-up status</label>
+                  <select
+                    value={wfDraftStatus}
+                    onChange={(e) => setWfDraftStatus(e.target.value)}
+                    className="mt-1 w-full text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-2 px-2"
+                  >
+                    {(["none", "needs_review", "follow_up_needed", "waiting_internal", "blocked", "resolved"] as const).map((k) => (
+                      <option key={k} value={k}>
+                        {FOLLOW_UP_LABELS[k]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-medium text-zinc-500">Internal note (org members only)</label>
+                  <textarea
+                    value={wfDraftNote}
+                    onChange={(e) => setWfDraftNote(e.target.value.slice(0, 500))}
+                    rows={3}
+                    placeholder="Short context for handoffs…"
+                    className="mt-1 w-full text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-2 px-2 resize-y min-h-[72px]"
+                  />
+                  <p className="text-[10px] text-zinc-400 mt-0.5">{wfDraftNote.length}/500</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={wfSaving}
+                  onClick={() => void saveDrawerWorkflow()}
+                  className="w-full text-xs font-semibold py-2.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                >
+                  {wfSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Save team workflow
+                </button>
+              </section>
 
               <section>
                 <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-400 mb-2 flex items-center gap-1">

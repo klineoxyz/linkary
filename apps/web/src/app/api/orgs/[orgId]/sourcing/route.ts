@@ -7,6 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY ?? null;
 
 export async function GET(
   _request: NextRequest,
@@ -290,7 +291,64 @@ export async function GET(
   const jobInvitesForClient = jobInvitesOut.map((j) => ({ ...j, ...withProf(j.profile_id) }));
   const programInvitesForClient = programInvitesOut.map((p) => ({ ...p, ...withProf(p.profile_id) }));
 
+  const creator_workflow_by_profile: Record<
+    string,
+    {
+      assignee_user_id: string | null;
+      follow_up_status: string;
+      internal_note: string | null;
+      updated_at: string | null;
+    }
+  > = {};
+  if (allProfileIds.length > 0) {
+    const { data: wfRows } = await supabase
+      .from("org_sourcing_creator_workflow")
+      .select("profile_id, assignee_user_id, follow_up_status, internal_note, updated_at")
+      .eq("org_id", orgId)
+      .in("profile_id", allProfileIds);
+    for (const w of wfRows ?? []) {
+      const r = w as {
+        profile_id: string;
+        assignee_user_id: string | null;
+        follow_up_status: string;
+        internal_note: string | null;
+        updated_at: string;
+      };
+      creator_workflow_by_profile[r.profile_id] = {
+        assignee_user_id: r.assignee_user_id,
+        follow_up_status: r.follow_up_status,
+        internal_note: r.internal_note,
+        updated_at: r.updated_at,
+      };
+    }
+  }
+
+  const { data: omList } = await supabase.from("org_members").select("user_id").eq("org_id", orgId);
+  const uidSet = [...new Set((omList ?? []).map((m: { user_id: string }) => m.user_id))];
+  const org_assignable_members: Array<{ user_id: string; username: string | null; display_name: string | null }> = [];
+  if (uidSet.length > 0) {
+    const profileClient = serviceKey ? createClient(supabaseUrl, serviceKey) : supabase;
+    const { data: mProfs } = await profileClient.from("profiles").select("id, username, display_name").in("id", uidSet);
+    const pmap = new Map(
+      (mProfs ?? []).map((p: { id: string; username: string | null; display_name: string | null }) => [p.id, p])
+    );
+    for (const uid of uidSet) {
+      const p = pmap.get(uid);
+      org_assignable_members.push({
+        user_id: uid,
+        username: p?.username ?? null,
+        display_name: p?.display_name ?? null,
+      });
+    }
+    org_assignable_members.sort((a, b) =>
+      (a.display_name || a.username || a.user_id).localeCompare(b.display_name || b.username || b.user_id)
+    );
+  }
+
   return NextResponse.json({
+    current_user_id: user.id,
+    creator_workflow_by_profile,
+    org_assignable_members,
     job_invites: jobInvitesForClient,
     program_invites: programInvitesForClient,
     kol_list_options,

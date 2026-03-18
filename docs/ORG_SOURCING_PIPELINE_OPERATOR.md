@@ -151,6 +151,12 @@ Existing pipeline keys unchanged for backward compatibility.
 
 ---
 
+## Team workflow (assignee + follow-up)
+
+See **`docs/ORG_SOURCING_TEAM_WORKFLOW.md`**. Operator metadata per org+creator (`org_sourcing_creator_workflow`); does not replace pipeline truth.
+
+---
+
 ## Later (fuller sourcing CRM)
 
-- Drag-and-drop stages, email sequences, operator assignment, bulk job invites (with strict permission UX), full export pipeline — out of scope; row-grounded model preserved.
+- Drag-and-drop stages, email sequences, bulk assign, bulk job invites (with strict permission UX), full export pipeline — out of scope; row-grounded model preserved.

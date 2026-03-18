@@ -3949,7 +3949,14 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
 
   return (
     <div className="font-app text-foreground space-y-6">
-      <p className="text-xs text-muted-foreground -mb-1" aria-hidden>Your profile is private. Only you see this. What you see here (links, relations, scores) matches your public page after you save in the Advanced editor. Use Public View to open your public URL.</p>
+      <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground space-y-1.5 -mb-1">
+        <p className="font-medium text-foreground">How this page fits together</p>
+        <ul className="list-disc pl-4 space-y-0.5">
+          <li><strong className="text-foreground">This tab</strong> — Private; only you see your full workspace.</li>
+          <li><strong className="text-foreground">Profile edit</strong> — Changes bio, links, skills → reflected on your public page after save.</li>
+          <li><strong className="text-foreground">Public preview</strong> — Same as <code className="text-[10px] bg-background px-1 rounded">/{hasPublicSlug ? publicSlug : "username"}</code> for visitors. Full X analytics stay under <a href="/app/analytics" className="text-primary hover:underline">Analytics</a> (not on the public page).</li>
+        </ul>
+      </div>
       <div className="mb-4 flex gap-2 border-b border-border pb-2">
         <button
           type="button"

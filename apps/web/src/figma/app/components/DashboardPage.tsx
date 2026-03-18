@@ -8,6 +8,7 @@ import { listOrgsForUser, type Org } from "@/lib/orgs";
 import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 import { listMyDeals, type Deal } from "@/lib/deals";
 import CreateOrgModal from "./CreateOrgModal";
+import FirstStepsOnLinkaryCard from "./FirstStepsOnLinkaryCard";
 import {
   TrendingUp,
   TrendingDown,
@@ -489,6 +490,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
         <p className="font-medium">Your dashboard</p>
         <p className="mt-0.5 text-muted-foreground">Numbers below are from your deals and profile. For full X analytics and backfill, go to <a href="/app/analytics" className="text-primary hover:underline">Analytics</a>.</p>
       </div>
+
+      <FirstStepsOnLinkaryCard signedIn={!!userId} orgCount={myOrgs.length} />
 
       {/* My Orgs first: add admins & team is the main action when user has orgs */}
       <GlassCard>

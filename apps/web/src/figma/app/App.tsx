@@ -1026,6 +1026,19 @@ function Sidebar({
     { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS }
   );
   const inboxNew = (collabCount?.ok !== false && typeof collabCount?.inboxNew === "number") ? collabCount.inboxNew : 0;
+  const { data: orgInvUnreadRes, mutate: mutateOrgInvUnread } = useSWR<{ total?: number; job?: number; program?: number }>(
+    authUserId && !orgMode ? "/api/me/org-invites/unread" : null,
+    authFetcher as (url: string) => Promise<{ total?: number }>,
+    { revalidateOnFocus: true, dedupingInterval: 15_000 }
+  );
+  const orgInvUnreadTotal =
+    typeof orgInvUnreadRes?.total === "number" && orgInvUnreadRes.total > 0 ? orgInvUnreadRes.total : 0;
+  useEffect(() => {
+    const h = () => void mutateOrgInvUnread();
+    if (typeof window === "undefined") return;
+    window.addEventListener("org-invites-inbox-opened", h);
+    return () => window.removeEventListener("org-invites-inbox-opened", h);
+  }, [mutateOrgInvUnread]);
   if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
     const _slug = me ? ((me.username || me.twitter_username || "").replace(/^@/, "").trim().toLowerCase()) : "";
     // eslint-disable-next-line no-console
@@ -1296,7 +1309,12 @@ function Sidebar({
               <NavLink name="connections" icon={UserPlus} label="Connections" />
               <NavLink name="watchlist" icon={Bookmark} label="Watchlist" />
               <NavLink name="kolLists" icon={Star} label="KOL Lists" />
-              <NavLink name="creatorOrgInvites" icon={Send} label="Org invites" />
+              <NavLink
+                name="creatorOrgInvites"
+                icon={Send}
+                label="Org invites"
+                badge={orgInvUnreadTotal > 0 ? (orgInvUnreadTotal > 99 ? "99+" : String(orgInvUnreadTotal)) : undefined}
+              />
               <NavLink name="inviteLineage" icon={Share2} label="Invite lineage" />
               <a
                 href="/xspaces"
@@ -1419,20 +1437,32 @@ function Topbar({ setMobileOpen, route, setRoute, me, activeContext, onActiveCon
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [orgInviteUnread, setOrgInviteUnread] = useState(0);
   const loadNotifications = useCallback(async () => {
     if (!me?.id) return;
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     if (!token) return;
     const base = typeof window !== "undefined" ? window.location.origin : "";
-    const res = await fetch(`${base}/api/notifications?limit=15`, { headers: { Authorization: `Bearer ${token}` } });
+    const [res, ur] = await Promise.all([
+      fetch(`${base}/api/notifications?limit=15`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${base}/api/me/org-invites/unread`, { headers: { Authorization: `Bearer ${token}` } }),
+    ]);
     const data = await res.json().catch(() => ({}));
+    const unreadData = await ur.json().catch(() => ({}));
     setNotifications(data.notifications ?? []);
     setUnreadCount(data.unreadCount ?? 0);
+    setOrgInviteUnread(typeof unreadData.total === "number" ? unreadData.total : 0);
   }, [me?.id]);
   useEffect(() => {
     if (me?.id) loadNotifications();
   }, [me?.id, loadNotifications]);
+  useEffect(() => {
+    const h = () => void loadNotifications();
+    if (typeof window === "undefined") return;
+    window.addEventListener("org-invites-inbox-opened", h);
+    return () => window.removeEventListener("org-invites-inbox-opened", h);
+  }, [loadNotifications]);
   const markRead = useCallback(async (ids) => {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
@@ -1522,9 +1552,9 @@ function Topbar({ setMobileOpen, route, setRoute, me, activeContext, onActiveCon
             className="relative p-2 rounded-lg transition-colors hover:bg-accent"
           >
             <Bell className="h-5 w-5 text-zinc-600" />
-            {unreadCount > 0 && (
+            {unreadCount + orgInviteUnread > 0 && (
               <span className="absolute top-1 right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                {unreadCount > 99 ? "99+" : unreadCount}
+                {unreadCount + orgInviteUnread > 99 ? "99+" : unreadCount + orgInviteUnread}
               </span>
             )}
           </button>
@@ -1532,9 +1562,24 @@ function Topbar({ setMobileOpen, route, setRoute, me, activeContext, onActiveCon
             <>
               <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} aria-hidden />
               <div className="absolute right-0 top-full mt-1 w-80 max-h-[360px] overflow-y-auto rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg z-50 py-1">
-                {notifications.length === 0 ? (
+                {orgInviteUnread > 0 && (
+                  <button
+                    type="button"
+                    className="w-full text-left px-4 py-3 text-sm border-b border-zinc-200 dark:border-zinc-700 bg-indigo-50/80 dark:bg-indigo-950/40 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/50"
+                    onClick={() => {
+                      setNotifOpen(false);
+                      setRoute({ name: "creatorOrgInvites" });
+                    }}
+                  >
+                    <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                      {orgInviteUnread === 1 ? "1 org invite" : `${orgInviteUnread} org invites`}
+                    </span>
+                    <span className="block text-xs text-zinc-500 mt-0.5">Open inbox — jobs &amp; programs</span>
+                  </button>
+                )}
+                {notifications.length === 0 && orgInviteUnread === 0 ? (
                   <p className="px-4 py-3 text-sm text-zinc-500">No notifications</p>
-                ) : (
+                ) : notifications.length === 0 ? null : (
                   notifications.map((n) => (
                     <button
                       key={n.id}
@@ -1561,6 +1606,9 @@ function Topbar({ setMobileOpen, route, setRoute, me, activeContext, onActiveCon
                   >
                     Mark all read
                   </button>
+                )}
+                {notifications.length === 0 && orgInviteUnread > 0 && (
+                  <p className="px-4 py-2 text-[11px] text-zinc-500 text-center">No other alerts</p>
                 )}
               </div>
             </>

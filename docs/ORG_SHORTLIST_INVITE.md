@@ -99,6 +99,10 @@ No new notification rows or email — visibility only from real invite tables.
 
 See **`docs/JOB_INVITE_CREATOR_RESPONSE.md`** — `creator_response`, org pipeline split (awaiting vs passed), RLS.
 
+## Invite discovery & unread
+
+See **`docs/ORG_INVITE_DISCOVERY.md`** — inbox seen timestamps, nav/badge, org unseen counts.
+
 ## Later (fuller “sourcing CRM”)
 
 - Email/in-app **delivery** events for job invites.

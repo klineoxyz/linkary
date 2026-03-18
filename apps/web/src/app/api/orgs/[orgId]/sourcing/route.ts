@@ -110,12 +110,13 @@ export async function GET(
     invited_at: string;
     source_type: string | null;
     source_id: string | null;
+    invitee_inbox_seen_at?: string | null;
   }> = [];
 
   if (programIds.length > 0) {
     const { data: pi } = await supabase
       .from("creator_program_invites")
-      .select("id, creator_program_id, profile_id, status, invited_at, source_type, source_id")
+      .select("id, creator_program_id, profile_id, status, invited_at, source_type, source_id, invitee_inbox_seen_at")
       .in("creator_program_id", programIds)
       .order("invited_at", { ascending: false });
     const titleByProg = Object.fromEntries((programs ?? []).map((p: { id: string; title: string }) => [p.id, p.title]));
@@ -128,6 +129,7 @@ export async function GET(
         invited_at: string;
         source_type: string | null;
         source_id: string | null;
+        invitee_inbox_seen_at?: string | null;
       };
       programInvitesOut.push({
         ...r,
@@ -233,6 +235,17 @@ export async function GET(
       ...withProf(p.profile_id),
     }));
 
+  const jobUnseenInbox = jobInvitesOut.filter((j) => j.viewed_at == null).length;
+  const progUnseenInbox = programInvitesOut.filter((p) => p.invitee_inbox_seen_at == null).length;
+  const jobRespondedNoOutcome = jobInvitesOut.filter(
+    (j) =>
+      noJobOutcome(j) &&
+      j.creator_response !== "pending" &&
+      (j.creator_response === "interested" ||
+        j.creator_response === "declined" ||
+        j.creator_response === "dismissed")
+  ).length;
+
   return NextResponse.json({
     job_invites: jobInvitesOut,
     program_invites: programInvitesOut,
@@ -253,6 +266,9 @@ export async function GET(
       job_invites_active_deal: jobInvitesOut.filter((j) => j.has_active_deal).length,
       job_invites_awaiting_creator: job_awaiting_creator_response.length,
       job_invites_creator_passed: job_creator_passed.length,
+      job_invites_unseen_inbox: jobUnseenInbox,
+      program_invites_unseen_inbox: progUnseenInbox,
+      job_invites_responded_no_application: jobRespondedNoOutcome,
     },
   });
 }

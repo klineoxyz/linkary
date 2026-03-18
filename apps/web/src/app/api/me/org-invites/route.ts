@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
 
   const { data: piRows, error: piErr } = await supabase
     .from("creator_program_invites")
-    .select("id, creator_program_id, status, invited_at")
+    .select("id, creator_program_id, status, invited_at, invitee_inbox_seen_at")
     .eq("profile_id", pid)
     .order("invited_at", { ascending: false });
   if (piErr) return NextResponse.json({ error: piErr.message }, { status: 500 });
@@ -118,6 +118,7 @@ export async function GET(request: NextRequest) {
     creator_program_id: string;
     status: string;
     invited_at: string;
+    invitee_inbox_seen_at?: string | null;
   }>;
   const progIds = [...new Set(progInvites.map((r) => r.creator_program_id))];
   const progById: Record<string, { id: string; title: string; org_id: string; status: string }> = {};
@@ -148,6 +149,7 @@ export async function GET(request: NextRequest) {
       id: inv.id,
       invited_at: inv.invited_at,
       status: inv.status,
+      invitee_inbox_seen_at: inv.invitee_inbox_seen_at ?? null,
       program: prog ?? { id: inv.creator_program_id, title: "Program", org_id: "", status: "" },
       org: prog ? orgById[prog.org_id] ?? { id: prog.org_id, name: "Organization", slug: null } : null,
     };

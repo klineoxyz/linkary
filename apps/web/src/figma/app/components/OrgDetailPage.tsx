@@ -187,6 +187,9 @@ export default function OrgDetailPage({
       job_invites_active_deal: number;
       job_invites_awaiting_creator?: number;
       job_invites_creator_passed?: number;
+      job_invites_unseen_inbox?: number;
+      program_invites_unseen_inbox?: number;
+      job_invites_responded_no_application?: number;
     };
     shortlisted_org_members_count?: number;
     shortlisted_people?: Array<{
@@ -1060,6 +1063,19 @@ export default function OrgDetailPage({
                           </li>
                           <li>
                             Program invites (pending): <strong>{sourcingData.summary.program_invites_pending}</strong>
+                          </li>
+                          <li>
+                            Job invites not yet opened in creator inbox:{" "}
+                            <strong>{sourcingData.summary.job_invites_unseen_inbox ?? 0}</strong>
+                            <span className="text-zinc-500"> (creator has not opened Org invites since invite)</span>
+                          </li>
+                          <li>
+                            Program invites not yet opened in creator inbox:{" "}
+                            <strong>{sourcingData.summary.program_invites_unseen_inbox ?? 0}</strong>
+                          </li>
+                          <li>
+                            Job: responded (interest / pass / hide) but no application yet:{" "}
+                            <strong>{sourcingData.summary.job_invites_responded_no_application ?? 0}</strong>
                           </li>
                         </ul>
                         <button

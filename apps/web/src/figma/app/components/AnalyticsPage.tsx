@@ -6,6 +6,16 @@ import useSWR from "swr";
 import { Users, BarChart2, Eye, TrendingUp, Heart, ThumbsUp, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
+  getOwnerStateBanner,
+  getOwnerFreshnessLine,
+  getOwnerEmptyKpiMessage,
+  ownerBannerClassNames,
+  OWNER_REFRESH_BUTTON_IDLE,
+  OWNER_REFRESH_BUTTON_QUEUED,
+  ownerRefreshFeedback,
+  PATH_INTEGRATIONS,
+} from "@/lib/analytics-owner-state-presentation";
+import {
   FollowerGrowthChart,
   EngagementChart,
   PostingCadenceChart,
@@ -212,17 +222,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
       });
       const j = await r.json().catch(() => ({}));
       if (r.status === 429) {
-        setRefreshFeedback("Too many refresh requests. Try again in a little while.");
+        setRefreshFeedback(ownerRefreshFeedback(false, true));
       } else if (j?.ok) {
-        setRefreshFeedback(
-          j.existing
-            ? "An update is already queued or running. Numbers may take a few minutes to change."
-            : "Refresh requested. Analytics usually update within a few minutes—not instantly."
-        );
+        setRefreshFeedback(ownerRefreshFeedback(!!j.existing, false));
         await mutateOwnerStatus();
         void mutateAnalytics();
       } else {
-        setRefreshFeedback(j?.message ?? "Could not queue refresh. Try Integrations or later.");
+        setRefreshFeedback(ownerRefreshFeedback(false, false, j?.message ?? "Could not queue refresh."));
       }
     } finally {
       setRefreshSubmitting(false);
@@ -257,45 +263,25 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const ownerState = ownerStatus?.owner_analytics_state ?? "";
   const lastSyncAt = freshness?.last_sync_at ?? null;
   const dataState = freshness?.data_state ?? "none";
-  function freshnessLabel(): string {
-    if (!hasXHandle) return "Connect X in Integrations to see analytics.";
-    if (!lastSyncAt && dataState === "none") return "Sync from Integrations to populate data.";
-    if (lastSyncAt) {
-      const d = new Date(lastSyncAt);
-      if (!isNaN(d.getTime())) {
-        const sec = Math.floor((Date.now() - d.getTime()) / 1000);
-        if (sec < 60) return "Last updated: just now";
-        if (sec < 3600) return "Last updated: " + Math.floor(sec / 60) + "m ago";
-        if (sec < 86400) return "Last updated: " + Math.floor(sec / 3600) + "h ago";
-        if (sec < 604800) return "Last updated: " + Math.floor(sec / 86400) + "d ago";
-        return "Last updated: " + d.toLocaleDateString();
-      }
-    }
-    if (dataState === "partial") return "Building history…";
-    if (dataState === "none" && hasXHandle && (ownerState === "ready_recent" || ownerState === "ready_stale"))
-      return "No posts in this window—data is still from your synced account.";
-    if (dataState === "none" && hasXHandle) return "No activity in this window. Try 90d or sync from Integrations.";
-    return "";
-  }
+  const freshnessLine = useMemo(
+    () =>
+      getOwnerFreshnessLine(
+        { has_x_handle: hasXHandle, last_sync_at: lastSyncAt, data_state: dataState },
+        ownerState as import("@/lib/analytics-owner-state-presentation").OwnerAnalyticsState,
+        { posts_total_in_window: payload?.kpis.posts_total ?? 0 }
+      ),
+    [hasXHandle, lastSyncAt, dataState, ownerState, payload?.kpis.posts_total]
+  );
 
-  const ownerBanner = useMemo((): { tone: "info" | "warn" | "muted"; text: string } | null => {
-    switch (ownerState) {
-      case "queued_or_building":
-        return { tone: "info", text: "Analytics update in progress. This can take several minutes." };
-      case "refresh_failed":
-        return { tone: "warn", text: "Last analytics refresh didn’t complete. You can request a new refresh below." };
-      case "partial_data":
-        return { tone: "info", text: "Your history is still building. Metrics will fill in as sync completes." };
-      case "never_synced":
-        return hasXHandle
-          ? { tone: "muted", text: "Request a refresh below, or sync from Integrations first." }
-          : null;
-      case "ready_stale":
-        return { tone: "muted", text: "Profile sync is over a week old. Request a refresh for newer numbers." };
-      default:
-        return null;
-    }
-  }, [ownerState, hasXHandle]);
+  const ownerBanner = useMemo(
+    () => getOwnerStateBanner(ownerState as import("@/lib/analytics-owner-state-presentation").OwnerAnalyticsState, hasXHandle),
+    [ownerState, hasXHandle]
+  );
+
+  const emptyKpi = useMemo(
+    () => getOwnerEmptyKpiMessage(hasXHandle, dataState, lastSyncAt),
+    [hasXHandle, dataState, lastSyncAt]
+  );
 
   if (res?.ok === false) {
     return (
@@ -304,7 +290,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           <div className="rounded-xl border border-border bg-card p-6 text-center">
             <p className="text-sm text-muted-foreground mb-2">{res.message}</p>
             <a
-              href="/app/settings/integrations"
+              href={PATH_INTEGRATIONS}
               className="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
             >
               Go to Integrations
@@ -367,27 +353,21 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           <>
         {/* Same layout for all profiles; empty state when no X handle or no synced data */}
         {payload && payload.kpis.posts_total === 0 && payload.kpis.followers_latest == null && (
-          <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
-            <p className="text-sm text-muted-foreground">
-              {!hasXHandle
-                ? "Connect your X handle in Integrations to see analytics here."
-                : dataState === "none" && !lastSyncAt
-                  ? "Sync from Integrations to populate data. No synced data yet."
-                  : dataState === "none"
-                    ? "No activity in this time window. Try 90d or sync again from Integrations."
-                    : "X metrics appear when your profile has an X handle connected and sync has run. Add your handle in Integrations and run sync to populate data here."}
-            </p>
-            <a
-              href="/app/settings/integrations"
-              className="inline-block mt-2 text-xs font-medium text-primary hover:underline underline-offset-2"
-            >
-              Go to Integrations
-            </a>
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-4 text-center space-y-2">
+            <p className="text-sm text-muted-foreground">{emptyKpi.body}</p>
+            {emptyKpi.showIntegrationsCta && (
+              <a
+                href={PATH_INTEGRATIONS}
+                className="inline-flex items-center justify-center text-xs font-medium text-primary hover:underline underline-offset-2"
+              >
+                Open Integrations
+              </a>
+            )}
           </div>
         )}
-        <header className="rounded-xl border border-border bg-card py-2.5 px-4">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <header className="rounded-xl border border-border bg-card/80 backdrop-blur-sm shadow-sm">
+          <div className="px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
               {setRoute && (
                 <a
                   href="/app/dashboard"
@@ -395,65 +375,75 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                     e.preventDefault();
                     setRoute({ name: "dashboard" });
                   }}
-                  className="text-xs text-muted-foreground hover:text-foreground"
+                  className="text-xs text-muted-foreground hover:text-foreground shrink-0"
                 >
                   Back
                 </a>
               )}
-              <h1 className="text-base font-semibold text-foreground tracking-tight">X</h1>
-              {payload && freshnessLabel() && (
-                <span className="text-xs text-muted-foreground" aria-live="polite">
-                  {freshnessLabel()}
+              <div className="h-4 w-px bg-border hidden sm:block" aria-hidden />
+              <h1 className="text-base font-semibold text-foreground tracking-tight">X analytics</h1>
+              {payload && freshnessLine ? (
+                <span className="text-xs text-muted-foreground block sm:inline w-full sm:w-auto" aria-live="polite">
+                  · {freshnessLine}
                 </span>
-              )}
+              ) : null}
             </div>
-            <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5" role="group" aria-label="Time window">
-              {(["7d", "30d", "90d"] as const).map((w) => (
-                <button
-                  key={w}
-                  type="button"
-                  onClick={() => setWindowParam(w)}
-                  className={`px-3 py-1.5 rounded text-xs font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
-                    windowParam === w ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  }`}
+            <div className="flex flex-wrap items-center gap-2">
+              {platform === "x" && hasXHandle && ownerState !== "no_x_handle" && (
+                <>
+                  <button
+                    type="button"
+                    disabled={refreshSubmitting || ownerState === "queued_or_building"}
+                    onClick={requestAnalyticsRefresh}
+                    className="text-xs font-medium px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {ownerState === "queued_or_building"
+                      ? OWNER_REFRESH_BUTTON_QUEUED
+                      : refreshSubmitting
+                        ? "Requesting…"
+                        : OWNER_REFRESH_BUTTON_IDLE}
+                  </button>
+                  <a
+                    href={PATH_INTEGRATIONS}
+                    className="text-xs font-medium px-3 py-2 rounded-lg border border-border text-foreground hover:bg-muted/80"
+                  >
+                    Integrations
+                  </a>
+                </>
+              )}
+              {!hasXHandle && (
+                <a
+                  href={PATH_INTEGRATIONS}
+                  className="text-xs font-medium px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90"
                 >
-                  {w === "7d" ? "7d" : w === "30d" ? "30d" : "90d"}
-                </button>
-              ))}
+                  Connect X
+                </a>
+              )}
+              <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5" role="group" aria-label="Time window">
+                {(["7d", "30d", "90d"] as const).map((w) => (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => setWindowParam(w)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
+                      windowParam === w ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {w === "7d" ? "7d" : w === "30d" ? "30d" : "90d"}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+          {refreshFeedback && (
+            <div className="px-4 pb-3 text-xs text-muted-foreground border-t border-border/60 pt-2">{refreshFeedback}</div>
+          )}
         </header>
         {platform === "x" && ownerBanner && (
-          <div
-            className={`rounded-lg border px-3 py-2 text-xs ${
-              ownerBanner.tone === "warn"
-                ? "border-amber-500/40 bg-amber-500/10 text-amber-950 dark:text-amber-100"
-                : ownerBanner.tone === "info"
-                  ? "border-primary/30 bg-primary/5 text-foreground"
-                  : "border-border bg-muted/40 text-muted-foreground"
-            }`}
-            role="status"
-          >
+          <div className={`px-3 py-2.5 text-sm ${ownerBannerClassNames(ownerBanner.tone)}`} role="status">
             {ownerBanner.text}
           </div>
         )}
-        {platform === "x" && hasXHandle && ownerState !== "no_x_handle" && (
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              disabled={refreshSubmitting || ownerState === "queued_or_building"}
-              onClick={requestAnalyticsRefresh}
-              className="text-xs font-medium px-3 py-2 rounded-md border border-border bg-background hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {ownerState === "queued_or_building" ? "Update queued…" : refreshSubmitting ? "Requesting…" : "Request analytics refresh"}
-            </button>
-            <span className="text-xs text-muted-foreground max-w-xl">
-              Queues a background update (not instant). Limited to a few requests per hour.
-            </span>
-            {refreshFeedback && <span className="text-xs text-foreground w-full sm:w-auto">{refreshFeedback}</span>}
-          </div>
-        )}
-
         {/* Stats islands — same style as Overview page */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)" }}>

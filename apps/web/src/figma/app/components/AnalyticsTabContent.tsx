@@ -18,6 +18,14 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import {
+  getOwnerStateBanner,
+  ownerBannerClassNames,
+  PATH_ANALYTICS,
+  PATH_INTEGRATIONS,
+  type OwnerAnalyticsState,
+  ownerRefreshFeedback,
+} from "@/lib/analytics-owner-state-presentation";
 
 /**
  * AnalyticsTabContent - Signals-First Embedded Analytics
@@ -49,8 +57,22 @@ type InitStatus = {
   has90dAggregate: boolean;
   hasTodaySnapshot: boolean;
   snapshotDays: number;
+  owner_analytics_state?: string;
+  has_x_handle?: boolean;
   job: { status: string; attempts: number; last_error: string | null; run_after: string | null } | null;
 } | null;
+
+function deriveOwnerState(init: InitStatus): OwnerAnalyticsState {
+  if (!init?.ok) return "";
+  const s = init.owner_analytics_state as OwnerAnalyticsState | undefined;
+  if (s) return s;
+  const j = init.job?.status;
+  if (j === "failed") return "refresh_failed";
+  if (j === "queued" || j === "running") return "queued_or_building";
+  if (!init.initialized && (init.snapshotDays ?? 0) > 0) return "partial_data";
+  if (!init.initialized) return "never_synced";
+  return "ready_recent";
+}
 
 export default function AnalyticsTabContent({
   entityType = "creator",
@@ -65,6 +87,7 @@ export default function AnalyticsTabContent({
   } | null>(null);
   const [initStatus, setInitStatus] = useState<InitStatus>(null);
   const [retryingBackfill, setRetryingBackfill] = useState(false);
+  const [rebuildFeedback, setRebuildFeedback] = useState<string | null>(null);
   const pollCountRef = React.useRef(0);
   const POLL_INTERVAL_MS = 15000;
   const POLL_MAX = 12;
@@ -123,13 +146,22 @@ export default function AnalyticsTabContent({
     return () => clearInterval(id);
   }, [initStatus?.ok, initStatus?.initialized, apiData?.source, fetchInitStatus]);
 
-  const handleRetryBackfill = React.useCallback(async () => {
+  const handleRequestRebuild = React.useCallback(async () => {
+    setRebuildFeedback(null);
     setRetryingBackfill(true);
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     if (token) {
-      const res = await fetch(`${base}/api/analytics/backfill-90`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) await fetchInitStatus();
+      const res = await fetch(`${base}/api/analytics/x/rebuild`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = await res.json().catch(() => ({}));
+      if (res.status === 429) setRebuildFeedback(ownerRefreshFeedback(false, true));
+      else if (j?.ok) {
+        setRebuildFeedback(ownerRefreshFeedback(!!j.existing, false));
+        await fetchInitStatus();
+      } else setRebuildFeedback(ownerRefreshFeedback(false, false, j?.message ?? "Request failed."));
     }
     setRetryingBackfill(false);
   }, [base, fetchInitStatus]);
@@ -266,63 +298,91 @@ export default function AnalyticsTabContent({
     );
   };
 
-  const jobFailed = initStatus?.job?.status === "failed";
-  const notInitialized = initStatus?.ok && !initStatus?.initialized;
   const sourcePartial = apiData?.source === "partial";
   const sourceFallback = apiData?.source === "fallback";
-  const showBuildingBanner = notInitialized || sourcePartial;
+  const ownerState = deriveOwnerState(initStatus);
+  const hasXHandleTab = initStatus?.has_x_handle !== false;
+  const stateBanner = getOwnerStateBanner(ownerState, hasXHandleTab);
+  const notInitialized = initStatus?.ok && !initStatus?.initialized;
+  const showLegacyBuilding = (notInitialized || sourcePartial) && !stateBanner && ownerState !== "refresh_failed";
 
   return (
     <div className="space-y-6">
-      {showBuildingBanner && (
-        <>
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-wrap items-center gap-3">
-            <Clock className="w-5 h-5 text-amber-600 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Building your 90-day history…</p>
-              <p className="text-xs text-amber-800/80 dark:text-amber-200/80 mt-0.5">This can take a few minutes. You can refresh the page to check.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => { fetchInitStatus(); fetchAnalytics(); }}
-              className="px-3 py-1.5 rounded-lg border border-amber-500/50 text-amber-800 dark:text-amber-200 text-sm font-medium hover:bg-amber-500/20"
-            >
-              Refresh
-            </button>
-          </div>
-          {initStatus?.ok && (
-            <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Backfill status</p>
-              <ul className="space-y-0.5">
-                <li>Job: {initStatus.job?.status ?? "—"}</li>
-                <li>Snapshot days: {initStatus.snapshotDays ?? 0}</li>
-                <li>90-day aggregate: {initStatus.has90dAggregate ? "Yes" : "Not yet"}</li>
-              </ul>
-            </div>
+      {stateBanner && (
+        <div className={`p-4 flex flex-wrap items-start gap-3 ${ownerBannerClassNames(stateBanner.tone)}`}>
+          {stateBanner.tone === "warn" ? (
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+          ) : (
+            <Clock className="w-5 h-5 shrink-0 mt-0.5 opacity-80" />
           )}
-        </>
-      )}
-      {jobFailed && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 flex flex-wrap items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-destructive">Backfill didn’t complete</p>
-            {initStatus?.job?.last_error && <p className="text-xs text-muted-foreground mt-0.5 truncate">{initStatus.job.last_error}</p>}
+          <div className="flex-1 min-w-0 space-y-2">
+            <p className="text-sm font-medium leading-snug">{stateBanner.text}</p>
+            {ownerState === "refresh_failed" && initStatus?.job?.last_error && (
+              <p className="text-xs opacity-80 truncate" title={initStatus.job.last_error}>
+                {initStatus.job.last_error}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {(ownerState === "never_synced" || ownerState === "no_x_handle" || !hasXHandleTab) && (
+                <a
+                  href={PATH_INTEGRATIONS}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90"
+                >
+                  Integrations
+                </a>
+              )}
+              {(ownerState === "refresh_failed" ||
+                ownerState === "never_synced" ||
+                ownerState === "ready_stale" ||
+                ownerState === "partial_data") && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleRequestRebuild}
+                    disabled={
+                      retryingBackfill ||
+                      initStatus?.job?.status === "queued" ||
+                      initStatus?.job?.status === "running"
+                    }
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-muted disabled:opacity-50"
+                  >
+                    {retryingBackfill ? "Requesting…" : "Request analytics refresh"}
+                  </button>
+                  <a href={PATH_ANALYTICS} className="text-xs font-medium px-3 py-1.5 rounded-lg border border-border hover:bg-muted">
+                    Full Analytics
+                  </a>
+                </>
+              )}
+              {(ownerState === "queued_or_building" || ownerState === "partial_data") && (
+                <button
+                  type="button"
+                  onClick={() => { void fetchInitStatus(); void fetchAnalytics(); }}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg border border-border hover:bg-muted/80"
+                >
+                  Refresh status
+                </button>
+              )}
+            </div>
+            {rebuildFeedback && <p className="text-xs opacity-90">{rebuildFeedback}</p>}
           </div>
-          <button
-            type="button"
-            onClick={handleRetryBackfill}
-            disabled={retryingBackfill}
-            className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
-          >
-            {retryingBackfill ? "Retrying…" : "Retry backfill"}
-          </button>
         </div>
       )}
-      {sourceFallback && initStatus?.initialized === true && (
+      {showLegacyBuilding && (
+        <div className={`p-4 flex flex-wrap items-center gap-3 ${ownerBannerClassNames("info")}`}>
+          <Clock className="w-5 h-5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Building your analytics history…</p>
+            <p className="text-xs mt-0.5 opacity-90">Same message as on the Analytics page. Open Full Analytics for refresh.</p>
+          </div>
+          <a href={PATH_ANALYTICS} className="text-xs font-medium px-3 py-1.5 rounded-lg border border-border hover:bg-muted/80">
+            Analytics
+          </a>
+        </div>
+      )}
+      {sourceFallback && initStatus?.initialized === true && !stateBanner && (
         <div className="rounded-xl border border-muted bg-muted/50 p-3 flex items-center gap-2">
           <Eye className="w-4 h-4 text-muted-foreground shrink-0" />
-          <p className="text-xs text-muted-foreground">Your full history is still loading. Some metrics may be limited.</p>
+          <p className="text-xs text-muted-foreground">Full history still loading. See Analytics for status.</p>
         </div>
       )}
       {/* Header */}

@@ -4,6 +4,10 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BarChart2, ExternalLink, Lock, AlertCircle, Users } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import {
+  CROSS_USER_ANALYTICS_EMPTY_BODY,
+  CROSS_USER_ANALYTICS_EMPTY_TITLE,
+} from "@/lib/analytics-owner-state-presentation";
 
 type Profile = { username: string; display_name: string | null; avatar_url: string | null };
 type Analytics = {
@@ -309,10 +313,10 @@ export default function CrossUserAnalyticsPage({
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-card p-8 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
           <BarChart2 className="h-10 w-10 mx-auto text-muted-foreground/60 mb-3" />
-          <p className="text-sm font-medium text-foreground">No analytics data yet</p>
-          <p className="text-sm text-muted-foreground mt-1">This profile has no X analytics snapshot available.</p>
+          <p className="text-sm font-medium text-foreground">{CROSS_USER_ANALYTICS_EMPTY_TITLE}</p>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">{CROSS_USER_ANALYTICS_EMPTY_BODY}</p>
           <button
             type="button"
             onClick={goToPublicProfile}

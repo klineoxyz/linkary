@@ -47,6 +47,8 @@ Derived **only** from DB: `profiles` (handle, `x_last_profile_sync_at`, `analyti
 
 - **Analytics page**: uses `init-status` for state banner + refresh button; **GET /api/analytics/x** for numbers + `freshness` line.
 - **AnalyticsTabContent** (embedded tab): same **GET /api/analytics/init-status** shape; extra fields (`owner_analytics_state`, `has_x_handle`, …) are backward compatible.
+
+**UX alignment (banners, CTAs, cross-user copy):** see **docs/ANALYTICS_UX_CONSISTENCY.md**.
 - **Integrations**: x-sync remains the place for full “Sync from X” (profile + enqueue).
 
 ---

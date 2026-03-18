@@ -7,6 +7,7 @@ import { getMyProfile } from "@/lib/profiles";
 import { getMySocialAccountX } from "@/lib/socialAccounts";
 import { syncProfileFromX } from "@/lib/x-sync";
 import type { Profile } from "@/lib/profiles";
+import { PATH_ANALYTICS } from "@/lib/analytics-owner-state-presentation";
 
 type RoutePayload = { name: string };
 interface IntegrationsPageProps {
@@ -438,6 +439,15 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
           {!loading && !isConnected && (
             <p className="mt-3 text-xs text-zinc-500">
               To keep X connected when you sign in with CDP or email, enable <strong>Allow manual linking</strong> in Supabase Dashboard → Authentication → User Signups, then connect again.
+            </p>
+          )}
+          {!loading && isConnected && (
+            <p className="mt-3 text-xs text-zinc-500 border-t border-zinc-100 pt-3">
+              After <strong>Sync from X</strong>, open{" "}
+              <a href={PATH_ANALYTICS} className="text-zinc-800 font-medium hover:underline">
+                Analytics
+              </a>{" "}
+              for charts and to <strong>request an analytics refresh</strong> (queued background update).
             </p>
           )}
         </div>

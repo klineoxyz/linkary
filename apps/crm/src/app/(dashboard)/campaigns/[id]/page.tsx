@@ -103,6 +103,12 @@ export default async function CampaignDetailPage({
         Back to campaigns
       </Link>
 
+      <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-3 text-sm text-[var(--crm-muted)]">
+        <strong className="text-[var(--crm-foreground)]">For your team:</strong> This page is where you{" "}
+        <strong className="text-[var(--crm-foreground)]">approve or reject</strong> creator post links, see campaign KPIs (views, CPV/CPM-style metrics when data exists), and open the report.{" "}
+        Discovery and hiring stay on <strong className="text-[var(--crm-foreground)]">linkary.xyz</strong>; delivery is tracked here.
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">

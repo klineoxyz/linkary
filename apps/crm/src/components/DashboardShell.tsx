@@ -11,11 +11,10 @@ import {
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
-/* Only production-ready tabs. Submissions, Reports, Settings are placeholder routes and hidden until implemented. */
 const nav = [
   { href: "/", label: "Home", icon: LayoutDashboard },
-  { href: "/tasks", label: "Tasks", icon: ListTodo },
-  { href: "/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/tasks", label: "My tasks", icon: ListTodo },
+  { href: "/campaigns", label: "Campaigns (review & reports)", icon: Megaphone },
 ];
 
 export function DashboardShell({
@@ -60,7 +59,11 @@ export function DashboardShell({
             );
           })}
         </nav>
-        <div className="mt-auto pt-6 border-t border-[var(--crm-border)]">
+        <div className="mt-auto pt-6 border-t border-[var(--crm-border)] space-y-3">
+          <p className="text-[10px] leading-snug text-[var(--crm-muted)] px-3">
+            <strong className="text-[var(--crm-foreground)]">Linkary</strong> = profiles &amp; deals.
+            <strong className="text-[var(--crm-foreground)]"> CRM</strong> = submit links &amp; track delivery after accepted work.
+          </p>
           <p className="text-xs text-[var(--crm-muted)] truncate px-3 mb-2" title={user.email ?? undefined}>
             {user.email ?? user.id}
           </p>

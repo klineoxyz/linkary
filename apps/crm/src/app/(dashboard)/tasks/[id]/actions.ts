@@ -65,7 +65,13 @@ export async function updateTaskAction(
 
 export async function submitProofAction(
   taskId: string,
-  payload: { url: string; platform: string; notes?: string | null; title?: string | null }
+  payload: {
+    url?: string;
+    urls?: string[];
+    platform: string;
+    notes?: string | null;
+    title?: string | null;
+  }
 ): Promise<{ error?: string }> {
   const supabase = await createServerSupabase();
   if (!supabase) return { error: "Not configured" };
@@ -87,24 +93,35 @@ export async function submitProofAction(
   if (!existing) return { error: "Task not found or access denied" };
 
   const task = existing.task;
-  const url = (payload.url ?? "").trim();
-  if (!url) return { error: "Proof URL is required" };
-  if (!isValidProofUrl(url)) return { error: "Please enter a valid http or https URL" };
+  const rawList =
+    Array.isArray(payload.urls) && payload.urls.length > 0
+      ? payload.urls
+      : payload.url
+        ? [payload.url]
+        : [];
+  const urls = [...new Set(rawList.map((u) => (u ?? "").trim()).filter(Boolean))].slice(0, 3);
+  if (urls.length === 0) return { error: "Add at least one proof URL (up to 3)" };
+  for (const url of urls) {
+    if (!isValidProofUrl(url)) return { error: "Each URL must be valid http or https" };
+  }
 
   const platform = (normalizePlatform(payload.platform) ?? "other").trim() || "other";
+  const notes = payload.notes?.trim() || null;
+  const title = payload.title?.trim() || null;
 
-  const result = await createSubmission(supabase, {
-    task_id: taskId,
-    campaign_id: task.campaign_id,
-    participant_profile_id: profileId,
-    platform,
-    url,
-    title: payload.title?.trim() || null,
-    notes: payload.notes?.trim() || null,
-  });
-
-  if ("error" in result) {
-    return { error: result.error };
+  for (const url of urls) {
+    const result = await createSubmission(supabase, {
+      task_id: taskId,
+      campaign_id: task.campaign_id,
+      participant_profile_id: profileId,
+      platform,
+      url,
+      title,
+      notes,
+    });
+    if ("error" in result) {
+      return { error: result.error };
+    }
   }
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);

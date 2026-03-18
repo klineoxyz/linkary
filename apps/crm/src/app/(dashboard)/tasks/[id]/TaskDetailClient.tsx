@@ -46,8 +46,10 @@ export function TaskDetailClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [submissionUrl, setSubmissionUrl] = useState("");
-  const [submissionPlatform, setSubmissionPlatform] = useState("other");
+  const [submissionUrl1, setSubmissionUrl1] = useState("");
+  const [submissionUrl2, setSubmissionUrl2] = useState("");
+  const [submissionUrl3, setSubmissionUrl3] = useState("");
+  const [submissionPlatform, setSubmissionPlatform] = useState("x");
   const [submissionNotes, setSubmissionNotes] = useState("");
   const [submissionLoading, setSubmissionLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -88,8 +90,11 @@ export function TaskDetailClient({
     e.preventDefault();
     setSubmissionError(null);
     setSubmissionLoading(true);
+    const urls = [submissionUrl1, submissionUrl2, submissionUrl3]
+      .map((u) => u.trim())
+      .filter(Boolean);
     const result = await submitProofAction(taskId, {
-      url: submissionUrl.trim(),
+      urls,
       platform: submissionPlatform,
       notes: submissionNotes.trim() || null,
     });
@@ -98,7 +103,9 @@ export function TaskDetailClient({
       setSubmissionError(result.error);
       return;
     }
-    setSubmissionUrl("");
+    setSubmissionUrl1("");
+    setSubmissionUrl2("");
+    setSubmissionUrl3("");
     setSubmissionNotes("");
     router.refresh();
   }
@@ -248,19 +255,44 @@ export function TaskDetailClient({
 
         <form onSubmit={handleSubmitProof} className="space-y-3 max-w-md mt-4">
           <h4 className="text-sm font-medium text-[var(--crm-foreground)]">
-            Submit proof URL
+            Submit proof (up to 3 links)
           </h4>
+          <p className="text-xs text-[var(--crm-muted)]">
+            <strong className="text-[var(--crm-foreground)]">X (Twitter)</strong> is wired first. Pick the platform that matches your post; YouTube/TikTok/etc. use the same review flow when your campaign expects those.
+          </p>
           <div>
             <label className="block text-xs font-medium text-[var(--crm-muted)] mb-1">
-              Proof URL *
+              Link 1 *
             </label>
             <input
               type="url"
-              value={submissionUrl}
-              onChange={(e) => setSubmissionUrl(e.target.value)}
-              placeholder="https://..."
+              value={submissionUrl1}
+              onChange={(e) => setSubmissionUrl1(e.target.value)}
+              placeholder="https://x.com/... or https://twitter.com/..."
               className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
-              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--crm-muted)] mb-1">
+              Link 2 (optional)
+            </label>
+            <input
+              type="url"
+              value={submissionUrl2}
+              onChange={(e) => setSubmissionUrl2(e.target.value)}
+              placeholder="Second post if required"
+              className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--crm-muted)] mb-1">
+              Link 3 (optional)
+            </label>
+            <input
+              type="url"
+              value={submissionUrl3}
+              onChange={(e) => setSubmissionUrl3(e.target.value)}
+              className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -274,7 +306,7 @@ export function TaskDetailClient({
             >
               {PLATFORM_OPTIONS.map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {p === "x" ? "X (Twitter)" : p}
                 </option>
               ))}
             </select>
@@ -299,7 +331,7 @@ export function TaskDetailClient({
             disabled={submissionLoading}
             className="rounded-lg bg-[var(--crm-primary)] px-4 py-2 text-sm font-medium text-[var(--crm-primary-foreground)] hover:opacity-90 disabled:opacity-50"
           >
-            {submissionLoading ? "Submitting…" : "Submit proof"}
+            {submissionLoading ? "Submitting…" : "Submit proof link(s)"}
           </button>
         </form>
       </section>

@@ -40,6 +40,7 @@ import { listJobs, listApplicationsForJobs, type Application } from "@/lib/jobs"
 import { listCaseStudiesForOrg, createCaseStudyForOrg, type CaseStudy } from "@/lib/caseStudies";
 import { Briefcase, Sparkles, ListChecks } from "lucide-react";
 import OrgSourcingPipelineTab from "./OrgSourcingPipelineTab";
+import { getCrmAppUrl } from "@/lib/crmPublicUrl";
 
 const CreatorProgramDetailDrawer = dynamic(
   () => import("./CreatorProgramDetailDrawer").then((m) => m.default),
@@ -945,7 +946,12 @@ export default function OrgDetailPage({
                     <>
                       Open <strong>Acting as</strong> in the sidebar and choose this org so the whole app aligns with this workspace. You can still use the actions below on this page.
                     </>
-                  )}
+                  )}{" "}
+                  <strong>Sourcing</strong> (tab) is pre-deal discovery.{" "}
+                  <a href={`${getCrmAppUrl()}/campaigns`} target="_blank" rel="noopener noreferrer" className="text-primary font-semibold hover:underline">
+                    CRM
+                  </a>{" "}
+                  is where your team reviews creator deliverables and campaign performance after they accept work.
                 </p>
                 {admin ? (
                   <>

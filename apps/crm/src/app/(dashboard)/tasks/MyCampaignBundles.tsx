@@ -24,9 +24,14 @@ export function MyCampaignBundles({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-semibold text-[var(--crm-foreground)]">
-        My campaign work
-      </h2>
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--crm-foreground)]">
+          Your campaigns (grouped tasks)
+        </h2>
+        <p className="mt-1 text-sm text-[var(--crm-muted)]">
+          Tasks from each gig/campaign appear here after you accept work on Linkary and sync completes. Open a card to filter tasks below.
+        </p>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {bundles.map((item) => {
           const { progress } = item;

@@ -101,6 +101,7 @@ import {
   LogIn,
   LogOut,
   Menu,
+  Megaphone,
   MessageSquare,
   Pause,
   PieChart,
@@ -228,6 +229,9 @@ import { ReputationCardModal } from "./components/profile/ReputationCardModal";
 import { buildReputationCardPayload } from "./components/profile/ReputationCardPreview";
 import { shouldRedirectProfileToAnalytics } from "@/lib/profileRedirect";
 import { buildAnalyticsProfilePath, parseAnalyticsProfilePath } from "@/lib/appRouting";
+import { GigDealsPanel } from "@/components/profile-work/GigDealsPanel";
+import { MyApplicationsPanel } from "@/components/profile-work/MyApplicationsPanel";
+import { getCrmAppUrl } from "@/lib/crmPublicUrl";
 
 /**
  * Linkary - Web3 Reputation + Opportunity + Review + Case Study Infrastructure
@@ -1221,6 +1225,17 @@ function Sidebar({
                 <Shield className="h-4 w-4 shrink-0" aria-hidden />
                 <span className="truncate">Team &amp; admins</span>
               </button>
+              <a
+                href={`${getCrmAppUrl()}/campaigns`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileOpen(false)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30 transition-colors leading-snug no-underline"
+              >
+                <Megaphone className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">CRM — review campaigns</span>
+                <ExternalLink className="h-3.5 w-3.5 shrink-0 ml-auto opacity-60" aria-hidden />
+              </a>
               <button
                 type="button"
                 onClick={() => {
@@ -1248,8 +1263,27 @@ function Sidebar({
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug no-underline"
               >
                 <Receipt className="h-4 w-4 shrink-0" aria-hidden />
-                <span className="truncate">Gig deals</span>
+                <span className="truncate">Gigs &amp; deals</span>
               </Link>
+              <Link
+                href="/app/profile/applications"
+                onClick={() => setMobileOpen(false)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug no-underline"
+              >
+                <Briefcase className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">Gig applications</span>
+              </Link>
+              <a
+                href={`${getCrmAppUrl()}/tasks`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileOpen(false)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug no-underline"
+              >
+                <ListChecks className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">CRM — tasks</span>
+                <ExternalLink className="h-3.5 w-3.5 shrink-0 ml-auto opacity-60" aria-hidden />
+              </a>
               <NavLink name="analytics" icon={BarChart3} label="Personal analytics" />
             </div>
             <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 tracking-wide block">Network</span>
@@ -1288,7 +1322,7 @@ function Sidebar({
             <div className="flex flex-col gap-1.5 lg:gap-2">
               <NavLink name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
               <NavLink name="profile" icon={Users} label="My Profile" />
-              <NavLink name="profileEdit" icon={FileText} label="Profile Builder" />
+              <NavLink name="profileEdit" icon={FileText} label="Edit public page" />
             </div>
 
             <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Work</span>
@@ -1327,8 +1361,27 @@ function Sidebar({
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug no-underline"
               >
                 <Receipt className="h-4 w-4 shrink-0" aria-hidden />
-                <span className="truncate">Gig deals</span>
+                <span className="truncate">Gigs &amp; deals</span>
               </Link>
+              <Link
+                href="/app/profile/applications"
+                onClick={() => setMobileOpen(false)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug no-underline"
+              >
+                <Briefcase className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">Gig applications</span>
+              </Link>
+              <a
+                href={`${getCrmAppUrl()}/tasks`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileOpen(false)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug no-underline"
+              >
+                <ListChecks className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">CRM — deliver tasks</span>
+                <ExternalLink className="h-3.5 w-3.5 shrink-0 ml-auto opacity-60" aria-hidden />
+              </a>
             </div>
 
             <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Network</span>
@@ -4073,6 +4126,8 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
           <li><strong className="text-foreground">This tab</strong> — Private; only you see your full workspace.</li>
           <li><strong className="text-foreground">Profile edit</strong> — Changes bio, links, skills → reflected on your public page after save.</li>
           <li><strong className="text-foreground">Public preview</strong> — Same as <code className="text-[10px] bg-background px-1 rounded">/{hasPublicSlug ? publicSlug : "username"}</code> for visitors. Full X analytics stay under <a href="/app/analytics" className="text-primary hover:underline">Analytics</a> (not on the public page).</li>
+          <li><strong className="text-foreground">After you accept paid/campaign work</strong> — Submit proof links in{" "}
+            <a href={`${getCrmAppUrl()}/tasks`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">CRM</a> (deliverables), not on this page.</li>
         </ul>
       </div>
       <div className="mb-4 flex flex-wrap gap-2 border-b border-border pb-2 overflow-x-auto">
@@ -4863,7 +4918,8 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
 
   // Production route lockdown: only allowed routes are reachable; everything else redirects to Overview
   const ALLOWED_ROUTES = new Set([
-    "landing", "overview", "dashboard", "profile", "profileEdit", "profileInsights", "userProfile", "userInsights", "market", "messages", "workRequests",
+    "landing", "overview", "dashboard", "profile", "profileEdit", "profileInsights", "profileDeals", "profileApplications", "analyticsProfile",
+    "userProfile", "userInsights", "market", "messages", "workRequests",
     "analytics", "privacy", "integrations", "rolesSkills", "wallet", "login", "onboarding", "accountType",
     "orgDetail", "brandProfile", "creatorProfile", "agencyProfile", "dealDetail", "terms", "privacyPolicy", "plansBilling", "billing", "pricing",
     "circles", "circleDetail", "connections", "kolLists", "creatorOrgInvites", "inviteLineage", "calendar", "xspaces", "capitalPartners", "watchlist", "explore", "adminInvites",
@@ -5470,6 +5526,8 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
                 )}
                 {/* userProfile route is redirected to /{username} by effect above; do not render UserProfilePage (no mock data). */}
                 {route.name === "userProfile" && null}
+                {route.name === "profileDeals" && <GigDealsPanel variant="embedded" />}
+                {route.name === "profileApplications" && <MyApplicationsPanel variant="embedded" />}
                 {route.name === "profileInsights" && (
                   <InsightsSnapshotLazy
                     setRoute={setRoute}

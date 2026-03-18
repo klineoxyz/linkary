@@ -137,7 +137,7 @@ export default async function TasksPage({
               Your workspace
             </h1>
             <p className="mt-1 text-sm text-[var(--crm-muted)]">
-              Your personal task board — add tasks here or work from campaigns.
+              Deliverables from accepted work on Linkary show up here, grouped by campaign below. X post links are supported first; other platforms follow the same flow when enabled.
             </p>
           </div>
           <CreateTaskButton />
@@ -152,16 +152,16 @@ export default async function TasksPage({
               Setup complete
             </p>
             <h2 className="text-xl font-semibold text-[var(--crm-foreground)] mb-2">
-              This is your personal workspace
+              No tasks yet — here&apos;s why
             </h2>
+            <p className="text-sm text-[var(--crm-muted)] mb-4">
+              <strong className="text-[var(--crm-foreground)]">Campaign tasks</strong> are created on Linkary when you accept a gig, sprint, or program slot. They sync into CRM shortly after (same login). If you just accepted, wait a minute and refresh.
+            </p>
             <p className="text-sm text-[var(--crm-muted)] mb-6">
-              Add your own tasks to track work, or join campaigns to get assigned tasks here. Everything stays in one place.
+              You can also add <strong className="text-[var(--crm-foreground)]">personal tasks</strong> below to track your own to-dos.
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <CreateTaskButton />
-              <span className="text-sm text-[var(--crm-muted)]">
-                or wait for campaign tasks when you&apos;re in a campaign
-              </span>
             </div>
           </div>
         </section>

@@ -2277,7 +2277,19 @@ function MarketplacePage({ setRoute, route }) {
   const [q, setQ] = useState("");
   const [view, setView] = useState(initialView);
   const [dbJobs, setDbJobs] = useState<JobWithOrg[]>([]);
-  const [openPrograms, setOpenPrograms] = useState<Array<{ id: string; title: string; status: string; invites_count: number; org?: { id: string; name: string; slug: string } | null }>>([]);
+  const [openPrograms, setOpenPrograms] = useState<
+    Array<{
+      id: string;
+      title: string;
+      description?: string | null;
+      program_type?: string | null;
+      status: string;
+      invites_count: number;
+      org?: { id: string; name: string; slug: string } | null;
+    }>
+  >([]);
+  const [browseProgram, setBrowseProgram] = useState<(typeof openPrograms)[0] | null>(null);
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [programsLoading, setProgramsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
@@ -2423,7 +2435,9 @@ function MarketplacePage({ setRoute, route }) {
       {(view === "creator_programs") ? (
         <Card className="p-6">
           <h3 className="font-semibold mb-4" style={{ color: "#000000" }}>Creator programs</h3>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">Open programs from orgs — invite creators from circles or KOL lists. Create programs from your org&apos;s Jobs tab.</p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+              Open programs from orgs (campaigns, ambassador tracks, etc.). Tap <strong>View details</strong> for the full brief. Invites are sent by the org — you&apos;ll see personal invites in your inbox.
+            </p>
           {programsLoading ? (
             <p className="text-sm text-zinc-500">Loading…</p>
           ) : programsFiltered.length === 0 ? (
@@ -2431,10 +2445,36 @@ function MarketplacePage({ setRoute, route }) {
           ) : (
             <div className="space-y-3">
               {programsFiltered.map((p) => (
-                <div key={p.id} className="p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-                  <div>
+                <div
+                  key={p.id}
+                  className="p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3"
+                >
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium text-zinc-900 dark:text-zinc-100">{p.title}</p>
-                    <p className="text-xs text-zinc-500">{p.org?.name ?? "—"} · {p.invites_count} invite(s)</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      {p.org?.name ?? "—"} · {p.program_type ? `${p.program_type} · ` : ""}
+                      {p.invites_count} in pipeline
+                    </p>
+                    {p.description?.trim() ? (
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 line-clamp-2">{p.description.trim()}</p>
+                    ) : (
+                      <p className="text-xs text-zinc-500 mt-2 italic">No public description yet — open details to see type and org.</p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => setBrowseProgram(p)}>
+                      View details
+                    </Button>
+                    {p.org?.id && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-zinc-600"
+                        onClick={() => setRoute({ name: "orgDetail", data: { orgId: p.org!.id, slug: p.org!.slug } })}
+                      >
+                        Org workspace
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -2457,13 +2497,14 @@ function MarketplacePage({ setRoute, route }) {
               {jobs.map((j, idx) => {
                 const bgImages = ['1557683316-973673baf926', '1579546929518-9e396f3cc809', '1557683311-eac922347aa1', '1559827260-dc66d52bef19'];
                 const gradients = ['from-primary/90 to-primary/70', 'from-primary/80 to-foreground/60', 'from-chart-1/90 to-chart-2/80', 'from-chart-3/90 to-chart-4/80'];
+                const roleBody = (j.description || j.objective || "").trim();
                 return (
-                <div key={j.id} className="relative overflow-hidden rounded-lg border-0 p-4 bg-cover bg-center" style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx % 4]}?w=800&q=80)` }}>
-                  <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx % 4]}`} />
+                <div key={j.id} className="relative overflow-hidden rounded-lg border-0 p-4 bg-cover bg-center text-left" style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx % 4]}?w=800&q=80)` }}>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx % 4]} pointer-events-none`} aria-hidden />
                   <div className="relative z-10">
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="font-semibold text-white">{j.title}</span>
                         {j.aiMatch >= 80 && (
                           <span className="rounded-full bg-white/20 backdrop-blur-sm px-2 py-0.5 text-xs text-white">
@@ -2474,8 +2515,24 @@ function MarketplacePage({ setRoute, route }) {
                       </div>
                       <p className="text-xs text-white/80">{(j.org?.name ?? j.org)} · {j.budget ?? ""} · {j.type ?? "job"}</p>
                       <p className="mt-2 text-xs text-white/70">{j.applicants != null ? j.applicants + " applicants" : ""}</p>
+                      {roleBody ? (
+                        <div className="mt-3 border-t border-white/20 pt-2">
+                          <p className={`text-xs text-white/90 leading-relaxed ${expandedJobId === j.id ? "" : "line-clamp-3"}`}>{roleBody}</p>
+                          {roleBody.length > 140 && (
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-white underline mt-1.5 hover:text-white/90"
+                              onClick={() => setExpandedJobId((id) => (id === j.id ? null : j.id))}
+                            >
+                              {expandedJobId === j.id ? "Show less" : "Full role details"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs text-white/60 italic">No description yet — contact the org after applying.</p>
+                      )}
                     </div>
-                    <Button size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => { if (!j.org_id) { setRoute({ name: "overview" }); return; } if ((j as { apply_url?: string }).apply_url) { window.open((j as { apply_url: string }).apply_url, "_blank", "noopener,noreferrer"); return; } setApplyJob(j); }}>Apply</Button>
+                    <Button size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30 shrink-0" onClick={() => { if (!j.org_id) { setRoute({ name: "overview" }); return; } if ((j as { apply_url?: string }).apply_url) { window.open((j as { apply_url: string }).apply_url, "_blank", "noopener,noreferrer"); return; } setApplyJob(j); }}>Apply</Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(Array.isArray(j.tags) ? j.tags : []).map((t) => (
@@ -2523,13 +2580,14 @@ function MarketplacePage({ setRoute, route }) {
               {sprints.map((s, idx) => {
                 const bgImages = ['1719432268911-f3ef8b7bd5ec', '1637825891028-564f672aa42c', '1678581231067-644dddeca6dc', '1559827260-dc66d52bef19'];
                 const gradients = ['from-primary/90 to-primary/70', 'from-primary/80 to-foreground/60', 'from-chart-1/90 to-chart-2/80', 'from-chart-3/90 to-chart-4/80'];
+                const sprintBody = (s.description || s.objective || "").trim();
                 return (
-                <div key={s.id} className="relative overflow-hidden rounded-lg border-0 p-4 bg-cover bg-center" style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx % 4]}?w=800&q=80)` }}>
-                  <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx % 4]}`} />
+                <div key={s.id} className="relative overflow-hidden rounded-lg border-0 p-4 bg-cover bg-center text-left" style={{ backgroundImage: `url(https://images.unsplash.com/photo-${bgImages[idx % 4]}?w=800&q=80)` }}>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx % 4]} pointer-events-none`} aria-hidden />
                   <div className="relative z-10">
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="font-semibold text-white">{s.title}</span>
                         {s.aiMatch >= 80 && (
                           <span className="rounded-full bg-white/20 backdrop-blur-sm px-2 py-0.5 text-xs text-white">
@@ -2540,8 +2598,24 @@ function MarketplacePage({ setRoute, route }) {
                       </div>
                       <p className="text-xs text-white/80">{(s.org?.name ?? s.org)} · {s.budget ?? ""} · {s.duration ?? ""}</p>
                       <p className="mt-2 text-xs text-white/70">{s.applicants != null ? s.applicants + " applicants" : ""}</p>
+                      {sprintBody ? (
+                        <div className="mt-3 border-t border-white/20 pt-2">
+                          <p className={`text-xs text-white/90 leading-relaxed ${expandedJobId === s.id ? "" : "line-clamp-3"}`}>{sprintBody}</p>
+                          {sprintBody.length > 140 && (
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-white underline mt-1.5 hover:text-white/90"
+                              onClick={() => setExpandedJobId((id) => (id === s.id ? null : s.id))}
+                            >
+                              {expandedJobId === s.id ? "Show less" : "Full gig details"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs text-white/60 italic">No description yet — contact the org after applying.</p>
+                      )}
                     </div>
-                    <Button size="sm" variant="outline" className="bg-white/20 border-white/30 text-white hover:bg-white/30" onClick={() => { if (!s.org_id) { setRoute({ name: "overview" }); return; } if ((s as { apply_url?: string }).apply_url) { window.open((s as { apply_url: string }).apply_url, "_blank", "noopener,noreferrer"); return; } setApplyJob(s); }}>Apply</Button>
+                    <Button size="sm" variant="outline" className="bg-white/20 border-white/30 text-white hover:bg-white/30 shrink-0" onClick={() => { if (!s.org_id) { setRoute({ name: "overview" }); return; } if ((s as { apply_url?: string }).apply_url) { window.open((s as { apply_url: string }).apply_url, "_blank", "noopener,noreferrer"); return; } setApplyJob(s); }}>Apply</Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(Array.isArray(s.tags) ? s.tags : []).map((t) => (
@@ -2558,6 +2632,50 @@ function MarketplacePage({ setRoute, route }) {
           </Card>
         )}
       </div>
+      )}
+
+      {browseProgram && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50"
+          onClick={() => setBrowseProgram(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="program-browse-title"
+        >
+          <div
+            className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6 max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="program-browse-title" className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+              {browseProgram.title}
+            </h3>
+            <p className="text-sm text-zinc-500 mt-1">
+              {browseProgram.org?.name ?? "Organization"} · {browseProgram.program_type ?? "program"} · {browseProgram.invites_count}{" "}
+              creator(s) in org pipeline
+            </p>
+            <div className="mt-4 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+              {browseProgram.description?.trim() || (
+                <span className="text-zinc-500 italic">This program doesn&apos;t have a public description yet. Open the org workspace to learn more.</span>
+              )}
+            </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => setBrowseProgram(null)}>
+                Close
+              </Button>
+              {browseProgram.org?.id && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setBrowseProgram(null);
+                    setRoute({ name: "orgDetail", data: { orgId: browseProgram.org!.id, slug: browseProgram.org!.slug } });
+                  }}
+                >
+                  Open org workspace
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {applyJob && (

@@ -105,4 +105,5 @@ Single operator-ready checklist for both live issues: CRM task board bootstrap a
 - Analytics behavior (same UI for all; X data when handle + sync): **docs/ANALYTICS_BEHAVIOR.md**
 - Analytics pipeline diagnostics (followers vs posts zero, stages, failure points, other-user mapping, metric sources, truthfulness): **docs/ANALYTICS_PIPELINE_DIAGNOSTICS.md**
 - Analytics phase operator checklist (single-fetch verification, tables, logs, freshness, Sync now recommendation): **docs/ANALYTICS_PHASE_OPERATOR_CHECKLIST.md**
+- Analytics refresh & owner status (endpoints, `owner_analytics_state`, QA): **docs/ANALYTICS_REFRESH_AND_STATUS.md**
 - QA checklist (individual tasks): **docs/CRM_QA_CHECKLIST_INDIVIDUAL_TASKS.md**

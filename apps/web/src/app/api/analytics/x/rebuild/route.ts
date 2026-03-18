@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -57,6 +58,16 @@ export async function POST(request: NextRequest) {
       },
       existing: true,
     });
+  }
+
+  const rl = await rateLimit({
+    key: `analytics-x-rebuild:u:${profileId}`,
+    limit: 3,
+    windowSeconds: 3600,
+    supabaseAdmin: service,
+  });
+  if (!rl.allowed) {
+    return fail("RATE_LIMITED", "You can request a refresh a few times per hour. Try again later.", 429, { resetAt: rl.resetAt });
   }
 
   const now = new Date().toISOString();

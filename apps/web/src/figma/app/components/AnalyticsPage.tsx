@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { Users, BarChart2, Eye, TrendingUp, Heart, ThumbsUp, MessageCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import {
   FollowerGrowthChart,
   EngagementChart,
@@ -52,6 +53,11 @@ type ApiSuccess = {
       prior_avg_replies_per_post?: number;
     };
     debug?: { auth_mode: string };
+    freshness?: {
+      has_x_handle: boolean;
+      last_sync_at: string | null;
+      data_state: "none" | "partial" | "full";
+    };
   };
 };
 
@@ -89,6 +95,27 @@ async function analyticsFetcher(url: string): Promise<ApiResponse> {
     return json as ApiSuccess;
   }
   return { ok: false, code: "BAD_RESPONSE", message: "Invalid response shape" };
+}
+
+type OwnerAnalyticsInitStatus = {
+  ok?: boolean;
+  owner_analytics_state?: string;
+  has_x_handle?: boolean;
+  build_in_progress?: boolean;
+  data_stale_hint?: boolean;
+  initialized?: boolean;
+  job?: { status?: string; last_error?: string | null } | null;
+};
+
+async function fetchOwnerAnalyticsStatus(): Promise<OwnerAnalyticsInitStatus | null> {
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) return null;
+  const r = await fetch(`${base}/api/analytics/init-status`, {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
+  const j = (await r.json().catch(() => ({}))) as OwnerAnalyticsInitStatus & { ok?: boolean };
+  return j.ok ? j : null;
 }
 
 type WindowParam = "7d" | "30d" | "90d";
@@ -155,10 +182,52 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const [windowParam, setWindowParam] = useState<WindowParam>("30d");
   const key = `/api/analytics/x?window=${windowParam}${showDebug ? "&debug=1" : ""}`;
 
-  const { data: res, isLoading } = useSWR<ApiResponse>(key, analyticsFetcher, {
+  const { data: res, isLoading, mutate: mutateAnalytics } = useSWR<ApiResponse>(key, analyticsFetcher, {
     revalidateOnFocus: false,
     dedupingInterval: SWR_DEDUP_MS,
   });
+
+  const { data: ownerStatus, mutate: mutateOwnerStatus } = useSWR<OwnerAnalyticsInitStatus | null>(
+    platform === "x" ? "owner-analytics-init-status" : null,
+    fetchOwnerAnalyticsStatus,
+    {
+      dedupingInterval: 8000,
+      refreshInterval: (d) => (d?.build_in_progress ? 12000 : 45000),
+    }
+  );
+
+  const [refreshSubmitting, setRefreshSubmitting] = useState(false);
+  const [refreshFeedback, setRefreshFeedback] = useState<string | null>(null);
+
+  const requestAnalyticsRefresh = useCallback(async () => {
+    setRefreshFeedback(null);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    setRefreshSubmitting(true);
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const r = await fetch(`${base}/api/analytics/x/rebuild`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 429) {
+        setRefreshFeedback("Too many refresh requests. Try again in a little while.");
+      } else if (j?.ok) {
+        setRefreshFeedback(
+          j.existing
+            ? "An update is already queued or running. Numbers may take a few minutes to change."
+            : "Refresh requested. Analytics usually update within a few minutes—not instantly."
+        );
+        await mutateOwnerStatus();
+        void mutateAnalytics();
+      } else {
+        setRefreshFeedback(j?.message ?? "Could not queue refresh. Try Integrations or later.");
+      }
+    } finally {
+      setRefreshSubmitting(false);
+    }
+  }, [mutateOwnerStatus, mutateAnalytics]);
 
   const payload = res?.ok === true ? res.data : null;
 
@@ -183,8 +252,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const insufficientCadence = activeDaysCadence > 0 && activeDaysCadence < 3;
   const followerInsufficient = followerPoints.length < 3;
 
-  const freshness = payload?.freshness as { has_x_handle?: boolean; last_sync_at?: string | null; data_state?: "none" | "partial" | "full" } | undefined;
-  const hasXHandle = freshness?.has_x_handle ?? true;
+  const freshness = payload?.freshness;
+  const hasXHandle = ownerStatus?.has_x_handle ?? freshness?.has_x_handle ?? true;
+  const ownerState = ownerStatus?.owner_analytics_state ?? "";
   const lastSyncAt = freshness?.last_sync_at ?? null;
   const dataState = freshness?.data_state ?? "none";
   function freshnessLabel(): string {
@@ -202,9 +272,30 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
       }
     }
     if (dataState === "partial") return "Building history…";
+    if (dataState === "none" && hasXHandle && (ownerState === "ready_recent" || ownerState === "ready_stale"))
+      return "No posts in this window—data is still from your synced account.";
     if (dataState === "none" && hasXHandle) return "No activity in this window. Try 90d or sync from Integrations.";
     return "";
   }
+
+  const ownerBanner = useMemo((): { tone: "info" | "warn" | "muted"; text: string } | null => {
+    switch (ownerState) {
+      case "queued_or_building":
+        return { tone: "info", text: "Analytics update in progress. This can take several minutes." };
+      case "refresh_failed":
+        return { tone: "warn", text: "Last analytics refresh didn’t complete. You can request a new refresh below." };
+      case "partial_data":
+        return { tone: "info", text: "Your history is still building. Metrics will fill in as sync completes." };
+      case "never_synced":
+        return hasXHandle
+          ? { tone: "muted", text: "Request a refresh below, or sync from Integrations first." }
+          : null;
+      case "ready_stale":
+        return { tone: "muted", text: "Profile sync is over a week old. Request a refresh for newer numbers." };
+      default:
+        return null;
+    }
+  }, [ownerState, hasXHandle]);
 
   if (res?.ok === false) {
     return (
@@ -332,6 +423,36 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             </div>
           </div>
         </header>
+        {platform === "x" && ownerBanner && (
+          <div
+            className={`rounded-lg border px-3 py-2 text-xs ${
+              ownerBanner.tone === "warn"
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-950 dark:text-amber-100"
+                : ownerBanner.tone === "info"
+                  ? "border-primary/30 bg-primary/5 text-foreground"
+                  : "border-border bg-muted/40 text-muted-foreground"
+            }`}
+            role="status"
+          >
+            {ownerBanner.text}
+          </div>
+        )}
+        {platform === "x" && hasXHandle && ownerState !== "no_x_handle" && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={refreshSubmitting || ownerState === "queued_or_building"}
+              onClick={requestAnalyticsRefresh}
+              className="text-xs font-medium px-3 py-2 rounded-md border border-border bg-background hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {ownerState === "queued_or_building" ? "Update queued…" : refreshSubmitting ? "Requesting…" : "Request analytics refresh"}
+            </button>
+            <span className="text-xs text-muted-foreground max-w-xl">
+              Queues a background update (not instant). Limited to a few requests per hour.
+            </span>
+            {refreshFeedback && <span className="text-xs text-foreground w-full sm:w-auto">{refreshFeedback}</span>}
+          </div>
+        )}
 
         {/* Stats islands — same style as Overview page */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

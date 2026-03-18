@@ -13,6 +13,9 @@ import {
   Settings,
   Link2,
   BarChart3,
+  ClipboardList,
+  Shield,
+  Star,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
@@ -60,9 +63,13 @@ function formatRelativeTime(iso: string): string {
 export default function OrgDetailPage({
   setRoute,
   data,
+  activeOrgContextId = null,
+  onOpenOrgKolLists,
 }: {
   setRoute: (r: { name: string; data?: any }) => void;
   data?: { orgId?: string; slug?: string; showConnectXBanner?: boolean; tab?: string };
+  activeOrgContextId?: string | null;
+  onOpenOrgKolLists?: (orgId: string) => void;
 }) {
   const orgId = data?.orgId ?? data?.slug;
   const [org, setOrg] = useState<Org | null>(null);
@@ -154,6 +161,8 @@ export default function OrgDetailPage({
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [operatorActiveDeals, setOperatorActiveDeals] = useState<Array<{ id: string; job_id: string | null }>>([]);
+  const [operatorKolListCount, setOperatorKolListCount] = useState(0);
 
   const loadSession = useCallback(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -223,8 +232,28 @@ export default function OrgDetailPage({
           const progRes = await fetch(`${base}/api/creator-programs?org_id=${encodeURIComponent(o.id)}`, { headers: { Authorization: `Bearer ${token}` } });
           const progJson = await progRes.json().catch(() => ({}));
           setOrgPrograms(Array.isArray(progJson.programs) ? progJson.programs : []);
+          const [dealsRes, kolRes] = await Promise.all([
+            supabase
+              .from("deals")
+              .select("id, job_id")
+              .eq("org_id", o.id)
+              .eq("status", "active")
+              .order("created_at", { ascending: false })
+              .limit(12),
+            fetch(`${base}/api/kol-lists?owner=org&org_id=${encodeURIComponent(o.id)}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }).then((r) => r.json()),
+          ]);
+          setOperatorActiveDeals(
+            Array.isArray(dealsRes.data)
+              ? (dealsRes.data as Array<{ id: string; job_id: string | null }>)
+              : []
+          );
+          setOperatorKolListCount(Array.isArray(kolRes.lists) ? kolRes.lists.length : 0);
         } else {
           setOrgPrograms([]);
+          setOperatorActiveDeals([]);
+          setOperatorKolListCount(0);
         }
         if (userId) {
           const isAdmin = await isOrgAdmin(userId, o.id);
@@ -538,18 +567,26 @@ export default function OrgDetailPage({
     return (
       <div className="p-6">
         <button
-          onClick={() => setRoute({ name: "dashboard" })}
+          onClick={() => setRoute({ name: "overview" })}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+          <ArrowLeft className="w-4 h-4" /> Back to app
         </button>
         <p className="text-gray-600">Org not found.</p>
       </div>
     );
   }
 
+  const pendingAppsCount = applications.filter((a) => a.status === "pending").length;
+  const openJobsCount = orgJobs.filter((j: { status?: string }) => j.status === "open").length;
+  const adminMemberCount = members.filter((m) => m.role === "admin" || m.role === "owner").length;
+  const dealJobTitle = (jobId: string | null) =>
+    jobId
+      ? ((orgJobs as Array<{ id: string; title?: string }>).find((j) => j.id === jobId)?.title ?? "Role")
+      : "Role";
+
   const tabs = [
-    { id: "dashboard" as const, label: "Dashboard", icon: TrendingUp },
+    { id: "dashboard" as const, label: "Workspace", icon: ClipboardList },
     { id: "insights" as const, label: "Insights", icon: BarChart3 },
     { id: "members" as const, label: "Members", icon: Users },
     { id: "affiliates" as const, label: "Affiliates", icon: UserPlus },
@@ -563,10 +600,10 @@ export default function OrgDetailPage({
     <div className="space-y-6 pb-12">
       <div className="flex items-center justify-between">
         <button
-          onClick={() => setRoute({ name: "dashboard" })}
+          onClick={() => setRoute({ name: "overview" })}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+          <ArrowLeft className="w-4 h-4" /> Back to app
         </button>
         {admin && (
           <button
@@ -756,6 +793,172 @@ export default function OrgDetailPage({
 
           {tab === "dashboard" && (
             <div className="space-y-6">
+              <div className="rounded-2xl border-2 border-indigo-300/80 dark:border-indigo-700 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/40 dark:to-zinc-900 p-5 sm:p-6 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Operator workspace</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">{org.name}</h2>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 max-w-3xl">
+                  {activeOrgContextId === org.id ? (
+                    <>
+                      You are <strong>acting as this org</strong> in the app. Jobs, applicants, job deals, and KOL lists you open from the shell apply to{" "}
+                      <strong>{org.name}</strong>—not your personal profile. Use the sidebar switcher anytime to return to your profile.
+                    </>
+                  ) : (
+                    <>
+                      Open <strong>Acting as</strong> in the sidebar and choose this org so the whole app aligns with this workspace. You can still use the actions below on this page.
+                    </>
+                  )}
+                </p>
+                {admin ? (
+                  <>
+                    {(pendingAppsCount > 0 || operatorActiveDeals.length > 0) && (
+                      <div className="mt-4 rounded-xl border border-amber-300/80 dark:border-amber-700 bg-amber-50/90 dark:bg-amber-950/30 px-4 py-3">
+                        <p className="text-xs font-bold uppercase text-amber-900 dark:text-amber-200 mb-2">Needs attention</p>
+                        <ul className="text-sm text-amber-950 dark:text-amber-100 space-y-1.5">
+                          {pendingAppsCount > 0 && (
+                            <li className="flex flex-wrap items-center gap-2">
+                              <span>
+                                <strong>{pendingAppsCount}</strong> application{pendingAppsCount !== 1 ? "s" : ""} awaiting review
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setTab("jobs")}
+                                className="text-xs font-semibold text-amber-900 dark:text-amber-200 underline hover:no-underline"
+                              >
+                                Review applicants →
+                              </button>
+                            </li>
+                          )}
+                          {operatorActiveDeals.length > 0 && (
+                            <li className="flex flex-wrap items-center gap-2">
+                              <span>
+                                <strong>{operatorActiveDeals.length}</strong> active job deal{operatorActiveDeals.length !== 1 ? "s" : ""} with creators
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setTab("jobs")}
+                                className="text-xs font-semibold text-amber-900 dark:text-amber-200 underline hover:no-underline"
+                              >
+                                Open jobs & deals →
+                              </button>
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setTab("jobs")}
+                        className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2.5 min-h-[44px] shadow-sm"
+                      >
+                        <Briefcase className="w-4 h-4 shrink-0" />
+                        Jobs &amp; applicants
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onOpenOrgKolLists) onOpenOrgKolLists(org.id);
+                          else if (typeof window !== "undefined") window.location.href = "/app/kol-lists";
+                        }}
+                        className="inline-flex items-center gap-2 rounded-xl border-2 border-indigo-600 text-indigo-700 dark:text-indigo-300 dark:border-indigo-500 text-sm font-medium px-4 py-2.5 min-h-[44px] hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                      >
+                        <Star className="w-4 h-4 shrink-0" />
+                        Org KOL lists
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTab("members")}
+                        className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 dark:border-zinc-600 text-sm font-medium px-4 py-2.5 min-h-[44px] hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      >
+                        <Shield className="w-4 h-4 shrink-0" />
+                        Team &amp; admins
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTab("jobs")}
+                        className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 dark:border-zinc-600 text-sm font-medium px-4 py-2.5 min-h-[44px] hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      >
+                        <Sparkles className="w-4 h-4 shrink-0 text-primary" />
+                        Creator programs
+                      </button>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-3">
+                      Flow: post a job → review applicants → accept to open a <strong>job deal</strong> → use KOL lists to source creators for programs and outreach.
+                    </p>
+                    <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setTab("jobs")}
+                        className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/50 p-4 text-left hover:border-indigo-400 transition-colors"
+                      >
+                        <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{openJobsCount}</p>
+                        <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-1">Open jobs / sprints</p>
+                        {openJobsCount === 0 && <p className="text-[11px] text-zinc-500 mt-2">Create one in Jobs tab</p>}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTab("jobs")}
+                        className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/50 p-4 text-left hover:border-indigo-400 transition-colors"
+                      >
+                        <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{pendingAppsCount}</p>
+                        <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-1">Pending applicants</p>
+                        {pendingAppsCount === 0 && orgJobs.length > 0 && (
+                          <p className="text-[11px] text-zinc-500 mt-2">None waiting</p>
+                        )}
+                        {orgJobs.length === 0 && <p className="text-[11px] text-zinc-500 mt-2">Post a job first</p>}
+                      </button>
+                      <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/50 p-4">
+                        <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{operatorActiveDeals.length}</p>
+                        <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-1">Active job deals</p>
+                        {operatorActiveDeals.length === 0 ? (
+                          <p className="text-[11px] text-zinc-500 mt-2">Accept an applicant to start</p>
+                        ) : (
+                          <ul className="mt-2 space-y-1 max-h-20 overflow-y-auto">
+                            {operatorActiveDeals.slice(0, 4).map((d) => (
+                              <li key={d.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => setRoute({ name: "dealDetail", data: { dealId: d.id } })}
+                                  className="text-[11px] text-primary hover:underline truncate block w-full text-left"
+                                >
+                                  {dealJobTitle(d.job_id)} → open deal
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => (onOpenOrgKolLists ? onOpenOrgKolLists(org.id) : (window.location.href = "/app/kol-lists"))}
+                        className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/50 p-4 text-left hover:border-indigo-400 transition-colors"
+                      >
+                        <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{operatorKolListCount}</p>
+                        <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-1">Org KOL lists</p>
+                        {operatorKolListCount === 0 && <p className="text-[11px] text-zinc-500 mt-2">Build lists for outreach</p>}
+                      </button>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Users className="w-4 h-4" />
+                        <strong>{members.length}</strong> operator{members.length !== 1 ? "s" : ""} ({adminMemberCount} owner/admin)
+                      </span>
+                      <button type="button" onClick={() => setTab("members")} className="text-primary text-sm font-medium hover:underline">
+                        Manage team →
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
+                    You’re a <strong>member</strong> of this org. Owner and admins manage jobs, applicants, and job deals. You can still browse programs and public org info below.
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30 px-4 py-2">
+                <p className="text-xs font-medium text-zinc-500">Growth &amp; reputation</p>
+              </div>
+
               {influenceRollup != null && (
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
                   <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Influence rollup</h3>
@@ -841,6 +1044,14 @@ export default function OrgDetailPage({
           )}
           {tab === "members" && (
             <div className="space-y-4">
+              <div className="rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-indigo-50/90 dark:bg-indigo-950/40 p-4">
+                <p className="text-sm font-bold text-indigo-950 dark:text-indigo-100">Operational team (org_members)</p>
+                <p className="text-xs text-indigo-900/90 dark:text-indigo-200/90 mt-2 leading-relaxed">
+                  These are the <strong>real Linkary operators</strong> for {org.name}: they can manage jobs, applicants, job deals, KOL lists, and org invites (within their role). Roles here are stored in{" "}
+                  <code className="text-[11px] bg-indigo-100 dark:bg-indigo-900/50 px-1 rounded">org_members</code> (owner / admin / member). This is{" "}
+                  <strong>not</strong> the same as a public “team” block on a personal profile page—that is showcase-only and does not grant org access.
+                </p>
+              </div>
               <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30 p-4">
                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                   Managing: <span className="font-semibold">{org.name}</span> <span className="text-zinc-500 font-normal">@{org.slug}</span>
@@ -848,7 +1059,7 @@ export default function OrgDetailPage({
                 <p className="text-xs text-zinc-500 mt-1">Only the owner and admins can add or remove members here.</p>
               </div>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Add team members and assign up to 3 <strong>Admins</strong>. Admins can post Gigs (Sprints) and jobs on behalf of the org, manage applications, and edit org content. <strong>Members</strong> can view the org and participate as needed.
+                Add operators and assign up to 3 <strong>Admins</strong>. Admins can post jobs and sprints for this org, manage applications and job deals, and edit org content. <strong>Members</strong> have org access but cannot manage jobs or members unless promoted.
               </p>
               {membersLoadError && (
                 <p className="text-sm text-destructive">{membersLoadError}</p>
@@ -1222,17 +1433,40 @@ export default function OrgDetailPage({
 
           {tab === "jobs" && (
             <div className="space-y-6">
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30 p-4">
+                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Jobs, sprints &amp; applicants</p>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
+                  Everything here is for <strong>{org.name}</strong>. Candidates apply from the marketplace; you review below. <strong>Accept</strong> creates a <strong>job deal</strong> with the applicant—same pipeline as notifications.
+                </p>
+              </div>
               {admin && (
                 <button
                   type="button"
                   onClick={() => setShowCreateJobModal(true)}
                   className="px-4 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-sm"
                 >
-                  Create job
+                  Create job or sprint
                 </button>
               )}
               {orgJobs.length === 0 ? (
-                <p className="text-zinc-500 text-sm">No jobs yet.</p>
+                <div className="rounded-2xl border-2 border-dashed border-zinc-300 dark:border-zinc-600 bg-zinc-50/80 dark:bg-zinc-900/40 p-8 text-center max-w-lg">
+                  <Briefcase className="w-10 h-10 text-zinc-400 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">No jobs or sprints yet</h3>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">
+                    Post a role or sprint on behalf of <strong>{org.name}</strong>. Open listings appear on the marketplace; applicants show up here for review.
+                  </p>
+                  {admin ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateJobModal(true)}
+                      className="mt-5 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+                    >
+                      Create your first job or sprint
+                    </button>
+                  ) : (
+                    <p className="mt-4 text-xs text-zinc-500">Ask an owner or admin to create a listing.</p>
+                  )}
+                </div>
               ) : (
                 orgJobs.map((j) => {
                   const jobApps = applications.filter((a) => a.job_id === j.id);
@@ -1419,7 +1653,19 @@ export default function OrgDetailPage({
                 </div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Invite creators from circles or KOL lists into programs.</p>
                 {orgPrograms.length === 0 ? (
-                  <p className="text-zinc-500 text-sm">No creator programs yet.</p>
+                  <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-600 p-6 text-center">
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">No creator programs yet.</p>
+                    <p className="text-xs text-zinc-500 mt-2">Programs let you invite creators (e.g. from KOL lists) into structured outreach for {org.name}.</p>
+                    {admin && (
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateProgramModal(true)}
+                        className="mt-4 text-sm font-medium text-primary hover:underline"
+                      >
+                        Create a program
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <ul className="space-y-2">
                     {orgPrograms.map((p) => (

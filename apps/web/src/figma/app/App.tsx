@@ -4398,38 +4398,6 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
     };
   }, [authUserId]);
 
-  const onActiveContextChange = useCallback(
-    async (mode: "personal" | "org", orgId?: string) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const base = typeof window !== "undefined" ? window.location.origin : "";
-      if (!token) return;
-      const body = mode === "org" && orgId ? { context: "org", org_id: orgId } : { context: "personal" };
-      const r = await fetch(`${base}/api/me/active-context`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!j.ok) return;
-      setActiveCtx({
-        loaded: true,
-        context: j.context === "org" ? "org" : "personal",
-        activeOrg: j.activeOrg ?? null,
-        memberships: Array.isArray(j.memberships) ? j.memberships : [],
-      });
-      if (j.context === "org" && j.activeOrg) {
-        setRoute({
-          name: "orgDetail",
-          data: { orgId: j.activeOrg.id, slug: j.activeOrg.slug, tab: "dashboard" },
-        });
-      } else {
-        setRoute({ name: "overview" });
-      }
-    },
-    [setRoute]
-  );
-
   useEffect(() => {
     const fromPath = routeFromPathname(pathname ?? "/", searchParams);
     setRouteState((prev) =>
@@ -4468,6 +4436,59 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
       router.push(path || "/");
     }
   }, [route, router, pathname]);
+
+  const onActiveContextChange = useCallback(
+    async (
+      mode: "personal" | "org",
+      orgId?: string,
+      afterOrg?: "orgHome" | "kolLists" | "stay"
+    ) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      if (!token) return;
+      const body = mode === "org" && orgId ? { context: "org", org_id: orgId } : { context: "personal" };
+      const r = await fetch(`${base}/api/me/active-context`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!j.ok) return;
+      setActiveCtx({
+        loaded: true,
+        context: j.context === "org" ? "org" : "personal",
+        activeOrg: j.activeOrg ?? null,
+        memberships: Array.isArray(j.memberships) ? j.memberships : [],
+      });
+      if (j.context === "org" && j.activeOrg) {
+        if (afterOrg === "kolLists") {
+          setRoute({ name: "kolLists" });
+        } else if (afterOrg === "stay") {
+          /* keep current route */
+        } else {
+          setRoute({
+            name: "orgDetail",
+            data: { orgId: j.activeOrg.id, slug: j.activeOrg.slug, tab: "dashboard" },
+          });
+        }
+      } else {
+        setRoute({ name: "overview" });
+      }
+    },
+    [setRoute]
+  );
+
+  const navigateOrgOperatorKolLists = useCallback(
+    (orgId: string) => {
+      if (activeCtx.context === "org" && activeCtx.activeOrg?.id === orgId) {
+        setRoute({ name: "kolLists" });
+        return;
+      }
+      void onActiveContextChange("org", orgId, "kolLists");
+    },
+    [activeCtx.context, activeCtx.activeOrg?.id, onActiveContextChange, setRoute]
+  );
 
   const refreshMe = useCallback(async () => {
     if (authUserId) {
@@ -5256,7 +5277,14 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
                 {route.name === "agencyProfile" && <AgencyProfilePage setRoute={setRoute} />}
                 {route.name === "explore" && <DiscoveryPage setRoute={setRoute} />}
                 {route.name === "dashboard" && <DashboardPage setRoute={setRoute} />}
-                {route.name === "orgDetail" && <OrgDetailPage setRoute={setRoute} data={route.data} />}
+                {route.name === "orgDetail" && (
+                  <OrgDetailPage
+                    setRoute={setRoute}
+                    data={route.data}
+                    activeOrgContextId={activeCtx.context === "org" && activeCtx.activeOrg ? activeCtx.activeOrg.id : null}
+                    onOpenOrgKolLists={(orgId) => navigateOrgOperatorKolLists(orgId)}
+                  />
+                )}
                 {route.name === "dealDetail" && <DealDetailPage setRoute={setRoute} dealId={route.data?.dealId} />}
                 {route.name === "analytics" && <AnalyticsPage setRoute={setRoute} />}
                 {route.name === "analyticsProfile" && (

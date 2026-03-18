@@ -60,15 +60,19 @@
 
 ---
 
-## 6. Later phases
+## 6. Org operator workspace (second pass)
+
+- **OrgDetailPage** first tab renamed **Workspace**: operator hub with real counts (open jobs, pending applicants, active job deals from `deals`, org KOL list count), primary CTAs (Jobs, KOL lists, Team, Creator programs), “Needs attention” when pending apps or active deals exist.
+- **KOL from org page**: `navigateOrgOperatorKolLists` + `onActiveContextChange(..., "kolLists")` sets cookie and opens org-scoped KOL lists.
+- **Jobs tab**: pipeline copy, empty states, creator-program empty CTA.
+- **Members tab**: operational team callout (`org_members` vs profile showcase).
+- **Back** from org page → app overview (not personal dashboard).
+
+## 7. Later phases
 
 - Optional default-to-single-org on first visit.
 - Unified “all deals” view (gig + job).
 - Org-owned gigs (`gigs.org_id`).
 - Finer roles than `org_members.role`.
 
----
-
-## 7. Org authority vs `profile_type`
-
-**Org operations remain gated by `org_members` in APIs (unchanged).** This pass adds UX + cookie; it does **not** use `profile_type` for org access. KOL org lists and POST body still require membership checks server-side (existing behavior).
+**Org authority:** unchanged — `org_members` only; not `profile_type`.

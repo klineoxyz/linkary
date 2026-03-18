@@ -218,7 +218,7 @@ export default function KOLListsPage({
               </h1>
               <p className="text-zinc-600">
                 {activeOrgContextId
-                  ? "Lists owned by this organization (membership verified). Use them when inviting creators to org jobs and programs."
+                  ? "These lists belong to this org only. Use them to shortlist creators, then run outreach via Jobs (applicants → job deals) and Creator programs on the org Workspace → Jobs tab."
                   : "Create lists of creators for campaigns and gigs. Org lists appear when you belong to an org; switch to org workspace to manage org-owned lists only."}
               </p>
             </div>

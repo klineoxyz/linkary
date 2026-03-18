@@ -29,7 +29,15 @@ function chainableMock<T>(data: T) {
     limit: () => chainableMock(data),
     maybeSingle: () => p,
     single: () => p,
-    insert: (row: unknown) => ({ select: () => ({ single: () => Promise.resolve({ data: { id: "cs-1", ...row }, error: null }) }) }),
+    insert: (row: unknown) => ({
+      select: () => ({
+        single: () =>
+          Promise.resolve({
+            data: { id: "cs-1", ...(row as Record<string, unknown>) },
+            error: null,
+          }),
+      }),
+    }),
   };
 }
 

@@ -153,5 +153,5 @@ export async function listApplicationsForJobs(jobIds: string[]): Promise<Applica
     .in("job_id", jobIds)
     .order("created_at", { ascending: false });
   if (error) return [];
-  return (data ?? []) as Application[];
+  return (data ?? []) as unknown as Application[];
 }

@@ -281,10 +281,10 @@ export default function MyDealsPage() {
               ← Profile
             </Link>
           </div>
-          <h1 className="text-xl font-semibold text-foreground">Deals</h1>
+          <h1 className="text-xl font-semibold text-foreground">Gig deals</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Deals from accepted gig applications. Complete or cancel as owner. Leave a verified review once the deal is done.{" "}
-            <Link href="/profile/work" className="text-primary hover:underline">View unified work history</Link>
+            Verified work between profiles from gigs (not org job applications). Complete or cancel as owner. For work from org jobs, open the job deal from notifications or your org’s Jobs tab.{" "}
+            <Link href="/profile/work" className="text-primary hover:underline">Unified work history</Link>
           </p>
           {error && (
             <p className="mt-3 text-sm text-destructive">{error}</p>
@@ -293,7 +293,7 @@ export default function MyDealsPage() {
             <p className="mt-6 text-sm text-muted-foreground">Loading…</p>
           ) : deals.length === 0 ? (
             <p className="mt-6 rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
-              You have no deals yet. Deals are created when a gig owner accepts your application (or when you accept an application to your gig).
+              No gig deals yet. These appear when a gig application is accepted (profile-to-profile marketplace). Job deals from organizations live under each org’s jobs flow.
             </p>
           ) : (
             <ul className="mt-6 space-y-3" data-testid="profile-deals-list">

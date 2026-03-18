@@ -177,7 +177,8 @@ function DealPageContent() {
       >
         ← Back
       </button>
-      <h1 className="text-2xl font-bold mb-2">Deal</h1>
+      <h1 className="text-2xl font-bold mb-2">Job deal</h1>
+      <p className="text-xs text-muted-foreground mb-2">Organization job or sprint — not a profile gig deal.</p>
       {deal.job && <p className="text-muted-foreground mb-4">{deal.job.title}</p>}
       <p className="text-sm text-muted-foreground mb-4">
         Status: <span className="font-medium text-foreground">{deal.status}</span>

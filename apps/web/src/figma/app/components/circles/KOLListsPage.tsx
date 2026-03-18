@@ -19,7 +19,18 @@ type ListMember = {
   notes?: string | null;
 };
 
-export default function KOLListsPage({ setRoute, me }: { setRoute?: (r: any) => void; me?: { id: string } | null }) {
+export default function KOLListsPage({
+  setRoute,
+  me,
+  activeOrgContextId,
+  activeOrgName,
+}: {
+  setRoute?: (r: any) => void;
+  me?: { id: string } | null;
+  /** When set (org workspace), lists default to this org’s KOL lists only. */
+  activeOrgContextId?: string | null;
+  activeOrgName?: string | null;
+}) {
   const [lists, setLists] = useState<KolList[]>([]);
   const [listsLoading, setListsLoading] = useState(true);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
@@ -47,26 +58,42 @@ export default function KOLListsPage({ setRoute, me }: { setRoute?: (r: any) => 
     const token = session?.access_token;
     if (!token) return;
     setListsLoading(true);
-    const [profileRes, orgsList] = await Promise.all([
-      fetch(`${base}/api/kol-lists`, { headers: { Authorization: `Bearer ${token}` } }),
-      listMyOrgs(me.id),
-    ]);
-    const profileData = await profileRes.json().catch(() => ({}));
-    let allLists = Array.isArray(profileData.lists) ? profileData.lists : [];
+    const orgsList = await listMyOrgs(me.id);
     setMyOrgs(orgsList.map((o) => ({ id: o.id, name: o.name ?? "" })));
-    for (const org of orgsList) {
-      const orgRes = await fetch(`${base}/api/kol-lists?owner=org&org_id=${encodeURIComponent(org.id)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (activeOrgContextId) {
+      const orgRes = await fetch(`${base}/api/kol-lists?owner=org&org_id=${encodeURIComponent(activeOrgContextId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const orgData = await orgRes.json().catch(() => ({}));
-      const orgLists = Array.isArray(orgData.lists) ? orgData.lists : [];
-      allLists = [...allLists, ...orgLists];
+      setLists(Array.isArray(orgData.lists) ? orgData.lists : []);
+    } else {
+      const profileRes = await fetch(`${base}/api/kol-lists`, { headers: { Authorization: `Bearer ${token}` } });
+      const profileData = await profileRes.json().catch(() => ({}));
+      let allLists = Array.isArray(profileData.lists) ? profileData.lists : [];
+      for (const org of orgsList) {
+        const orgRes = await fetch(`${base}/api/kol-lists?owner=org&org_id=${encodeURIComponent(org.id)}`, { headers: { Authorization: `Bearer ${token}` } });
+        const orgData = await orgRes.json().catch(() => ({}));
+        const orgLists = Array.isArray(orgData.lists) ? orgData.lists : [];
+        allLists = [...allLists, ...orgLists];
+      }
+      setLists(allLists);
     }
     setListsLoading(false);
-    setLists(allLists);
-  }, [me?.id, base]);
+  }, [me?.id, base, activeOrgContextId]);
 
   useEffect(() => {
     loadLists();
   }, [loadLists]);
+
+  useEffect(() => {
+    if (activeOrgContextId) {
+      setCreateAsOrg(true);
+      setCreateOrgId(activeOrgContextId);
+    } else {
+      setCreateAsOrg(false);
+      setCreateOrgId("");
+    }
+  }, [activeOrgContextId]);
 
   const loadListMembers = useCallback(async () => {
     if (!selectedListId) {
@@ -186,8 +213,14 @@ export default function KOLListsPage({ setRoute, me }: { setRoute?: (r: any) => 
           </button>
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-zinc-900 mb-2">KOL Lists</h1>
-              <p className="text-zinc-600">Create lists of creators and reuse them for campaigns and gigs.</p>
+              <h1 className="text-3xl font-bold text-zinc-900 mb-2">
+                {activeOrgContextId ? `KOL lists · ${activeOrgName ?? "Org"}` : "KOL lists"}
+              </h1>
+              <p className="text-zinc-600">
+                {activeOrgContextId
+                  ? "Lists owned by this organization (membership verified). Use them when inviting creators to org jobs and programs."
+                  : "Create lists of creators for campaigns and gigs. Org lists appear when you belong to an org; switch to org workspace to manage org-owned lists only."}
+              </p>
             </div>
           </div>
         </div>
@@ -261,7 +294,7 @@ export default function KOLListsPage({ setRoute, me }: { setRoute?: (r: any) => 
           <div className="lg:col-span-1">
             <div className="sticky top-8 space-y-4">
               <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-                <h3 className="font-semibold text-zinc-900 mb-3">My KOL Lists</h3>
+                <h3 className="font-semibold text-zinc-900 mb-3">{activeOrgContextId ? "Org lists" : "Your lists"}</h3>
                 {listsLoading && <p className="text-sm text-zinc-500">Loading…</p>}
                 {!listsLoading && lists.length === 0 && <p className="text-sm text-zinc-500">No lists yet. Create one below.</p>}
                 {!listsLoading && lists.length > 0 && (
@@ -297,11 +330,13 @@ export default function KOLListsPage({ setRoute, me }: { setRoute?: (r: any) => 
                     onChange={(e) => setCreateListName(e.target.value)}
                     className="w-full h-10 px-3 rounded-lg border border-zinc-200 mb-2 text-zinc-900"
                   />
+                  {!activeOrgContextId && (
                   <label className="flex items-center gap-2 mb-2 text-sm text-zinc-700">
                     <input type="checkbox" checked={createAsOrg} onChange={(e) => { setCreateAsOrg(e.target.checked); if (!e.target.checked) setCreateOrgId(""); }} />
                     Create as organization list
                   </label>
-                  {createAsOrg && myOrgs.length > 0 && (
+                  )}
+                  {createAsOrg && myOrgs.length > 0 && !activeOrgContextId && (
                     <select
                       value={createOrgId}
                       onChange={(e) => setCreateOrgId(e.target.value)}

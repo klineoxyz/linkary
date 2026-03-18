@@ -127,6 +127,7 @@ import {
   Sparkles,
   Filter,
   UserPlus,
+  User,
   Download,
   Calendar,
   Mic,
@@ -906,9 +907,114 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   return { name: "userProfile", data: { username: decodeURIComponent(path) }, handle: decodeURIComponent(path) };
 }
 
-function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSignOut, me }) {
+function ActingAsContextSwitcher({
+  memberships,
+  context,
+  activeOrg,
+  loaded,
+  onSelectPersonal,
+  onSelectOrg,
+  variant,
+}: {
+  memberships: Array<{ id: string; name: string; slug: string; role?: string }>;
+  context: string;
+  activeOrg: { id: string; name: string; slug: string } | null;
+  loaded: boolean;
+  onSelectPersonal: () => void | Promise<void>;
+  onSelectOrg: (orgId: string) => void | Promise<void>;
+  variant: "sidebar" | "topbar";
+}) {
+  const [open, setOpen] = useState(false);
+  if (!loaded || !memberships.length) return null;
+  const isOrg = context === "org" && activeOrg;
+  const label = isOrg ? activeOrg.name : "My profile";
+  const baseBtn =
+    variant === "sidebar"
+      ? "w-full flex items-center gap-2 rounded-xl border border-indigo-200/80 dark:border-indigo-800 bg-indigo-50/90 dark:bg-indigo-950/50 px-3 py-2.5 text-left text-sm font-medium text-indigo-950 dark:text-indigo-100 hover:bg-indigo-100/90 dark:hover:bg-indigo-900/40 transition-colors"
+      : "flex items-center gap-2 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 px-3 py-1.5 text-sm font-medium text-indigo-950 dark:text-indigo-100 max-w-[220px]";
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        className={baseBtn}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+      >
+        <Building2 className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+        <span className="flex-1 min-w-0 truncate">
+          <span className="block text-[10px] font-semibold uppercase tracking-wide text-indigo-600/80 dark:text-indigo-300/80">Acting as</span>
+          <span className="block truncate">{label}</span>
+        </span>
+        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[80]" aria-hidden onClick={() => setOpen(false)} />
+          <ul
+            className={`absolute z-[90] mt-1 max-h-[min(70vh,320px)] overflow-y-auto rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1 ${
+              variant === "sidebar" ? "left-0 right-0" : "right-0 w-72"
+            }`}
+            role="listbox"
+          >
+            <li>
+              <button
+                type="button"
+                role="option"
+                aria-selected={!isOrg}
+                className={`w-full text-left px-3 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${!isOrg ? "bg-primary/10 font-medium" : ""}`}
+                onClick={() => {
+                  setOpen(false);
+                  void onSelectPersonal();
+                }}
+              >
+                <span className="font-medium text-zinc-900 dark:text-zinc-100">My profile</span>
+                <span className="block text-xs text-zinc-500">Personal workspace · gigs, deals, analytics</span>
+              </button>
+            </li>
+            {memberships.map((o) => (
+              <li key={o.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={isOrg && activeOrg?.id === o.id}
+                  className={`w-full text-left px-3 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${isOrg && activeOrg?.id === o.id ? "bg-indigo-100/80 dark:bg-indigo-900/40 font-medium" : ""}`}
+                  onClick={() => {
+                    setOpen(false);
+                    void onSelectOrg(o.id);
+                  }}
+                >
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">{o.name}</span>
+                  <span className="block text-xs text-zinc-500">Org workspace · jobs, team, KOL lists</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Sidebar({
+  route,
+  setRoute,
+  mobileOpen,
+  setMobileOpen,
+  authUserId,
+  onSignOut,
+  me,
+  activeContext,
+  onActiveContextChange,
+}) {
   const isActive = (name) => route?.name === name;
   const isLoggedIn = !!authUserId;
+  const orgMode =
+    isLoggedIn &&
+    activeContext?.loaded &&
+    activeContext.context === "org" &&
+    activeContext.activeOrg;
+  const memberships = activeContext?.memberships ?? [];
   const { data: collabCount, error: _collabCountError } = useSWR<{ ok?: boolean; inboxNew?: number; sentTotal?: number }>(
     authUserId ? "/api/collab-requests/count" : null,
     authFetcher as (url: string) => Promise<{ ok?: boolean; inboxNew?: number; sentTotal?: number }>,
@@ -949,7 +1055,7 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
     <aside
       className={cn(
         "border-r border-sidebar-border",
-        "bg-white dark:bg-zinc-900 lg:bg-sidebar",
+        orgMode ? "bg-indigo-50/40 dark:bg-indigo-950/25 lg:bg-indigo-50/30 dark:lg:bg-indigo-950/20 border-l-[3px] border-l-indigo-600" : "bg-white dark:bg-zinc-900 lg:bg-sidebar",
         "lg:w-64 w-full lg:h-screen lg:sticky lg:top-0",
         "flex flex-col items-stretch",
         "px-4 py-3 lg:px-6 lg:py-6 gap-3 lg:gap-6",
@@ -988,6 +1094,19 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
       </div>
 
       <nav className={cn("relative z-10 flex flex-col gap-1.5 lg:gap-2 w-full flex-1 min-h-0 overflow-y-auto antialiased", mobileOpen ? "flex" : "hidden lg:flex")}>
+        {isLoggedIn && onActiveContextChange && (
+          <div className="mt-1 mb-1">
+            <ActingAsContextSwitcher
+              memberships={memberships}
+              context={activeContext?.context ?? "personal"}
+              activeOrg={activeContext?.activeOrg ?? null}
+              loaded={!!activeContext?.loaded}
+              onSelectPersonal={() => onActiveContextChange("personal")}
+              onSelectOrg={(id) => onActiveContextChange("org", id)}
+              variant="sidebar"
+            />
+          </div>
+        )}
         <Link
           href="/"
           onClick={() => {
@@ -998,117 +1117,244 @@ function Sidebar({ route, setRoute, mobileOpen, setMobileOpen, authUserId, onSig
         >
           Home
         </Link>
-        <div className="flex flex-col gap-1.5 lg:gap-2">
-          <NavLink name="overview" icon={Home} label="Overview" />
-        </div>
 
-        <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Profile</span>
-        <div className="flex flex-col gap-1.5 lg:gap-2">
-          <NavLink name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
-          <NavLink name="profile" icon={Users} label="My Profile" />
-          <NavLink name="profileEdit" icon={FileText} label="Profile Builder" />
-        </div>
+        {orgMode && activeContext?.activeOrg ? (
+          <>
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 mt-2">Org workspace</span>
+            <div className="flex flex-col gap-1.5 lg:gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const o = activeContext.activeOrg;
+                  setRoute({ name: "orgDetail", data: { orgId: o.id, slug: o.slug, tab: "dashboard" } });
+                  setMobileOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug",
+                  route?.name === "orgDetail" && route?.data?.tab !== "jobs" && route?.data?.tab !== "members"
+                    ? "border border-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40 text-indigo-950 dark:text-indigo-100"
+                    : "text-sidebar-foreground hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30"
+                )}
+              >
+                <LayoutDashboard className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">Org overview</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const o = activeContext.activeOrg;
+                  setRoute({ name: "orgDetail", data: { orgId: o.id, slug: o.slug, tab: "jobs" } });
+                  setMobileOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug",
+                  route?.name === "orgDetail" && route?.data?.tab === "jobs"
+                    ? "border border-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40"
+                    : "text-sidebar-foreground hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30"
+                )}
+              >
+                <Briefcase className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">Jobs &amp; sprints (manage)</span>
+              </button>
+              <NavLink name="market" icon={Globe} label="Browse marketplace" />
+              <NavLink name="kolLists" icon={Star} label="KOL lists (org)" />
+              <button
+                type="button"
+                onClick={() => {
+                  const o = activeContext.activeOrg;
+                  setRoute({ name: "orgDetail", data: { orgId: o.id, slug: o.slug, tab: "members" } });
+                  setMobileOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug",
+                  route?.name === "orgDetail" && route?.data?.tab === "members"
+                    ? "border border-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40"
+                    : "text-sidebar-foreground hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30"
+                )}
+              >
+                <Shield className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">Team &amp; admins</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRoute({ name: "market", data: { view: "creator_programs" } });
+                  setMobileOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug",
+                  route?.name === "market" && route?.data?.view === "creator_programs"
+                    ? "border border-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40"
+                    : "text-sidebar-foreground hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30"
+                )}
+              >
+                <Zap className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">Creator programs</span>
+              </button>
+            </div>
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 mt-4">Personal account</span>
+            <div className="flex flex-col gap-1.5 lg:gap-2">
+              <NavLink name="profile" icon={User} label="My profile" />
+              <NavLink name="dashboard" icon={PieChart} label="Personal dashboard" />
+              <Link
+                href="/app/profile/deals"
+                onClick={() => setMobileOpen(false)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug no-underline"
+              >
+                <Receipt className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">Gig deals</span>
+              </Link>
+              <NavLink name="analytics" icon={BarChart3} label="Personal analytics" />
+            </div>
+            <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 tracking-wide block">Network</span>
+            <div className="flex flex-col gap-1.5 lg:gap-2">
+              <NavLink name="circles" icon={Users} label="Circles" />
+              <NavLink name="connections" icon={UserPlus} label="Connections" />
+            </div>
+            <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 tracking-wide block">Account</span>
+            <div className="flex flex-col gap-1.5 lg:gap-2">
+              <button
+                type="button"
+                onClick={() => setRoute({ name: "integrations" })}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
+              >
+                <LinkIcon className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Integrations</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onSignOut?.();
+                  setMobileOpen(false);
+                }}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
+              >
+                <LogOut className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Log out</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-col gap-1.5 lg:gap-2">
+              <NavLink name="overview" icon={Home} label="Overview" />
+            </div>
 
-        <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Work</span>
-        <div className="flex flex-col gap-1.5 lg:gap-2">
-          <NavLink name="market" icon={Briefcase} label="Jobs & Sprints" />
-          <button
-            type="button"
-            disabled
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground/70 opacity-80 cursor-not-allowed leading-snug"
-            aria-disabled="true"
-          >
-            <MessageSquare className="h-4 w-4 shrink-0" aria-hidden />
-            <span className="truncate">Messages (soon)</span>
-          </button>
-          <Link
-            href="/app/work/requests"
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug",
-              route?.name === "workRequests"
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            )}
-          >
-            <Inbox className="h-4 w-4 shrink-0" aria-hidden />
-            <span className="truncate">Requests</span>
-            {inboxNew > 0 && (
-              <span className="ml-auto rounded-full bg-sidebar-accent px-2 py-0.5 text-[10px] font-medium text-sidebar-foreground">
-                {inboxNew > 99 ? "99+" : inboxNew}
-              </span>
-            )}
-          </Link>
-        </div>
+            <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Profile</span>
+            <div className="flex flex-col gap-1.5 lg:gap-2">
+              <NavLink name="dashboard" icon={LayoutDashboard} label="My Dashboard" />
+              <NavLink name="profile" icon={Users} label="My Profile" />
+              <NavLink name="profileEdit" icon={FileText} label="Profile Builder" />
+            </div>
 
-        <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Network</span>
-        <div className="flex flex-col gap-1.5 lg:gap-2">
-          <NavLink name="circles" icon={Users} label="Circles" />
-          <NavLink name="connections" icon={UserPlus} label="Connections" />
-          <NavLink name="watchlist" icon={Bookmark} label="Watchlist" />
-          <NavLink name="kolLists" icon={Star} label="KOL Lists" />
-          <NavLink name="inviteLineage" icon={Share2} label="Invite lineage" />
-          <a
-            href="/xspaces"
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug no-underline",
-              isActive("xspaces")
-                ? "border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground backdrop-blur-xl"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            )}
-          >
-            <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
-            <span className="truncate">X Spaces</span>
-          </a>
-        </div>
+            <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Work</span>
+            <div className="flex flex-col gap-1.5 lg:gap-2">
+              <NavLink name="market" icon={Briefcase} label="Jobs & Sprints" />
+              <button
+                type="button"
+                disabled
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground/70 opacity-80 cursor-not-allowed leading-snug"
+                aria-disabled="true"
+              >
+                <MessageSquare className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">Messages (soon)</span>
+              </button>
+              <Link
+                href="/app/work/requests"
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug",
+                  route?.name === "workRequests"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )}
+              >
+                <Inbox className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">Requests</span>
+                {inboxNew > 0 && (
+                  <span className="ml-auto rounded-full bg-sidebar-accent px-2 py-0.5 text-[10px] font-medium text-sidebar-foreground">
+                    {inboxNew > 99 ? "99+" : inboxNew}
+                  </span>
+                )}
+              </Link>
+              <Link
+                href="/app/profile/deals"
+                onClick={() => setMobileOpen(false)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug no-underline"
+              >
+                <Receipt className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">Gig deals</span>
+              </Link>
+            </div>
 
-        <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Analytics & Data</span>
-        <div className="flex flex-col gap-1.5 lg:gap-2">
-          <NavLink name="analytics" icon={BarChart3} label="Analytics" />
-          <NavLink name="privacy" icon={Shield} label="Privacy & Data" />
-        </div>
+            <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Network</span>
+            <div className="flex flex-col gap-1.5 lg:gap-2">
+              <NavLink name="circles" icon={Users} label="Circles" />
+              <NavLink name="connections" icon={UserPlus} label="Connections" />
+              <NavLink name="watchlist" icon={Bookmark} label="Watchlist" />
+              <NavLink name="kolLists" icon={Star} label="KOL Lists" />
+              <NavLink name="inviteLineage" icon={Share2} label="Invite lineage" />
+              <a
+                href="/xspaces"
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug no-underline",
+                  isActive("xspaces")
+                    ? "border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground backdrop-blur-xl"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )}
+              >
+                <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">X Spaces</span>
+              </a>
+            </div>
 
-        <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Account</span>
-        <div className="flex flex-col gap-1.5 lg:gap-2">
-          <button
-            type="button"
-            onClick={() => setRoute({ name: "rolesSkills" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
-          >
-            <Briefcase className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Roles &amp; Skills</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setRoute({ name: "integrations" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
-          >
-            <LinkIcon className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Integrations</span>
-          </button>
-          {isLoggedIn ? (
-            <button
-              type="button"
-              onClick={() => {
-                onSignOut?.();
-                setMobileOpen(false);
-              }}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
-            >
-              <LogOut className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Log out</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setRoute({ name: "login" });
-                setMobileOpen(false);
-              }}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
-            >
-              <LogIn className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Login</span>
-            </button>
-          )}
-        </div>
+            <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Analytics & Data</span>
+            <div className="flex flex-col gap-1.5 lg:gap-2">
+              <NavLink name="analytics" icon={BarChart3} label="Analytics" />
+              <NavLink name="privacy" icon={Shield} label="Privacy & Data" />
+            </div>
+
+            <span className="text-sm font-semibold text-sidebar-foreground/85 mt-4 lg:mt-6 tracking-wide block">Account</span>
+            <div className="flex flex-col gap-1.5 lg:gap-2">
+              <button
+                type="button"
+                onClick={() => setRoute({ name: "rolesSkills" })}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
+              >
+                <Briefcase className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Roles &amp; Skills</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoute({ name: "integrations" })}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
+              >
+                <LinkIcon className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Integrations</span>
+              </button>
+              {isLoggedIn ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSignOut?.();
+                    setMobileOpen(false);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
+                >
+                  <LogOut className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Log out</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoute({ name: "login" });
+                    setMobileOpen(false);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors leading-snug"
+                >
+                  <LogIn className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden /> <span className="truncate">Login</span>
+                </button>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="mt-auto hidden lg:block">
           <div className="rounded-xl p-4 bg-primary text-primary-foreground">
@@ -1160,7 +1406,7 @@ function Timer() {
   );
 }
 
-function Topbar({ setMobileOpen, route, setRoute, me }) {
+function Topbar({ setMobileOpen, route, setRoute, me, activeContext, onActiveContextChange }) {
   const router = useRouter();
   const displayName = me?.display_name?.trim() || demo.me.name;
   const handle = me?.username?.trim() || demo.me.handle;
@@ -1199,9 +1445,9 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
     if (n.type === "application_submitted") return "New application";
     if (n.type === "application_accepted") return "Application accepted";
     if (n.type === "application_rejected") return "Application declined";
-    if (n.type === "deal_delivered") return "Work delivered";
-    if (n.type === "deal_accepted") return "Deal accepted";
-    if (n.type === "deal_completed") return "Deal completed";
+    if (n.type === "deal_delivered") return "Job deal: work delivered";
+    if (n.type === "deal_accepted") return "Job deal accepted";
+    if (n.type === "deal_completed") return "Job deal completed";
     if (n.type === "ambassador_invite") return "Ambassador invite";
     if (n.type === "ambassador_invite_accepted") return "Ambassador joined";
     if (n.type === "ambassador_removed") return "Ambassador removed";
@@ -1217,7 +1463,8 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
   };
   const notifLink = (n) => {
     if (n.type === "connection_request" || n.type === "connection_accepted") return "/app/connections";
-    if (n.type === "application_submitted" && n.payload?.job_id) return "/app/dashboard";
+    if (n.type === "application_submitted" && n.payload?.org_id) return `/org/${n.payload.org_id}?tab=jobs`;
+    if (n.type === "application_submitted" && n.payload?.job_id) return "/app/market";
     if (n.type === "application_accepted" && n.entity_id) return `/deal/${n.entity_id}`;
     if (n.type === "application_rejected" && n.payload?.org_id) return `/org/${n.payload.org_id}?tab=jobs`;
     if (n.type === "application_rejected") return "/app/overview";
@@ -1243,7 +1490,18 @@ function Topbar({ setMobileOpen, route, setRoute, me }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap justify-end">
+        {me?.id && onActiveContextChange && (activeContext?.memberships?.length ?? 0) > 0 && (
+          <ActingAsContextSwitcher
+            memberships={activeContext.memberships}
+            context={activeContext.context}
+            activeOrg={activeContext.activeOrg}
+            loaded={activeContext.loaded}
+            onSelectPersonal={() => onActiveContextChange("personal")}
+            onSelectOrg={(id) => onActiveContextChange("org", id)}
+            variant="topbar"
+          />
+        )}
         <button 
           className="relative p-2 rounded-lg transition-colors hover:bg-accent"
           onClick={() => setRoute({ name: "messages" })}
@@ -4104,6 +4362,73 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
   const [profilePayloadRefreshTrigger, setProfilePayloadRefreshTrigger] = useState(0);
   const [accessAllowed, setAccessAllowed] = useState<boolean | null>(null);
   const [inviteOnly, setInviteOnly] = useState<boolean | null>(null);
+  const [activeCtx, setActiveCtx] = useState<{
+    loaded: boolean;
+    context: string;
+    activeOrg: { id: string; name: string; slug: string } | null;
+    memberships: Array<{ id: string; name: string; slug: string; role?: string }>;
+  }>({ loaded: false, context: "personal", activeOrg: null, memberships: [] });
+
+  useEffect(() => {
+    if (!authUserId) {
+      setActiveCtx({ loaded: true, context: "personal", activeOrg: null, memberships: [] });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      if (!token) {
+        if (!cancelled) setActiveCtx((s) => ({ ...s, loaded: true }));
+        return;
+      }
+      const r = await fetch(`${base}/api/me/active-context`, { headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json().catch(() => ({}));
+      if (cancelled) return;
+      setActiveCtx({
+        loaded: true,
+        context: j.context === "org" ? "org" : "personal",
+        activeOrg: j.activeOrg ?? null,
+        memberships: Array.isArray(j.memberships) ? j.memberships : [],
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authUserId]);
+
+  const onActiveContextChange = useCallback(
+    async (mode: "personal" | "org", orgId?: string) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      if (!token) return;
+      const body = mode === "org" && orgId ? { context: "org", org_id: orgId } : { context: "personal" };
+      const r = await fetch(`${base}/api/me/active-context`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!j.ok) return;
+      setActiveCtx({
+        loaded: true,
+        context: j.context === "org" ? "org" : "personal",
+        activeOrg: j.activeOrg ?? null,
+        memberships: Array.isArray(j.memberships) ? j.memberships : [],
+      });
+      if (j.context === "org" && j.activeOrg) {
+        setRoute({
+          name: "orgDetail",
+          data: { orgId: j.activeOrg.id, slug: j.activeOrg.slug, tab: "dashboard" },
+        });
+      } else {
+        setRoute({ name: "overview" });
+      }
+    },
+    [setRoute]
+  );
 
   useEffect(() => {
     const fromPath = routeFromPathname(pathname ?? "/", searchParams);
@@ -4276,6 +4601,21 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
   };
 
   const handleSignOut = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token && typeof window !== "undefined") {
+        await fetch(`${window.location.origin}/api/me/active-context`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ context: "personal" }),
+        });
+      }
+    } catch {
+      /* ignore */
+    }
     await supabase.auth.signOut();
     setAuthUserId(null);
     setMe(null);
@@ -4727,6 +5067,8 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
             authUserId={authUserId}
             onSignOut={handleSignOut}
             me={me}
+            activeContext={activeCtx}
+            onActiveContextChange={authUserId ? onActiveContextChange : undefined}
           />
         )}
 
@@ -4845,7 +5187,14 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
           <div className="relative z-[30]">
             {/* Hide topbar for public profile pages */}
             {!["publicCreator", "publicProject", "publicCompany", "login", "onboarding", "accountType"].includes(route.name) && (
-              <Topbar setMobileOpen={setMobileOpen} route={route} setRoute={setRoute} me={me} />
+              <Topbar
+                setMobileOpen={setMobileOpen}
+                route={route}
+                setRoute={setRoute}
+                me={me}
+                activeContext={activeCtx}
+                onActiveContextChange={authUserId ? onActiveContextChange : undefined}
+              />
             )}
 
             <AnimatePresence mode="wait">
@@ -4919,7 +5268,14 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
                 {(route.name === "calendar" || route.name === "xspaces") && <XSpacesPage setRoute={setRoute} me={me} />}
                 {route.name === "circles" && <CirclesOverviewPage setRoute={setRoute} me={me} />}
                 {route.name === "circleDetail" && <CircleDetailPage setRoute={setRoute} data={route.data} />}
-                {route.name === "kolLists" && <KOLListsPage setRoute={setRoute} me={me} />}
+                {route.name === "kolLists" && (
+                  <KOLListsPage
+                    setRoute={setRoute}
+                    me={me}
+                    activeOrgContextId={activeCtx.context === "org" && activeCtx.activeOrg ? activeCtx.activeOrg.id : null}
+                    activeOrgName={activeCtx.context === "org" && activeCtx.activeOrg ? activeCtx.activeOrg.name : null}
+                  />
+                )}
                 {route.name === "inviteLineage" && <InviteLineagePage setRoute={setRoute} />}
                 {route.name === "adminInvites" && <AdminInvitesPage setRoute={setRoute} me={me} />}
                 {route.name === "capitalPartners" && <CapitalPartnersPage setRoute={setRoute} />}

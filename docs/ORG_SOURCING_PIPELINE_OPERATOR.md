@@ -89,6 +89,31 @@ Existing pipeline keys unchanged for backward compatibility.
 
 ---
 
+## Sourcing workbench (operator UX pass)
+
+**UX gaps addressed:** long scroll through disconnected stages → **priority sections** (needs you / awaiting creator / in motion / collapsible archive); weak scan → **unified table** with track badges (jobs / programs / kol); no search → **creator search** + **stage / job / program / source-list** filters; many clicks for one creator → **drawer** with grounded job + program rows for that profile; unclear ownership → **Waiting on** column (You / Creator / Both / Settled).
+
+**Filters (all client-side on API data):**
+
+| Filter | Behavior |
+|--------|----------|
+| Search | Name, @handle, profile id substring |
+| Priority chips | All · **Needs you** (applied + shortlist w/o job invite) · **Awaiting creator** · **Unresolved** (excl. passed + program out) |
+| Stage | One pipeline stage |
+| Job | Job-related rows for that job |
+| Program | Program rows for that program |
+| Source list | Job rows where invite `kol_list_id` matches org KOL list |
+
+**API:** `kol_list_name` on job invites; `kol_list_options` for dropdown; `job_invites` / `program_invites` include `username` / `display_name` for drawer.
+
+**Drawer:** Lists shortlist names (if any), all job invites for profile (response, viewed, applied, deal, list), all program invites. Actions: profile, KOL lists, open job, open deal, program on Jobs tab. **Still on Jobs tab:** accept/reject applicants, full program admin.
+
+**Personal vs org:** Unchanged — workbench only in org **Sourcing** tab; creator inbox stays personal.
+
+**QA (add):** Large pipeline + filters; dual-context user; org switch; KOL lists / jobs / deals / creator inbox regressions.
+
+---
+
 ## Later (fuller sourcing CRM)
 
-- Drag-and-drop stages, email sequences, assignment, saved views, exports — out of scope; current model stays row-grounded.
+- Drag-and-drop stages, email sequences, assignment, saved views, exports, bulk shortlist mutations — out of scope; current model stays row-grounded.

@@ -44,6 +44,15 @@ export async function GET(
   const jobIds = [...new Set(jobInvites.map((r) => r.job_id))];
   const profileIds = [...new Set(jobInvites.map((r) => r.profile_id))];
 
+  const { data: orgKolListRows } = await supabase
+    .from("kol_lists")
+    .select("id, name")
+    .eq("owner_type", "org")
+    .eq("owner_id", orgId);
+  const kolListMeta = Object.fromEntries(
+    (orgKolListRows ?? []).map((r: { id: string; name: string }) => [r.id, r.name])
+  );
+
   const jobsById: Record<string, string> = {};
   if (jobIds.length > 0) {
     const { data: jobs } = await supabase.from("jobs").select("id, title").in("id", jobIds);
@@ -88,6 +97,7 @@ export async function GET(
   const jobInvitesOut = jobInvites.map((inv) => {
     const k = `${inv.job_id}:${inv.profile_id}`;
     const cr = inv.creator_response ?? "pending";
+    const kid = inv.kol_list_id;
     return {
       ...inv,
       creator_response: cr,
@@ -95,8 +105,11 @@ export async function GET(
       has_application: appKeys.has(k),
       has_active_deal: dealKeys.has(k),
       active_deal_id: activeDealIdByKey.get(k) ?? null,
+      kol_list_name: kid && kolListMeta[kid] ? kolListMeta[kid] : null,
     };
   });
+
+  const kol_list_options = Object.entries(kolListMeta).map(([id, name]) => ({ id, name }));
 
   const noJobOutcome = (inv: (typeof jobInvitesOut)[0]) => !inv.has_application && !inv.has_active_deal;
 
@@ -143,12 +156,6 @@ export async function GET(
   }
 
   let shortlistedOrgCount = 0;
-  const { data: orgKolListIds } = await supabase
-    .from("kol_lists")
-    .select("id, name")
-    .eq("owner_type", "org")
-    .eq("owner_id", orgId);
-  const kolListMeta = Object.fromEntries((orgKolListIds ?? []).map((r: { id: string; name: string }) => [r.id, r.name]));
   const kolIds = Object.keys(kolListMeta);
   const shortlistedByProfile: Record<string, Set<string>> = {};
   if (kolIds.length > 0) {
@@ -280,9 +287,13 @@ export async function GET(
         j.creator_response === "dismissed")
   ).length;
 
+  const jobInvitesForClient = jobInvitesOut.map((j) => ({ ...j, ...withProf(j.profile_id) }));
+  const programInvitesForClient = programInvitesOut.map((p) => ({ ...p, ...withProf(p.profile_id) }));
+
   return NextResponse.json({
-    job_invites: jobInvitesOut,
-    program_invites: programInvitesOut,
+    job_invites: jobInvitesForClient,
+    program_invites: programInvitesForClient,
+    kol_list_options,
     shortlisted_org_members_count: shortlistedOrgCount,
     shortlisted_people,
     pipeline: {

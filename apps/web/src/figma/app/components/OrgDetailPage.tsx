@@ -192,6 +192,7 @@ export default function OrgDetailPage({
       program_invites_unseen_inbox?: number;
       job_invites_responded_no_application?: number;
     };
+    kol_list_options?: Array<{ id: string; name: string }>;
     shortlisted_org_members_count?: number;
     shortlisted_people?: Array<{
       profile_id: string;
@@ -2078,6 +2079,11 @@ export default function OrgDetailPage({
                 (sourcingData?.pipeline as unknown as React.ComponentProps<typeof OrgSourcingPipelineTab>["pipeline"]) ??
                 null
               }
+              jobInvitesFull={(sourcingData?.job_invites as React.ComponentProps<typeof OrgSourcingPipelineTab>["jobInvitesFull"]) ?? []}
+              programInvitesFull={
+                (sourcingData?.program_invites as React.ComponentProps<typeof OrgSourcingPipelineTab>["programInvitesFull"]) ?? []
+              }
+              kolListOptions={sourcingData?.kol_list_options ?? []}
               summary={
                 sourcingData?.summary
                   ? {

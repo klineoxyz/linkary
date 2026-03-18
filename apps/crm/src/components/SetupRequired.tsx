@@ -6,19 +6,19 @@
  */
 export function SetupRequired() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--crm-bg)] p-4">
-      <div className="w-full max-w-md rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 shadow-sm">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--crm-page-bg)] p-4">
+      <div className="crm-surface-raised w-full max-w-md p-6 sm:p-8">
         <h1 className="text-lg font-semibold text-[var(--crm-foreground)] mb-2">
           Supabase not configured
         </h1>
         <p className="text-sm text-[var(--crm-muted)] mb-4">
           The CRM app needs the same Supabase project as Linkary. Add these to{" "}
-          <code className="rounded bg-[var(--crm-border)] px-1.5 py-0.5 text-xs">
+          <code className="rounded-[var(--crm-radius)] bg-[var(--crm-banner-muted)] border border-[var(--crm-border)] px-1.5 py-0.5 text-xs">
             apps/crm/.env.local
           </code>
           :
         </p>
-        <pre className="rounded-lg bg-[var(--crm-border)] p-3 text-xs text-[var(--crm-foreground)] overflow-x-auto mb-4">
+        <pre className="rounded-[var(--crm-radius)] bg-[var(--crm-banner-muted)] border border-[var(--crm-border)] p-3 text-xs text-[var(--crm-foreground)] overflow-x-auto mb-4">
           {`NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}
         </pre>

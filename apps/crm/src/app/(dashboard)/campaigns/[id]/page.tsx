@@ -30,14 +30,14 @@ function KpiCard({
   insufficient?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+    <div className="crm-surface-card p-4">
       <p className="text-xs font-medium text-[var(--crm-muted)] uppercase tracking-wide">
         {label}
         {insufficient && (
           <span className="ml-1 normal-case text-[var(--crm-muted)]">(no data yet)</span>
         )}
       </p>
-      <p className="mt-1 text-xl font-semibold text-[var(--crm-primary)]">
+      <p className="mt-1 text-xl font-bold tracking-tight text-[var(--crm-foreground)] tabular-nums">
         {value}
       </p>
       {sub != null && sub !== "" && (
@@ -103,15 +103,15 @@ export default async function CampaignDetailPage({
         Back to campaigns
       </Link>
 
-      <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-3 text-sm text-[var(--crm-muted)]">
+      <div className="crm-surface-muted px-4 py-3.5 text-sm text-[var(--crm-muted)] leading-relaxed">
         <strong className="text-[var(--crm-foreground)]">For your team:</strong> This page is where you{" "}
         <strong className="text-[var(--crm-foreground)]">approve or reject</strong> creator post links, see campaign KPIs (views, CPV/CPM-style metrics when data exists), and open the report.{" "}
         Discovery and hiring stay on <strong className="text-[var(--crm-foreground)]">linkary.xyz</strong>; delivery is tracked here.
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">
+        <div className="min-w-0">
+          <h1 className="crm-page-title text-2xl sm:text-[1.65rem] break-words">
             {campaign.title}
           </h1>
           <div className="mt-2 flex flex-wrap gap-2 text-sm text-[var(--crm-muted)]">

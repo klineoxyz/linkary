@@ -36,18 +36,22 @@ export function LoginForm() {
         placeholder="you@example.com"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm text-[var(--crm-foreground)] placeholder:text-[var(--crm-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--crm-primary)] focus:border-[var(--crm-primary)]"
+        className="crm-input placeholder:text-[var(--crm-muted)]"
         disabled={loading}
+        autoComplete="email"
       />
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-lg bg-[var(--crm-primary)] px-4 py-2.5 text-sm font-medium text-[var(--crm-primary-foreground)] hover:opacity-90 disabled:opacity-50"
-      >
+      <button type="submit" disabled={loading} className="crm-btn-primary w-full py-2.5">
         {loading ? "Sending…" : "Send magic link"}
       </button>
       {message && (
-        <p className={`text-sm ${message.type === "err" ? "text-[var(--crm-foreground)]" : "text-[var(--crm-muted)]"}`}>
+        <p
+          role={message.type === "err" ? "alert" : "status"}
+          className={`text-sm rounded-[var(--crm-radius)] px-3 py-2 ${
+            message.type === "err"
+              ? "bg-[var(--crm-banner-muted)] text-[var(--crm-foreground)] border border-[var(--crm-border)]"
+              : "crm-surface-muted text-[var(--crm-foreground)]"
+          }`}
+        >
           {message.text}
         </p>
       )}

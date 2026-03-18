@@ -47,10 +47,10 @@ export function MyCampaignBundles({
             <Link
               key={item.bundleId}
               href={href}
-              className={`rounded-xl border bg-[var(--crm-card)] p-3 sm:p-4 text-left transition-colors hover:border-[var(--crm-primary)] min-w-0 ${
+              className={`crm-surface-card p-3 sm:p-4 text-left transition-all min-w-0 hover:border-[var(--crm-primary)]/35 ${
                 isActive
-                  ? "border-[var(--crm-primary)] ring-1 ring-[var(--crm-primary)]"
-                  : "border-[var(--crm-border)]"
+                  ? "ring-2 ring-[var(--crm-primary)]/25 border-[var(--crm-primary)]/40 shadow-[var(--crm-shadow-card)]"
+                  : ""
               }`}
             >
               <div className="flex items-start justify-between gap-2">

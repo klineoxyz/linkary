@@ -33,51 +33,55 @@ export function DashboardShell({
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      <aside className="w-full lg:w-56 border-b lg:border-b-0 lg:border-r border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-        <div className="flex items-center gap-2 mb-6">
-          <span className="font-semibold text-[var(--crm-foreground)]">
-            <span className="text-[var(--crm-primary)]">Linkary</span> CRM
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[var(--crm-page-bg)]">
+      <aside className="w-full lg:w-[15.5rem] shrink-0 border-b lg:border-b-0 lg:border-r border-[var(--crm-border)] bg-[var(--crm-sidebar-bg)] p-4 lg:min-h-screen lg:flex lg:flex-col shadow-[var(--crm-shadow-sm)] lg:shadow-none">
+        <div className="mb-6">
+          <span className="font-semibold text-[var(--crm-foreground)] tracking-tight block">
+            <span className="text-[var(--crm-primary)]">Linkary</span>
+            <span className="text-[var(--crm-muted)] font-medium"> CRM</span>
+          </span>
+          <span className="text-[10px] uppercase tracking-wider text-[var(--crm-muted)] mt-1 block">
+            Delivery workspace
           </span>
         </div>
-        <nav className="space-y-1">
+        <nav className="space-y-0.5 flex-1">
           {nav.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || (href !== "/" && pathname.startsWith(href));
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2.5 rounded-[var(--crm-radius)] px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-[var(--crm-primary)] text-[var(--crm-primary-foreground)]"
+                    ? "bg-[var(--crm-primary)] text-[var(--crm-primary-foreground)] shadow-sm"
                     : "text-[var(--crm-muted)] hover:bg-[var(--crm-accent)] hover:text-[var(--crm-foreground)]"
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
-                {label}
+                <Icon className="h-4 w-4 shrink-0 opacity-90" />
+                <span className="leading-snug">{label}</span>
               </Link>
             );
           })}
         </nav>
-        <div className="mt-auto pt-6 border-t border-[var(--crm-border)] space-y-3">
-          <p className="text-[10px] leading-snug text-[var(--crm-muted)] px-3">
-            <strong className="text-[var(--crm-foreground)]">Linkary</strong> = profiles &amp; deals.
-            <strong className="text-[var(--crm-foreground)]"> CRM</strong> = submit links &amp; track delivery after accepted work.
+        <div className="mt-8 pt-5 border-t border-[var(--crm-border)] space-y-3">
+          <p className="text-[10px] leading-relaxed text-[var(--crm-muted)] px-1">
+            Same account as <span className="text-[var(--crm-foreground)] font-medium">linkary.xyz</span>.
+            Profiles &amp; deals there — task delivery here.
           </p>
-          <p className="text-xs text-[var(--crm-muted)] truncate px-3 mb-2" title={user.email ?? undefined}>
+          <p className="text-xs text-[var(--crm-muted)] truncate px-1" title={user.email ?? undefined}>
             {user.email ?? user.id}
           </p>
           <button
             type="button"
             onClick={signOut}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--crm-muted)] hover:bg-[var(--crm-accent)] hover:text-[var(--crm-foreground)]"
+            className="flex w-full items-center gap-2 rounded-[var(--crm-radius)] px-3 py-2 text-sm text-[var(--crm-muted)] hover:bg-[var(--crm-banner-muted)] hover:text-[var(--crm-foreground)] transition-colors"
           >
             <LogOut className="h-4 w-4" />
             Sign out
           </button>
         </div>
       </aside>
-      <main className="flex-1 p-3 sm:p-6 lg:p-10 overflow-auto min-w-0">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 xl:p-10 overflow-auto min-w-0 max-w-[1600px]">
         {children}
       </main>
     </div>

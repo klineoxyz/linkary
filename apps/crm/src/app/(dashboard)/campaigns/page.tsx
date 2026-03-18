@@ -21,21 +21,20 @@ export default async function CampaignsPage() {
   if (access.orgWorkspaces.length === 0) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Campaigns</h1>
-        <p className="text-sm text-[var(--crm-muted)]">
-          Org campaign dashboard. View performance, contributors, and submissions.
-        </p>
-        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center">
+        <header className="crm-page-header">
+          <h1 className="crm-page-title">Campaigns</h1>
+          <p className="crm-page-subtitle">
+            Review creator delivery, submissions, and reports for your org.
+          </p>
+        </header>
+        <div className="crm-surface-raised p-8 text-center max-w-xl">
           <p className="text-sm font-medium text-[var(--crm-foreground)] mb-1">
             No org workspace access
           </p>
           <p className="text-sm text-[var(--crm-muted)] mb-6 max-w-sm mx-auto">
             Campaigns are available when you&apos;re a member of an org or project workspace. Use Tasks for your personal task board.
           </p>
-          <Link
-            href="/tasks"
-            className="inline-flex items-center gap-2 rounded-lg bg-[var(--crm-primary)] px-4 py-2 text-sm font-medium text-[var(--crm-primary-foreground)] hover:opacity-90"
-          >
+          <Link href="/tasks" className="crm-btn-primary no-underline">
             <ListTodo className="h-4 w-4" />
             Go to Tasks
           </Link>
@@ -48,21 +47,23 @@ export default async function CampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">Campaigns</h1>
-      <p className="text-sm text-[var(--crm-muted)]">
-        Org campaign dashboard. View performance, contributors, and submissions.
-      </p>
+      <header className="crm-page-header">
+        <h1 className="crm-page-title">Campaigns</h1>
+        <p className="crm-page-subtitle">
+          Open a campaign to review submissions, compliance, and reports.
+        </p>
+      </header>
 
       {campaigns.length === 0 ? (
-        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center text-[var(--crm-muted)]">
+        <div className="crm-surface-card p-8 text-center text-[var(--crm-muted)] text-sm leading-relaxed max-w-lg">
           No campaigns yet. Create a campaign from your org workspace to get started.
         </div>
       ) : (
-        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
+        <div className="crm-surface-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[720px]">
             <thead>
-              <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+              <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-banner-muted)]">
                 <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Campaign</th>
                 <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Status</th>
                 <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Date range</th>

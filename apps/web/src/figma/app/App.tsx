@@ -4120,8 +4120,8 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
 
   return (
     <div className="font-app text-foreground space-y-6 px-3 sm:px-0 max-w-full overflow-x-hidden">
-      <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground space-y-1.5 -mb-1">
-        <p className="font-medium text-foreground">How this page fits together</p>
+      <div className="rounded-xl border border-border bg-card shadow-sm px-4 py-3 text-xs text-muted-foreground space-y-2 -mb-1">
+        <p className="text-sm font-semibold text-foreground tracking-tight">How this page fits together</p>
         <ul className="list-disc pl-4 space-y-0.5">
           <li><strong className="text-foreground">This tab</strong> — Private; only you see your full workspace.</li>
           <li><strong className="text-foreground">Profile edit</strong> — Changes bio, links, skills → reflected on your public page after save.</li>

@@ -115,29 +115,31 @@ export function TaskDetailClient({
   }
 
   return (
-    <div className="mt-6 pt-6 border-t border-[var(--crm-border)] space-y-4">
-      <h3 className="font-medium text-[var(--crm-foreground)]">Update status</h3>
-      <select
+    <div className="mt-6 pt-6 border-t border-[var(--crm-border)] space-y-5">
+      <div>
+        <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">Task status</h3>
+        <select
         value={status}
         onChange={(e) => handleStatusChange(e.target.value)}
         disabled={loading}
-        className="rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm text-[var(--crm-foreground)] bg-[var(--crm-card)]"
+        className="crm-select max-w-xs"
       >
         {STATUS_OPTIONS.map((s) => (
           <option key={s} value={s}>
             {s.replace("_", " ")}
           </option>
         ))}
-      </select>
+        </select>
+      </div>
 
       {isManual && (
         <>
-          <h3 className="font-medium text-[var(--crm-primary)] pt-2">Edit task</h3>
+          <h3 className="text-sm font-semibold text-[var(--crm-foreground)] pt-2">Edit details</h3>
           {!editing ? (
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm font-medium text-[var(--crm-muted)] hover:bg-[var(--crm-border)]"
+              className="crm-btn-secondary text-sm"
             >
               Edit title, description, platform, due date
             </button>
@@ -148,7 +150,7 @@ export function TaskDetailClient({
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
+                  className="crm-input"
                   required
                 />
               </div>
@@ -158,7 +160,7 @@ export function TaskDetailClient({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={2}
-                  className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
+                  className="crm-textarea"
                 />
               </div>
               <div>
@@ -166,7 +168,7 @@ export function TaskDetailClient({
                 <input
                   value={platform}
                   onChange={(e) => setPlatform(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
+                  className="crm-input"
                 />
               </div>
               <div>
@@ -175,16 +177,12 @@ export function TaskDetailClient({
                   type="date"
                   value={dueAt}
                   onChange={(e) => setDueAt(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
+                  className="crm-input"
                 />
               </div>
-              {error && <p className="text-sm text-[var(--crm-foreground)]">{error}</p>}
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="rounded-lg bg-[var(--crm-primary)] px-4 py-2 text-sm font-medium text-[var(--crm-primary-foreground)] hover:opacity-90 disabled:opacity-50"
-                >
+              {error && <p className="text-sm rounded-[var(--crm-radius)] border border-[var(--crm-border)] bg-[var(--crm-banner-muted)] px-3 py-2" role="alert">{error}</p>}
+              <div className="flex flex-wrap gap-2">
+                <button type="submit" disabled={loading} className="crm-btn-primary">
                   {loading ? "Saving…" : "Save"}
                 </button>
                 <button
@@ -196,7 +194,7 @@ export function TaskDetailClient({
                     setPlatform(initialPlatform);
                     setDueAt(initialDueAt.slice(0, 10));
                   }}
-                  className="rounded-lg border border-[var(--crm-border)] px-4 py-2 text-sm font-medium text-[var(--crm-muted)]"
+                  className="crm-btn-secondary"
                 >
                   Cancel
                 </button>
@@ -207,15 +205,15 @@ export function TaskDetailClient({
       )}
 
       <section className="mt-8 pt-6 border-t border-[var(--crm-border)] space-y-4">
-        <h3 className="font-medium text-[var(--crm-primary)]">Submission history</h3>
+        <h3 className="text-sm font-semibold text-[var(--crm-foreground)]">Proof submissions</h3>
         {initialSubmissions.length === 0 ? (
-          <p className="text-sm text-[var(--crm-muted)]">No submissions yet.</p>
+          <p className="text-sm text-[var(--crm-muted)] crm-surface-muted px-3 py-3">No submissions yet. Add links below when your post is live.</p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-2">
             {initialSubmissions.map((s) => (
               <li
                 key={s.id}
-                className="rounded-lg border border-[var(--crm-border)] p-3 text-sm"
+                className="crm-surface-muted p-3 text-sm rounded-[var(--crm-radius)]"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <a
@@ -234,7 +232,7 @@ export function TaskDetailClient({
                           ? "bg-[var(--crm-muted)]/20 text-[var(--crm-foreground)]"
                           : s.status === "needs_revision"
                             ? "bg-[var(--crm-accent)] text-[var(--crm-foreground)]"
-                            : "bg-[var(--crm-bg)] text-[var(--crm-muted)]"
+                            : "bg-[var(--crm-banner-muted)] text-[var(--crm-muted)]"
                     }`}
                   >
                     {s.status === "needs_revision"
@@ -259,11 +257,11 @@ export function TaskDetailClient({
           </ul>
         )}
 
-        <form onSubmit={handleSubmitProof} className="space-y-3 max-w-md mt-4">
-          <h4 className="text-sm font-medium text-[var(--crm-foreground)]">
+        <form onSubmit={handleSubmitProof} className="space-y-3 max-w-md mt-6 crm-surface-muted p-4 rounded-[var(--crm-radius)]">
+          <h4 className="text-sm font-semibold text-[var(--crm-foreground)]">
             Submit proof (up to 3 links)
           </h4>
-          <p className="text-xs text-[var(--crm-muted)]">
+          <p className="text-xs text-[var(--crm-muted)] leading-relaxed">
             <strong className="text-[var(--crm-foreground)]">X (Twitter)</strong> is wired first. Pick the platform that matches your post; YouTube/TikTok/etc. use the same review flow when your campaign expects those.
           </p>
           <div>
@@ -275,7 +273,7 @@ export function TaskDetailClient({
               value={submissionUrl1}
               onChange={(e) => setSubmissionUrl1(e.target.value)}
               placeholder="https://x.com/... or https://twitter.com/..."
-              className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
+              className="crm-input bg-[var(--crm-card)]"
             />
           </div>
           <div>
@@ -287,7 +285,7 @@ export function TaskDetailClient({
               value={submissionUrl2}
               onChange={(e) => setSubmissionUrl2(e.target.value)}
               placeholder="Second post if required"
-              className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
+              className="crm-input bg-[var(--crm-card)]"
             />
           </div>
           <div>
@@ -298,7 +296,7 @@ export function TaskDetailClient({
               type="url"
               value={submissionUrl3}
               onChange={(e) => setSubmissionUrl3(e.target.value)}
-              className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
+              className="crm-input bg-[var(--crm-card)]"
             />
           </div>
           <div>
@@ -308,7 +306,7 @@ export function TaskDetailClient({
             <select
               value={submissionPlatform}
               onChange={(e) => setSubmissionPlatform(e.target.value)}
-              className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm text-[var(--crm-foreground)] bg-[var(--crm-card)]"
+              className="crm-select bg-[var(--crm-card)]"
             >
               {PLATFORM_OPTIONS.map((p) => (
                 <option key={p} value={p}>
@@ -325,18 +323,14 @@ export function TaskDetailClient({
               value={submissionNotes}
               onChange={(e) => setSubmissionNotes(e.target.value)}
               rows={2}
-              className="w-full rounded-lg border border-[var(--crm-border)] px-3 py-2 text-sm"
+              className="crm-textarea bg-[var(--crm-card)]"
               placeholder="Add context for the reviewer"
             />
           </div>
           {submissionError && (
-            <p className="text-sm text-[var(--crm-foreground)]">{submissionError}</p>
+            <p className="text-sm rounded-[var(--crm-radius)] border border-[var(--crm-border)] bg-[var(--crm-card)] px-3 py-2" role="alert">{submissionError}</p>
           )}
-          <button
-            type="submit"
-            disabled={submissionLoading}
-            className="rounded-lg bg-[var(--crm-primary)] px-4 py-2 text-sm font-medium text-[var(--crm-primary-foreground)] hover:opacity-90 disabled:opacity-50"
-          >
+          <button type="submit" disabled={submissionLoading} className="crm-btn-primary">
             {submissionLoading ? "Submitting…" : "Submit proof link(s)"}
           </button>
         </form>

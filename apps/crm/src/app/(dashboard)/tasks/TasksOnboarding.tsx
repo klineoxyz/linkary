@@ -6,11 +6,10 @@ import Link from "next/link";
 import { ListTodo, AlertCircle, Users, Wrench } from "lucide-react";
 
 const cardClass =
-  "rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 text-center";
-const headlineClass = "text-xl font-semibold text-[var(--crm-foreground)] mb-2";
-const bodyClass = "text-sm text-[var(--crm-muted)] max-w-md mx-auto mb-6";
-const ctaPrimaryClass =
-  "inline-flex items-center gap-2 rounded-lg bg-[var(--crm-primary)] px-4 py-2.5 text-sm font-medium text-[var(--crm-primary-foreground)] hover:opacity-90";
+  "crm-surface-raised p-6 sm:p-8 text-center max-w-lg mx-auto rounded-[var(--crm-radius)]";
+const headlineClass = "text-lg sm:text-xl font-bold tracking-tight text-[var(--crm-foreground)] mb-2";
+const bodyClass = "text-sm text-[var(--crm-muted)] max-w-md mx-auto mb-6 leading-relaxed";
+const ctaPrimaryClass = "crm-btn-primary px-5 py-2.5 no-underline";
 const ctaSecondaryClass = "text-sm text-[var(--crm-muted)] hover:text-[var(--crm-primary)] underline mt-4 inline-block";
 
 /** No profile: account not linked to a task board (e.g. CRM-only user, profile insert failed). */

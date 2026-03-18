@@ -18,13 +18,15 @@ export default async function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--crm-bg)] p-4">
-      <div className="w-full max-w-sm rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 shadow-sm">
-        <h1 className="text-xl font-semibold text-[var(--crm-foreground)] mb-2">
-          <span className="text-[var(--crm-primary)]">Linkary</span> CRM
+    <div className="min-h-screen flex items-center justify-center bg-[var(--crm-page-bg)] p-4 sm:p-6">
+      <div className="crm-surface-raised w-full max-w-[22rem] p-6 sm:p-8">
+        <h1 className="text-xl font-bold tracking-tight text-[var(--crm-foreground)] mb-1">
+          <span className="text-[var(--crm-primary)]">Linkary</span>
+          <span className="text-[var(--crm-muted)] font-semibold"> CRM</span>
         </h1>
-        <p className="text-sm text-[var(--crm-muted)] mb-6">
-          Sign in with your Linkary account (same as linkary.xyz).
+        <p className="text-xs uppercase tracking-wider text-[var(--crm-muted)] mb-4">Delivery workspace</p>
+        <p className="text-sm text-[var(--crm-muted)] mb-6 leading-relaxed">
+          Use the same email as <span className="text-[var(--crm-foreground)] font-medium">linkary.xyz</span>.
         </p>
         <LoginForm />
       </div>

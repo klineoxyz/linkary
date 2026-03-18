@@ -1,36 +1,171 @@
 @import "tailwindcss";
 
 /*
-  CRM uses Linkary design language (same palette as apps/web).
-  Allowed: #FFFFFF, #130600, #FF5300. No extra saturated hues.
+  Linkary CRM — same visual family as linkary.xyz (light shell, #FF5300 accent, #130600 text).
+  Light-only: matches invited-beta experience; avoids OS dark mode flipping CRM to a different product.
 */
 :root {
+  --crm-page-bg: #f7f8fb;
+  --crm-sidebar-bg: #ffffff;
   --crm-bg: #ffffff;
   --crm-card: #ffffff;
-  --crm-border: rgba(19, 6, 0, 0.12);
-  --crm-primary: #FF5300;
+  --crm-border: rgba(19, 6, 0, 0.1);
+  --crm-primary: #ff5300;
   --crm-primary-foreground: #ffffff;
   --crm-foreground: #130600;
-  --crm-muted: rgba(19, 6, 0, 0.62);
-  --crm-accent: rgba(255, 83, 0, 0.10);
+  --crm-muted: rgba(19, 6, 0, 0.58);
+  --crm-accent: rgba(255, 83, 0, 0.1);
+  --crm-accent-strong: rgba(255, 83, 0, 0.14);
   --crm-radius: 0.625rem;
+  --crm-shadow-sm: 0 1px 2px rgba(19, 6, 0, 0.04);
+  --crm-shadow-card: 0 1px 2px rgba(19, 6, 0, 0.04), 0 4px 12px rgba(19, 6, 0, 0.05);
+  --crm-banner-muted: rgba(19, 6, 0, 0.04);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --crm-bg: #130600;
-    --crm-card: #130600;
-    --crm-border: rgba(255, 255, 255, 0.12);
-    --crm-primary: #FF5300;
-    --crm-primary-foreground: #ffffff;
-    --crm-foreground: #ffffff;
-    --crm-muted: rgba(255, 255, 255, 0.65);
-    --crm-accent: rgba(255, 255, 255, 0.08);
-  }
+html {
+  color-scheme: light;
 }
 
 body {
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
-  background: var(--crm-bg);
+  background: var(--crm-page-bg);
+  color: var(--crm-foreground);
+}
+
+/* Surfaces */
+.crm-surface-card {
+  background: var(--crm-card);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius);
+  box-shadow: var(--crm-shadow-sm);
+}
+
+.crm-surface-raised {
+  background: var(--crm-card);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius);
+  box-shadow: var(--crm-shadow-card);
+}
+
+.crm-surface-muted {
+  background: var(--crm-banner-muted);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius);
+}
+
+/* Page hierarchy */
+.crm-page-header {
+  margin-bottom: 1.5rem;
+}
+
+.crm-page-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--crm-foreground);
+  line-height: 1.25;
+}
+
+@media (min-width: 640px) {
+  .crm-page-title {
+    font-size: 1.5rem;
+  }
+}
+
+.crm-page-subtitle {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--crm-muted);
+  margin-top: 0.375rem;
+  max-width: 40rem;
+}
+
+/* Buttons */
+.crm-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--crm-radius);
+  background: var(--crm-primary);
+  color: var(--crm-primary-foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.crm-btn-primary:hover {
+  opacity: 0.92;
+}
+.crm-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.crm-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--crm-radius);
+  background: var(--crm-card);
+  color: var(--crm-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--crm-border);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.crm-btn-secondary:hover {
+  background: var(--crm-accent);
+}
+
+/* Form controls */
+.crm-input,
+.crm-textarea,
+.crm-select {
+  width: 100%;
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius);
+  background: var(--crm-card);
+  color: var(--crm-foreground);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+.crm-input:focus,
+.crm-textarea:focus,
+.crm-select:focus {
+  outline: none;
+  border-color: rgba(255, 83, 0, 0.45);
+  box-shadow: 0 0 0 3px rgba(255, 83, 0, 0.12);
+}
+.crm-textarea {
+  min-height: 4rem;
+  resize: vertical;
+}
+
+/* Status pills (human-readable) */
+.crm-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.crm-pill-pending {
+  background: var(--crm-banner-muted);
+  color: var(--crm-muted);
+}
+.crm-pill-positive {
+  background: var(--crm-accent);
+  color: var(--crm-foreground);
+}
+.crm-pill-negative {
+  background: rgba(19, 6, 0, 0.08);
   color: var(--crm-foreground);
 }

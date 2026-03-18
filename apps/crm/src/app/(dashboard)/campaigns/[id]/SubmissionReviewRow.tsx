@@ -98,7 +98,7 @@ export function SubmissionReviewRow({ submission }: { submission: SubmissionItem
               placeholder="Rejection / revision note (optional)"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="max-w-[180px] rounded border border-[var(--crm-border)] px-2 py-1 text-xs text-[var(--crm-foreground)] bg-[var(--crm-card)] placeholder:text-[var(--crm-muted)]"
+              className="max-w-[200px] min-w-0 crm-input py-1.5 text-xs placeholder:text-[var(--crm-muted)]"
             />
           </div>
         ) : submission.rejection_reason ? (

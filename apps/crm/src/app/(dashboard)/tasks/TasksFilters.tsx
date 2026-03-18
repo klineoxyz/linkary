@@ -37,7 +37,7 @@ export function TasksFilters({
       {campaignId && campaignTitle && (
         <Link
           href="/tasks"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-3 py-2 text-sm font-medium text-[var(--crm-foreground)] hover:bg-[var(--crm-bg)]"
+          className="inline-flex items-center gap-1.5 crm-surface-card px-3 py-2 text-sm font-medium text-[var(--crm-foreground)] hover:border-[var(--crm-primary)]/25 no-underline"
         >
           <span className="max-w-[180px] truncate" title={campaignTitle}>
             {campaignTitle}
@@ -52,10 +52,10 @@ export function TasksFilters({
           <Link
             key={value}
             href={href}
-            className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-[var(--crm-radius)] px-3 py-2 text-sm font-medium transition-colors no-underline ${
               isActive
-                ? "bg-[var(--crm-primary)] text-[var(--crm-primary-foreground)]"
-                : "bg-[var(--crm-card)] border border-[var(--crm-border)] text-[var(--crm-muted)] hover:bg-[var(--crm-border)] hover:text-[var(--crm-primary)]"
+                ? "bg-[var(--crm-primary)] text-[var(--crm-primary-foreground)] shadow-sm"
+                : "crm-surface-card text-[var(--crm-muted)] hover:text-[var(--crm-foreground)] hover:border-[var(--crm-primary)]/20"
             }`}
           >
             {label}

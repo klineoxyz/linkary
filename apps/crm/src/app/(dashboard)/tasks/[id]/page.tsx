@@ -42,7 +42,7 @@ export default async function TaskDetailPage({
         Back to tasks
       </Link>
 
-      <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 sm:p-6 overflow-hidden">
+      <div className="crm-surface-raised p-4 sm:p-6 overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-bold text-[var(--crm-foreground)] break-words">{task.title}</h1>

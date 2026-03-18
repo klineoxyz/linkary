@@ -57,8 +57,8 @@ export function TasksList({
   if (tasks.length === 0) {
     const filterOnly = !isBoardTotallyEmpty;
     return (
-      <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
-        <div className="p-6 sm:p-10 text-center px-4">
+      <div className="crm-surface-card overflow-hidden">
+        <div className="p-6 sm:p-9 text-center px-4">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--crm-bg)] text-[var(--crm-muted)] mb-6" aria-hidden>
             <ListTodo className="h-7 w-7" />
           </div>
@@ -90,11 +90,11 @@ export function TasksList({
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+    <div className="crm-surface-card overflow-hidden">
+      <div className="overflow-x-auto -mx-px">
+        <table className="w-full text-sm min-w-[640px]">
           <thead>
-            <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+            <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-banner-muted)]">
               <th className="text-left py-3.5 px-5 font-medium text-[var(--crm-muted)]">Task</th>
               <th className="text-left py-3.5 px-5 font-medium text-[var(--crm-muted)]">Type</th>
               <th className="text-left py-3.5 px-5 font-medium text-[var(--crm-muted)]">Campaign</th>
@@ -110,8 +110,8 @@ export function TasksList({
               return (
                 <tr
                   key={t.id}
-                  className={`hover:bg-[var(--crm-bg)]/60 transition-colors ${
-                    isManual ? "" : "bg-[var(--crm-primary)]/[0.03]"
+                  className={`hover:bg-[var(--crm-banner-muted)] transition-colors ${
+                    isManual ? "" : "bg-[var(--crm-accent)]/40"
                   }`}
                 >
                   <td className="py-3.5 px-5">

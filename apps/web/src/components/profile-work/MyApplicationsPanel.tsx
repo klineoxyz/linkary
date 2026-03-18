@@ -93,7 +93,7 @@ export function MyApplicationsPanel({
             {applications.map((app) => (
               <li
                 key={app.id}
-                className="rounded-xl border border-border bg-card p-4"
+                  className="rounded-xl border border-border bg-card shadow-sm p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">

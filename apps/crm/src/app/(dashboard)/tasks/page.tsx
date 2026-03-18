@@ -133,23 +133,22 @@ export default async function TasksPage({
   return (
     <div className="space-y-8">
       {/* Workspace hero / summary */}
-      <header className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-4 sm:px-6 sm:py-5">
+      <header className="crm-surface-raised px-4 py-5 sm:px-6 sm:py-6 rounded-[var(--crm-radius)]">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--crm-foreground)]">
-              Your workspace
-            </h1>
-            <p className="mt-1 text-sm text-[var(--crm-muted)]">
-              Deliverables from accepted work on Linkary show up here, grouped by campaign below. X post links are supported first; other platforms follow the same flow when enabled.
+          <div className="min-w-0">
+            <h1 className="crm-page-title">Your workspace</h1>
+            <p className="crm-page-subtitle mt-0 max-w-none">
+              Tasks from accepted work on Linkary appear here, grouped by campaign. Submit proof links when ready.
             </p>
           </div>
-          <CreateTaskButton />
+          <div className="shrink-0">
+            <CreateTaskButton />
+          </div>
         </div>
       </header>
 
-      {/* Whole board empty, or on campaigns but nothing synced yet */}
       {isBoardEmpty && (
-        <section className="rounded-2xl border-2 border-[var(--crm-primary)]/30 bg-gradient-to-b from-[var(--crm-primary)]/5 to-transparent p-4 sm:p-8">
+        <section className="crm-surface-muted border-[var(--crm-primary)]/25 shadow-[var(--crm-shadow-sm)] ring-1 ring-inset ring-[var(--crm-primary)]/15 p-5 sm:p-7 rounded-[var(--crm-radius)]">
           <div className="max-w-xl">
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--crm-primary)] mb-2">
               {myBundles.length > 0 ? "Almost there" : "Setup complete"}
@@ -178,9 +177,9 @@ export default async function TasksPage({
 
       {/* Tasks section */}
       <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold text-[var(--crm-foreground)]">
-            {tasks.length > 0 ? "All tasks" : "Tasks"}
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+          <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--crm-foreground)]">
+            {tasks.length > 0 ? "All tasks" : "Task list"}
           </h2>
           {tasks.length > 0 && (
             <p className="text-sm text-[var(--crm-muted)]">

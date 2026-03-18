@@ -33,17 +33,15 @@ export default async function HomePage() {
   if (access.accessType === "both") {
     return (
       <HomeShell>
-        <div className="w-full max-w-md rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 shadow-sm">
-          <h1 className="text-xl font-semibold text-[var(--crm-foreground)] mb-2">
-            Choose workspace
-          </h1>
-          <p className="text-sm text-[var(--crm-muted)] mb-6">
-            You have access to both your personal task board and org workspaces.
+        <div className="crm-surface-raised w-full max-w-md p-6 sm:p-8">
+          <h1 className="crm-page-title mb-1">Choose workspace</h1>
+          <p className="crm-page-subtitle mb-6">
+            Personal tasks and org campaigns use the same Linkary account.
           </p>
           <div className="space-y-3">
             <Link
               href="/tasks"
-              className="flex items-center gap-3 rounded-lg border border-[var(--crm-border)] bg-[var(--crm-bg)] p-4 text-[var(--crm-foreground)] hover:bg-[var(--crm-accent)] transition-colors"
+              className="crm-surface-card flex items-center gap-3 p-4 text-[var(--crm-foreground)] hover:border-[var(--crm-primary)]/30 transition-colors no-underline"
             >
               <LayoutDashboard className="h-5 w-5 shrink-0 text-[var(--crm-primary)]" />
               <div className="text-left">
@@ -55,7 +53,7 @@ export default async function HomePage() {
             </Link>
             <Link
               href="/campaigns"
-              className="flex items-center gap-3 rounded-lg border border-[var(--crm-border)] bg-[var(--crm-bg)] p-4 text-[var(--crm-foreground)] hover:bg-[var(--crm-accent)] transition-colors"
+              className="crm-surface-card flex items-center gap-3 p-4 text-[var(--crm-foreground)] hover:border-[var(--crm-primary)]/30 transition-colors no-underline"
             >
               <Megaphone className="h-5 w-5 shrink-0 text-[var(--crm-primary)]" />
               <div className="text-left">
@@ -74,7 +72,7 @@ export default async function HomePage() {
   // accessType === "none" — no CRM workspaces yet; only eligible users can bootstrap creator
   return (
     <HomeShell>
-      <div className="w-full max-w-md rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-8 shadow-sm text-center">
+      <div className="crm-surface-raised w-full max-w-md p-8 text-center">
         <div className="flex justify-center mb-4">
           <ListTodo className="h-12 w-12 text-[var(--crm-primary)]" aria-hidden />
         </div>
@@ -84,10 +82,7 @@ export default async function HomePage() {
         <p className="text-sm text-[var(--crm-muted)] mb-6">
           You don’t have a task board yet. Click below to create one — you’ll be able to add and manage tasks right away.
         </p>
-        <Link
-          href="/tasks"
-          className="inline-flex items-center gap-2 rounded-lg bg-[var(--crm-primary)] px-5 py-2.5 text-sm font-medium text-[var(--crm-primary-foreground)] hover:opacity-90"
-        >
+        <Link href="/tasks" className="crm-btn-primary px-6 py-2.5 no-underline">
           <ListTodo className="h-4 w-4" />
           Create my task board
         </Link>

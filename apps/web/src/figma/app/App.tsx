@@ -3983,7 +3983,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
         <a
           href="/app/profile/insights"
           className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary border border-border"
-          title="Short reputation snapshot — charts and backfill live under Full analytics"
+          title="Your cached X insights (top followers, graph). Window KPIs and refresh live under Full analytics."
         >
           Quick snapshot
         </a>
@@ -5357,7 +5357,6 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
                     setRoute={setRoute}
                     me={me}
                     getAuthHeaders={getAuthHeaders}
-                    snapshotOnly
                   />
                 )}
                 {route.name === "userInsights" && (

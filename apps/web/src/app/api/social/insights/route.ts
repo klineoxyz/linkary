@@ -1,10 +1,13 @@
 /**
  * Phase 5: Unified GET /api/social/insights?provider=x|tiktok|youtube&username=...
- * Returns stable contract for profile dashboards. X maps from existing caches; TikTok/YouTube empty for now.
+ * X: full insights only when the caller is the profile owner (Bearer/session).
+ * Otherwise snapshot-only (public follower count from profile view; no top followers, feed, mentions, series).
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServiceSupabase } from "@/lib/x-analytics-server";
+import { buildSocialXInsightsPayload } from "@/lib/buildSocialXInsightsPayload";
+import { resolveViewerUserId } from "@/lib/resolveViewerUserId";
 import {
   type UnifiedInsightsResponse,
   type UnifiedTopFollowerItem,
@@ -29,22 +32,25 @@ function toCacheBucket(v: string | { status?: string; updatedAt?: string | null 
   return { status, updatedAt };
 }
 
-/** Map X insights response (from internal fetch) to unified shape. Includes series + recommendedAccounts when present. */
-function mapXToUnified(xJson: {
-  profile?: { username?: string; followers?: number | null; following?: number | null; tweets?: number | null; joinedAt?: string | null };
-  topFollowersByTier?: { influencers?: unknown[]; projects?: unknown[]; funds?: unknown[] };
-  mentionsLastWeek?: unknown[];
-  accountFeed?: { actions?: unknown[]; newFollowers?: unknown[] };
-  series?: { followers?: Array<{ date: string; value: number }>; score?: Array<{ date: string; value: number }> };
-  recommendedAccounts?: unknown[];
-  meta?: {
-    cache?: {
-      topFollowers?: string | { status?: string; updatedAt?: string | null };
-      feed?: string | { status?: string; updatedAt?: string | null };
-      mentions?: string | { status?: string; updatedAt?: string | null };
+function mapXToUnified(
+  xJson: {
+    profile?: { username?: string; followers?: number | null; following?: number | null; tweets?: number | null; joinedAt?: string | null };
+    topFollowersByTier?: { influencers?: unknown[]; projects?: unknown[]; funds?: unknown[] };
+    mentionsLastWeek?: unknown[];
+    accountFeed?: { actions?: unknown[]; newFollowers?: unknown[] };
+    series?: { followers?: Array<{ date: string; value: number }>; score?: Array<{ date: string; value: number }> };
+    recommendedAccounts?: unknown[];
+    meta?: {
+      cache?: {
+        topFollowers?: string | { status?: string; updatedAt?: string | null };
+        feed?: string | { status?: string; updatedAt?: string | null };
+        mentions?: string | { status?: string; updatedAt?: string | null };
+      };
     };
-  };
-}): UnifiedInsightsResponse {
+  },
+  visibility: "full" | "snapshot_only",
+  reason?: string
+): UnifiedInsightsResponse {
   const profile = xJson.profile ?? {};
   return {
     provider: "x",
@@ -78,8 +84,34 @@ function mapXToUnified(xJson: {
         mentions: toCacheBucket(xJson.meta?.cache?.mentions),
       },
       providerVersion: 1,
+      visibility,
+      ...(reason ? { reason } : {}),
     },
   };
+}
+
+function snapshotUnifiedX(p: {
+  username: string | null;
+  twitter_username: string | null;
+  followers_total: number | null;
+  created_at: string | null;
+}, requestedUsername: string): UnifiedInsightsResponse {
+  const handle =
+    (p.username ?? p.twitter_username ?? requestedUsername).toString().replace(/^@/, "").toLowerCase() || requestedUsername;
+  const empty = emptyUnifiedInsights("x");
+  empty.profile = {
+    username: handle,
+    followers: typeof p.followers_total === "number" ? p.followers_total : null,
+    following: null,
+    posts: null,
+    joinedAt: typeof p.created_at === "string" ? p.created_at : null,
+  };
+  empty.meta = {
+    ...empty.meta,
+    visibility: "snapshot_only",
+    reason: "INSIGHTS_NOT_OWNER",
+  };
+  return empty;
 }
 
 export async function GET(request: NextRequest) {
@@ -89,26 +121,27 @@ export async function GET(request: NextRequest) {
 
   if (!providerParam || !VALID_PROVIDERS.includes(providerParam as SocialProvider)) {
     return NextResponse.json(
-      { error: "provider is required and must be x, tiktok, or youtube" },
+      { ok: false, code: "BAD_REQUEST", message: "provider is required and must be x, tiktok, or youtube" },
       { status: 400 }
     );
   }
   if (!usernameParam) {
-    return NextResponse.json({ error: "username is required" }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "BAD_REQUEST", message: "username is required" }, { status: 400 });
   }
 
   const provider = providerParam as SocialProvider;
   const username = norm(usernameParam);
   if (!username) {
-    return NextResponse.json({ error: "Invalid username" }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "BAD_REQUEST", message: "Invalid username" }, { status: 400 });
   }
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "Not configured" }, { status: 503 });
+    return NextResponse.json({ ok: false, code: "SERVICE_UNAVAILABLE", message: "Not configured" }, { status: 503 });
   }
 
-  // Resolve username -> profile id (same view as X: public_profile_view or profiles by username)
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const viewerId = await resolveViewerUserId(request);
+
   const { data: profileRow } = await supabase
     .from("public_profile_view")
     .select("id, username, twitter_username, followers_total, created_at")
@@ -126,27 +159,40 @@ export async function GET(request: NextRequest) {
   if (!p?.id) {
     const empty = emptyUnifiedInsights(provider);
     empty.profile.username = username;
+    empty.meta = { ...empty.meta, visibility: "snapshot_only", reason: "PROFILE_NOT_FOUND" };
     return NextResponse.json(empty);
   }
 
   const profileId = p.id;
+  const isOwner = Boolean(viewerId && viewerId === profileId);
 
   if (provider === "x") {
-    const base = request.nextUrl.origin;
-    const xUrl = `${base}/api/social/x/insights?username=${encodeURIComponent(username)}`;
-    try {
-      const res = await fetch(xUrl, { next: { revalidate: 0 } });
-      if (!res.ok) {
-        return NextResponse.json(mapXToUnified({}));
+    if (isOwner) {
+      const xPayload = await buildSocialXInsightsPayload(supabase, username);
+      if (process.env.NODE_ENV === "production") {
+        console.info(JSON.stringify({ tag: "api_social_insights", provider: "x", visibility: "full" }));
       }
-      const xJson = await res.json();
-      return NextResponse.json(mapXToUnified(xJson));
-    } catch {
-      return NextResponse.json(mapXToUnified({}));
+      return NextResponse.json(mapXToUnified(xPayload, "full"));
     }
+    if (process.env.NODE_ENV === "production") {
+      console.info(JSON.stringify({ tag: "api_social_insights", provider: "x", visibility: "snapshot_only" }));
+    }
+    return NextResponse.json(snapshotUnifiedX(p, username));
   }
 
   if (provider === "tiktok" || provider === "youtube") {
+    if (!isOwner) {
+      const empty = emptyUnifiedInsights(provider);
+      empty.profile = {
+        username: (p.username ?? p.twitter_username ?? username).toString().replace(/^@/, "").toLowerCase() || username,
+        followers: typeof p.followers_total === "number" ? p.followers_total : null,
+        following: null,
+        posts: null,
+        joinedAt: typeof p.created_at === "string" ? p.created_at : null,
+      };
+      empty.meta = { ...empty.meta, visibility: "snapshot_only", reason: "INSIGHTS_NOT_OWNER" };
+      return NextResponse.json(empty);
+    }
     const table = provider === "tiktok" ? "tiktok_profile_cache" : "youtube_profile_cache";
     try {
       const service = createServiceSupabase();
@@ -161,11 +207,14 @@ export async function GET(request: NextRequest) {
       if (payload && typeof payload === "object" && "profile" in (payload as object)) {
         const unified = payload as unknown as UnifiedInsightsResponse;
         unified.provider = provider;
-        unified.meta = unified.meta ?? { cache: { topFollowers: "hit", feed: "hit", mentions: "hit" }, providerVersion: 1 };
+        unified.meta = {
+          ...(unified.meta ?? { cache: { topFollowers: "hit", feed: "hit", mentions: "hit" }, providerVersion: 1 }),
+          visibility: "full",
+        };
         return NextResponse.json(unified);
       }
     } catch {
-      // fall through to empty
+      // fall through
     }
     const empty = emptyUnifiedInsights(provider);
     empty.profile = {
@@ -175,6 +224,7 @@ export async function GET(request: NextRequest) {
       posts: null,
       joinedAt: typeof p.created_at === "string" ? p.created_at : null,
     };
+    empty.meta = { ...empty.meta, visibility: "full" };
     return NextResponse.json(empty);
   }
 

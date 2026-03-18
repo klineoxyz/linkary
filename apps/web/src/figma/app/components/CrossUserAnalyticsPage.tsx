@@ -8,6 +8,7 @@ import {
   CROSS_USER_ANALYTICS_EMPTY_BODY,
   CROSS_USER_ANALYTICS_EMPTY_TITLE,
 } from "@/lib/analytics-owner-state-presentation";
+import { formatTryAgainAfter } from "@/lib/rateLimitUx";
 
 type Profile = { username: string; display_name: string | null; avatar_url: string | null };
 type Analytics = {
@@ -63,6 +64,11 @@ export default function CrossUserAnalyticsPage({
     }
     if (res.status === 403 && (json?.code === "ANALYTICS_VIEW_NOT_ELIGIBLE" || json?.code === "DISCOVERY_NOT_ELIGIBLE")) {
       setStatus("locked");
+      return;
+    }
+    if (res.status === 429 || json?.code === "RATE_LIMITED") {
+      setRateLimitResetAt(typeof json?.resetAt === "string" ? json.resetAt : null);
+      setStatus("rate_limited");
       return;
     }
     if (res.status === 404 || json?.code === "NOT_FOUND") {
@@ -150,11 +156,7 @@ export default function CrossUserAnalyticsPage({
         <div className="rounded-xl border border-border bg-card p-8 text-center">
           <AlertCircle className="h-12 w-12 mx-auto text-amber-500 mb-4" />
           <h2 className="text-lg font-medium text-foreground">Too many requests</h2>
-          <p className="text-sm text-muted-foreground mt-2">
-            {rateLimitResetAt
-              ? `Try again after ${new Date(rateLimitResetAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}.`
-              : "Please wait a moment before trying again."}
-          </p>
+          <p className="text-sm text-muted-foreground mt-2">{formatTryAgainAfter(rateLimitResetAt)}</p>
           {setRoute && (
             <button
               type="button"

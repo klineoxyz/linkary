@@ -32,6 +32,12 @@ export default function GlobalErrorCapture() {
       const stack = event.error instanceof Error ? (event.error.stack || "") : "";
       const line = `[CLIENT_ERROR] type=error path=${p} message=${msg.replace(/\s+/g, " ").slice(0, 200)} stack=${stack.slice(0, 300).replace(/\s+/g, " ")}`;
       if (typeof console !== "undefined") console.error(line);
+      try {
+        const w = window as unknown as { __linkary_reportError?: (s: string) => void };
+        if (typeof w.__linkary_reportError === "function") w.__linkary_reportError(line);
+      } catch {
+        /* ignore */
+      }
     };
     const onRejection = (event: PromiseRejectionEvent) => {
       const p = path();
@@ -39,6 +45,12 @@ export default function GlobalErrorCapture() {
       const stack = stackFrom(event.reason);
       const line = `[CLIENT_ERROR] type=unhandledrejection path=${p} message=${msg.replace(/\s+/g, " ").slice(0, 200)} stack=${stack.slice(0, 300).replace(/\s+/g, " ")}`;
       if (typeof console !== "undefined") console.error(line);
+      try {
+        const w = window as unknown as { __linkary_reportError?: (s: string) => void };
+        if (typeof w.__linkary_reportError === "function") w.__linkary_reportError(line);
+      } catch {
+        /* ignore */
+      }
     };
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);

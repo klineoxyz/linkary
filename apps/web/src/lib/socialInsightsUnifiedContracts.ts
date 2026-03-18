@@ -51,6 +51,9 @@ export interface UnifiedInsightsResponse {
   meta: {
     cache: UnifiedCacheMeta;
     providerVersion: 1;
+    /** full = owner-only deep data; snapshot_only = public-safe stub (no top followers / feed / series). */
+    visibility?: "full" | "snapshot_only";
+    reason?: string;
   };
 }
 

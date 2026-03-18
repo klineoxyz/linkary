@@ -3,6 +3,7 @@ import useSWR from "swr";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "@/lib/supabase";
 import { authFetcher, SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
+import { SWR_KEY_ME_STATS } from "@/lib/swrCacheKeys";
 import { listOrgsForUser, type Org } from "@/lib/orgs";
 import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 import { listMyDeals, type Deal } from "@/lib/deals";
@@ -198,8 +199,8 @@ function StatCard({
             {Math.abs(change)}%
           </div>
         </div>
-        <div className="text-xs text-gray-600 mb-1">{label}</div>
-        <div className="text-3xl font-bold text-gray-900">{formatValue()}</div>
+        <div className="text-xs text-muted-foreground mb-1">{label}</div>
+        <div className="text-3xl font-bold text-foreground">{formatValue()}</div>
       </div>
     </GlassCard>
   );
@@ -223,8 +224,8 @@ function BrandCard({ brand, onSelect }: { brand: Brand; onSelect: () => void }) 
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-gray-900 text-lg mb-1">{brand.name}</h3>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <h3 className="font-bold text-foreground text-lg mb-1">{brand.name}</h3>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span className="px-2 py-0.5 rounded-full bg-muted text-xs">{brand.category}</span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
@@ -237,25 +238,25 @@ function BrandCard({ brand, onSelect }: { brand: Brand; onSelect: () => void }) 
           
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
-              <div className="text-xs text-gray-600 mb-1">Revenue</div>
-              <div className="font-bold text-gray-900">{brand.totalRevenue > 0 ? `€${brand.totalRevenue.toLocaleString()}` : "—"}</div>
+              <div className="text-xs text-muted-foreground mb-1">Revenue</div>
+              <div className="font-bold text-foreground">{brand.totalRevenue > 0 ? `€${brand.totalRevenue.toLocaleString()}` : "—"}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-600 mb-1">Projects</div>
-              <div className="font-bold text-gray-900">{brand.completedProjects + brand.activeProjects > 0 ? brand.completedProjects + brand.activeProjects : "—"}</div>
+              <div className="text-xs text-muted-foreground mb-1">Projects</div>
+              <div className="font-bold text-foreground">{brand.completedProjects + brand.activeProjects > 0 ? brand.completedProjects + brand.activeProjects : "—"}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-600 mb-1">Followers</div>
-              <div className="font-bold text-gray-900">{brand.followers > 0 ? brand.followers.toLocaleString() : "—"}</div>
+              <div className="text-xs text-muted-foreground mb-1">Followers</div>
+              <div className="font-bold text-foreground">{brand.followers > 0 ? brand.followers.toLocaleString() : "—"}</div>
             </div>
           </div>
           
           <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-border backdrop-blur-xl">
-            <div className="flex items-center gap-2 text-sm text-gray-700">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Activity className="w-4 h-4 text-primary stroke-[1.75]" />
               Engagement
             </div>
-            <div className="font-bold text-gray-900">{brand.engagement > 0 ? `${brand.engagement}%` : "—"}</div>
+            <div className="font-bold text-foreground">{brand.engagement > 0 ? `${brand.engagement}%` : "—"}</div>
           </div>
         </div>
       </GlassCard>
@@ -413,7 +414,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
   }, []);
 
   const { data: meStatsSwr } = useSWR<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; repScore?: number | null; socialPower?: number; reviews?: { avg: number; count: number }; completedGigsCount?: number } | null>(
-    authToken ? "/api/profile/me-stats" : null,
+    authToken ? SWR_KEY_ME_STATS : null,
     authFetcher as (url: string) => Promise<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; repScore?: number | null; socialPower?: number; reviews?: { avg: number; count: number }; completedGigsCount?: number } | null>,
     { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS }
   );
@@ -493,7 +494,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
       <GlassCard>
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Building2 className="w-5 h-5 text-primary stroke-[1.75]" />
               My Orgs
             </h3>
@@ -506,17 +507,17 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 Create Org
               </button>
             ) : (
-              <p className="text-sm text-gray-500">Sign in to create and manage orgs</p>
+              <p className="text-sm text-muted-foreground">Sign in to create and manage orgs</p>
             )}
           </div>
           {myOrgs.length === 0 ? (
             <>
-              <p className="text-sm text-gray-600">For a project not yet on Linkary: create a company, brand, project, or agency. You&apos;ll connect the org&apos;s X account to verify during setup.</p>
-              <p className="text-sm text-gray-600 mt-2">After creating an org, open it and use <strong>Members</strong> to add admins and team.</p>
+              <p className="text-sm text-muted-foreground">For a project not yet on Linkary: create a company, brand, project, or agency. You&apos;ll connect the org&apos;s X account to verify during setup.</p>
+              <p className="text-sm text-muted-foreground mt-2">After creating an org, open it and use <strong>Members</strong> to add admins and team.</p>
             </>
           ) : (
             <>
-              <p className="text-sm text-gray-600 mb-4">Add admins (up to 3) and members. Admins can post Sprints and jobs on behalf of the org.</p>
+              <p className="text-sm text-muted-foreground mb-4">Add admins (up to 3) and members. Admins can post Sprints and jobs on behalf of the org.</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {myOrgs.map((org) => (
                   <div
@@ -535,10 +536,10 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-gray-900 truncate">{org.name}</p>
-                        <p className="text-xs text-gray-500 truncate">@{org.slug} · {org.org_type}</p>
+                        <p className="font-semibold text-foreground truncate">{org.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">@{org.slug} · {org.org_type}</p>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-gray-400 shrink-0" />
+                      <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
                     </div>
                     <div className="flex gap-2 pt-1 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
                       <button
@@ -568,7 +569,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
       <GlassCard>
         <div className="p-6">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search for users, projects, or brands..."
@@ -577,7 +578,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 setSearchQuery(e.target.value);
                 setShowSearchResults(e.target.value.length > 0);
               }}
-              className="w-full bg-gradient-to-r bg-card border border-border rounded-2xl pl-12 pr-12 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-border transition-all"
+              className="w-full bg-gradient-to-r bg-card border border-border rounded-2xl pl-12 pr-12 py-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border transition-all"
             />
             {searchQuery && (
               <button
@@ -587,7 +588,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
               >
-                <X className="w-4 h-4 text-gray-400 stroke-[1.75]" />
+                <X className="w-4 h-4 text-muted-foreground stroke-[1.75]" />
               </button>
             )}
           </div>
@@ -602,13 +603,13 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 className="mt-6 space-y-6"
               >
                 {searchLoading ? (
-                  <p className="text-sm text-gray-500 py-4">Searching...</p>
+                  <p className="text-sm text-muted-foreground py-4">Searching...</p>
                 ) : (searchResultsUsers.length === 0 && searchResultsProjects.length === 0) ? (
-                  <p className="text-sm text-gray-500 py-4">No people or companies found. Try a different search.</p>
+                  <p className="text-sm text-muted-foreground py-4">No people or companies found. Try a different search.</p>
                 ) : (
                   <>
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
                         <Users className="w-4 h-4 stroke-[1.75]" />
                         People
                       </h3>
@@ -629,8 +630,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                             <div className="flex items-start gap-3">
                               {user.avatar ? <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full" /> : <div className="w-12 h-12 rounded-full bg-muted" />}
                               <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-gray-900 truncate">{user.name}</h4>
-                                {user.role && <p className="text-xs text-gray-600 truncate">{user.role}</p>}
+                                <h4 className="font-semibold text-foreground truncate">{user.name}</h4>
+                                {user.role && <p className="text-xs text-muted-foreground truncate">{user.role}</p>}
                               </div>
                             </div>
                           </div>
@@ -638,7 +639,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                       </div>
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
                         <Briefcase className="w-4 h-4 stroke-[1.75]" />
                         Companies
                       </h3>
@@ -658,8 +659,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                             <div className="flex items-start gap-3">
                               {project.logo ? <img src={project.logo} alt={project.name} className="w-12 h-12 rounded-xl" /> : <div className="w-12 h-12 rounded-xl bg-muted" />}
                               <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-gray-900 truncate">{project.name}</h4>
-                                {project.category && <p className="text-xs text-gray-600 truncate">{project.category}</p>}
+                                <h4 className="font-semibold text-foreground truncate">{project.name}</h4>
+                                {project.category && <p className="text-xs text-muted-foreground truncate">{project.category}</p>}
                               </div>
                             </div>
                           </div>
@@ -679,7 +680,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
         <GlassCard>
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <Briefcase className="w-5 h-5 text-primary stroke-[1.75]" />
                 Active Deals
               </h3>
@@ -694,7 +695,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               )}
             </div>
             {myDeals.length === 0 ? (
-              <p className="text-sm text-gray-600">No active deals. Apply to jobs in the marketplace.</p>
+              <p className="text-sm text-muted-foreground">No active deals. Apply to jobs in the marketplace.</p>
             ) : (
               <ul className="space-y-2">
                 {myDeals.slice(0, 10).map((deal) => (
@@ -704,9 +705,9 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                       onClick={() => setRoute && setRoute({ name: "dealDetail", data: { dealId: deal.id } })}
                       className="w-full text-left p-3 rounded-xl border border-border bg-card hover:border-border transition-all flex items-center justify-between gap-2"
                     >
-                      <span className="text-sm font-medium text-gray-900 truncate">Deal {deal.id.slice(0, 8)}…</span>
+                      <span className="text-sm font-medium text-foreground truncate">Deal {deal.id.slice(0, 8)}…</span>
                       <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-foreground shrink-0">{deal.status}</span>
-                      <ArrowRight className="w-4 h-4 text-gray-400 shrink-0" />
+                      <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
                     </button>
                   </li>
                 ))}
@@ -719,7 +720,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
       {/* Profile Showcase */}
       <GlassCard>
         <div className="p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
             <Eye className="w-5 h-5 text-primary stroke-[1.75]" />
             Example profile types
           </h3>
@@ -727,34 +728,34 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
             <button onClick={() => setRoute && setRoute({ name: "overview" })} className="p-5 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-xl bg-accent border border-border"><Users className="w-5 h-5 text-primary stroke-[1.75]" /></div>
-                <h4 className="font-semibold text-gray-900">Creator</h4>
+                <h4 className="font-semibold text-foreground">Creator</h4>
               </div>
-              <p className="text-xs text-gray-600 mb-2">Creators, developers, freelancers</p>
+              <p className="text-xs text-muted-foreground mb-2">Creators, developers, freelancers</p>
               <div className="flex items-center gap-2 text-xs text-primary"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
             </button>
             <button onClick={() => setRoute && setRoute({ name: "brandProfile" })} className="p-5 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-xl bg-primary/20 border border-primary/30"><Building2 className="w-5 h-5 text-primary stroke-[1.75]" /></div>
-                <h4 className="font-semibold text-gray-900">Project</h4>
+                <h4 className="font-semibold text-foreground">Project</h4>
               </div>
-              <p className="text-xs text-gray-600 mb-2">Web3 projects & protocols</p>
+              <p className="text-xs text-muted-foreground mb-2">Web3 projects & protocols</p>
               <div className="flex items-center gap-2 text-xs text-primary"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
             </button>
             <button onClick={() => setRoute && setRoute({ name: "overview" })} className="p-5 rounded-2xl bg-gradient-to-br bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-xl bg-accent border border-border"><Briefcase className="w-5 h-5 text-primary stroke-[1.75]" /></div>
-                <h4 className="font-semibold text-gray-900">Agency</h4>
+                <h4 className="font-semibold text-foreground">Agency</h4>
               </div>
-              <p className="text-xs text-gray-600 mb-2">Marketing agencies & services</p>
+              <p className="text-xs text-muted-foreground mb-2">Marketing agencies & services</p>
               <div className="flex items-center gap-2 text-xs text-primary"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
             </button>
             {/* TODO: Future paid discovery; do not use userProfile route (mock data). Link to explore for now. */}
             <button onClick={() => setRoute && setRoute({ name: "explore" })} className="p-5 rounded-2xl bg-accent border border-border hover:border-border transition-all hover:scale-105 text-left group">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-xl bg-accent border border-border"><User className="w-5 h-5 text-primary stroke-[1.75]" /></div>
-                <h4 className="font-semibold text-gray-900">User</h4>
+                <h4 className="font-semibold text-foreground">User</h4>
               </div>
-              <p className="text-xs text-gray-600 mb-2">General user profiles</p>
+              <p className="text-xs text-muted-foreground mb-2">General user profiles</p>
               <div className="flex items-center gap-2 text-xs text-primary"><span>View</span><ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform stroke-[1.75]" /></div>
             </button>
           </div>
@@ -767,7 +768,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground via-primary to-primary/80 bg-clip-text text-transparent mb-2">
             Analytics Dashboard
           </h1>
-          <p className="text-gray-600">Track your performance and manage your brands</p>
+          <p className="text-muted-foreground">Track your performance and manage your brands</p>
         </div>
         
         {/* View Toggle */}
@@ -876,8 +877,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">My Brands & Projects</h2>
-                    <p className="text-sm text-gray-600">Manage and track your brands and project portfolios</p>
+                    <h2 className="text-2xl font-bold text-foreground mb-2">My Brands & Projects</h2>
+                    <p className="text-sm text-muted-foreground">Manage and track your brands and project portfolios</p>
                   </div>
                   <button
                     onClick={() => setView("brands")}
@@ -910,8 +911,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-gray-900 text-lg mb-2">{brand.name}</h3>
-                              <div className="flex items-center gap-2 text-sm text-gray-600 flex-wrap">
+                              <h3 className="font-bold text-foreground text-lg mb-2">{brand.name}</h3>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                                 <span className="px-2.5 py-1 rounded-full bg-muted text-xs font-medium">{brand.category}</span>
                                 <span>•</span>
                                 <span className="flex items-center gap-1">
@@ -924,16 +925,16 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                           
                           <div className="grid grid-cols-3 gap-4">
                             <div className="p-3.5 rounded-xl bg-gradient-to-br bg-accent border border-border">
-                              <div className="text-xs text-gray-600 mb-1.5">Revenue</div>
-                              <div className="font-bold text-gray-900 text-sm">{brand.totalRevenue > 0 ? `€${brand.totalRevenue.toLocaleString()}` : "—"}</div>
+                              <div className="text-xs text-muted-foreground mb-1.5">Revenue</div>
+                              <div className="font-bold text-foreground text-sm">{brand.totalRevenue > 0 ? `€${brand.totalRevenue.toLocaleString()}` : "—"}</div>
                             </div>
                             <div className="p-3.5 rounded-xl bg-gradient-to-br bg-accent border border-border">
-                              <div className="text-xs text-gray-600 mb-1.5">Projects</div>
-                              <div className="font-bold text-gray-900 text-sm">{brand.completedProjects + brand.activeProjects > 0 ? brand.completedProjects + brand.activeProjects : "—"}</div>
+                              <div className="text-xs text-muted-foreground mb-1.5">Projects</div>
+                              <div className="font-bold text-foreground text-sm">{brand.completedProjects + brand.activeProjects > 0 ? brand.completedProjects + brand.activeProjects : "—"}</div>
                             </div>
                             <div className="p-3.5 rounded-xl bg-gradient-to-br bg-accent border border-border">
-                              <div className="text-xs text-gray-600 mb-1.5">Engagement</div>
-                              <div className="font-bold text-gray-900 text-sm">{brand.engagement > 0 ? `${brand.engagement}%` : "—"}</div>
+                              <div className="text-xs text-muted-foreground mb-1.5">Engagement</div>
+                              <div className="font-bold text-foreground text-sm">{brand.engagement > 0 ? `${brand.engagement}%` : "—"}</div>
                             </div>
                           </div>
                           
@@ -1010,8 +1011,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
             </div>
             
             {/* Charts: real data only (volume from deals, reputation from me-stats, activity from deals) */}
-            <h2 className="text-xl font-bold text-gray-900 mt-2 mb-1">Activity & reputation</h2>
-            <p className="text-sm text-gray-600 mb-6">Charts below use your deal activity and profile stats. For full X analytics and time-series, go to <a href="/app/analytics" className="text-primary hover:underline">Analytics</a>.</p>
+            <h2 className="text-xl font-bold text-foreground mt-2 mb-1">Activity & reputation</h2>
+            <p className="text-sm text-muted-foreground mb-6">Charts below use your deal activity and profile stats. For full X analytics and time-series, go to <a href="/app/analytics" className="text-primary hover:underline">Analytics</a>.</p>
             {/* Charts Row 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
               {/* Earnings Trend */}
@@ -1019,8 +1020,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">Volume Trend</h3>
-                      <p className="text-sm text-gray-600">Personal vs Brand Activity</p>
+                      <h3 className="text-lg font-bold text-foreground mb-1">Volume Trend</h3>
+                      <p className="text-sm text-muted-foreground">Personal vs Brand Activity</p>
                     </div>
                     <div className="p-2 rounded-xl bg-primary/20 border border-primary/30">
                       <TrendingUp className="w-5 h-5 text-primary stroke-[1.75]" />
@@ -1076,8 +1077,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">Reputation Growth</h3>
-                      <p className="text-sm text-gray-600">ETHOS, XScore & Index</p>
+                      <h3 className="text-lg font-bold text-foreground mb-1">Reputation Growth</h3>
+                      <p className="text-sm text-muted-foreground">ETHOS, XScore & Index</p>
                     </div>
                     <div className="p-2 rounded-xl bg-accent border border-border">
                       <Award className="w-5 h-5 text-primary stroke-[1.75]" />
@@ -1114,8 +1115,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-6">
                       <div>
-                        <h3 className="text-lg font-bold text-gray-900 mb-1">Weekly Activity</h3>
-                        <p className="text-sm text-gray-600">Projects, Reviews & Messages</p>
+                        <h3 className="text-lg font-bold text-foreground mb-1">Weekly Activity</h3>
+                        <p className="text-sm text-muted-foreground">Projects, Reviews & Messages</p>
                       </div>
                       <div className="p-2 rounded-xl bg-accent border border-border">
                         <BarChart3 className="w-5 h-5 text-primary stroke-[1.75]" />
@@ -1150,8 +1151,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   <div className="p-2 rounded-xl bg-muted border border-border mb-3">
                     <PieChart className="w-5 h-5 text-muted-foreground stroke-[1.75]" />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">Categories</h3>
-                  <p className="text-sm text-gray-600 text-center mb-4">No category data yet. Add roles and skills on your profile to see a breakdown.</p>
+                  <h3 className="text-lg font-bold text-foreground mb-1">Categories</h3>
+                  <p className="text-sm text-muted-foreground text-center mb-4">No category data yet. Add roles and skills on your profile to see a breakdown.</p>
                   <a href="/app/analytics" className="text-sm font-medium text-primary hover:underline">See full analytics →</a>
                 </div>
               </GlassCard>
@@ -1162,8 +1163,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">Your Skills</h3>
-                    <p className="text-sm text-gray-600">From your profile (roles/skills)</p>
+                    <h3 className="text-lg font-bold text-foreground mb-1">Your Skills</h3>
+                    <p className="text-sm text-muted-foreground">From your profile (roles/skills)</p>
                   </div>
                   <div className="p-2 rounded-xl bg-accent border border-border">
                     <Zap className="w-5 h-5 text-primary stroke-[1.75]" />
@@ -1171,7 +1172,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 </div>
                 {skillsRadarData.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <p className="text-sm text-gray-600 mb-2">No skills added yet.</p>
+                    <p className="text-sm text-muted-foreground mb-2">No skills added yet.</p>
                     <a href="/app/profile/edit" className="text-sm font-medium text-primary hover:underline">Add roles & skills in Profile edit →</a>
                   </div>
                 ) : (
@@ -1208,7 +1209,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
               <div className="p-8">
                 <button
                   onClick={() => setSelectedBrand(null)}
-                  className="mb-6 flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  className="mb-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ← Back to Brands
                 </button>
@@ -1220,8 +1221,8 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   <div className="flex-1">
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h2 className="text-3xl font-bold text-gray-900 mb-2">{selectedBrand.name}</h2>
-                        <div className="flex items-center gap-3 text-gray-600">
+                        <h2 className="text-3xl font-bold text-foreground mb-2">{selectedBrand.name}</h2>
+                        <div className="flex items-center gap-3 text-muted-foreground">
                           <span className="px-3 py-1 rounded-full bg-muted text-sm">{selectedBrand.category}</span>
                           <span>•</span>
                           <span className="flex items-center gap-1">
@@ -1239,20 +1240,20 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                     
                     <div className="grid grid-cols-4 gap-6 lg:gap-8">
                       <div className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border backdrop-blur-xl hover:border-border transition-all duration-300">
-                        <div className="text-xs text-gray-600 mb-1">Total Revenue</div>
-                        <div className="text-2xl font-bold text-gray-900">{selectedBrand.totalRevenue > 0 ? `€${selectedBrand.totalRevenue.toLocaleString()}` : "—"}</div>
+                        <div className="text-xs text-muted-foreground mb-1">Total Revenue</div>
+                        <div className="text-2xl font-bold text-foreground">{selectedBrand.totalRevenue > 0 ? `€${selectedBrand.totalRevenue.toLocaleString()}` : "—"}</div>
                       </div>
                       <div className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border backdrop-blur-xl hover:border-border transition-all duration-300">
-                        <div className="text-xs text-gray-600 mb-1">Active Projects</div>
-                        <div className="text-2xl font-bold text-gray-900">{selectedBrand.activeProjects > 0 ? selectedBrand.activeProjects : "—"}</div>
+                        <div className="text-xs text-muted-foreground mb-1">Active Projects</div>
+                        <div className="text-2xl font-bold text-foreground">{selectedBrand.activeProjects > 0 ? selectedBrand.activeProjects : "—"}</div>
                       </div>
                       <div className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border backdrop-blur-xl hover:border-border transition-all duration-300">
-                        <div className="text-xs text-gray-600 mb-1">Completed</div>
-                        <div className="text-2xl font-bold text-gray-900">{selectedBrand.completedProjects > 0 ? selectedBrand.completedProjects : "—"}</div>
+                        <div className="text-xs text-muted-foreground mb-1">Completed</div>
+                        <div className="text-2xl font-bold text-foreground">{selectedBrand.completedProjects > 0 ? selectedBrand.completedProjects : "—"}</div>
                       </div>
                       <div className="p-4 rounded-2xl bg-gradient-to-br bg-accent border border-border backdrop-blur-xl hover:border-border transition-all duration-300">
-                        <div className="text-xs text-gray-600 mb-1">Engagement</div>
-                        <div className="text-2xl font-bold text-gray-900">{selectedBrand.engagement > 0 ? `${selectedBrand.engagement}%` : "—"}</div>
+                        <div className="text-xs text-muted-foreground mb-1">Engagement</div>
+                        <div className="text-2xl font-bold text-foreground">{selectedBrand.engagement > 0 ? `${selectedBrand.engagement}%` : "—"}</div>
                       </div>
                     </div>
                   </div>
@@ -1266,14 +1267,14 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   <GlassCard>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                           <Wallet className="w-5 h-5 text-primary stroke-[1.75]" />
                           Amount paid to users
                         </h3>
                       </div>
                       <div className="flex flex-col items-center justify-center py-8">
-                        <div className="text-4xl font-bold text-gray-900 mb-1">€0</div>
-                        <p className="text-sm text-gray-600">Total paid to creators via this org</p>
+                        <div className="text-4xl font-bold text-foreground mb-1">€0</div>
+                        <p className="text-sm text-muted-foreground">Total paid to creators via this org</p>
                       </div>
                     </div>
                   </GlassCard>
@@ -1282,23 +1283,23 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   <GlassCard>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                           <BarChart3 className="w-5 h-5 text-primary stroke-[1.75]" />
                           Jobs &amp; Gigs (Sprints) posted
                         </h3>
-                        <span className="text-xs text-gray-600">By this org</span>
+                        <span className="text-xs text-muted-foreground">By this org</span>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 rounded-2xl bg-accent border border-border">
-                          <div className="text-xs text-gray-600 mb-1">Jobs</div>
-                          <div className="text-2xl font-bold text-gray-900">{selectedBrand.activeProjects + selectedBrand.completedProjects || 0}</div>
+                          <div className="text-xs text-muted-foreground mb-1">Jobs</div>
+                          <div className="text-2xl font-bold text-foreground">{selectedBrand.activeProjects + selectedBrand.completedProjects || 0}</div>
                         </div>
                         <div className="p-4 rounded-2xl bg-accent border border-border">
-                          <div className="text-xs text-gray-600 mb-1">Gigs (Sprints)</div>
-                          <div className="text-2xl font-bold text-gray-900">{selectedBrand.completedProjects || 0}</div>
+                          <div className="text-xs text-muted-foreground mb-1">Gigs (Sprints)</div>
+                          <div className="text-2xl font-bold text-foreground">{selectedBrand.completedProjects || 0}</div>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-500 mt-4">Total opportunities posted by this org. Connect org to see live counts.</p>
+                      <p className="text-xs text-muted-foreground mt-4">Total opportunities posted by this org. Connect org to see live counts.</p>
                     </div>
                   </GlassCard>
                   
@@ -1306,14 +1307,14 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   <GlassCard>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                           <Activity className="w-5 h-5 text-primary stroke-[1.75]" />
                           Engagement on socials
                         </h3>
                       </div>
                       <div className="flex flex-col items-center justify-center py-6">
-                        <div className="text-3xl font-bold text-gray-900 mb-1">{selectedBrand.engagement > 0 ? `${selectedBrand.engagement}%` : "—"}</div>
-                        <p className="text-sm text-gray-600">Connect org analytics to see engagement</p>
+                        <div className="text-3xl font-bold text-foreground mb-1">{selectedBrand.engagement > 0 ? `${selectedBrand.engagement}%` : "—"}</div>
+                        <p className="text-sm text-muted-foreground">Connect org analytics to see engagement</p>
                         {selectedBrand.engagement > 0 && (
                           <div className="h-2 w-full max-w-xs bg-muted rounded-full overflow-hidden mt-4">
                             <div className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full" style={{ width: `${Math.min(selectedBrand.engagement, 100)}%` }}></div>
@@ -1327,12 +1328,12 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                   <GlassCard>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                           <Award className="w-5 h-5 text-primary stroke-[1.75]" />
                           Top engaging accounts
                         </h3>
                       </div>
-                      <p className="text-sm text-gray-600 mb-4">Accounts that engage most with this org (supporters, applicants, collaborators).</p>
+                      <p className="text-sm text-muted-foreground mb-4">Accounts that engage most with this org (supporters, applicants, collaborators).</p>
                       <div className="space-y-3">
                         {[
                           { name: "—", handle: "Connect org to see data", engagement: "—" },
@@ -1340,14 +1341,14 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                           <div key={i} className="p-4 rounded-xl bg-card hover:bg-muted/50 transition-all border border-border flex items-center justify-between">
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                                <User className="w-5 h-5 text-gray-500" />
+                                <User className="w-5 h-5 text-muted-foreground" />
                               </div>
                               <div className="min-w-0">
-                                <span className="font-medium text-gray-900 text-sm block truncate">{account.name}</span>
-                                <span className="text-xs text-gray-500 truncate block">@{account.handle}</span>
+                                <span className="font-medium text-foreground text-sm block truncate">{account.name}</span>
+                                <span className="text-xs text-muted-foreground truncate block">@{account.handle}</span>
                               </div>
                             </div>
-                            <span className="text-xs text-gray-600 shrink-0">{account.engagement}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{account.engagement}</span>
                           </div>
                         ))}
                       </div>
@@ -1364,7 +1365,7 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
                 className="space-y-8"
               >
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Your Brands</h2>
+                  <h2 className="text-2xl font-bold text-foreground mb-6">Your Brands</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                     {brandsFromOrgs.map((brand) => (
                       <BrandCard 

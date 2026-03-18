@@ -79,6 +79,7 @@ import Image from "next/image";
 import useSWR from "swr";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { authFetcher, SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
+import { SWR_KEY_ME_STATS } from "@/lib/swrCacheKeys";
 import { AnimatePresence, motion } from "motion/react";
 // Linkary brand assets - icons in public/icons/, full logos in public/logos/
 const linkaryIconWhite = "/icons/icon-white.svg";
@@ -3768,7 +3769,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
     getXConnection(me.id).then((conn) => setXHandle(conn?.username ?? null));
   }, [me?.id]);
   const { data: meStatsSwr } = useSWR<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; repScore?: number | null; socialPower?: number; reviews?: { avg: number; count: number }; completedGigsCount?: number }>(
-    me?.id ? "/api/profile/me-stats" : null,
+    me?.id ? SWR_KEY_ME_STATS : null,
     authFetcher as (url: string) => Promise<{ ethos?: string | null; xscore?: number | null; reputationIndex?: number; repScore?: number | null; socialPower?: number; reviews?: { avg: number; count: number }; completedGigsCount?: number }>,
     { revalidateOnFocus: false, dedupingInterval: SWR_DEDUP_MS }
   );

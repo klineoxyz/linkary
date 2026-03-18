@@ -19,6 +19,8 @@ import type { ScoreBreakdownRow } from "../profile-dashboard";
 import { BarChart3 } from "lucide-react";
 import { computeLinkaryPower } from "@/lib/linkaryScore";
 import { authFetcher, SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
+import { SWR_KEY_ME_STATS } from "@/lib/swrCacheKeys";
+import { formatTryAgainAfter } from "@/lib/rateLimitUx";
 import { EthosPill } from "@/components/EthosPill";
 
 const DEDUP_MS = 60_000;
@@ -55,6 +57,8 @@ interface SocialInsightsResponse {
   accountFeed: { actions: unknown[]; newFollowers: unknown[] };
   recommendedAccounts?: unknown[];
   meta?: {
+    visibility?: "full" | "snapshot_only";
+    reason?: string;
     cache?: {
       topFollowers?: CacheBucketMeta | { status: string; updatedAt?: string | null };
       feed?: CacheBucketMeta | { status: string; updatedAt?: string | null };
@@ -117,6 +121,8 @@ function normalizeInsightsResponse(data: SocialInsightsResponse | null): SocialI
     recommendedAccounts: data.recommendedAccounts ?? [],
     meta: cache
       ? {
+          visibility: data.meta?.visibility,
+          reason: data.meta?.reason,
           cache: {
             topFollowers: toBucket(cache.topFollowers) ?? { status: "miss" as const, updatedAt: null },
             feed: toBucket(cache.feed) ?? { status: "miss" as const, updatedAt: null },
@@ -127,11 +133,16 @@ function normalizeInsightsResponse(data: SocialInsightsResponse | null): SocialI
   } as SocialInsightsResponse;
 }
 
-async function publicFetcher(path: string): Promise<unknown> {
-  const base = typeof window !== "undefined" ? window.location.origin : "";
-  const res = await fetch(`${base}${path}`);
-  if (!res.ok) return null;
-  return res.json();
+function headersToRecord(h: HeadersInit): Record<string, string> {
+  const out: Record<string, string> = {};
+  try {
+    new Headers(h).forEach((v, k) => {
+      out[k] = v;
+    });
+  } catch {
+    /* ignore */
+  }
+  return out;
 }
 
 export default function InsightsSnapshot({ setRoute, me, username, getAuthHeaders, snapshotOnly = false }: InsightsSnapshotProps) {
@@ -141,23 +152,52 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
   const swrOpts = { revalidateOnFocus: false, dedupingInterval: DEDUP_MS };
 
   const { data: meStatsData } = useSWR<MeStatsResponse | null>(
-    isOwn && me?.id ? "/api/profile/me-stats" : null,
+    isOwn && me?.id ? SWR_KEY_ME_STATS : null,
     authFetcher as (url: string) => Promise<MeStatsResponse | null>,
     { ...swrOpts, dedupingInterval: SWR_DEDUP_MS }
+  );
+
+  const insightsFetcher = useCallback(
+    async (path: string): Promise<unknown> => {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      let headers: Record<string, string> | undefined;
+      if (getAuthHeaders) {
+        try {
+          const rec = headersToRecord(await getAuthHeaders());
+          if (Object.keys(rec).length) headers = rec;
+        } catch {
+          /* ignore */
+        }
+      }
+      const res = await fetch(`${base}${path}`, headers ? { headers } : undefined);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    [getAuthHeaders]
   );
 
   const insightsKey = targetUsername ? `/api/social/insights?provider=x&username=${encodeURIComponent(targetUsername)}` : null;
   const { data: insightsRaw, mutate: mutateInsights } = useSWR<SocialInsightsResponse | null>(
     insightsKey,
-    publicFetcher as (url: string) => Promise<SocialInsightsResponse | null>,
+    insightsFetcher as (url: string) => Promise<SocialInsightsResponse | null>,
     swrOpts
   );
   const insights = normalizeInsightsResponse(insightsRaw ?? null);
+  const insightsVisibility =
+    insights?.meta?.visibility ?? (insightsRaw && typeof insightsRaw === "object" && "meta" in insightsRaw
+      ? (insightsRaw as { meta?: { visibility?: string } }).meta?.visibility
+      : undefined);
 
   const publicProfileKey = !isOwn && targetUsername ? `/api/public/profile/${encodeURIComponent(targetUsername)}` : null;
+  const publicProfileFetcher = useCallback(async (path: string): Promise<unknown> => {
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}${path}`);
+    if (!res.ok) return null;
+    return res.json();
+  }, []);
   const { data: publicDto } = useSWR<{ display_name?: string | null; username?: string | null; bio?: string | null; avatar_url?: string | null; linkaryPower?: number | null } | null>(
     publicProfileKey,
-    publicFetcher as (url: string) => Promise<{ display_name?: string | null; username?: string | null; bio?: string | null; avatar_url?: string | null; linkaryPower?: number | null } | null>,
+    publicProfileFetcher as (url: string) => Promise<{ display_name?: string | null; username?: string | null; bio?: string | null; avatar_url?: string | null; linkaryPower?: number | null } | null>,
     swrOpts
   );
 
@@ -247,8 +287,13 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
       const body = await res.json().catch(() => ({}));
       if (res.ok && body.ok) {
         setLastRefreshAt(Date.now());
-        if (body.skipped && (body.reason === "GLOBAL_RATE_LIMIT" || body.reason === "RATE_LIMITED") && body.resetAt) setRefreshResetAt(body.resetAt);
+        if (body.skipped && (body.reason === "GLOBAL_RATE_LIMIT" || body.reason === "RATE_LIMITED") && body.resetAt) {
+          setRefreshResetAt(body.resetAt);
+        }
         await mutateInsights();
+      }
+      if (res.status === 429 && (body as { resetAt?: string })?.resetAt) {
+        setRefreshResetAt((body as { resetAt: string }).resetAt);
       }
     } finally {
       setRefreshLoading(false);
@@ -386,7 +431,9 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
           {isOwn ? "Insights" : `Insights for @${targetUsername ?? "user"}`}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {isOwn ? "Your X credibility snapshot, top followers, and social graph." : "Credibility snapshot and top followers for this profile."}
+          {isOwn
+            ? "Your X credibility snapshot, top followers, and social graph."
+            : "Public snapshot for this profile. Deep insights are only on your own account."}
         </p>
         {(insights?.profile || cacheTop?.updatedAt) && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-2 text-xs text-muted-foreground">
@@ -422,6 +469,24 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
         variant="insights"
       />
 
+      {!isOwn && (
+        <>
+          <div className={`${island} px-4 py-3 text-sm text-muted-foreground bg-muted/30`}>
+            <span className="font-medium text-foreground">Public snapshot.</span> Follower count and Linkary score components above. Top followers, social graphs, and activity feeds are only shown for your own profile.
+          </div>
+          <div className={island}>
+            <ScoreCard
+              variant="light"
+              reputationIndex={reputationIndex}
+              tierLabel={tierLabel}
+              breakdown={breakdown}
+              verifiedGigsLabel="Data pending"
+              tips={[]}
+            />
+          </div>
+        </>
+      )}
+
       {isOwn && !me?.twitter_username?.trim() && (
         <div className={`${island} p-6`}>
           <h3 className="text-sm font-semibold text-foreground">X insights</h3>
@@ -436,6 +501,12 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
         </div>
       )}
 
+      {isOwn && insightsVisibility === "snapshot_only" && me?.twitter_username?.trim() && (
+        <div className={`${island} px-4 py-3 text-sm text-muted-foreground`}>
+          Sign in with the account that owns this profile to load full cached insights (top followers, graphs). If this is your profile, refresh the page after signing in.
+        </div>
+      )}
+
       {isOwn && me?.twitter_username?.trim() && (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm text-foreground">
           <button
@@ -447,13 +518,13 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
             {refreshLoading ? "Refreshing…" : isRefreshRateLimited ? "Rate limited" : isRefreshCooldown ? "Refresh (cooldown)" : "Refresh insights"}
           </button>
           {isRefreshRateLimited && refreshResetAt && (
-            <span className="text-xs font-medium text-foreground">
-              Try again after {new Date(refreshResetAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-            </span>
+            <span className="text-xs font-medium text-foreground">{formatTryAgainAfter(refreshResetAt)}</span>
           )}
         </div>
       )}
 
+      {isOwn && (
+      <>
       <div className="grid gap-6 lg:grid-cols-2">
         <div className={island}>
           <ScoreCard
@@ -563,6 +634,8 @@ export default function InsightsSnapshot({ setRoute, me, username, getAuthHeader
           />
         </div>
       </div>
+      </>
+      )}
 
       {seeAllModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setSeeAllModalOpen(false)}>

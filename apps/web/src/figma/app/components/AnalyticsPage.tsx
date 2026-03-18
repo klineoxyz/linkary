@@ -22,6 +22,8 @@ import {
   ChartSkeleton,
 } from "@/figma/app/components/analytics";
 import { SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
+import { formatTryAgainAfter, rateLimitFullMessage } from "@/lib/rateLimitUx";
+import { SWR_KEY_OWNER_ANALYTICS_INIT, swrKeyAnalyticsX } from "@/lib/swrCacheKeys";
 
 function formatIslandValue(n: number): string {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
@@ -75,6 +77,7 @@ type ApiError = {
   ok: false;
   code: string;
   message: string;
+  resetAt?: string;
 };
 
 type ApiResponse = ApiSuccess | ApiError;
@@ -91,7 +94,12 @@ async function analyticsFetcher(url: string): Promise<ApiResponse> {
   if (!res.ok) {
     if (json && typeof json === "object" && "ok" in json && (json as ApiError).ok === false) {
       const err = json as ApiError;
-      return { ok: false, code: err.code ?? "ERROR", message: err.message ?? "Request failed" };
+      return {
+        ok: false,
+        code: err.code ?? "ERROR",
+        message: err.message ?? "Request failed",
+        ...(typeof err.resetAt === "string" ? { resetAt: err.resetAt } : {}),
+      };
     }
     return {
       ok: false,
@@ -190,7 +198,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const showDebug = searchParams?.get("debug") === "1";
   const [platform, setPlatform] = useState<PlatformTab>("x");
   const [windowParam, setWindowParam] = useState<WindowParam>("30d");
-  const key = `/api/analytics/x?window=${windowParam}${showDebug ? "&debug=1" : ""}`;
+  const key = swrKeyAnalyticsX(windowParam, showDebug);
 
   const { data: res, isLoading, mutate: mutateAnalytics } = useSWR<ApiResponse>(key, analyticsFetcher, {
     revalidateOnFocus: false,
@@ -198,7 +206,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   });
 
   const { data: ownerStatus, mutate: mutateOwnerStatus } = useSWR<OwnerAnalyticsInitStatus | null>(
-    platform === "x" ? "owner-analytics-init-status" : null,
+    platform === "x" ? SWR_KEY_OWNER_ANALYTICS_INIT : null,
     fetchOwnerAnalyticsStatus,
     {
       dedupingInterval: 8000,
@@ -222,7 +230,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
       });
       const j = await r.json().catch(() => ({}));
       if (r.status === 429) {
-        setRefreshFeedback(ownerRefreshFeedback(false, true));
+        setRefreshFeedback(
+          typeof j?.resetAt === "string"
+            ? rateLimitFullMessage("Too many refresh requests", j.resetAt)
+            : ownerRefreshFeedback(false, true)
+        );
       } else if (j?.ok) {
         setRefreshFeedback(ownerRefreshFeedback(!!j.existing, false));
         await mutateOwnerStatus();
@@ -284,11 +296,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   );
 
   if (res?.ok === false) {
+    const rateMsg =
+      res.code === "RATE_LIMITED" ? formatTryAgainAfter((res as ApiError).resetAt) : null;
     return (
       <div className="min-h-screen bg-background" data-page="analytics">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="rounded-xl border border-border bg-card p-6 text-center">
             <p className="text-sm text-muted-foreground mb-2">{res.message}</p>
+            {rateMsg && <p className="text-xs text-amber-800 mb-3">{rateMsg}</p>}
             <a
               href={PATH_INTEGRATIONS}
               className="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"

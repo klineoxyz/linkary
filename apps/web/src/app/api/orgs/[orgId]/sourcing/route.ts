@@ -67,17 +67,20 @@ export async function GET(
   }
 
   const dealKeys = new Set<string>();
+  const activeDealIdByKey = new Map<string, string>();
   if (jobIds.length > 0 && profileIds.length > 0) {
     const { data: deals } = await supabase
       .from("deals")
-      .select("job_id, profile_id, status")
+      .select("id, job_id, profile_id, status")
       .eq("org_id", orgId)
       .in("job_id", jobIds)
       .in("profile_id", profileIds);
     for (const d of deals ?? []) {
-      const row = d as { job_id: string | null; profile_id: string; status: string };
+      const row = d as { id: string; job_id: string | null; profile_id: string; status: string };
       if (row.job_id && row.status === "active") {
-        dealKeys.add(`${row.job_id}:${row.profile_id}`);
+        const k = `${row.job_id}:${row.profile_id}`;
+        dealKeys.add(k);
+        activeDealIdByKey.set(k, row.id);
       }
     }
   }
@@ -91,6 +94,7 @@ export async function GET(
       job_title: jobsById[inv.job_id] ?? "Job",
       has_application: appKeys.has(k),
       has_active_deal: dealKeys.has(k),
+      active_deal_id: activeDealIdByKey.get(k) ?? null,
     };
   });
 
@@ -228,12 +232,42 @@ export async function GET(
       ...p,
       ...withProf(p.profile_id),
     }));
+  const program_invite_unseen = program_awaiting.filter((p) => p.invitee_inbox_seen_at == null);
+  const program_invite_seen_pending = program_awaiting.filter((p) => p.invitee_inbox_seen_at != null);
   const program_progressed = programInvitesOut
     .filter((p) => p.status !== "invited" && p.status !== "declined" && p.status !== "removed")
     .map((p) => ({
       ...p,
       ...withProf(p.profile_id),
     }));
+  const program_declined_or_removed = programInvitesOut
+    .filter((p) => p.status === "declined" || p.status === "removed")
+    .map((p) => ({
+      ...p,
+      ...withProf(p.profile_id),
+    }));
+
+  const job_invite_unseen_pending = jobInvitesOut.filter(
+    (j) =>
+      noJobOutcome(j) &&
+      j.creator_response === "pending" &&
+      j.viewed_at == null
+  );
+  const job_invite_seen_pending = jobInvitesOut.filter(
+    (j) =>
+      noJobOutcome(j) &&
+      j.creator_response === "pending" &&
+      j.viewed_at != null
+  );
+  const job_interested_not_applied = jobInvitesOut.filter(
+    (j) => noJobOutcome(j) && j.creator_response === "interested"
+  );
+
+  const invitedProfileIds = new Set(jobInvites.map((r) => r.profile_id));
+  const shortlisted_only = shortlisted_people.map((s) => ({
+    ...s,
+    has_any_job_invite: invitedProfileIds.has(s.profile_id),
+  }));
 
   const jobUnseenInbox = jobInvitesOut.filter((j) => j.viewed_at == null).length;
   const progUnseenInbox = programInvitesOut.filter((p) => p.invitee_inbox_seen_at == null).length;
@@ -258,6 +292,14 @@ export async function GET(
       job_active_deal,
       program_awaiting_response: program_awaiting,
       program_progressed,
+      /** Enriched shortlist rows for pipeline UI (same people as top-level shortlisted_people + has_any_job_invite). */
+      shortlisted_profiles: shortlisted_only,
+      job_invite_unseen_pending: job_invite_unseen_pending.map((j) => ({ ...j, ...withProf(j.profile_id) })),
+      job_invite_seen_pending: job_invite_seen_pending.map((j) => ({ ...j, ...withProf(j.profile_id) })),
+      job_interested_not_applied: job_interested_not_applied.map((j) => ({ ...j, ...withProf(j.profile_id) })),
+      program_invite_unseen,
+      program_invite_seen_pending,
+      program_declined_or_removed,
     },
     summary: {
       job_invites_count: jobInvitesOut.length,

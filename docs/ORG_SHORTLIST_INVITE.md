@@ -103,6 +103,10 @@ See **`docs/JOB_INVITE_CREATOR_RESPONSE.md`** — `creator_response`, org pipeli
 
 See **`docs/ORG_INVITE_DISCOVERY.md`** — inbox seen timestamps, nav/badge, org unseen counts.
 
+## Operator sourcing pipeline (unified tab)
+
+See **`docs/ORG_SOURCING_PIPELINE_OPERATOR.md`** — single **Sourcing** tab, stages, actions, API slices.
+
 ## Later (fuller “sourcing CRM”)
 
 - Email/in-app **delivery** events for job invites.

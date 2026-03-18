@@ -38,7 +38,8 @@ import {
 } from "@/lib/orgs";
 import { listJobs, listApplicationsForJobs, type Application } from "@/lib/jobs";
 import { listCaseStudiesForOrg, createCaseStudyForOrg, type CaseStudy } from "@/lib/caseStudies";
-import { Briefcase, Sparkles } from "lucide-react";
+import { Briefcase, Sparkles, ListChecks } from "lucide-react";
+import OrgSourcingPipelineTab from "./OrgSourcingPipelineTab";
 
 const CreatorProgramDetailDrawer = dynamic(
   () => import("./CreatorProgramDetailDrawer").then((m) => m.default),
@@ -74,7 +75,7 @@ export default function OrgDetailPage({
   const orgId = data?.orgId ?? data?.slug;
   const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
-  const validTabs = ["dashboard", "insights", "members", "affiliates", "ambassadors", "jobs", "case_studies", "settings"] as const;
+  const validTabs = ["dashboard", "insights", "members", "affiliates", "ambassadors", "jobs", "sourcing", "case_studies", "settings"] as const;
   const [tab, setTab] = useState<typeof validTabs[number]>("dashboard");
 
   useEffect(() => {
@@ -244,6 +245,19 @@ export default function OrgDetailPage({
         program_title: string;
         status: string;
       }>;
+      shortlisted_profiles?: Array<{
+        profile_id: string;
+        username: string | null;
+        display_name: string | null;
+        list_names: string[];
+        has_any_job_invite: boolean;
+      }>;
+      job_invite_unseen_pending?: Array<Record<string, unknown>>;
+      job_invite_seen_pending?: Array<Record<string, unknown>>;
+      job_interested_not_applied?: Array<Record<string, unknown>>;
+      program_invite_unseen?: Array<Record<string, unknown>>;
+      program_invite_seen_pending?: Array<Record<string, unknown>>;
+      program_declined_or_removed?: Array<Record<string, unknown>>;
     };
   } | null>(null);
   const [jobInvitesExpandedId, setJobInvitesExpandedId] = useState<string | null>(null);
@@ -690,6 +704,7 @@ export default function OrgDetailPage({
     { id: "affiliates" as const, label: "Affiliates", icon: UserPlus },
     { id: "ambassadors" as const, label: "Ambassadors", icon: UserPlus },
     { id: "jobs" as const, label: "Jobs", icon: Briefcase },
+    { id: "sourcing" as const, label: "Sourcing", icon: ListChecks },
     { id: "case_studies" as const, label: "Case Studies", icon: Building2 },
     { id: "settings" as const, label: "Settings", icon: Settings },
   ];
@@ -1084,6 +1099,13 @@ export default function OrgDetailPage({
                           className="mt-3 text-sm font-medium text-primary hover:underline"
                         >
                           Org KOL lists — shortlist &amp; invite →
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTab("sourcing")}
+                          className="mt-2 block w-full sm:w-auto text-left text-sm font-semibold text-indigo-700 dark:text-indigo-300 hover:underline"
+                        >
+                          Open full sourcing pipeline →
                         </button>
                         {sourcingData.pipeline && (
                           <div className="mt-4 pt-4 border-t border-amber-200/60 dark:border-amber-900/40 space-y-3">
@@ -2024,6 +2046,29 @@ export default function OrgDetailPage({
                 )}
               </div>
             </div>
+          )}
+
+          {tab === "sourcing" && org && (
+            <OrgSourcingPipelineTab
+              orgId={org.id}
+              pipeline={
+                (sourcingData?.pipeline as unknown as React.ComponentProps<typeof OrgSourcingPipelineTab>["pipeline"]) ??
+                null
+              }
+              summary={
+                sourcingData?.summary
+                  ? {
+                      ...sourcingData.summary,
+                      shortlisted_org_members_count: sourcingData.shortlisted_org_members_count,
+                    }
+                  : null
+              }
+              setTab={setTab}
+              setSelectedJobId={setSelectedJobId}
+              setSelectedProgramId={setSelectedProgramId}
+              onOpenOrgKolLists={onOpenOrgKolLists}
+              setRoute={setRoute}
+            />
           )}
 
           {tab === "case_studies" && (

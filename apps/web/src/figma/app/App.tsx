@@ -96,6 +96,7 @@ import {
   Globe,
   Home,
   LayoutDashboard,
+  ListChecks,
   LogIn,
   LogOut,
   Menu,
@@ -1149,13 +1150,33 @@ function Sidebar({
                 }}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug",
-                  route?.name === "orgDetail" && route?.data?.tab !== "jobs" && route?.data?.tab !== "members"
+                  route?.name === "orgDetail" &&
+                    route?.data?.tab !== "jobs" &&
+                    route?.data?.tab !== "members" &&
+                    route?.data?.tab !== "sourcing"
                     ? "border border-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40 text-indigo-950 dark:text-indigo-100"
                     : "text-sidebar-foreground hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30"
                 )}
               >
                 <LayoutDashboard className="h-4 w-4 shrink-0" aria-hidden />
                 <span className="truncate">Org overview</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const o = activeContext.activeOrg;
+                  setRoute({ name: "orgDetail", data: { orgId: o.id, slug: o.slug, tab: "sourcing" } });
+                  setMobileOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors leading-snug",
+                  route?.name === "orgDetail" && route?.data?.tab === "sourcing"
+                    ? "border border-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40"
+                    : "text-sidebar-foreground hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30"
+                )}
+              >
+                <ListChecks className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">Sourcing pipeline</span>
               </button>
               <button
                 type="button"

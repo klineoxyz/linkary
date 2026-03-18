@@ -736,8 +736,8 @@ export default function OrgDetailPage({
   ];
 
   return (
-    <div className="space-y-6 pb-12">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 pb-12 px-3 sm:px-4 md:px-0 max-w-full overflow-x-hidden box-border">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button
           onClick={() => setRoute({ name: "overview" })}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900"

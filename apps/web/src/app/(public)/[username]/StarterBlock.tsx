@@ -58,7 +58,7 @@ export function StarterBlock({
 
   const insightsHref = `/u/${encodeURIComponent(username)}/insights`;
   const loginRedirect = `/login?redirect=${encodeURIComponent(profileUrl)}`;
-  const editHref = "/profile/edit";
+  const editHref = "/app/profile/edit";
   const score = Math.min(100, Math.max(0, completenessScore));
 
   if (isOwner === true) {
@@ -67,7 +67,9 @@ export function StarterBlock({
         <div className={SECTION_CARD_CLASS}>
           <div className="p-5">
             <h2 className="text-sm font-semibold text-foreground">Complete your profile</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Add more to your page so visitors see your best work.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              A fuller page builds trust. Edit in Profile — visitors only see what you publish.
+            </p>
             <div className="mt-4">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-medium text-muted-foreground">Profile completeness</span>

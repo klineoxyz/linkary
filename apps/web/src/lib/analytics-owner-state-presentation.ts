@@ -32,12 +32,12 @@ export function getOwnerStateBanner(
     case "no_x_handle":
       return {
         tone: "muted",
-        text: "Connect your X account in Integrations to see analytics here and on the Analytics page.",
+        text: "Link your X account in Integrations to unlock analytics — we store snapshots so nothing loads live each visit.",
       };
     case "queued_or_building":
       return {
         tone: "info",
-        text: "Analytics update in progress. This usually finishes within a few minutes.",
+        text: "Your analytics are updating in the background — usually a few minutes. You can leave this page.",
       };
     case "refresh_failed":
       return {
@@ -53,7 +53,7 @@ export function getOwnerStateBanner(
       return hasXHandle
         ? {
             tone: "muted",
-            text: "No analytics run yet. Sync from Integrations, then open Analytics and request a refresh.",
+            text: "We haven’t loaded your X stats yet. Confirm sync in Integrations, then tap Request analytics refresh here.",
           }
         : null;
     case "ready_stale":
@@ -103,13 +103,13 @@ export function getOwnerEmptyKpiMessage(
 ): { body: string; showIntegrationsCta: boolean } {
   if (!hasXHandle) {
     return {
-      body: "Connect your X handle in Integrations to see analytics here.",
+      body: "Link X in Integrations first — then charts and KPIs appear here from stored data.",
       showIntegrationsCta: true,
     };
   }
   if (dataState === "none" && !lastSyncAt) {
     return {
-      body: "No synced analytics yet. Sync from Integrations, then open Analytics and tap Request analytics refresh.",
+      body: "Not loaded yet — normal for a new connection. After Integrations shows X linked, request a refresh below.",
       showIntegrationsCta: true,
     };
   }

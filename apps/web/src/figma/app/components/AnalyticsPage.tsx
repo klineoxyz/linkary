@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { Users, BarChart2, Eye, TrendingUp, Heart, ThumbsUp, MessageCircle } from "lucide-react";
@@ -24,6 +24,7 @@ import {
 import { SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
 import { formatTryAgainAfter, rateLimitFullMessage } from "@/lib/rateLimitUx";
 import { SWR_KEY_OWNER_ANALYTICS_INIT, swrKeyAnalyticsX } from "@/lib/swrCacheKeys";
+import { RC_STORAGE } from "@/lib/releaseCandidateUx";
 
 function formatIslandValue(n: number): string {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
@@ -295,6 +296,40 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     [hasXHandle, dataState, lastSyncAt]
   );
 
+  const [analyticsReadyBanner, setAnalyticsReadyBanner] = useState(false);
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(RC_STORAGE.ANALYTICS_READY_NUDGE) === "1") {
+        setAnalyticsReadyBanner(false);
+        return;
+      }
+    } catch {
+      /* continue */
+    }
+    if (platform !== "x" || !payload || !hasXHandle) {
+      setAnalyticsReadyBanner(false);
+      return;
+    }
+    if (dataState === "none" && !lastSyncAt) {
+      setAnalyticsReadyBanner(false);
+      return;
+    }
+    if (ownerState !== "ready_recent" && ownerState !== "partial_data" && ownerState !== "ready_stale") {
+      setAnalyticsReadyBanner(false);
+      return;
+    }
+    setAnalyticsReadyBanner(true);
+  }, [platform, payload, hasXHandle, dataState, lastSyncAt, ownerState]);
+
+  const dismissAnalyticsReady = useCallback(() => {
+    try {
+      sessionStorage.setItem(RC_STORAGE.ANALYTICS_READY_NUDGE, "1");
+    } catch {
+      /* ignore */
+    }
+    setAnalyticsReadyBanner(false);
+  }, []);
+
   if (res?.ok === false) {
     const rateMsg =
       res.code === "RATE_LIMITED" ? formatTryAgainAfter((res as ApiError).resetAt) : null;
@@ -317,11 +352,24 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   }
 
   return (
-    <div className="min-h-screen bg-background" data-page="analytics">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6">
+    <div className="min-h-screen bg-background overflow-x-hidden" data-page="analytics">
+      <div className="max-w-7xl mx-auto px-3 min-[390px]:px-4 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-4 sm:space-y-6">
+        {analyticsReadyBanner && platform === "x" && (
+          <div
+            className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+            role="status"
+          >
+            <span className="text-emerald-950">
+              <strong>Analytics are loaded.</strong> Numbers here are from stored snapshots — refresh occasionally to update.
+            </span>
+            <button type="button" onClick={dismissAnalyticsReady} className="text-xs font-medium text-emerald-800 shrink-0 self-start sm:self-center hover:underline">
+              Got it
+            </button>
+          </div>
+        )}
         {/* Platform tabs — X active; YouTube / TikTok / Facebook coming soon */}
-        <div className="border-b border-border" role="tablist" aria-label="Analytics platform">
-          <div className="flex gap-0">
+        <div className="border-b border-border overflow-x-auto -mx-3 px-3 min-[390px]:mx-0 min-[390px]:px-0" role="tablist" aria-label="Analytics platform">
+          <div className="flex gap-0 min-w-min">
             {PLATFORM_TABS.map((tab) => {
               const isActive = platform === tab.id;
               return (

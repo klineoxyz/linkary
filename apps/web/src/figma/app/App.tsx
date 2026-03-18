@@ -3948,7 +3948,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
     : null;
 
   return (
-    <div className="font-app text-foreground space-y-6">
+    <div className="font-app text-foreground space-y-6 px-3 sm:px-0 max-w-full overflow-x-hidden">
       <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground space-y-1.5 -mb-1">
         <p className="font-medium text-foreground">How this page fits together</p>
         <ul className="list-disc pl-4 space-y-0.5">
@@ -3957,7 +3957,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
           <li><strong className="text-foreground">Public preview</strong> — Same as <code className="text-[10px] bg-background px-1 rounded">/{hasPublicSlug ? publicSlug : "username"}</code> for visitors. Full X analytics stay under <a href="/app/analytics" className="text-primary hover:underline">Analytics</a> (not on the public page).</li>
         </ul>
       </div>
-      <div className="mb-4 flex gap-2 border-b border-border pb-2">
+      <div className="mb-4 flex flex-wrap gap-2 border-b border-border pb-2 overflow-x-auto">
         <button
           type="button"
           onClick={() => setProfileTab("overview")}
@@ -4007,7 +4007,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
       {tab !== "publicPreview" && (
         <>
       <div className="mb-8 relative z-[10] flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           {isMyProfile && (
             <>
               <a href="/app/profile/edit" className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground">
@@ -5372,7 +5372,26 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
                 {route.name === "creatorProfile" && <CreatorProfilePage setRoute={setRoute} />}
                 {route.name === "agencyProfile" && <AgencyProfilePage setRoute={setRoute} />}
                 {route.name === "explore" && <DiscoveryPage setRoute={setRoute} />}
-                {route.name === "dashboard" && <DashboardPage setRoute={setRoute} />}
+                {route.name === "dashboard" && (
+                  <DashboardPage
+                    setRoute={setRoute}
+                    profileHints={
+                      me
+                        ? {
+                            accountType: (me as { account_type?: string }).account_type,
+                            hasDisplayName: !!(me.display_name && String(me.display_name).trim()),
+                            hasUsername: !!(me.username && String(me.username).trim()),
+                            hasXOnProfile: !!(me.twitter_username && String(me.twitter_username).trim()),
+                            publicSlug:
+                              (me.username || me.twitter_username || "")
+                                .replace(/^@/, "")
+                                .toLowerCase()
+                                .trim() || null,
+                          }
+                        : null
+                    }
+                  />
+                )}
                 {route.name === "orgDetail" && (
                   <OrgDetailPage
                     setRoute={setRoute}

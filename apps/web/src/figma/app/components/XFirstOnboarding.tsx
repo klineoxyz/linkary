@@ -146,6 +146,11 @@ export default function XFirstOnboarding({
         setLoading(false);
         return;
       }
+      try {
+        sessionStorage.setItem("linkary_rc_onboarding_done", "1");
+      } catch {
+        /* ignore */
+      }
       onComplete();
       setRoute({ name: "profile" });
     } catch (e) {

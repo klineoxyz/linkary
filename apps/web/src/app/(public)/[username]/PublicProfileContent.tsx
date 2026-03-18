@@ -410,15 +410,15 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
       (hasReview ? 15 : 0)
   );
   const nextCompletenessAction: { label: string; href: string } | null = !hasHero
-    ? { label: "Add a hero image or title", href: "/profile/edit#basics" }
+    ? { label: "Add a hero image or title", href: "/app/profile/edit#basics" }
     : !hasCaseStudy
-      ? { label: "Add a proof card (case study)", href: "/profile/edit#case-studies" }
+      ? { label: "Add a proof card (case study)", href: "/app/profile/edit#case-studies" }
       : (profileType === "project" || profileType === "company") && !hasGig
-        ? { label: "Post an open gig", href: "/profile/edit#gigs" }
+        ? { label: "Post an open gig", href: "/app/profile/edit#gigs" }
         : (profileType === "project" || profileType === "company") && !hasAnyRelation
-          ? { label: "Add ecosystem partners", href: "/profile/edit" }
+          ? { label: "Add ecosystem partners", href: "/app/profile/edit" }
           : !hasReview
-            ? { label: "Get verified reviews", href: "/profile/edit" }
+            ? { label: "Get verified reviews", href: "/app/profile/edit" }
             : null;
 
   const leftOrderRaw = visibleOrder.filter((k) => LEFT_COLUMN_KEYS.includes(k));
@@ -440,7 +440,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
               <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-5 py-8 text-center">
                 <p className="text-sm text-muted-foreground">Add a header image or video to stand out.</p>
                 <Link
-                  href="/profile/edit#header-media"
+                  href="/app/profile/edit#header-media"
                   className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   Add header media
@@ -577,7 +577,13 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                 )}
               </div>
             </div>
-            {profile.bio && <p className="mt-3 px-4 text-sm text-foreground leading-relaxed">{profile.bio}</p>}
+            {profile.bio?.trim() ? (
+              <p className="mt-3 px-4 text-sm text-foreground leading-relaxed">{profile.bio}</p>
+            ) : (
+              <p className="mt-3 px-4 text-sm text-muted-foreground leading-relaxed">
+                Building their presence on Linkary — more detail may appear here soon.
+              </p>
+            )}
             {pricingBlock && (pricingBlock.post || pricingBlock.podcast) && (
               <div className="mt-4 px-4">
                 <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 space-y-2">
@@ -720,7 +726,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   <p className="text-sm text-muted-foreground">Add proof cards to show outcomes. This also improves your REP.</p>
                   {viewerIsOwner && (
                     <Link
-                      href="/profile/edit#case-studies"
+                      href="/app/profile/edit#case-studies"
                       className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       Add proof card
@@ -996,7 +1002,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   <p className="mt-1.5 text-sm text-muted-foreground">Show outcomes. This also improves your REP.</p>
                   {viewerIsOwner && (
                     <Link
-                      href="/profile/edit#case-studies"
+                      href="/app/profile/edit#case-studies"
                       className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       Add proof card
@@ -1035,7 +1041,7 @@ export function PublicProfileContent({ data, username, profileUrl: profileUrlPro
                   <p className="text-sm text-muted-foreground">No links yet.</p>
                   {viewerIsOwner && (
                     <Link
-                      href="/profile/edit#links"
+                      href="/app/profile/edit#links"
                       className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       Add links

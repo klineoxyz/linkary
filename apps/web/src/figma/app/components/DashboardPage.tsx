@@ -8,7 +8,7 @@ import { listOrgsForUser, type Org } from "@/lib/orgs";
 import { isPrivateStorageUrl } from "@/lib/isPrivateStorageUrl";
 import { listMyDeals, type Deal } from "@/lib/deals";
 import CreateOrgModal from "./CreateOrgModal";
-import FirstStepsOnLinkaryCard from "./FirstStepsOnLinkaryCard";
+import NextBestActionSuite, { type ProfileHints } from "./NextBestActionSuite";
 import {
   TrendingUp,
   TrendingDown,
@@ -266,7 +266,13 @@ function BrandCard({ brand, onSelect }: { brand: Brand; onSelect: () => void }) 
 }
 
 // Main Component
-export default function DashboardPage({ setRoute }: { setRoute?: (route: any) => void }) {
+export default function DashboardPage({
+  setRoute,
+  profileHints,
+}: {
+  setRoute?: (route: any) => void;
+  profileHints?: ProfileHints | null;
+}) {
   const [view, setView] = useState<"personal" | "brands">("personal");
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [showCreateBrand, setShowCreateBrand] = useState(false);
@@ -471,13 +477,18 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
   }, [searchQuery]);
 
   const handleOrgCreated = (orgId: string, _slug?: string) => {
+    try {
+      sessionStorage.setItem("linkary_rc_org_created", "1");
+    } catch {
+      /* ignore */
+    }
     if (userId) listOrgsForUser(userId).then(setMyOrgs);
     setShowCreateOrg(false);
     if (setRoute) setRoute({ name: "orgDetail", data: { orgId, slug: _slug, showConnectXBanner: true } });
   };
 
   return (
-    <div className="space-y-10 pb-12">
+    <div className="space-y-10 pb-12 px-3 sm:px-4 md:px-0 max-w-[100vw] overflow-x-hidden box-border">
       {showCreateOrg && userId && (
         <CreateOrgModal
           userId={userId}
@@ -491,12 +502,12 @@ export default function DashboardPage({ setRoute }: { setRoute?: (route: any) =>
         <p className="mt-0.5 text-muted-foreground">Numbers below are from your deals and profile. For full X analytics and backfill, go to <a href="/app/analytics" className="text-primary hover:underline">Analytics</a>.</p>
       </div>
 
-      <FirstStepsOnLinkaryCard signedIn={!!userId} orgCount={myOrgs.length} />
+      <NextBestActionSuite signedIn={!!userId} orgCount={myOrgs.length} profileHints={profileHints ?? null} />
 
       {/* My Orgs first: add admins & team is the main action when user has orgs */}
-      <GlassCard>
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
+      <GlassCard id="my-orgs">
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Building2 className="w-5 h-5 text-primary stroke-[1.75]" />
               My Orgs

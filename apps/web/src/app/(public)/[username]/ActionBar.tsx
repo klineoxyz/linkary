@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { RequestCollabModal } from "./RequestCollabModal";
 
 const ROUTES = {
-  profileEdit: "/profile/edit",
+  profileEdit: "/app/profile/edit",
   explore: "/explore",
   login: "/login",
 } as const;

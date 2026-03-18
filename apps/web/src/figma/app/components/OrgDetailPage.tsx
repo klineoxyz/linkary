@@ -441,6 +441,15 @@ export default function OrgDetailPage({
     return () => clearTimeout(t);
   }, [ambassadorHandle]);
 
+  /** Must run every render — cannot sit after loading/org early returns (Rules of Hooks). */
+  const jobInvitesPerJob = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const inv of sourcingData?.job_invites ?? []) {
+      m[inv.job_id] = (m[inv.job_id] ?? 0) + 1;
+    }
+    return m;
+  }, [sourcingData?.job_invites]);
+
   const onWatchlistOrg = watchlistList && org ? watchlistList.orgs.some((o) => o.entity_id === org.id) : false;
   const handleToggleWatchlistOrg = async () => {
     if (!org?.id || watchlistToggling) return;
@@ -670,14 +679,6 @@ export default function OrgDetailPage({
     jobId
       ? ((orgJobs as Array<{ id: string; title?: string }>).find((j) => j.id === jobId)?.title ?? "Role")
       : "Role";
-
-  const jobInvitesPerJob = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const inv of sourcingData?.job_invites ?? []) {
-      m[inv.job_id] = (m[inv.job_id] ?? 0) + 1;
-    }
-    return m;
-  }, [sourcingData?.job_invites]);
 
   const tabs = [
     { id: "dashboard" as const, label: "Workspace", icon: ClipboardList },

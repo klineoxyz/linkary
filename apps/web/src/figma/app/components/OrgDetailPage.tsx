@@ -1834,9 +1834,9 @@ export default function OrgDetailPage({
                               Download CV
                             </button>
                           )}
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex flex-col gap-2">
                           {admin && app.status === "pending" && isOpen && (
-                            <>
+                            <div className="flex items-center gap-2 flex-wrap">
                               <button
                                 type="button"
                                 disabled={!!acceptLoading}
@@ -1896,7 +1896,30 @@ export default function OrgDetailPage({
                               >
                                 Reject
                               </button>
-                            </>
+                            </div>
+                          )}
+                          {admin && app.status === "pending" && !isOpen && (
+                            <p className="text-[11px] text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md px-2 py-1.5 max-w-xl">
+                              <strong>Accept</strong> and <strong>Reject</strong> only appear when this listing is <strong>open</strong>.
+                              {j.status === "draft" ? (
+                                <>
+                                  {" "}
+                                  Publish or set the job to open from <strong>Manage</strong> on this job.
+                                </>
+                              ) : j.status === "completed" || j.status === "closed" ? (
+                                <>
+                                  {" "}
+                                  This listing is closed. Reopen it from <strong>Manage</strong> if you still want to hire for this role.
+                                </>
+                              ) : (
+                                <> Current status: {j.status}. Open the listing to enable accept/reject.</>
+                              )}
+                            </p>
+                          )}
+                          {!admin && app.status === "pending" && (
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                              Only org <strong>admins</strong> can accept or reject applicants. Ask an owner or admin to review.
+                            </p>
                           )}
                           </div>
                         </div>

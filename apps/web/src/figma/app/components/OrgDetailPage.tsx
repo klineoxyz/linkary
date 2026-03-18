@@ -468,6 +468,16 @@ export default function OrgDetailPage({
     return m;
   }, [sourcingData?.job_invites]);
 
+  const refreshSourcing = useCallback(async () => {
+    if (!org?.id || !accessToken) return;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/orgs/${encodeURIComponent(org.id)}/sourcing`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!data.error) setSourcingData(data);
+  }, [org?.id, accessToken]);
+
   const onWatchlistOrg = watchlistList && org ? watchlistList.orgs.some((o) => o.entity_id === org.id) : false;
   const handleToggleWatchlistOrg = async () => {
     if (!org?.id || watchlistToggling) return;
@@ -2097,6 +2107,7 @@ export default function OrgDetailPage({
               setSelectedProgramId={setSelectedProgramId}
               onOpenOrgKolLists={onOpenOrgKolLists}
               setRoute={setRoute}
+              onSourcingRefresh={refreshSourcing}
             />
           )}
 

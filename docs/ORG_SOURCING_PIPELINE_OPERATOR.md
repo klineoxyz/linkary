@@ -114,6 +114,43 @@ Existing pipeline keys unchanged for backward compatibility.
 
 ---
 
+## Volume productivity pass (bulk + saved views)
+
+**Friction addressed:** repeated filter setup → **saved views**; row-by-row shortlist → **bulk shortlist/unshortlist** (only for profiles already on a chosen org KOL list); many tabs → **open profiles / deals** (capped); no scan count → **sticky bar** with row + unique-creator counts; dense lists → **compact** toggle.
+
+### Saved views (persisted)
+
+| Item | Storage |
+|------|---------|
+| View name, filter JSON | `org_sourcing_saved_views` (org-scoped, RLS: org members CRUD) |
+| Current selection, drawer open | Transient (not saved) |
+
+**API:** `GET/POST /api/orgs/[orgId]/sourcing/saved-views`, `PATCH/DELETE .../saved-views/[viewId]`. Filters include: search, priority, stage, job, program, source list, compact, archive panel open.
+
+**Operator flow:** Save current filters with a name → load from dropdown → rename (prompt) → delete. Switching filters clears “active view” until you load again.
+
+### Bulk actions (safe, grounded)
+
+| Action | Behavior |
+|--------|----------|
+| Shortlist / Remove shortlist | `POST .../sourcing/bulk-shortlist` — updates `kol_list_members.shortlisted` only for **existing** rows on org-owned list (max 100 ids); does **not** add members to list |
+| Open profiles | New tabs by handle (capped, e.g. 8) |
+| Open deals | New tabs `/deal/[id]` (capped) |
+| Copy handles / profile IDs / CSV | Clipboard |
+| Link KOL lists | Navigate to org KOL lists |
+
+**Not bulk:** job invites (use KOL lists + per-row invite); accept applicant; program admin — still **Jobs** / **deal** pages.
+
+### QA (volume)
+
+- [ ] Org admin: large pipeline, saved view save/load/rename/delete.
+- [ ] Dual-access + org switch: views per org; no bleed.
+- [ ] Bulk shortlist: only on-list members update; off-list IDs reported as `not_on_list`.
+- [ ] After bulk shortlist, workbench refresh matches KOL list shortlist.
+- [ ] No regression: KOL lists, Jobs/applicants/deals, creator org-invites inbox.
+
+---
+
 ## Later (fuller sourcing CRM)
 
-- Drag-and-drop stages, email sequences, assignment, saved views, exports, bulk shortlist mutations — out of scope; current model stays row-grounded.
+- Drag-and-drop stages, email sequences, operator assignment, bulk job invites (with strict permission UX), full export pipeline — out of scope; row-grounded model preserved.

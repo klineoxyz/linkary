@@ -25,6 +25,8 @@ import {
   UserCircle,
   ChevronDown,
   ChevronUp,
+  Clock,
+  History,
 } from "lucide-react";
 
 type Prof = { profile_id: string; username: string | null; display_name: string | null };
@@ -60,6 +62,10 @@ export type CreatorWorkflowRow = {
   follow_up_status: string;
   internal_note: string | null;
   updated_at: string | null;
+  follow_up_due_at?: string | null;
+  snoozed_until?: string | null;
+  last_operator_action_at?: string | null;
+  last_operator_action_by?: string | null;
 };
 
 export type SavedViewFilters = {
@@ -72,6 +78,7 @@ export type SavedViewFilters = {
   compact: boolean;
   archiveOpen: boolean;
   teamAssignFilter: string;
+  timingFilter: string;
 };
 
 export type OrgSourcingPipelineTabProps = {
@@ -153,6 +160,44 @@ const FOLLOW_UP_LABELS: Record<string, string> = {
   resolved: "Resolved",
 };
 
+function dueBlocksOverdue(wf: CreatorWorkflowRow | undefined): boolean {
+  if (!wf?.follow_up_due_at) return false;
+  if (wf.follow_up_status === "none" || wf.follow_up_status === "resolved") return false;
+  if (wf.snoozed_until && new Date(wf.snoozed_until) > new Date()) return false;
+  return new Date(wf.follow_up_due_at).getTime() < Date.now();
+}
+
+function dueIsToday(wf: CreatorWorkflowRow | undefined): boolean {
+  if (!wf?.follow_up_due_at || wf.follow_up_status === "none" || wf.follow_up_status === "resolved") return false;
+  if (wf.snoozed_until && new Date(wf.snoozed_until) > new Date()) return false;
+  const d = new Date(wf.follow_up_due_at);
+  const t = new Date();
+  return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+}
+
+function dueIsSoon(wf: CreatorWorkflowRow | undefined): boolean {
+  if (!wf?.follow_up_due_at || wf.follow_up_status === "none" || wf.follow_up_status === "resolved") return false;
+  if (wf.snoozed_until && new Date(wf.snoozed_until) > new Date()) return false;
+  const due = new Date(wf.follow_up_due_at).getTime();
+  const now = Date.now();
+  if (due <= now) return false;
+  return due - now < 72 * 3600 * 1000;
+}
+
+function recentlyTeamTouched(wf: CreatorWorkflowRow | undefined): boolean {
+  const t = wf?.last_operator_action_at || wf?.updated_at;
+  if (!t) return false;
+  return Date.now() - new Date(t).getTime() < 5 * 24 * 3600 * 1000;
+}
+
+function isoToDatetimeLocal(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
+}
+
 function filtersPayload(
   search: string,
   priorityFilter: string,
@@ -162,7 +207,8 @@ function filtersPayload(
   listFilter: string,
   compact: boolean,
   archiveOpen: boolean,
-  teamAssignFilter: string
+  teamAssignFilter: string,
+  timingFilter: string
 ): SavedViewFilters {
   return {
     search,
@@ -174,6 +220,7 @@ function filtersPayload(
     compact,
     archiveOpen,
     teamAssignFilter,
+    timingFilter,
   };
 }
 
@@ -197,7 +244,9 @@ export default function OrgSourcingPipelineTab({
   const creatorWorkflowByProfile = workflowProp ?? {};
   const [search, setSearch] = useState("");
   const [teamAssignFilter, setTeamAssignFilter] = useState<"all" | "mine" | "unassigned" | "follow_up">("all");
+  const [timingFilter, setTimingFilter] = useState<"all" | "overdue" | "due_today" | "due_soon" | "recent_touch">("all");
   const [followUpQueueOpen, setFollowUpQueueOpen] = useState(true);
+  const [overdueQueueOpen, setOverdueQueueOpen] = useState(true);
   const [priorityFilter, setPriorityFilter] = useState<"all" | "needs_org" | "awaiting_creator" | "unresolved">("all");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [jobFilter, setJobFilter] = useState("");
@@ -218,11 +267,17 @@ export default function OrgSourcingPipelineTab({
   const [wfDraftAssignee, setWfDraftAssignee] = useState("");
   const [wfDraftStatus, setWfDraftStatus] = useState("none");
   const [wfDraftNote, setWfDraftNote] = useState("");
+  const [wfDraftDue, setWfDraftDue] = useState("");
+  const [wfDraftSnooze, setWfDraftSnooze] = useState("");
   const [wfSaving, setWfSaving] = useState(false);
+  const [activityItems, setActivityItems] = useState<
+    Array<{ id: string; at: string; kind: string; source: string; detail: Record<string, unknown>; actor_user_id?: string | null }>
+  >([]);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   const wDrawer = drawerProfileId ? creatorWorkflowByProfile[drawerProfileId] : undefined;
   const drawerWfKey = drawerProfileId
-    ? `${drawerProfileId}:${wDrawer?.assignee_user_id ?? ""}:${wDrawer?.follow_up_status ?? "none"}:${wDrawer?.internal_note ?? ""}`
+    ? `${drawerProfileId}:${wDrawer?.assignee_user_id ?? ""}:${wDrawer?.follow_up_status ?? "none"}:${wDrawer?.internal_note ?? ""}:${wDrawer?.follow_up_due_at ?? ""}:${wDrawer?.snoozed_until ?? ""}`
     : "";
   useEffect(() => {
     if (!drawerProfileId) return;
@@ -230,7 +285,39 @@ export default function OrgSourcingPipelineTab({
     setWfDraftAssignee(w?.assignee_user_id ?? "");
     setWfDraftStatus(w?.follow_up_status ?? "none");
     setWfDraftNote(w?.internal_note ?? "");
+    setWfDraftDue(isoToDatetimeLocal(w?.follow_up_due_at ?? null));
+    setWfDraftSnooze(isoToDatetimeLocal(w?.snoozed_until ?? null));
   }, [drawerProfileId, drawerWfKey]);
+
+  useEffect(() => {
+    if (!drawerProfileId) {
+      setActivityItems([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      setActivityLoading(true);
+      try {
+        const base = typeof window !== "undefined" ? window.location.origin : "";
+        const res = await fetch(
+          `${base}/api/orgs/${encodeURIComponent(orgId)}/sourcing/activity?profile_id=${encodeURIComponent(drawerProfileId)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok && Array.isArray(data.timeline)) {
+          setActivityItems(data.timeline);
+        }
+      } finally {
+        if (!cancelled) setActivityLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [drawerProfileId, orgId, drawerWfKey]);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -247,6 +334,7 @@ export default function OrgSourcingPipelineTab({
     setCompact(!!f.compact);
     setArchiveOpen(!!f.archiveOpen);
     setTeamAssignFilter((f.teamAssignFilter as typeof teamAssignFilter) || "all");
+    setTimingFilter((f.timingFilter as typeof timingFilter) || "all");
   }, []);
 
   const loadSavedViews = useCallback(async () => {
@@ -399,12 +487,24 @@ export default function OrgSourcingPipelineTab({
   const filtered = useMemo(() => {
     return baseFiltered.filter((r) => {
       const wf = creatorWorkflowByProfile[r.profile_id];
-      if (teamAssignFilter === "mine") return wf?.assignee_user_id === currentUserId;
-      if (teamAssignFilter === "unassigned") return !wf?.assignee_user_id;
-      if (teamAssignFilter === "follow_up") return !!(wf && FOLLOW_UP_ACTIVE.has(wf.follow_up_status));
+      if (teamAssignFilter === "mine") {
+        if (wf?.assignee_user_id !== currentUserId) return false;
+      } else if (teamAssignFilter === "unassigned") {
+        if (wf?.assignee_user_id) return false;
+      } else if (teamAssignFilter === "follow_up") {
+        if (!(wf && FOLLOW_UP_ACTIVE.has(wf.follow_up_status))) return false;
+      }
+      if (timingFilter === "overdue" && !dueBlocksOverdue(wf)) return false;
+      if (timingFilter === "due_today" && !dueIsToday(wf)) return false;
+      if (timingFilter === "due_soon" && !dueIsSoon(wf)) return false;
+      if (timingFilter === "recent_touch" && !recentlyTeamTouched(wf)) return false;
       return true;
     });
-  }, [baseFiltered, teamAssignFilter, creatorWorkflowByProfile, currentUserId]);
+  }, [baseFiltered, teamAssignFilter, timingFilter, creatorWorkflowByProfile, currentUserId]);
+
+  const overdueRows = useMemo(() => {
+    return baseFiltered.filter((r) => dueBlocksOverdue(creatorWorkflowByProfile[r.profile_id]));
+  }, [baseFiltered, creatorWorkflowByProfile]);
 
   const followUpQueueRows = useMemo(() => {
     return baseFiltered.filter((r) => {
@@ -511,6 +611,8 @@ export default function OrgSourcingPipelineTab({
           assignee_user_id: wfDraftAssignee.trim() || null,
           follow_up_status: wfDraftStatus,
           internal_note: wfDraftNote.trim() || null,
+          follow_up_due_at: wfDraftDue.trim() ? new Date(wfDraftDue).toISOString() : null,
+          snoozed_until: wfDraftSnooze.trim() ? new Date(wfDraftSnooze).toISOString() : null,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -524,12 +626,13 @@ export default function OrgSourcingPipelineTab({
   };
 
   const exportCsv = () => {
-    const lines = ["creator,stage,track,context,waiting,assignee,follow_up,profile_id"];
+    const lines = ["creator,stage,track,context,waiting,assignee,follow_up,follow_up_due,profile_id"];
     filtered.forEach((r) => {
       const w = r.waiting === "org" ? "you" : r.waiting === "creator" ? "creator" : r.waiting;
       const wf = creatorWorkflowByProfile[r.profile_id];
+      const due = wf?.follow_up_due_at ? new Date(wf.follow_up_due_at).toISOString() : "";
       lines.push(
-        `"${profLabel(r).replace(/"/g, '""')}","${r.stage}","${r.track}","${r.detail.replace(/"/g, '""')}","${w}","${(assigneeLabel(wf?.assignee_user_id) || "").replace(/"/g, '""')}","${(wf?.follow_up_status ?? "none").replace(/"/g, '""')}","${r.profile_id}"`
+        `"${profLabel(r).replace(/"/g, '""')}","${r.stage}","${r.track}","${r.detail.replace(/"/g, '""')}","${w}","${(assigneeLabel(wf?.assignee_user_id) || "").replace(/"/g, '""')}","${(wf?.follow_up_status ?? "none").replace(/"/g, '""')}","${due}","${r.profile_id}"`
       );
     });
     void navigator.clipboard.writeText(lines.join("\n"));
@@ -691,6 +794,7 @@ export default function OrgSourcingPipelineTab({
                   <>
                     <th className={`px-2 ${py} font-medium whitespace-nowrap`}>Assignee</th>
                     <th className={`px-2 ${py} font-medium whitespace-nowrap`}>Follow-up</th>
+                    <th className={`px-2 ${py} font-medium whitespace-nowrap`}>Due</th>
                   </>
                 )}
                 <th className={`px-2 ${py} font-medium text-right w-[1%]`}>Actions</th>
@@ -736,6 +840,13 @@ export default function OrgSourcingPipelineTab({
                             · {FOLLOW_UP_LABELS[wf.follow_up_status] ?? wf.follow_up_status}
                           </span>
                         )}
+                        {wf?.follow_up_due_at && (
+                          <span className={dueBlocksOverdue(wf) ? " text-rose-600 dark:text-rose-400 font-semibold" : ""}>
+                            {" "}
+                            · Due {new Date(wf.follow_up_due_at).toLocaleDateString()}
+                            {dueBlocksOverdue(wf) ? " (overdue)" : ""}
+                          </span>
+                        )}
                       </div>
                     )}
                   </td>
@@ -779,6 +890,31 @@ export default function OrgSourcingPipelineTab({
                           <span className="text-zinc-400 text-[11px]">—</span>
                         )}
                       </td>
+                      <td className={`px-2 ${py} text-[11px] whitespace-nowrap`}>
+                        {wf?.follow_up_due_at ? (
+                          <span
+                            className={
+                              dueBlocksOverdue(wf)
+                                ? "text-rose-700 dark:text-rose-300 font-semibold"
+                                : dueIsSoon(wf)
+                                  ? "text-amber-700 dark:text-amber-300"
+                                  : "text-zinc-600 dark:text-zinc-400"
+                            }
+                          >
+                            {new Date(wf.follow_up_due_at).toLocaleString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {wf.snoozed_until && new Date(wf.snoozed_until) > new Date() && (
+                              <span className="block text-[10px] text-zinc-400">Snoozed</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400">—</span>
+                        )}
+                      </td>
                     </>
                   )}
                   <td className={`px-2 ${py}`} onClick={(e) => e.stopPropagation()}>
@@ -801,6 +937,7 @@ export default function OrgSourcingPipelineTab({
     setListFilter("");
     setPriorityFilter("all");
     setTeamAssignFilter("all");
+    setTimingFilter("all");
     setActiveViewId(null);
   };
 
@@ -825,7 +962,8 @@ export default function OrgSourcingPipelineTab({
         listFilter,
         compact,
         archiveOpen,
-        teamAssignFilter
+        teamAssignFilter,
+        timingFilter
       );
       const res = await fetch(`${base}/api/orgs/${encodeURIComponent(orgId)}/sourcing/saved-views`, {
         method: "POST",
@@ -967,7 +1105,8 @@ export default function OrgSourcingPipelineTab({
               programFilter ||
               listFilter ||
               priorityFilter !== "all" ||
-              teamAssignFilter !== "all") && (
+              teamAssignFilter !== "all" ||
+              timingFilter !== "all") && (
               <button
                 type="button"
                 onClick={resetFilters}
@@ -1107,6 +1246,35 @@ export default function OrgSourcingPipelineTab({
             </button>
           ))}
         </div>
+        <div className="flex flex-wrap gap-2 items-center border-t border-zinc-100 dark:border-zinc-800 pt-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Timing</span>
+          {(
+            [
+              ["all", "All dates", LayoutList],
+              ["overdue", "Overdue", Ban],
+              ["due_today", "Due today", Clock],
+              ["due_soon", "Due soon", Zap],
+              ["recent_touch", "Recently touched", UserCircle],
+            ] as const
+          ).map(([id, label, Icon]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                setTimingFilter(id);
+                setActiveViewId(null);
+              }}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                timingFilter === id
+                  ? "bg-rose-600 text-white"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              }`}
+            >
+              <Icon className="h-3 w-3" />
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-wrap gap-2 items-end">
           <div className="flex flex-col gap-0.5">
             <label className="text-[10px] text-zinc-500">Stage</label>
@@ -1203,6 +1371,55 @@ export default function OrgSourcingPipelineTab({
 
       {filtered.length > 0 && (
         <div className="space-y-5">
+          {overdueRows.length > 0 && (
+            <div className="rounded-2xl border border-rose-200/80 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 overflow-hidden shadow-sm">
+              <button
+                type="button"
+                onClick={() => setOverdueQueueOpen(!overdueQueueOpen)}
+                className="w-full px-4 py-3 flex items-center justify-between text-left text-sm font-medium text-rose-900 dark:text-rose-100 hover:bg-rose-100/50 dark:hover:bg-rose-950/40"
+              >
+                <span className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Overdue follow-ups ({overdueRows.length})
+                  <span className="text-[11px] font-normal text-rose-800/80 dark:text-rose-300/80">
+                    past due date · not snoozed · status not resolved
+                  </span>
+                </span>
+                {overdueQueueOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {overdueQueueOpen && (
+                <div className="border-t border-rose-200/60 dark:border-rose-900/40 px-2 pb-2 max-h-[240px] overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="text-rose-800/70 dark:text-rose-300/70">
+                        <th className="p-2">Creator</th>
+                        <th className="p-2">Due</th>
+                        <th className="p-2">Assignee</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {overdueRows.slice(0, 20).map((r) => {
+                        const wf = creatorWorkflowByProfile[r.profile_id];
+                        return (
+                          <tr
+                            key={r.key}
+                            className="border-t border-rose-100 dark:border-rose-900/30 hover:bg-white/60 dark:hover:bg-zinc-900/40 cursor-pointer"
+                            onClick={() => setDrawerProfileId(r.profile_id)}
+                          >
+                            <td className="p-2 font-medium text-zinc-900 dark:text-zinc-100">{profLabel(r)}</td>
+                            <td className="p-2 text-rose-700 dark:text-rose-300">
+                              {wf?.follow_up_due_at ? new Date(wf.follow_up_due_at).toLocaleString() : "—"}
+                            </td>
+                            <td className="p-2 text-zinc-600 dark:text-zinc-400">{assigneeLabel(wf?.assignee_user_id)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
           {followUpQueueRows.length > 0 && (
             <div className="rounded-2xl border border-teal-200/80 dark:border-teal-900/50 bg-teal-50/40 dark:bg-teal-950/20 overflow-hidden shadow-sm">
               <button
@@ -1520,6 +1737,59 @@ export default function OrgSourcingPipelineTab({
                   </select>
                 </div>
                 <div>
+                  <label className="text-[10px] font-medium text-zinc-500">Follow-up due</label>
+                  <input
+                    type="datetime-local"
+                    value={wfDraftDue}
+                    onChange={(e) => setWfDraftDue(e.target.value)}
+                    className="mt-1 w-full text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-2 px-2"
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {[
+                      { label: "Tomorrow", days: 1 },
+                      { label: "+3d", days: 3 },
+                      { label: "+7d", days: 7 },
+                    ].map(({ label, days }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + days);
+                          d.setHours(17, 0, 0, 0);
+                          setWfDraftDue(isoToDatetimeLocal(d.toISOString()));
+                        }}
+                        className="text-[10px] px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setWfDraftDue("")}
+                      className="text-[10px] px-2 py-1 rounded-md border border-zinc-300 dark:border-zinc-600 text-zinc-600"
+                    >
+                      Clear due
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-medium text-zinc-500">Snooze overdue until</label>
+                  <input
+                    type="datetime-local"
+                    value={wfDraftSnooze}
+                    onChange={(e) => setWfDraftSnooze(e.target.value)}
+                    className="mt-1 w-full text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-2 px-2"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setWfDraftSnooze("")}
+                    className="mt-1 text-[10px] text-zinc-500 hover:underline"
+                  >
+                    Clear snooze
+                  </button>
+                </div>
+                <div>
                   <label className="text-[10px] font-medium text-zinc-500">Internal note (org members only)</label>
                   <textarea
                     value={wfDraftNote}
@@ -1530,6 +1800,20 @@ export default function OrgSourcingPipelineTab({
                   />
                   <p className="text-[10px] text-zinc-400 mt-0.5">{wfDraftNote.length}/500</p>
                 </div>
+                {wDrawer?.last_operator_action_at && (
+                  <p className="text-[10px] text-zinc-500 border-t border-teal-100 dark:border-teal-900/40 pt-2">
+                    Last team save:{" "}
+                    <strong className="text-zinc-700 dark:text-zinc-300">
+                      {new Date(wDrawer.last_operator_action_at).toLocaleString()}
+                    </strong>
+                    {wDrawer.last_operator_action_by && (
+                      <>
+                        {" "}
+                        · {assigneeLabel(wDrawer.last_operator_action_by)}
+                      </>
+                    )}
+                  </p>
+                )}
                 <button
                   type="button"
                   disabled={wfSaving}
@@ -1539,6 +1823,75 @@ export default function OrgSourcingPipelineTab({
                   {wfSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                   Save team workflow
                 </button>
+              </section>
+
+              <section className="rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-500 mb-2 flex items-center gap-1">
+                  <History className="h-3.5 w-3.5" /> Activity
+                </h3>
+                <p className="text-[10px] text-zinc-500 mb-3">
+                  <span className="font-medium text-teal-700 dark:text-teal-300">Team</span> = workflow edits.{" "}
+                  <span className="font-medium text-sky-700 dark:text-sky-300">Pipeline</span> = milestones from live invites,
+                  applications, deals (grounded).
+                </p>
+                {activityLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+                  </div>
+                ) : activityItems.length === 0 ? (
+                  <p className="text-xs text-zinc-500">No activity yet. Save workflow or wait for pipeline events.</p>
+                ) : (
+                  <ul className="space-y-2 max-h-[280px] overflow-y-auto text-xs">
+                    {activityItems.map((it) => {
+                      const jid = it.detail.job_id as string | undefined;
+                      const jt = jid ? drawerJobs.find((x) => x.job_id === jid)?.job_title : null;
+                      let desc = it.kind;
+                      if (it.source === "workflow") {
+                        if (it.kind === "workflow_initialized") desc = "Team workflow initialized";
+                        else if (it.kind === "workflow_assignee") desc = "Assignee changed";
+                        else if (it.kind === "workflow_follow_up_status")
+                          desc = `Follow-up status: ${String(it.detail.from)} → ${String(it.detail.to)}`;
+                        else if (it.kind === "workflow_note") desc = "Internal note updated";
+                        else if (it.kind === "workflow_due") desc = "Follow-up due date changed";
+                        else if (it.kind === "workflow_snooze") desc = "Snooze changed";
+                      } else {
+                        if (it.kind === "job_invite_sent") desc = jt ? `Job invite sent · ${jt}` : "Job invite sent";
+                        else if (it.kind === "job_invite_opened") desc = jt ? `Creator opened invite · ${jt}` : "Creator opened invite";
+                        else if (it.kind === "creator_response")
+                          desc = jt
+                            ? `Creator response (${String(it.detail.response)}) · ${jt}`
+                            : `Creator response: ${String(it.detail.response)}`;
+                        else if (it.kind === "application_submitted")
+                          desc = jt ? `Application submitted · ${jt}` : "Application submitted";
+                        else if (it.kind === "deal_active") desc = "Active deal created";
+                        else if (it.kind === "program_invite_sent") desc = "Program invite sent";
+                      }
+                      return (
+                        <li
+                          key={it.id}
+                          className="border-b border-zinc-100 dark:border-zinc-800 pb-2 last:border-0 flex flex-col gap-0.5"
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded ${
+                                it.source === "workflow"
+                                  ? "bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200"
+                                  : "bg-sky-100 dark:bg-sky-900/40 text-sky-800 dark:text-sky-200"
+                              }`}
+                            >
+                              {it.source === "workflow" ? "Team" : "Pipeline"}
+                            </span>
+                            <span className="text-zinc-400 tabular-nums">{new Date(it.at).toLocaleString()}</span>
+                            {it.actor_user_id && it.source === "workflow" && (
+                              <span className="text-zinc-500">· {assigneeLabel(it.actor_user_id)}</span>
+                            )}
+                          </div>
+                          <span className="text-zinc-800 dark:text-zinc-200">{desc}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </section>
 
               <section>

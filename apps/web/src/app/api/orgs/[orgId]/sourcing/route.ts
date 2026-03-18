@@ -298,12 +298,18 @@ export async function GET(
       follow_up_status: string;
       internal_note: string | null;
       updated_at: string | null;
+      follow_up_due_at: string | null;
+      snoozed_until: string | null;
+      last_operator_action_at: string | null;
+      last_operator_action_by: string | null;
     }
   > = {};
   if (allProfileIds.length > 0) {
     const { data: wfRows } = await supabase
       .from("org_sourcing_creator_workflow")
-      .select("profile_id, assignee_user_id, follow_up_status, internal_note, updated_at")
+      .select(
+        "profile_id, assignee_user_id, follow_up_status, internal_note, updated_at, follow_up_due_at, snoozed_until, last_operator_action_at, last_operator_action_by"
+      )
       .eq("org_id", orgId)
       .in("profile_id", allProfileIds);
     for (const w of wfRows ?? []) {
@@ -313,12 +319,20 @@ export async function GET(
         follow_up_status: string;
         internal_note: string | null;
         updated_at: string;
+        follow_up_due_at: string | null;
+        snoozed_until: string | null;
+        last_operator_action_at: string | null;
+        last_operator_action_by: string | null;
       };
       creator_workflow_by_profile[r.profile_id] = {
         assignee_user_id: r.assignee_user_id,
         follow_up_status: r.follow_up_status,
         internal_note: r.internal_note,
         updated_at: r.updated_at,
+        follow_up_due_at: r.follow_up_due_at,
+        snoozed_until: r.snoozed_until,
+        last_operator_action_at: r.last_operator_action_at,
+        last_operator_action_by: r.last_operator_action_by,
       };
     }
   }

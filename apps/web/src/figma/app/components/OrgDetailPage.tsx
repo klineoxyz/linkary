@@ -194,7 +194,16 @@ export default function OrgDetailPage({
     };
     creator_workflow_by_profile?: Record<
       string,
-      { assignee_user_id: string | null; follow_up_status: string; internal_note: string | null; updated_at: string | null }
+      {
+        assignee_user_id: string | null;
+        follow_up_status: string;
+        internal_note: string | null;
+        updated_at: string | null;
+        follow_up_due_at?: string | null;
+        snoozed_until?: string | null;
+        last_operator_action_at?: string | null;
+        last_operator_action_by?: string | null;
+      }
     >;
     org_assignable_members?: Array<{ user_id: string; username: string | null; display_name: string | null }>;
     current_user_id?: string;

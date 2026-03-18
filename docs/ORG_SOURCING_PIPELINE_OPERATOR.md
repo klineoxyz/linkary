@@ -155,6 +155,10 @@ Existing pipeline keys unchanged for backward compatibility.
 
 See **`docs/ORG_SOURCING_TEAM_WORKFLOW.md`**. Operator metadata per org+creator (`org_sourcing_creator_workflow`); does not replace pipeline truth.
 
+## Timing & activity traceability
+
+See **`docs/ORG_SOURCING_TIMING_TRACEABILITY.md`** — due dates, snooze, overdue filters, workflow activity log + derived pipeline timeline in drawer.
+
 ---
 
 ## Later (fuller sourcing CRM)

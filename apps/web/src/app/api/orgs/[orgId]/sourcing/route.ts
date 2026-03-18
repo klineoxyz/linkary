@@ -26,7 +26,7 @@ export async function GET(
 
   const { data: jiRows, error: jiErr } = await supabase
     .from("org_job_invites")
-    .select("id, job_id, profile_id, invited_at, kol_list_id")
+    .select("id, job_id, profile_id, invited_at, kol_list_id, creator_response, viewed_at, creator_responded_at")
     .eq("org_id", orgId)
     .order("invited_at", { ascending: false });
   if (jiErr) return NextResponse.json({ error: jiErr.message }, { status: 500 });
@@ -37,6 +37,9 @@ export async function GET(
     profile_id: string;
     invited_at: string;
     kol_list_id: string | null;
+    creator_response?: string;
+    viewed_at?: string | null;
+    creator_responded_at?: string | null;
   }>;
   const jobIds = [...new Set(jobInvites.map((r) => r.job_id))];
   const profileIds = [...new Set(jobInvites.map((r) => r.profile_id))];
@@ -81,13 +84,17 @@ export async function GET(
 
   const jobInvitesOut = jobInvites.map((inv) => {
     const k = `${inv.job_id}:${inv.profile_id}`;
+    const cr = inv.creator_response ?? "pending";
     return {
       ...inv,
+      creator_response: cr,
       job_title: jobsById[inv.job_id] ?? "Job",
       has_application: appKeys.has(k),
       has_active_deal: dealKeys.has(k),
     };
   });
+
+  const noJobOutcome = (inv: (typeof jobInvitesOut)[0]) => !inv.has_application && !inv.has_active_deal;
 
   const { data: programs } = await supabase
     .from("creator_programs")
@@ -182,8 +189,20 @@ export async function GET(
     list_names: [...names],
   }));
 
-  const job_awaiting_apply = jobInvitesOut
-    .filter((j) => !j.has_application && !j.has_active_deal)
+  const job_awaiting_creator_response = jobInvitesOut
+    .filter(
+      (j) =>
+        noJobOutcome(j) && (j.creator_response === "pending" || j.creator_response === "interested")
+    )
+    .map((j) => ({
+      ...j,
+      ...withProf(j.profile_id),
+    }));
+  const job_creator_passed = jobInvitesOut
+    .filter(
+      (j) =>
+        noJobOutcome(j) && (j.creator_response === "declined" || j.creator_response === "dismissed")
+    )
     .map((j) => ({
       ...j,
       ...withProf(j.profile_id),
@@ -220,7 +239,8 @@ export async function GET(
     shortlisted_org_members_count: shortlistedOrgCount,
     shortlisted_people,
     pipeline: {
-      job_awaiting_apply,
+      job_awaiting_creator_response,
+      job_creator_passed,
       job_applied_after_invite,
       job_active_deal,
       program_awaiting_response: program_awaiting,
@@ -231,6 +251,8 @@ export async function GET(
       program_invites_pending: programInvitesOut.filter((p) => p.status === "invited").length,
       job_invites_applied: jobInvitesOut.filter((j) => j.has_application).length,
       job_invites_active_deal: jobInvitesOut.filter((j) => j.has_active_deal).length,
+      job_invites_awaiting_creator: job_awaiting_creator_response.length,
+      job_invites_creator_passed: job_creator_passed.length,
     },
   });
 }

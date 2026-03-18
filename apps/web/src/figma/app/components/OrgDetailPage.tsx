@@ -171,6 +171,7 @@ export default function OrgDetailPage({
       has_application?: boolean;
       has_active_deal?: boolean;
       invited_at?: string;
+      creator_response?: string;
     }>;
     program_invites?: Array<{
       creator_program_id: string;
@@ -184,6 +185,8 @@ export default function OrgDetailPage({
       program_invites_pending: number;
       job_invites_applied: number;
       job_invites_active_deal: number;
+      job_invites_awaiting_creator?: number;
+      job_invites_creator_passed?: number;
     };
     shortlisted_org_members_count?: number;
     shortlisted_people?: Array<{
@@ -193,13 +196,22 @@ export default function OrgDetailPage({
       list_names: string[];
     }>;
     pipeline?: {
-      job_awaiting_apply: Array<{
+      job_awaiting_creator_response: Array<{
         profile_id: string;
         username: string | null;
         display_name: string | null;
         job_id: string;
         job_title: string;
         invited_at: string;
+        creator_response?: string;
+      }>;
+      job_creator_passed: Array<{
+        profile_id: string;
+        username: string | null;
+        display_name: string | null;
+        job_id: string;
+        job_title: string;
+        creator_response?: string;
       }>;
       job_applied_after_invite: Array<{
         profile_id: string;
@@ -1032,6 +1044,14 @@ export default function OrgDetailPage({
                             Active job/sprint invites: <strong>{sourcingData.summary.job_invites_count}</strong>
                           </li>
                           <li>
+                            Awaiting creator response (no apply yet):{" "}
+                            <strong>{sourcingData.summary.job_invites_awaiting_creator ?? 0}</strong>
+                          </li>
+                          <li>
+                            Creator passed / hid invite (no apply yet):{" "}
+                            <strong>{sourcingData.summary.job_invites_creator_passed ?? 0}</strong>
+                          </li>
+                          <li>
                             Invited who applied (job): <strong>{sourcingData.summary.job_invites_applied}</strong>
                           </li>
                           <li>
@@ -1070,12 +1090,25 @@ export default function OrgDetailPage({
                               </div>
                               <div className="rounded-lg bg-white/60 dark:bg-zinc-900/40 p-2 border border-zinc-200/80 dark:border-zinc-700">
                                 <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                                  Job invite — awaiting apply ({sourcingData.pipeline.job_awaiting_apply?.length ?? 0})
+                                  Awaiting creator ({sourcingData.pipeline.job_awaiting_creator_response?.length ?? 0})
                                 </p>
                                 <ul className="max-h-28 overflow-y-auto space-y-0.5 text-zinc-600 dark:text-zinc-400">
-                                  {(sourcingData.pipeline.job_awaiting_apply ?? []).slice(0, 12).map((r) => (
+                                  {(sourcingData.pipeline.job_awaiting_creator_response ?? []).slice(0, 12).map((r) => (
                                     <li key={`${r.profile_id}-${r.job_id}`} className="truncate">
                                       @{r.username ?? "—"} → {r.job_title}
+                                      {r.creator_response === "interested" ? " · interested" : ""}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div className="rounded-lg bg-white/60 dark:bg-zinc-900/40 p-2 border border-zinc-200/80 dark:border-zinc-700">
+                                <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                  Not interested / hidden ({sourcingData.pipeline.job_creator_passed?.length ?? 0})
+                                </p>
+                                <ul className="max-h-28 overflow-y-auto space-y-0.5 text-zinc-600 dark:text-zinc-400">
+                                  {(sourcingData.pipeline.job_creator_passed ?? []).slice(0, 12).map((r) => (
+                                    <li key={`${r.profile_id}-${r.job_id}`} className="truncate">
+                                      @{r.username ?? "—"} → {r.job_title} ({r.creator_response === "declined" ? "passed" : "hidden"})
                                     </li>
                                   ))}
                                 </ul>
@@ -1834,7 +1867,8 @@ export default function OrgDetailPage({
                         if (invitesForJob.length === 0) return null;
                         const creatorLabel = (pid: string) => {
                           const rows = [
-                            ...(sourcingData?.pipeline?.job_awaiting_apply ?? []),
+                            ...(sourcingData?.pipeline?.job_awaiting_creator_response ?? []),
+                            ...(sourcingData?.pipeline?.job_creator_passed ?? []),
                             ...(sourcingData?.pipeline?.job_applied_after_invite ?? []),
                             ...(sourcingData?.pipeline?.job_active_deal ?? []),
                           ];
@@ -1858,22 +1892,38 @@ export default function OrgDetailPage({
                                   <thead className="bg-zinc-50 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400">
                                     <tr>
                                       <th className="px-2 py-1.5 font-medium">Creator</th>
+                                      <th className="px-2 py-1.5 font-medium">Their response</th>
                                       <th className="px-2 py-1.5 font-medium">Invited</th>
                                       <th className="px-2 py-1.5 font-medium">Applied</th>
-                                      <th className="px-2 py-1.5 font-medium">Active deal</th>
+                                      <th className="px-2 py-1.5 font-medium">Deal</th>
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {invitesForJob.map((inv) => (
+                                    {invitesForJob.map((inv) => {
+                                      const cr = inv.creator_response ?? "pending";
+                                      const resp =
+                                        inv.has_active_deal
+                                          ? "—"
+                                          : inv.has_application
+                                            ? "—"
+                                            : cr === "interested"
+                                              ? "Interested"
+                                              : cr === "declined"
+                                                ? "Passed"
+                                                : cr === "dismissed"
+                                                  ? "Hidden"
+                                                  : "—";
+                                      return (
                                       <tr key={inv.profile_id + inv.job_id} className="border-t border-zinc-100 dark:border-zinc-800">
                                         <td className="px-2 py-1.5">{creatorLabel(inv.profile_id)}</td>
+                                        <td className="px-2 py-1.5 text-zinc-600 dark:text-zinc-400">{resp}</td>
                                         <td className="px-2 py-1.5 text-zinc-500">
                                           {inv.invited_at ? new Date(inv.invited_at).toLocaleDateString() : "—"}
                                         </td>
                                         <td className="px-2 py-1.5">{inv.has_application ? "Yes" : "—"}</td>
                                         <td className="px-2 py-1.5">{inv.has_active_deal ? "Yes" : "—"}</td>
                                       </tr>
-                                    ))}
+                                    );})}
                                   </tbody>
                                 </table>
                               </div>

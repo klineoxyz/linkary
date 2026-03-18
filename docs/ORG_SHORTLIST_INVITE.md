@@ -95,8 +95,11 @@ No new notification rows or email — visibility only from real invite tables.
 
 ---
 
+## Job invite creator response
+
+See **`docs/JOB_INVITE_CREATOR_RESPONSE.md`** — `creator_response`, org pipeline split (awaiting vs passed), RLS.
+
 ## Later (fuller “sourcing CRM”)
 
 - Email/in-app **delivery** events for job invites.
-- Decline/dismiss for job invites (schema).
 - Deeper program discovery deep-links per program id.

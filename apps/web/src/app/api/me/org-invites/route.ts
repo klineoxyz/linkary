@@ -23,12 +23,20 @@ export async function GET(request: NextRequest) {
 
   const { data: jiRows, error: jiErr } = await supabase
     .from("org_job_invites")
-    .select("id, org_id, job_id, invited_at")
+    .select("id, org_id, job_id, invited_at, creator_response, creator_responded_at, viewed_at")
     .eq("profile_id", pid)
     .order("invited_at", { ascending: false });
   if (jiErr) return NextResponse.json({ error: jiErr.message }, { status: 500 });
 
-  const jobInvites = (jiRows ?? []) as Array<{ id: string; org_id: string; job_id: string; invited_at: string }>;
+  const jobInvites = (jiRows ?? []) as Array<{
+    id: string;
+    org_id: string;
+    job_id: string;
+    invited_at: string;
+    creator_response?: string;
+    creator_responded_at?: string | null;
+    viewed_at?: string | null;
+  }>;
   const orgIds = [...new Set(jobInvites.map((r) => r.org_id))];
   const jobIds = [...new Set(jobInvites.map((r) => r.job_id))];
 
@@ -86,6 +94,9 @@ export async function GET(request: NextRequest) {
     return {
       id: inv.id,
       invited_at: inv.invited_at,
+      creator_response: inv.creator_response ?? "pending",
+      creator_responded_at: inv.creator_responded_at ?? null,
+      viewed_at: inv.viewed_at ?? null,
       org: orgById[inv.org_id] ?? { id: inv.org_id, name: "Organization", slug: null },
       job: jobById[inv.job_id] ?? { id: inv.job_id, title: "Job", apply_url: null, status: "" },
       has_application: !!app,

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
           .from("kol_list_members")
           .select("id", { count: "exact", head: true })
           .eq("kol_list_id", r.id);
-        return { ...r, members_count: count ?? 0 };
+        return { ...r, members_count: count ?? 0, owner_type: "org" as const, owner_id: orgId };
       })
     );
     return NextResponse.json({ lists: withCounts });
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         .from("kol_list_members")
         .select("id", { count: "exact", head: true })
         .eq("kol_list_id", r.id);
-      return { ...r, members_count: count ?? 0 };
+      return { ...r, members_count: count ?? 0, owner_type: "profile" as const, owner_id: user.id };
     })
   );
   return NextResponse.json({ lists: withCounts });
@@ -101,5 +101,7 @@ export async function POST(request: NextRequest) {
     .select("id, name, description, status, created_at, updated_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ list: { ...row, members_count: 0 } });
+  const ot = (body.owner_type || "profile") as "profile" | "org";
+  const oid = body.owner_id || user.id;
+  return NextResponse.json({ list: { ...row, members_count: 0, owner_type: ot, owner_id: oid } });
 }

@@ -4368,6 +4368,7 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
     activeOrg: { id: string; name: string; slug: string } | null;
     memberships: Array<{ id: string; name: string; slug: string; role?: string }>;
   }>({ loaded: false, context: "personal", activeOrg: null, memberships: [] });
+  const [kolListsInviteHint, setKolListsInviteHint] = useState<{ suggestJobId?: string; suggestProgramId?: string } | null>(null);
 
   useEffect(() => {
     if (!authUserId) {
@@ -4480,7 +4481,8 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
   );
 
   const navigateOrgOperatorKolLists = useCallback(
-    (orgId: string) => {
+    (orgId: string, hint?: { suggestJobId?: string; suggestProgramId?: string }) => {
+      setKolListsInviteHint(hint && (hint.suggestJobId || hint.suggestProgramId) ? hint : null);
       if (activeCtx.context === "org" && activeCtx.activeOrg?.id === orgId) {
         setRoute({ name: "kolLists" });
         return;
@@ -5302,6 +5304,8 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
                     me={me}
                     activeOrgContextId={activeCtx.context === "org" && activeCtx.activeOrg ? activeCtx.activeOrg.id : null}
                     activeOrgName={activeCtx.context === "org" && activeCtx.activeOrg ? activeCtx.activeOrg.name : null}
+                    inviteHint={kolListsInviteHint}
+                    onConsumeInviteHint={() => setKolListsInviteHint(null)}
                   />
                 )}
                 {route.name === "inviteLineage" && <InviteLineagePage setRoute={setRoute} />}

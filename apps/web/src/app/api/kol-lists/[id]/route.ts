@@ -33,7 +33,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const { data: members, error: memError } = await supabase
     .from("kol_list_members")
-    .select("id, profile_id, notes, sort_order, created_at")
+    .select("id, profile_id, notes, sort_order, created_at, shortlisted")
     .eq("kol_list_id", id)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
@@ -51,12 +51,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       profiles[row.id] = { username: row.username, display_name: row.display_name, avatar_url: row.avatar_url };
     }
   }
-  const membersWithProfile = (members ?? []).map((m: { id: string; profile_id: string; notes: string | null; sort_order: number; created_at: string }) => ({
+  const membersWithProfile = (members ?? []).map((m: { id: string; profile_id: string; notes: string | null; sort_order: number; created_at: string; shortlisted?: boolean }) => ({
     id: m.id,
     profile_id: m.profile_id,
     notes: m.notes,
     sort_order: m.sort_order,
     created_at: m.created_at,
+    shortlisted: !!(m as { shortlisted?: boolean }).shortlisted,
     username: profiles[m.profile_id]?.username ?? null,
     display_name: profiles[m.profile_id]?.display_name ?? null,
     avatar_url: profiles[m.profile_id]?.avatar_url ?? null,

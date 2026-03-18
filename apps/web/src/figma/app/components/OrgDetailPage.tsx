@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import {
   Building2,
@@ -69,7 +69,7 @@ export default function OrgDetailPage({
   setRoute: (r: { name: string; data?: any }) => void;
   data?: { orgId?: string; slug?: string; showConnectXBanner?: boolean; tab?: string };
   activeOrgContextId?: string | null;
-  onOpenOrgKolLists?: (orgId: string) => void;
+  onOpenOrgKolLists?: (orgId: string, hint?: { suggestJobId?: string; suggestProgramId?: string }) => void;
 }) {
   const orgId = data?.orgId ?? data?.slug;
   const [org, setOrg] = useState<Org | null>(null);
@@ -163,6 +163,16 @@ export default function OrgDetailPage({
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [operatorActiveDeals, setOperatorActiveDeals] = useState<Array<{ id: string; job_id: string | null }>>([]);
   const [operatorKolListCount, setOperatorKolListCount] = useState(0);
+  const [sourcingData, setSourcingData] = useState<{
+    job_invites?: Array<{ job_id: string; profile_id: string; has_application?: boolean; has_active_deal?: boolean }>;
+    summary?: {
+      job_invites_count: number;
+      program_invites_pending: number;
+      job_invites_applied: number;
+      job_invites_active_deal: number;
+    };
+    shortlisted_org_members_count?: number;
+  } | null>(null);
 
   const loadSession = useCallback(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -232,7 +242,7 @@ export default function OrgDetailPage({
           const progRes = await fetch(`${base}/api/creator-programs?org_id=${encodeURIComponent(o.id)}`, { headers: { Authorization: `Bearer ${token}` } });
           const progJson = await progRes.json().catch(() => ({}));
           setOrgPrograms(Array.isArray(progJson.programs) ? progJson.programs : []);
-          const [dealsRes, kolRes] = await Promise.all([
+          const [dealsRes, kolRes, sourcingRes] = await Promise.all([
             supabase
               .from("deals")
               .select("id, job_id")
@@ -243,6 +253,9 @@ export default function OrgDetailPage({
             fetch(`${base}/api/kol-lists?owner=org&org_id=${encodeURIComponent(o.id)}`, {
               headers: { Authorization: `Bearer ${token}` },
             }).then((r) => r.json()),
+            fetch(`${base}/api/orgs/${encodeURIComponent(o.id)}/sourcing`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }).then((r) => r.json()),
           ]);
           setOperatorActiveDeals(
             Array.isArray(dealsRes.data)
@@ -250,10 +263,12 @@ export default function OrgDetailPage({
               : []
           );
           setOperatorKolListCount(Array.isArray(kolRes.lists) ? kolRes.lists.length : 0);
+          setSourcingData(sourcingRes && !sourcingRes.error ? sourcingRes : null);
         } else {
           setOrgPrograms([]);
           setOperatorActiveDeals([]);
           setOperatorKolListCount(0);
+          setSourcingData(null);
         }
         if (userId) {
           const isAdmin = await isOrgAdmin(userId, o.id);
@@ -584,6 +599,14 @@ export default function OrgDetailPage({
     jobId
       ? ((orgJobs as Array<{ id: string; title?: string }>).find((j) => j.id === jobId)?.title ?? "Role")
       : "Role";
+
+  const jobInvitesPerJob = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const inv of sourcingData?.job_invites ?? []) {
+      m[inv.job_id] = (m[inv.job_id] ?? 0) + 1;
+    }
+    return m;
+  }, [sourcingData?.job_invites]);
 
   const tabs = [
     { id: "dashboard" as const, label: "Workspace", icon: ClipboardList },
@@ -938,6 +961,36 @@ export default function OrgDetailPage({
                         {operatorKolListCount === 0 && <p className="text-[11px] text-zinc-500 mt-2">Build lists for outreach</p>}
                       </button>
                     </div>
+                    {sourcingData?.summary != null && (
+                      <div className="mt-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 p-4">
+                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Sourcing &amp; invites</h3>
+                        <ul className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 space-y-1">
+                          <li>
+                            Shortlisted (org KOL lists):{" "}
+                            <strong>{sourcingData.shortlisted_org_members_count ?? 0}</strong>
+                          </li>
+                          <li>
+                            Active job/sprint invites: <strong>{sourcingData.summary.job_invites_count}</strong>
+                          </li>
+                          <li>
+                            Invited who applied (job): <strong>{sourcingData.summary.job_invites_applied}</strong>
+                          </li>
+                          <li>
+                            Invited with active job deal: <strong>{sourcingData.summary.job_invites_active_deal}</strong>
+                          </li>
+                          <li>
+                            Program invites (pending): <strong>{sourcingData.summary.program_invites_pending}</strong>
+                          </li>
+                        </ul>
+                        <button
+                          type="button"
+                          onClick={() => (onOpenOrgKolLists ? onOpenOrgKolLists(org.id) : (window.location.href = "/app/kol-lists"))}
+                          className="mt-3 text-sm font-medium text-primary hover:underline"
+                        >
+                          Org KOL lists — shortlist &amp; invite →
+                        </button>
+                      </div>
+                    )}
                     <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
                       <span className="inline-flex items-center gap-1.5">
                         <Users className="w-4 h-4" />
@@ -1480,7 +1533,17 @@ export default function OrgDetailPage({
                           <p className="font-medium text-zinc-900 dark:text-zinc-100">{j.title}</p>
                           <p className="text-xs text-zinc-500">{j.type} · {j.status}{j.budget ? ` · ${j.budget}` : ""}</p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs text-zinc-500">
+                            {jobInvitesPerJob[j.id] ?? 0} invited (KOL)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => (onOpenOrgKolLists ? onOpenOrgKolLists(org.id, { suggestJobId: j.id }) : (window.location.href = "/app/kol-lists"))}
+                            className="text-xs px-2 py-1 rounded-lg border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                          >
+                            Invite from KOL lists
+                          </button>
                           <button type="button" onClick={() => setSelectedJobId(j.id)} className="text-sm text-primary hover:underline">Manage</button>
                           <button
                             type="button"
@@ -1669,10 +1732,17 @@ export default function OrgDetailPage({
                 ) : (
                   <ul className="space-y-2">
                     {orgPrograms.map((p) => (
-                      <li key={p.id} className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-between gap-2">
+                      <li key={p.id} className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 flex flex-wrap items-center justify-between gap-2">
                         <span className="font-medium text-zinc-900 dark:text-zinc-100">{p.title}</span>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-zinc-500">{p.status} · {p.invites_count} invite(s)</span>
+                          <button
+                            type="button"
+                            onClick={() => (onOpenOrgKolLists ? onOpenOrgKolLists(org.id, { suggestProgramId: p.id }) : (window.location.href = "/app/kol-lists"))}
+                            className="text-xs px-2 py-1 rounded-lg border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                          >
+                            Invite from KOL lists
+                          </button>
                           <button
                             type="button"
                             onClick={() => setSelectedProgramId(p.id)}

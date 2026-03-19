@@ -98,7 +98,8 @@ export async function getOrCreateCreatorWorkspaceAndBoard(
   supabase: SupabaseClient,
   profileId: string
 ): Promise<GetOrCreateCreatorResult> {
-  const slug = `creator-${profileId.slice(0, 8)}`;
+  /** Full profile id guarantees UNIQUE(slug); first-8 collided across users and caused 23505 + failed recovery. */
+  const slug = `creator-${profileId}`;
   const name = "My workspace";
 
   const { data: profileRow } = await supabase
@@ -161,28 +162,26 @@ export async function getOrCreateCreatorWorkspaceAndBoard(
     } else {
       workspaceId = inserted.id;
     }
+  }
 
-    if (workspaceId) {
-      const { error: memberErr } = await supabase.from("crm_workspace_members").insert({
-        workspace_id: workspaceId,
-        profile_id: profileId,
-        role: "owner",
-      });
-      // Ignore duplicate member (23505): we may have lost the race and another request added us.
-      if (memberErr && memberErr.code !== "23505") {
-        const m = (memberErr.message ?? "").toLowerCase();
-        const isRls = memberErr.code === "42501" || m.includes("policy") || m.includes("row-level");
-        logBootstrapFailure(
-          isRls ? "rls_denied" : "workspace_member_insert",
-          BOOTSTRAP_STAGES.member_insert,
-          `code=${memberErr.code}`
-        );
-        return {
-          error: isRls ? "rls_denied" : "workspace_member_insert",
-          stage: BOOTSTRAP_STAGES.member_insert,
-        };
-      }
-    }
+  // Always ensure owner membership (new workspace, or orphan row left by pre-fix RLS).
+  const { error: memberErr } = await supabase.from("crm_workspace_members").insert({
+    workspace_id: workspaceId,
+    profile_id: profileId,
+    role: "owner",
+  });
+  if (memberErr && memberErr.code !== "23505") {
+    const m = (memberErr.message ?? "").toLowerCase();
+    const isRls = memberErr.code === "42501" || m.includes("policy") || m.includes("row-level");
+    logBootstrapFailure(
+      isRls ? "rls_denied" : "workspace_member_insert",
+      BOOTSTRAP_STAGES.member_insert,
+      `code=${memberErr.code}`
+    );
+    return {
+      error: isRls ? "rls_denied" : "workspace_member_insert",
+      stage: BOOTSTRAP_STAGES.member_insert,
+    };
   }
 
   const { data: board } = await supabase

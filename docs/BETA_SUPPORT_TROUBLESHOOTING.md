@@ -39,6 +39,8 @@ Short practical guide for support during invited beta.
 
 ## “Org not found” on /org/[slug]
 
+**If they see the default Next.js “404 | This page could not be found”** (not the in-app “Org not found.” line), the server could not resolve the org. Apply migration `20260424000000_resolve_org_public_by_segment.sql` and redeploy web so SSR uses `resolve_org_public_by_segment` (bypasses RLS drift on `orgs` / `usernames` reads).
+
 **Checks:**
 
 1. **Correct URL** — Confirm they’re using the org’s slug (e.g. `/org/desicryptoclub`) or the org’s UUID. Mixed case is supported; encoding is handled.

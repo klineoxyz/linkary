@@ -54,6 +54,7 @@ Apply to the **same** Supabase project used by both Linkary (web) and CRM. Run i
 | `20260421000000_crm_workspaces_owner_select_rls_fix.sql` | **Critical.** Lets workspace owners SELECT their workspace (breaks RLS cycle so creator workspace bootstrap succeeds). |
 | `20260422000000_jobs_campaign_definition_fields.sql` | promoted_org_id, required_platforms, promoted_social_handles, weekly_required_posts, daily_engagement_required on jobs. |
 | `20260423000000_crm_campaigns_objective_guidance.sql` | campaign_objective, guidance_links on crm_campaigns. |
+| `20260424000000_resolve_org_public_by_segment.sql` | **Production /org/[slug] 404 fix:** `resolve_org_public_by_segment` RPC (SECURITY DEFINER) so SSR can resolve orgs even if direct `orgs`/`usernames` reads fail under RLS. |
 
 **Dependencies (must already be applied):** All earlier migrations that define `profiles`, `orgs`, `org_members`, `jobs`, `applications`, `deals`, `usernames`, and any RPCs used by CRM (e.g. `is_org_admin`). The repo has 160+ migrations; use your existing migration history. If starting fresh, apply in full timestamp order.
 

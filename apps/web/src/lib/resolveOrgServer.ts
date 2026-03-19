@@ -26,6 +26,21 @@ export async function resolveOrgBySegment(
   const raw = decodeURIComponent(segment).trim();
   if (!raw) return null;
 
+  /** Prefer RPC: works when prod RLS/PostgREST blocks direct orgs/usernames reads from the SSR client. */
+  const { data: rpcRows, error: rpcErr } = await supabase.rpc("resolve_org_public_by_segment", {
+    p_segment: raw,
+  });
+  if (!rpcErr && Array.isArray(rpcRows) && rpcRows.length > 0) {
+    const row = rpcRows[0] as { id?: string; slug?: string | null; name?: string | null };
+    if (row?.id) {
+      return {
+        id: row.id,
+        slug: (row.slug as string) ?? "",
+        name: (row.name as string) ?? "",
+      };
+    }
+  }
+
   const norm = normalize(raw);
 
   if (UUID_REGEX.test(raw)) {

@@ -882,6 +882,11 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
     const username = searchParams?.get("username") ?? undefined;
     return { name: "profile", data: { tab, username } };
   }
+  if (parts[0] === "analytics" && parts[1] === "org" && parts[2]) {
+    const rawSegment = fullPath.split("/")[2];
+    const orgSegment = rawSegment ? decodeURIComponent(rawSegment).trim() : "";
+    return { name: "orgDetail", data: { orgId: orgSegment, slug: orgSegment, tab: "insights" } };
+  }
   if (parts[0] === "org" && parts[1]) {
     const tab = searchParams?.get("tab") ?? undefined;
     const rawSegment = fullPath.split("/")[1];

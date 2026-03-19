@@ -39,7 +39,9 @@ Short practical guide for support during invited beta.
 
 ## “Org not found” on /org/[slug]
 
-**If they see the default Next.js “404 | This page could not be found”** (not the in-app “Org not found.” line), the server could not resolve the org. Apply migration `20260424000000_resolve_org_public_by_segment.sql` and redeploy web so SSR uses `resolve_org_public_by_segment` (bypasses RLS drift on `orgs` / `usernames` reads).
+**If they see the default Next.js “404 | This page could not be found”** (not the in-app “Org not found.” line), the server could not resolve the org. Apply migrations `20260424000000_resolve_org_public_by_segment.sql` and **`20260424100000_resolve_org_hyphen_slug_fallback.sql`** (hyphen-insensitive slug, e.g. `/org/desicryptoclub` → `desicrypto-club`), then redeploy web.
+
+**Hyphen vs no hyphen:** If `orgs.slug` is `desicrypto-club` but marketing links use `desicryptoclub`, resolution needs the hyphen migration. If `usernames.username = desicryptoclub` is owned by a **profile**, org resolution cannot use the username row for the org—use canonical org slug in links or keep the migration applied.
 
 **Checks:**
 

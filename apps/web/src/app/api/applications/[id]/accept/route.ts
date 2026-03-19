@@ -39,7 +39,7 @@ export async function POST(
 
   const { data: job, error: jobErr } = await supabase
     .from("jobs")
-    .select("id, org_id, status, title")
+    .select("id, org_id, status, title, type, objective, links, promoted_org_id, required_platforms, promoted_social_handles, weekly_required_posts, daily_engagement_required")
     .eq("id", app.job_id)
     .maybeSingle();
 
@@ -99,12 +99,30 @@ export async function POST(
     try {
       const { triggerLinkaryCrmSync } = await import("@/lib/crm-sync");
       const jobTitle = (job as { title?: string }).title?.trim() || "Deliverables";
+      const j = job as {
+        id: string; org_id: string; title?: string;
+        objective?: string | null; links?: Array<{ label?: string; url: string }>;
+        promoted_org_id?: string | null; required_platforms?: string[] | null;
+        promoted_social_handles?: Array<{ platform: string; handle: string }> | null;
+        weekly_required_posts?: number | null; daily_engagement_required?: string | null;
+      };
       await triggerLinkaryCrmSync({
-        org_id: job.org_id,
-        source_linkary_campaign_id: job.id,
+        org_id: j.org_id,
+        source_linkary_campaign_id: j.id,
         campaign_title: jobTitle,
         participant_profile_id: profileId,
-        tasks: [{ linkary_task_id: job.id, title: jobTitle }],
+        tasks: [{ linkary_task_id: j.id, title: jobTitle }],
+        campaign_definition: (j.objective != null || (j.links?.length ?? 0) > 0 || j.promoted_org_id || (j.required_platforms?.length ?? 0) > 0 || (j.promoted_social_handles?.length ?? 0) > 0 || j.weekly_required_posts != null || j.daily_engagement_required)
+          ? {
+              objective: j.objective ?? null,
+              links: j.links ?? [],
+              promoted_org_id: j.promoted_org_id ?? null,
+              required_platforms: j.required_platforms ?? null,
+              promoted_social_handles: j.promoted_social_handles ?? null,
+              weekly_required_posts: j.weekly_required_posts ?? null,
+              daily_engagement_required: j.daily_engagement_required ?? null,
+            }
+          : undefined,
       });
     } catch (_) {
       /* non-blocking; sync failure does not fail acceptance */

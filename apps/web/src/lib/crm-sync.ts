@@ -16,6 +16,16 @@ export type LinkarySyncPayload = {
     description?: string | null;
     platform?: string | null;
   }>;
+  /** Campaign definition from Linkary job (passed through to CRM campaign). */
+  campaign_definition?: {
+    objective?: string | null;
+    links?: Array<{ label?: string; url: string }>;
+    promoted_org_id?: string | null;
+    required_platforms?: string[] | null;
+    promoted_social_handles?: Array<{ platform: string; handle: string }> | null;
+    weekly_required_posts?: number | null;
+    daily_engagement_required?: string | null;
+  };
 };
 
 export type LinkarySyncResult =

@@ -164,7 +164,9 @@ export default async function CampaignDetailPage({
           campaign.weekly_required_posts != null ||
           campaign.daily_engagement_required ||
           campaign.promoted_org_id ||
-          (campaign.promoted_social_handles?.length ?? 0) > 0) && (
+          (campaign.promoted_social_handles?.length ?? 0) > 0 ||
+          campaign.campaign_objective ||
+          (campaign.guidance_links?.length ?? 0) > 0) && (
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 space-y-3 text-sm mb-6">
             <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {campaign.reward_date != null && (
@@ -217,7 +219,27 @@ export default async function CampaignDetailPage({
                   </dd>
                 </>
               )}
+              {campaign.campaign_objective && (
+                <>
+                  <dt className="text-[var(--crm-muted)]">Objective</dt>
+                  <dd className="text-[var(--crm-foreground)]">{campaign.campaign_objective}</dd>
+                </>
+              )}
             </dl>
+            {(campaign.guidance_links?.length ?? 0) > 0 && (
+              <div className="mb-3">
+                <p className="text-[var(--crm-muted)] mb-1">Guidance links for creators</p>
+                <ul className="space-y-1">
+                  {campaign.guidance_links!.map((link, i) => (
+                    <li key={i}>
+                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-[var(--crm-primary)] underline break-all text-xs">
+                        {link.label || link.url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {(campaign.promoted_social_handles?.length ?? 0) > 0 && (
               <div>
                 <p className="text-[var(--crm-muted)] mb-1">Promoted social accounts (for reporting)</p>

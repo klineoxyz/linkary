@@ -16,7 +16,7 @@ export async function GET(
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   const { data, error } = await supabase
     .from("jobs")
-    .select("id, org_id, type, title, budget, duration, tags, description, apply_url, objective, links, status, created_at, updated_at")
+    .select("id, org_id, type, title, budget, duration, tags, description, apply_url, objective, links, promoted_org_id, required_platforms, promoted_social_handles, weekly_required_posts, daily_engagement_required, status, created_at, updated_at")
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });
 
@@ -61,6 +61,11 @@ export async function POST(
     apply_url?: string;
     objective?: string;
     links?: Array<{ label?: string; url: string }>;
+    promoted_org_id?: string | null;
+    required_platforms?: string[];
+    promoted_social_handles?: Array<{ platform: string; handle: string }>;
+    weekly_required_posts?: number | null;
+    daily_engagement_required?: string | null;
   };
   try {
     body = await request.json().catch(() => ({}));
@@ -76,25 +81,39 @@ export async function POST(
   const applyUrl = typeof body?.apply_url === "string" ? body.apply_url.trim() || null : null;
   const objective = typeof body?.objective === "string" ? body.objective.trim() || null : null;
   const links = Array.isArray(body?.links)
-    ? body.links.filter((l) => l && typeof (l as { url?: string }).url === "string" && (l as { url: string }).url.trim())
+    ? body.links.slice(0, 5).filter((l) => l && typeof (l as { url?: string }).url === "string" && (l as { url: string }).url.trim())
     : [];
+  const promotedOrgId = typeof body?.promoted_org_id === "string" && body.promoted_org_id.trim() ? body.promoted_org_id.trim() : null;
+  const requiredPlatforms = Array.isArray(body?.required_platforms) ? body.required_platforms.filter((p) => typeof p === "string" && p.trim()).slice(0, 10) : [];
+  const promotedHandles = Array.isArray(body?.promoted_social_handles)
+    ? body.promoted_social_handles.filter((h) => h && typeof (h as { platform?: string }).platform === "string" && typeof (h as { handle?: string }).handle === "string").slice(0, 20)
+    : [];
+  const weeklyPosts = typeof body?.weekly_required_posts === "number" && body.weekly_required_posts >= 0 ? body.weekly_required_posts : null;
+  const dailyEngagement = typeof body?.daily_engagement_required === "string" ? body.daily_engagement_required.trim() || null : null;
+
+  const insertPayload: Record<string, unknown> = {
+    org_id: orgId,
+    type,
+    title,
+    budget: typeof body?.budget === "string" ? body.budget.trim() || null : null,
+    duration: typeof body?.duration === "string" ? body.duration.trim() || null : null,
+    tags: Array.isArray(body?.tags) ? body.tags : [],
+    description,
+    apply_url: applyUrl,
+    objective,
+    links: links.length ? links : [],
+    status: "open",
+  };
+  if (promotedOrgId) insertPayload.promoted_org_id = promotedOrgId;
+  if (requiredPlatforms.length) insertPayload.required_platforms = requiredPlatforms;
+  if (promotedHandles.length) insertPayload.promoted_social_handles = promotedHandles;
+  if (weeklyPosts != null) insertPayload.weekly_required_posts = weeklyPosts;
+  if (dailyEngagement) insertPayload.daily_engagement_required = dailyEngagement;
 
   const { data: job, error: insertErr } = await supabase
     .from("jobs")
-    .insert({
-      org_id: orgId,
-      type,
-      title,
-      budget: typeof body?.budget === "string" ? body.budget.trim() || null : null,
-      duration: typeof body?.duration === "string" ? body.duration.trim() || null : null,
-      tags: Array.isArray(body?.tags) ? body.tags : [],
-      description,
-      apply_url: applyUrl,
-      objective,
-      links: links.length ? links : [],
-      status: "open",
-    })
-    .select("id, org_id, type, title, budget, duration, tags, description, apply_url, objective, links, status, created_at, updated_at")
+    .insert(insertPayload)
+    .select("id, org_id, type, title, budget, duration, tags, description, apply_url, objective, links, promoted_org_id, required_platforms, promoted_social_handles, weekly_required_posts, daily_engagement_required, status, created_at, updated_at")
     .single();
 
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });

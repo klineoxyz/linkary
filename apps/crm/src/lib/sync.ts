@@ -21,6 +21,16 @@ export type LinkarySyncPayload = {
   campaign_title?: string;
   participant_profile_id: string;
   tasks: LinkarySyncTask[];
+  /** Campaign definition from Linkary job (objective, links, promoted org/handles, platforms, cadence). */
+  campaign_definition?: {
+    objective?: string | null;
+    links?: Array<{ label?: string; url: string }>;
+    promoted_org_id?: string | null;
+    required_platforms?: string[] | null;
+    promoted_social_handles?: Array<{ platform: string; handle: string }> | null;
+    weekly_required_posts?: number | null;
+    daily_engagement_required?: string | null;
+  };
 };
 
 export type LinkarySyncResult = {
@@ -165,6 +175,7 @@ export async function runLinkarySync(
     campaign_title,
     participant_profile_id,
     tasks: taskListRaw,
+    campaign_definition,
   } = payload;
 
   const taskList = taskListRaw.map((t) => ({
@@ -174,22 +185,31 @@ export async function runLinkarySync(
     platform: (t as LinkarySyncTask).platform ?? null,
   }));
 
+  const def = campaign_definition;
+  const campaignUpsert: Record<string, unknown> = {
+    workspace_id,
+    source_linkary_campaign_id,
+    title: campaign_title ?? "Synced campaign",
+    status: "active",
+    updated_at: new Date().toISOString(),
+  };
+  if (def) {
+    if (def.objective != null && def.objective !== "") campaignUpsert.campaign_objective = def.objective;
+    if (Array.isArray(def.links) && def.links.length > 0) campaignUpsert.guidance_links = def.links.slice(0, 5);
+    if (def.promoted_org_id) campaignUpsert.promoted_org_id = def.promoted_org_id;
+    if (Array.isArray(def.required_platforms) && def.required_platforms.length > 0) campaignUpsert.required_platforms = def.required_platforms;
+    if (Array.isArray(def.promoted_social_handles) && def.promoted_social_handles.length > 0) campaignUpsert.promoted_social_handles = def.promoted_social_handles;
+    if (typeof def.weekly_required_posts === "number" && def.weekly_required_posts >= 0) campaignUpsert.weekly_required_posts = def.weekly_required_posts;
+    if (def.daily_engagement_required != null && String(def.daily_engagement_required).trim() !== "") campaignUpsert.daily_engagement_required = String(def.daily_engagement_required).trim();
+  }
+
   // DB-level uniqueness: (workspace_id, source_linkary_campaign_id). Safe under concurrency.
   const { data: campaignRow, error: campErr } = await supabase
     .from("crm_campaigns")
-    .upsert(
-      {
-        workspace_id,
-        source_linkary_campaign_id,
-        title: campaign_title ?? "Synced campaign",
-        status: "active",
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "workspace_id,source_linkary_campaign_id",
-        ignoreDuplicates: false,
-      }
-    )
+    .upsert(campaignUpsert, {
+      onConflict: "workspace_id,source_linkary_campaign_id",
+      ignoreDuplicates: false,
+    })
     .select("id")
     .single();
 

@@ -124,6 +124,11 @@ export default function OrgDetailPage({
   const [jobApplyUrl, setJobApplyUrl] = useState("");
   const [jobObjective, setJobObjective] = useState("");
   const [jobLinksStr, setJobLinksStr] = useState("");
+  const [jobPromotedOrgId, setJobPromotedOrgId] = useState("");
+  const [jobRequiredPlatformsStr, setJobRequiredPlatformsStr] = useState("");
+  const [jobPromotedHandlesStr, setJobPromotedHandlesStr] = useState("");
+  const [jobWeeklyPosts, setJobWeeklyPosts] = useState("");
+  const [jobDailyEngagement, setJobDailyEngagement] = useState("");
   const [jobSaving, setJobSaving] = useState(false);
   const [isCryptoProject, setIsCryptoProject] = useState(false);
   const [hasToken, setHasToken] = useState(false);
@@ -2498,10 +2503,46 @@ export default function OrgDetailPage({
                   className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
                 />
                 <textarea
-                  placeholder="Links for creators (one per line: Label URL or just URL)"
+                  placeholder="Guidance links for creators (up to 5; one per line: Label URL or just URL)"
                   value={jobLinksStr}
                   onChange={(e) => setJobLinksStr(e.target.value)}
                   rows={2}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+                />
+                <input
+                  type="text"
+                  placeholder="Promoted org ID (optional — client/partner org UUID)"
+                  value={jobPromotedOrgId}
+                  onChange={(e) => setJobPromotedOrgId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+                />
+                <input
+                  type="text"
+                  placeholder="Required platforms (e.g. x, youtube, tiktok)"
+                  value={jobRequiredPlatformsStr}
+                  onChange={(e) => setJobRequiredPlatformsStr(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+                />
+                <textarea
+                  placeholder="Promoted social handles (one per line: platform handle — e.g. x @client)"
+                  value={jobPromotedHandlesStr}
+                  onChange={(e) => setJobPromotedHandlesStr(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Weekly required posts per creator (optional)"
+                  value={jobWeeklyPosts}
+                  onChange={(e) => setJobWeeklyPosts(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
+                />
+                <input
+                  type="text"
+                  placeholder="Daily engagement requirement (optional)"
+                  value={jobDailyEngagement}
+                  onChange={(e) => setJobDailyEngagement(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 mb-3"
                 />
               </>
@@ -2519,6 +2560,11 @@ export default function OrgDetailPage({
                   setJobApplyUrl("");
                   setJobObjective("");
                   setJobLinksStr("");
+                  setJobPromotedOrgId("");
+                  setJobRequiredPlatformsStr("");
+                  setJobPromotedHandlesStr("");
+                  setJobWeeklyPosts("");
+                  setJobDailyEngagement("");
                   setJobType("job");
                 }}
                 className="flex-1 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
@@ -2535,6 +2581,7 @@ export default function OrgDetailPage({
                     .split("\n")
                     .map((line) => line.trim())
                     .filter(Boolean)
+                    .slice(0, 5)
                     .map((line) => {
                       const parts = line.split(/\s+/);
                       if (parts.length >= 2) return { label: parts[0], url: parts.slice(1).join(" ").trim() };
@@ -2555,6 +2602,24 @@ export default function OrgDetailPage({
                     if (jobBudget.trim()) payload.budget = jobBudget.trim();
                     if (jobObjective.trim()) payload.objective = jobObjective.trim();
                     if (links.length) payload.links = links;
+                    const promotedOrgId = jobPromotedOrgId.trim();
+                    if (promotedOrgId) payload.promoted_org_id = promotedOrgId;
+                    const platforms = jobRequiredPlatformsStr.split(/[\s,]+/).map((p) => p.trim().toLowerCase()).filter(Boolean);
+                    if (platforms.length) payload.required_platforms = platforms;
+                    const handles = jobPromotedHandlesStr
+                      .split("\n")
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                      .map((line) => {
+                        const firstSpace = line.indexOf(" ");
+                        if (firstSpace > 0) return { platform: line.slice(0, firstSpace).trim().toLowerCase(), handle: line.slice(firstSpace).trim() };
+                        return { platform: "x", handle: line };
+                      })
+                      .slice(0, 20);
+                    if (handles.length) payload.promoted_social_handles = handles;
+                    const weeklyNum = jobWeeklyPosts.trim() ? parseInt(jobWeeklyPosts, 10) : null;
+                    if (weeklyNum != null && !Number.isNaN(weeklyNum) && weeklyNum >= 0) payload.weekly_required_posts = weeklyNum;
+                    if (jobDailyEngagement.trim()) payload.daily_engagement_required = jobDailyEngagement.trim();
                   }
                   const res = token
                     ? await fetch(`${origin}/api/orgs/${org.id}/jobs`, {
@@ -2579,6 +2644,11 @@ export default function OrgDetailPage({
                     setJobApplyUrl("");
                     setJobObjective("");
                     setJobLinksStr("");
+                    setJobPromotedOrgId("");
+                    setJobRequiredPlatformsStr("");
+                    setJobPromotedHandlesStr("");
+                    setJobWeeklyPosts("");
+                    setJobDailyEngagement("");
                     setJobType("job");
                   }
                 }}

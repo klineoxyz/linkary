@@ -15,6 +15,11 @@ export type Job = {
   apply_url?: string | null;
   objective?: string | null;
   links?: Array<{ label?: string; url: string }>;
+  promoted_org_id?: string | null;
+  required_platforms?: string[] | null;
+  promoted_social_handles?: Array<{ platform: string; handle: string }> | null;
+  weekly_required_posts?: number | null;
+  daily_engagement_required?: string | null;
   status: string;
   created_at: string;
   updated_at: string;

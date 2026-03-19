@@ -174,6 +174,7 @@ export default function OrgDetailPage({
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [operatorActiveDeals, setOperatorActiveDeals] = useState<Array<{ id: string; job_id: string | null }>>([]);
+  const [crmCampaignCount, setCrmCampaignCount] = useState<number | null>(null);
   const [operatorKolListCount, setOperatorKolListCount] = useState(0);
   const [sourcingData, setSourcingData] = useState<{
     job_invites?: Array<{
@@ -392,6 +393,21 @@ export default function OrgDetailPage({
               headers: { Authorization: `Bearer ${token}` },
             }).then((r) => r.json()),
           ]);
+          const { data: crmWsRows } = await supabase
+            .from("crm_workspaces")
+            .select("id")
+            .eq("linked_org_id", o.id)
+            .in("type", ["org", "project", "brand", "agency"]);
+          const crmWorkspaceIds = Array.isArray(crmWsRows) ? crmWsRows.map((r) => (r as { id: string }).id) : [];
+          if (crmWorkspaceIds.length > 0) {
+            const { count: campCount } = await supabase
+              .from("crm_campaigns")
+              .select("id", { count: "exact", head: true })
+              .in("workspace_id", crmWorkspaceIds);
+            setCrmCampaignCount(campCount ?? 0);
+          } else {
+            setCrmCampaignCount(0);
+          }
           setOperatorActiveDeals(
             Array.isArray(dealsRes.data)
               ? (dealsRes.data as Array<{ id: string; job_id: string | null }>)
@@ -402,6 +418,7 @@ export default function OrgDetailPage({
         } else {
           setOrgPrograms([]);
           setOperatorActiveDeals([]);
+          setCrmCampaignCount(null);
           setOperatorKolListCount(0);
           setSourcingData(null);
         }
@@ -1084,7 +1101,13 @@ export default function OrgDetailPage({
                       </button>
                       <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/50 p-4">
                         <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{operatorActiveDeals.length}</p>
-                        <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-1">Active job deals</p>
+                        <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-1">Active job deals (Linkary)</p>
+                        <p className="text-[11px] text-zinc-500 mt-1">
+                          CRM campaigns:{" "}
+                          <a href={`${getCrmAppUrl()}/campaigns`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                            {crmCampaignCount == null ? "—" : crmCampaignCount}
+                          </a>
+                        </p>
                         {operatorActiveDeals.length === 0 ? (
                           <p className="text-[11px] text-zinc-500 mt-2">Accept an applicant to start</p>
                         ) : (

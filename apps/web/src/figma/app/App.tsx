@@ -4500,7 +4500,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
                     <li key={r.id}>
                       <button
                         type="button"
-                        onClick={() => setRoute({ name: "analyticsProfile", data: { username } })}
+                        onClick={() => setRoute({ name: "userProfile", data: { username }, handle: username })}
                         className="flex w-full items-center gap-3 rounded-xl border border-border bg-muted px-3 py-2.5 text-left transition-colors hover:bg-secondary hover:border-border"
                       >
                         {r.avatar ? (

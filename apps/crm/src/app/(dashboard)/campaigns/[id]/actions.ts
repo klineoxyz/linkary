@@ -16,21 +16,115 @@ import { writeContribution } from "@/lib/contribution";
 import { upsertAccountSnapshot } from "@/lib/snapshots";
 import type { SnapshotMetrics, SnapshotType } from "@/lib/snapshots";
 import { revalidatePath } from "next/cache";
+import {
+  fetchXAccountPreview,
+  getTwitterApiKeyFromEnv,
+  parseXHandleInput,
+} from "@/lib/xUserPreview";
 
 const REVIEW_STATUSES = ["approved", "rejected", "needs_revision"] as const;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function parseXHandleInput(input: string): string {
-  const raw = input.trim();
-  if (!raw) return "";
-  const noProto = raw.replace(/^https?:\/\//i, "");
-  const noDomain = noProto
-    .replace(/^www\./i, "")
-    .replace(/^x\.com\//i, "")
-    .replace(/^twitter\.com\//i, "");
-  const firstSegment = noDomain.split(/[/?#]/)[0] ?? "";
-  const handle = firstSegment.replace(/^@/, "").trim().toLowerCase();
-  return handle;
+export type PromotedAccountPreview =
+  | {
+      ok: true;
+      kind: "linkary_org";
+      org_id: string;
+      name: string | null;
+      slug: string | null;
+      twitter_username: string | null;
+    }
+  | {
+      ok: true;
+      kind: "x_profile";
+      handle: string;
+      display_name: string | null;
+      bio: string | null;
+      profile_image_url: string | null;
+      followers: number | null;
+      following: number | null;
+      verified: boolean;
+      profile_url: string;
+    }
+  | { ok: true; kind: "x_handle_only"; handle: string; message: string }
+  | { ok: false; error: string };
+
+/**
+ * Resolve promoted field input to a human-visible preview (Linkary org row or live X profile).
+ * RLS: caller must have access to the campaign workspace.
+ */
+export async function previewPromotedAccountAction(
+  campaignId: string,
+  rawInput: string
+): Promise<PromotedAccountPreview> {
+  const supabase = await createServerSupabase();
+  if (!supabase) return { ok: false, error: "Not configured" };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) return { ok: false, error: "Unauthorized" };
+
+  const campaign = await getCampaign(supabase, campaignId);
+  if (!campaign) return { ok: false, error: "Campaign not found or access denied" };
+
+  const trimmed = rawInput.trim();
+  if (!trimmed) return { ok: false, error: "Enter a value to preview" };
+
+  if (UUID_RE.test(trimmed)) {
+    const { data: org } = await supabase
+      .from("orgs")
+      .select("id,name,slug,twitter_username")
+      .eq("id", trimmed)
+      .maybeSingle();
+    const row = org as { id: string; name: string | null; slug: string | null; twitter_username: string | null } | null;
+    if (row) {
+      return {
+        ok: true,
+        kind: "linkary_org",
+        org_id: row.id,
+        name: row.name,
+        slug: row.slug,
+        twitter_username: row.twitter_username,
+      };
+    }
+    return { ok: false, error: "No Linkary org found for this UUID" };
+  }
+
+  const handle = parseXHandleInput(trimmed);
+  if (!handle) return { ok: false, error: "Invalid X handle or URL" };
+  if (!/^[a-z0-9_]{1,15}$/i.test(handle)) {
+    return { ok: false, error: "Invalid X handle format" };
+  }
+
+  const apiKey = getTwitterApiKeyFromEnv();
+  if (!apiKey) {
+    return {
+      ok: true,
+      kind: "x_handle_only",
+      handle,
+      message:
+        "Live X profile preview needs TWITTERAPI_API_KEY (or TWITTERAPI_IO_KEY) on the CRM server. You can still save; the handle will be tracked.",
+    };
+  }
+
+  const preview = await fetchXAccountPreview(handle, apiKey);
+  if (!preview) {
+    return { ok: false, error: "X profile not found or could not be loaded. Check the handle." };
+  }
+
+  return {
+    ok: true,
+    kind: "x_profile",
+    handle: preview.handle,
+    display_name: preview.display_name,
+    bio: preview.bio,
+    profile_image_url: preview.profile_image_url,
+    followers: preview.followers,
+    following: preview.following,
+    verified: preview.verified,
+    profile_url: preview.profile_url,
+  };
 }
 
 async function resolveXHandle(handleInput: string): Promise<{ handle: string | null; error?: string }> {

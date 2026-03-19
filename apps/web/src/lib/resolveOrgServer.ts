@@ -14,6 +14,37 @@ function normalize(s: string): string {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/** Above this, skip in-memory hyphen match (apply migration `20260424100000` and rely on RPC). */
+const MAX_ORGS_FOR_HYPHEN_COLLAPSE_SCAN = 800;
+
+/**
+ * desicryptoclub (URL) vs desicrypto-club (orgs.slug). Unique collapsed match only.
+ * Used when RPC is missing/outdated or returns no row; bounded by org table size.
+ */
+async function resolveOrgByHyphenCollapsedSlug(
+  supabase: SupabaseClient,
+  norm: string
+): Promise<ResolvedOrg | null> {
+  const collapsed = norm.replace(/-/g, "");
+  if (collapsed.length < 2) return null;
+
+  const { count, error: countErr } = await supabase.from("orgs").select("*", { count: "exact", head: true });
+  if (countErr || count == null || count > MAX_ORGS_FOR_HYPHEN_COLLAPSE_SCAN) return null;
+
+  const { data: rows, error } = await supabase.from("orgs").select("id, slug, name");
+  if (error || !rows?.length) return null;
+
+  const matches = rows.filter(
+    (r) =>
+      String((r as { slug?: string | null }).slug ?? "")
+        .toLowerCase()
+        .replace(/-/g, "") === collapsed
+  );
+  if (matches.length !== 1) return null;
+  const r = matches[0] as { id: string; slug: string; name: string };
+  return { id: r.id, slug: r.slug ?? "", name: r.name ?? "" };
+}
+
 /**
  * Resolve segment (slug or uuid) to an org. Tries: (1) by id if segment is UUID,
  * (2) by slug on orgs table (case-insensitive, any published state), (3) usernames → org id.
@@ -63,6 +94,9 @@ export async function resolveOrgBySegment(
   if (bySlug && (bySlug as { id?: string }).id) {
     return { id: (bySlug as { id: string }).id, slug: (bySlug as { slug: string }).slug ?? "", name: (bySlug as { name: string }).name ?? "" };
   }
+
+  const byCollapsed = await resolveOrgByHyphenCollapsedSlug(supabase, norm);
+  if (byCollapsed) return byCollapsed;
 
   const owner = await getUsernameOwner(norm, supabase);
   if (owner?.owner_type === "org" && owner.owner_id) {

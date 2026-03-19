@@ -306,8 +306,13 @@ export default function OrgDetailPage({
     setLoading(true);
     (async () => {
       let o: Org | null = null;
+      // Use server-resolved snapshot first so /org/[segment] never regresses to "Org not found"
+      // when client-side RLS/cookie reads are delayed or stricter.
+      if (initialOrgSnapshot?.id) {
+        o = initialOrgSnapshot;
+      }
       if (initialOrgIdFromRoute) {
-        o = await getOrgById(initialOrgIdFromRoute);
+        o = o ?? (await getOrgById(initialOrgIdFromRoute));
       }
       if (!o) {
         o =

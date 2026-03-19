@@ -42,6 +42,7 @@ import { Briefcase, Sparkles, ListChecks } from "lucide-react";
 import OrgSourcingPipelineTab from "./OrgSourcingPipelineTab";
 import { getCrmAppUrl } from "@/lib/crmPublicUrl";
 import { getPublicEntityByUsername } from "@/lib/publicData";
+import { useOrgRouteInitialId } from "@/lib/orgRouteContext";
 
 const CreatorProgramDetailDrawer = dynamic(
   () => import("./CreatorProgramDetailDrawer").then((m) => m.default),
@@ -75,6 +76,7 @@ export default function OrgDetailPage({
   onOpenOrgKolLists?: (orgId: string, hint?: { suggestJobId?: string; suggestProgramId?: string }) => void;
 }) {
   const orgId = data?.orgId ?? data?.slug;
+  const initialOrgIdFromRoute = useOrgRouteInitialId();
   const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
   const validTabs = ["dashboard", "insights", "members", "affiliates", "ambassadors", "jobs", "sourcing", "case_studies", "settings"] as const;
@@ -295,15 +297,21 @@ export default function OrgDetailPage({
     }
     setLoading(true);
     (async () => {
-      const { getIdentifierKind } = await import("@/lib/entityResolver");
-      let o: Org | null =
-        getIdentifierKind(orgId) === "uuid"
-          ? await getOrgById(orgId)
-          : await getOrgBySlug(orgId.trim().toLowerCase().replace(/^@/, ""));
+      let o: Org | null = null;
+      if (initialOrgIdFromRoute) {
+        o = await getOrgById(initialOrgIdFromRoute);
+      }
       if (!o) {
-        const norm = orgId.trim().toLowerCase().replace(/^@/, "");
-        const entity = norm ? await getPublicEntityByUsername(norm) : null;
-        if (entity?.type === "org" && entity?.org?.id) o = await getOrgById(entity.org.id);
+        const { getIdentifierKind } = await import("@/lib/entityResolver");
+        o =
+          getIdentifierKind(orgId) === "uuid"
+            ? await getOrgById(orgId)
+            : await getOrgBySlug(orgId.trim().toLowerCase().replace(/^@/, ""));
+        if (!o) {
+          const norm = orgId.trim().toLowerCase().replace(/^@/, "");
+          const entity = norm ? await getPublicEntityByUsername(norm) : null;
+          if (entity?.type === "org" && entity?.org?.id) o = await getOrgById(entity.org.id);
+        }
       }
       setOrg(o ?? null);
       if (o) {
@@ -389,7 +397,7 @@ export default function OrgDetailPage({
       }
       setLoading(false);
     })();
-  }, [orgId, data?.orgId, userId, accessToken]);
+  }, [orgId, data?.orgId, userId, accessToken, initialOrgIdFromRoute]);
 
   const fetchMembersWithProfiles = async () => {
     if (!org?.id) return;

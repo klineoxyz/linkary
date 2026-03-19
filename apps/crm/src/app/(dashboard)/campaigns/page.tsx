@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { SetupRequired } from "@/components/SetupRequired";
 import { resolveCrmAccess } from "@/lib/access";
+import { ensureOrgWorkspacesForUser } from "@/lib/orgWorkspaceBootstrap";
 import { fetchCampaignsForUser } from "@/lib/campaigns";
 import { ListTodo } from "lucide-react";
 
@@ -15,7 +16,12 @@ export default async function CampaignsPage() {
   } = await supabase.auth.getUser();
   if (!user?.id) redirect("/login");
 
-  const access = await resolveCrmAccess(supabase, user.id);
+  let access = await resolveCrmAccess(supabase, user.id);
+
+  if (access.orgWorkspaces.length === 0) {
+    const result = await ensureOrgWorkspacesForUser(supabase, user.id);
+    if (result && result.orgWorkspacesCreated > 0) access = await resolveCrmAccess(supabase, user.id);
+  }
 
   // Always show Campaigns page; no redirect to home so nav stays consistent.
   if (access.orgWorkspaces.length === 0) {
@@ -29,10 +35,10 @@ export default async function CampaignsPage() {
         </header>
         <div className="crm-surface-raised p-8 text-center max-w-xl">
           <p className="text-sm font-medium text-[var(--crm-foreground)] mb-1">
-            No org workspace access
+            No org workspace in CRM
           </p>
           <p className="text-sm text-[var(--crm-muted)] mb-6 max-w-sm mx-auto">
-            Campaigns are available when you&apos;re a member of an org or project workspace. Use Tasks for your personal task board.
+            Campaigns appear here when your Linkary org has a workspace linked in CRM. If you run campaigns from an org, your org admin can link it from the org workspace on Linkary. Use Tasks below for your personal task board.
           </p>
           <Link href="/tasks" className="crm-btn-primary no-underline">
             <ListTodo className="h-4 w-4" />

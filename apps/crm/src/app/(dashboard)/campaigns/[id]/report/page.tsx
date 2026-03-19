@@ -34,6 +34,16 @@ function MetricRow({ label, value }: { label: string; value: string | number | n
   );
 }
 
+function toParticipantLabel(
+  profile: { id: string; username: string | null; display_name: string | null; twitter_username: string | null } | undefined,
+  profileId: string
+): string {
+  if (profile?.username) return `@${profile.username}`;
+  if (profile?.twitter_username) return `@${profile.twitter_username.replace(/^@/, "")}`;
+  if (profile?.display_name && profile.display_name.trim()) return profile.display_name.trim();
+  return `${profileId.slice(0, 8)}…`;
+}
+
 export default async function CampaignReportPage({
   params,
 }: {
@@ -82,6 +92,18 @@ export default async function CampaignReportPage({
   const maxChart = Math.max(
     1,
     ...chart_series.map((d) => Math.max(d.views, d.engagements))
+  );
+
+  const topContributorIds = Array.from(new Set(top_contributors.map((t) => t.participant_profile_id)));
+  const { data: topContributorProfiles } =
+    topContributorIds.length > 0
+      ? await supabase
+          .from("profiles")
+          .select("id, username, display_name, twitter_username")
+          .in("id", topContributorIds)
+      : { data: [] as Array<{ id: string; username: string | null; display_name: string | null; twitter_username: string | null }> };
+  const topContributorById = new Map(
+    (topContributorProfiles ?? []).map((p) => [p.id, p as { id: string; username: string | null; display_name: string | null; twitter_username: string | null }])
   );
 
   return (
@@ -238,8 +260,8 @@ export default async function CampaignReportPage({
               {top_contributors.map((t, i) => (
                 <tr key={t.participant_profile_id} className="border-b border-[var(--crm-border)] last:border-0">
                   <td className="p-3 text-[var(--crm-muted)]">{i + 1}</td>
-                  <td className="p-3 font-mono text-xs text-[var(--crm-muted)]">
-                    {t.participant_profile_id.slice(0, 8)}…
+                  <td className="p-3 text-sm text-[var(--crm-foreground)]">
+                    {toParticipantLabel(topContributorById.get(t.participant_profile_id), t.participant_profile_id)}
                   </td>
                   <td className="p-3 text-right">{t.submission_count}</td>
                   <td className="p-3 text-right font-medium text-[var(--crm-primary)]">

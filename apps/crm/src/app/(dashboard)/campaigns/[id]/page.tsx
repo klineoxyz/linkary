@@ -47,6 +47,16 @@ function KpiCard({
   );
 }
 
+function toParticipantLabel(
+  profile: { id: string; username: string | null; display_name: string | null; twitter_username: string | null } | undefined,
+  profileId: string
+): string {
+  if (profile?.username) return `@${profile.username}`;
+  if (profile?.twitter_username) return `@${profile.twitter_username.replace(/^@/, "")}`;
+  if (profile?.display_name && profile.display_name.trim()) return profile.display_name.trim();
+  return `${profileId.slice(0, 8)}…`;
+}
+
 export default async function CampaignDetailPage({
   params,
 }: {
@@ -79,6 +89,25 @@ export default async function CampaignDetailPage({
       writeContribution(supabase, id, { weighted: true }),
       getEndSnapshotStatus(supabase, id, promotedHandles),
     ]);
+
+  const participantIds = Array.from(
+    new Set([
+      ...contributors.map((p) => p.participant_profile_id),
+      ...topContributors.map((p) => p.participant_profile_id),
+      ...(contributionRows ?? []).map((r) => r.participant_profile_id),
+      ...(complianceResult?.compliance ?? []).map((r) => r.participant_profile_id),
+    ])
+  );
+  const { data: participantProfiles } =
+    participantIds.length > 0
+      ? await supabase
+          .from("profiles")
+          .select("id, username, display_name, twitter_username")
+          .in("id", participantIds)
+      : { data: [] as Array<{ id: string; username: string | null; display_name: string | null; twitter_username: string | null }> };
+  const participantById = new Map(
+    (participantProfiles ?? []).map((p) => [p.id, p as { id: string; username: string | null; display_name: string | null; twitter_username: string | null }])
+  );
 
   const contributionByBundle = new Map(
     (contributionRows ?? []).map((r) => [r.bundleId, r.contributionPercent])
@@ -300,8 +329,9 @@ export default async function CampaignDetailPage({
                   <tbody>
                     {complianceWithContribution.map((row, index) => (
                       <tr key={row.bundleId} className="border-b border-[var(--crm-border)] last:border-0">
-                        <td className="p-3 font-mono text-xs text-[var(--crm-muted)]">
-                          #{index + 1} {row.participant_profile_id.slice(0, 8)}…
+                        <td className="p-3 text-sm text-[var(--crm-foreground)]">
+                          #{index + 1}{" "}
+                          {toParticipantLabel(participantById.get(row.participant_profile_id), row.participant_profile_id)}
                         </td>
                         <td className="p-3 text-right font-medium text-[var(--crm-primary)]">
                           {row.contributionPercent != null ? `${row.contributionPercent}%` : "—"}
@@ -370,8 +400,8 @@ export default async function CampaignDetailPage({
                     .map((r, i) => (
                       <tr key={r.bundleId} className="border-b border-[var(--crm-border)] last:border-0">
                         <td className="p-3 text-[var(--crm-muted)]">{i + 1}</td>
-                        <td className="p-3 font-mono text-xs text-[var(--crm-muted)]">
-                          {r.participant_profile_id.slice(0, 8)}…
+                        <td className="p-3 text-sm text-[var(--crm-foreground)]">
+                          {toParticipantLabel(participantById.get(r.participant_profile_id), r.participant_profile_id)}
                         </td>
                         <td className="p-3 text-right font-medium text-[var(--crm-primary)]">
                           {r.contributionPercent}%
@@ -473,8 +503,8 @@ export default async function CampaignDetailPage({
                     key={t.participant_profile_id}
                     className="border-b border-[var(--crm-border)] last:border-0"
                   >
-                    <td className="p-3 font-mono text-xs text-[var(--crm-muted)]">
-                      {t.participant_profile_id.slice(0, 8)}…
+                    <td className="p-3 text-sm text-[var(--crm-foreground)]">
+                      {toParticipantLabel(participantById.get(t.participant_profile_id), t.participant_profile_id)}
                     </td>
                     <td className="p-3 text-right">
                       {t.submission_count}
@@ -522,8 +552,8 @@ export default async function CampaignDetailPage({
                     key={p.id}
                     className="border-b border-[var(--crm-border)] last:border-0"
                   >
-                    <td className="p-3 font-mono text-xs text-[var(--crm-muted)]">
-                      {p.participant_profile_id.slice(0, 8)}…
+                    <td className="p-3 text-sm text-[var(--crm-foreground)]">
+                      {toParticipantLabel(participantById.get(p.participant_profile_id), p.participant_profile_id)}
                     </td>
                     <td className="p-3">{p.role}</td>
                     <td className="p-3">

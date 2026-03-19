@@ -222,7 +222,7 @@ export async function reviewSubmissionAction(
 export async function updateCampaignDefinitionAction(
   campaignId: string,
   formData: FormData
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; success?: boolean }> {
   const supabase = await createServerSupabase();
   if (!supabase) return { error: "Not configured" };
 
@@ -249,6 +249,7 @@ export async function updateCampaignDefinitionAction(
   const weekly_required_posts =
     weeklyRaw != null && weeklyRaw !== "" ? Number(weeklyRaw) : null;
   const daily_engagement_required = (formData.get("daily_engagement_required") as string | null)?.trim() || null;
+  const campaign_objective = (formData.get("campaign_objective") as string | null)?.trim() || null;
   const promotedOrgInput = (formData.get("promoted_org_id") as string | null)?.trim() || "";
   let promoted_org_id: string | null = null;
   const promotedHandlesRaw = (formData.get("promoted_social_handles") as string | null)?.trim();
@@ -282,6 +283,9 @@ export async function updateCampaignDefinitionAction(
     }
   }
 
+  const guidanceParsed = parseGuidanceLinksFromForm(formData);
+  if (guidanceParsed.error) return { error: guidanceParsed.error };
+
   const result = await updateCampaignDefinition(supabase, campaignId, {
     reward_date,
     campaign_value_usd: Number.isNaN(campaign_value_usd) ? null : campaign_value_usd,
@@ -291,12 +295,48 @@ export async function updateCampaignDefinitionAction(
     daily_engagement_required,
     promoted_org_id: promoted_org_id || null,
     promoted_social_handles,
+    campaign_objective,
+    guidance_links: guidanceParsed.links,
   });
 
   if (result.error) return result;
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath("/campaigns");
-  return {};
+  return { success: true };
+}
+
+function normalizeHttpUrl(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+  if (/^https?:\/\//i.test(t)) {
+    try {
+      return new URL(t).toString();
+    } catch {
+      return null;
+    }
+  }
+  try {
+    return new URL(`https://${t}`).toString();
+  } catch {
+    return null;
+  }
+}
+
+/** Up to 5 creator resource URLs (posts to amplify, Notion briefs, etc.). */
+function parseGuidanceLinksFromForm(
+  formData: FormData
+): { links: Array<{ label?: string; url: string }>; error?: string } {
+  const links: Array<{ label?: string; url: string }> = [];
+  for (let i = 0; i < 5; i++) {
+    const urlRaw = (formData.get(`guidance_link_${i}_url`) as string | null)?.trim() || "";
+    const labelRaw = (formData.get(`guidance_link_${i}_label`) as string | null)?.trim() || "";
+    if (!urlRaw) continue;
+    const url = normalizeHttpUrl(urlRaw);
+    if (!url) return { links: [], error: `Creator resource ${i + 1}: enter a valid URL` };
+    if (labelRaw) links.push({ label: labelRaw, url });
+    else links.push({ url });
+  }
+  return { links };
 }
 
 /**

@@ -50,6 +50,6 @@ alwaysApply: true
 - Prefer server-side observability for production triage.
 
 ## Launch-Critical UI Clarity
-- In user-facing CRM tables and cards, show participant identity as handle/display name (e.g. `@username`) instead of raw profile UUIDs.
+- In user-facing CRM tables and cards, show participant identity as handle/display name (e.g. `@username`) instead of raw profile UUIDs, and show `profiles.avatar_url` beside the name when available (initials fallback when missing).
 - Raw IDs are allowed only as explicit fallback when profile identity fields are unavailable.
 - In user-facing CRM copy and forms, avoid exposing internal UUID-like slugs/IDs by default; prefer human-readable names/handles.

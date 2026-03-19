@@ -14,6 +14,8 @@ import { writeContribution } from "@/lib/contribution";
 import { getEndSnapshotStatus } from "@/lib/snapshots";
 import { SubmissionReviewRow } from "./SubmissionReviewRow";
 import { CampaignDefinitionForm } from "./CampaignDefinitionForm";
+import { ParticipantCell } from "@/components/ParticipantCell";
+import { toParticipantLabel } from "@/lib/profileDisplay";
 import { GenerateRecurringTasksButton } from "./GenerateRecurringTasksButton";
 import { FinalizeCampaignButton } from "./FinalizeCampaignButton";
 import { ArrowLeft } from "lucide-react";
@@ -45,16 +47,6 @@ function KpiCard({
       )}
     </div>
   );
-}
-
-function toParticipantLabel(
-  profile: { id: string; username: string | null; display_name: string | null; twitter_username: string | null } | undefined,
-  profileId: string
-): string {
-  if (profile?.username) return `@${profile.username}`;
-  if (profile?.twitter_username) return `@${profile.twitter_username.replace(/^@/, "")}`;
-  if (profile?.display_name && profile.display_name.trim()) return profile.display_name.trim();
-  return `${profileId.slice(0, 8)}…`;
 }
 
 export default async function CampaignDetailPage({
@@ -96,18 +88,21 @@ export default async function CampaignDetailPage({
       ...topContributors.map((p) => p.participant_profile_id),
       ...(contributionRows ?? []).map((r) => r.participant_profile_id),
       ...(complianceResult?.compliance ?? []).map((r) => r.participant_profile_id),
+      ...submissions.map((s) => s.participant_profile_id),
     ])
   );
+  type ProfileRow = {
+    id: string;
+    username: string | null;
+    display_name: string | null;
+    twitter_username: string | null;
+    avatar_url: string | null;
+  };
   const { data: participantProfiles } =
     participantIds.length > 0
-      ? await supabase
-          .from("profiles")
-          .select("id, username, display_name, twitter_username")
-          .in("id", participantIds)
-      : { data: [] as Array<{ id: string; username: string | null; display_name: string | null; twitter_username: string | null }> };
-  const participantById = new Map(
-    (participantProfiles ?? []).map((p) => [p.id, p as { id: string; username: string | null; display_name: string | null; twitter_username: string | null }])
-  );
+      ? await supabase.from("profiles").select("id, username, display_name, twitter_username, avatar_url").in("id", participantIds)
+      : { data: [] as ProfileRow[] };
+  const participantById = new Map((participantProfiles ?? []).map((p) => [p.id, p as ProfileRow]));
 
   const contributionByBundle = new Map(
     (contributionRows ?? []).map((r) => [r.bundleId, r.contributionPercent])
@@ -179,6 +174,52 @@ export default async function CampaignDetailPage({
           )}
         </div>
       </div>
+
+      <section className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 sm:p-5 space-y-4">
+        <h2 className="text-base font-semibold text-[var(--crm-foreground)]">Brief for creators</h2>
+        <div>
+          <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--crm-muted)] mb-1.5">
+            Objective
+          </h3>
+          {campaign.campaign_objective?.trim() ? (
+            <p className="text-sm text-[var(--crm-foreground)] whitespace-pre-wrap leading-relaxed">
+              {campaign.campaign_objective.trim()}
+            </p>
+          ) : (
+            <p className="text-sm text-[var(--crm-muted)]">
+              No objective yet. Add one under <strong className="text-[var(--crm-foreground)]">Campaign definition → Edit</strong> below.
+            </p>
+          )}
+        </div>
+        <div>
+          <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--crm-muted)] mb-1.5">
+            Resources &amp; links (up to 5)
+          </h3>
+          {(campaign.guidance_links?.length ?? 0) > 0 ? (
+            <ul className="space-y-2">
+              {campaign.guidance_links!.map((link, i) => (
+                <li key={i} className="text-sm">
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--crm-primary)] underline break-all font-medium"
+                  >
+                    {link.label?.trim() || link.url}
+                  </a>
+                  {link.label?.trim() ? (
+                    <span className="block text-xs text-[var(--crm-muted)] mt-0.5 break-all">{link.url}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-[var(--crm-muted)]">
+              No links yet. Add posts to repost, Notion briefs, or other URLs in the editor below (up to five).
+            </p>
+          )}
+        </div>
+      </section>
 
       {/* Campaign definition: operator = workspace_id; promoted = promoted_org_id + promoted_social_handles */}
       <section>
@@ -291,6 +332,7 @@ export default async function CampaignDetailPage({
         <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 mt-4">
           <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-4">Edit definition</h3>
           <CampaignDefinitionForm
+            key={campaign.updated_at}
             campaignId={id}
             campaign={campaign}
             workspaceLabel={workspaceLabel}
@@ -332,8 +374,11 @@ export default async function CampaignDetailPage({
                     {complianceWithContribution.map((row, index) => (
                       <tr key={row.bundleId} className="border-b border-[var(--crm-border)] last:border-0">
                         <td className="p-3 text-sm text-[var(--crm-foreground)]">
-                          #{index + 1}{" "}
-                          {toParticipantLabel(participantById.get(row.participant_profile_id), row.participant_profile_id)}
+                          <ParticipantCell
+                            avatarUrl={participantById.get(row.participant_profile_id)?.avatar_url}
+                            label={toParticipantLabel(participantById.get(row.participant_profile_id), row.participant_profile_id)}
+                            prefix={`#${index + 1}`}
+                          />
                         </td>
                         <td className="p-3 text-right font-medium text-[var(--crm-primary)]">
                           {row.contributionPercent != null ? `${row.contributionPercent}%` : "—"}
@@ -403,7 +448,10 @@ export default async function CampaignDetailPage({
                       <tr key={r.bundleId} className="border-b border-[var(--crm-border)] last:border-0">
                         <td className="p-3 text-[var(--crm-muted)]">{i + 1}</td>
                         <td className="p-3 text-sm text-[var(--crm-foreground)]">
-                          {toParticipantLabel(participantById.get(r.participant_profile_id), r.participant_profile_id)}
+                          <ParticipantCell
+                            avatarUrl={participantById.get(r.participant_profile_id)?.avatar_url}
+                            label={toParticipantLabel(participantById.get(r.participant_profile_id), r.participant_profile_id)}
+                          />
                         </td>
                         <td className="p-3 text-right font-medium text-[var(--crm-primary)]">
                           {r.contributionPercent}%
@@ -506,7 +554,10 @@ export default async function CampaignDetailPage({
                     className="border-b border-[var(--crm-border)] last:border-0"
                   >
                     <td className="p-3 text-sm text-[var(--crm-foreground)]">
-                      {toParticipantLabel(participantById.get(t.participant_profile_id), t.participant_profile_id)}
+                      <ParticipantCell
+                        avatarUrl={participantById.get(t.participant_profile_id)?.avatar_url}
+                        label={toParticipantLabel(participantById.get(t.participant_profile_id), t.participant_profile_id)}
+                      />
                     </td>
                     <td className="p-3 text-right">
                       {t.submission_count}
@@ -555,7 +606,10 @@ export default async function CampaignDetailPage({
                     className="border-b border-[var(--crm-border)] last:border-0"
                   >
                     <td className="p-3 text-sm text-[var(--crm-foreground)]">
-                      {toParticipantLabel(participantById.get(p.participant_profile_id), p.participant_profile_id)}
+                      <ParticipantCell
+                        avatarUrl={participantById.get(p.participant_profile_id)?.avatar_url}
+                        label={toParticipantLabel(participantById.get(p.participant_profile_id), p.participant_profile_id)}
+                      />
                     </td>
                     <td className="p-3">{p.role}</td>
                     <td className="p-3">
@@ -595,6 +649,9 @@ export default async function CampaignDetailPage({
               <thead>
                 <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
                   <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
+                    Creator
+                  </th>
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
                     Platform
                   </th>
                   <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
@@ -615,6 +672,8 @@ export default async function CampaignDetailPage({
                 {submissions.map((s) => (
                   <SubmissionReviewRow
                     key={s.id}
+                    creatorAvatarUrl={participantById.get(s.participant_profile_id)?.avatar_url}
+                    creatorLabel={toParticipantLabel(participantById.get(s.participant_profile_id), s.participant_profile_id)}
                     submission={{
                       id: s.id,
                       platform: s.platform,

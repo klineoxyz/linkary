@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { reviewSubmissionAction } from "./actions";
+import { ParticipantCell } from "@/components/ParticipantCell";
 
 type SubmissionItem = {
   id: string;
@@ -12,7 +13,15 @@ type SubmissionItem = {
   rejection_reason: string | null;
 };
 
-export function SubmissionReviewRow({ submission }: { submission: SubmissionItem }) {
+export function SubmissionReviewRow({
+  submission,
+  creatorLabel,
+  creatorAvatarUrl,
+}: {
+  submission: SubmissionItem;
+  creatorLabel?: string;
+  creatorAvatarUrl?: string | null;
+}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -35,6 +44,13 @@ export function SubmissionReviewRow({ submission }: { submission: SubmissionItem
 
   return (
     <tr className="border-b border-[var(--crm-border)] last:border-0">
+      <td className="p-3 min-w-[140px]">
+        {creatorLabel ? (
+          <ParticipantCell avatarUrl={creatorAvatarUrl} label={creatorLabel} size="sm" />
+        ) : (
+          <span className="text-[var(--crm-muted)] text-xs">—</span>
+        )}
+      </td>
       <td className="p-3">{submission.platform}</td>
       <td className="p-3">
         <a

@@ -7,6 +7,8 @@ import { getCampaignReportData } from "@/lib/report";
 import { RecordSnapshotForm } from "./RecordSnapshotForm";
 import { DownloadReportCsvButton } from "./DownloadReportCsvButton";
 import { ArrowLeft } from "lucide-react";
+import { ParticipantCell } from "@/components/ParticipantCell";
+import { toParticipantLabel } from "@/lib/profileDisplay";
 
 function ReportSection({
   title,
@@ -32,16 +34,6 @@ function MetricRow({ label, value }: { label: string; value: string | number | n
       </span>
     </div>
   );
-}
-
-function toParticipantLabel(
-  profile: { id: string; username: string | null; display_name: string | null; twitter_username: string | null } | undefined,
-  profileId: string
-): string {
-  if (profile?.username) return `@${profile.username}`;
-  if (profile?.twitter_username) return `@${profile.twitter_username.replace(/^@/, "")}`;
-  if (profile?.display_name && profile.display_name.trim()) return profile.display_name.trim();
-  return `${profileId.slice(0, 8)}…`;
 }
 
 export default async function CampaignReportPage({
@@ -95,16 +87,18 @@ export default async function CampaignReportPage({
   );
 
   const topContributorIds = Array.from(new Set(top_contributors.map((t) => t.participant_profile_id)));
+  type ProfileRow = {
+    id: string;
+    username: string | null;
+    display_name: string | null;
+    twitter_username: string | null;
+    avatar_url: string | null;
+  };
   const { data: topContributorProfiles } =
     topContributorIds.length > 0
-      ? await supabase
-          .from("profiles")
-          .select("id, username, display_name, twitter_username")
-          .in("id", topContributorIds)
-      : { data: [] as Array<{ id: string; username: string | null; display_name: string | null; twitter_username: string | null }> };
-  const topContributorById = new Map(
-    (topContributorProfiles ?? []).map((p) => [p.id, p as { id: string; username: string | null; display_name: string | null; twitter_username: string | null }])
-  );
+      ? await supabase.from("profiles").select("id, username, display_name, twitter_username, avatar_url").in("id", topContributorIds)
+      : { data: [] as ProfileRow[] };
+  const topContributorById = new Map((topContributorProfiles ?? []).map((p) => [p.id, p as ProfileRow]));
 
   return (
     <div className="space-y-8">
@@ -261,7 +255,10 @@ export default async function CampaignReportPage({
                 <tr key={t.participant_profile_id} className="border-b border-[var(--crm-border)] last:border-0">
                   <td className="p-3 text-[var(--crm-muted)]">{i + 1}</td>
                   <td className="p-3 text-sm text-[var(--crm-foreground)]">
-                    {toParticipantLabel(topContributorById.get(t.participant_profile_id), t.participant_profile_id)}
+                    <ParticipantCell
+                      avatarUrl={topContributorById.get(t.participant_profile_id)?.avatar_url}
+                      label={toParticipantLabel(topContributorById.get(t.participant_profile_id), t.participant_profile_id)}
+                    />
                   </td>
                   <td className="p-3 text-right">{t.submission_count}</td>
                   <td className="p-3 text-right font-medium text-[var(--crm-primary)]">

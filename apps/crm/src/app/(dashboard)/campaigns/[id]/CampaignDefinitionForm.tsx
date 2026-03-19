@@ -8,7 +8,8 @@ import {
 } from "./actions";
 import type { CampaignRow } from "@/lib/campaigns";
 
-const INITIAL_STATE = { error: undefined as string | undefined };
+type DefinitionFormState = { error?: string; success?: boolean };
+const INITIAL_STATE: DefinitionFormState = {};
 
 function formatFollowers(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return "—";
@@ -27,7 +28,7 @@ export function CampaignDefinitionForm({
   workspaceLabel: string;
 }) {
   const [state, formAction] = useActionState(
-    async (_prev: { error?: string }, formData: FormData) => {
+    async (_prev: DefinitionFormState, formData: FormData) => {
       return await updateCampaignDefinitionAction(campaignId, formData);
     },
     INITIAL_STATE
@@ -77,6 +78,55 @@ export function CampaignDefinitionForm({
       </p>
 
       <div>
+        <label htmlFor="campaign_objective" className="block text-sm font-medium text-[var(--crm-foreground)] mb-1">
+          Campaign objective
+        </label>
+        <p className="text-xs text-[var(--crm-muted)] mb-1">
+          What creators should optimize for (awareness, reposts, narrative, etc.). Shown at the top of this campaign page for your team.
+        </p>
+        <textarea
+          id="campaign_objective"
+          name="campaign_objective"
+          rows={4}
+          defaultValue={campaign.campaign_objective ?? ""}
+          placeholder="e.g. Amplify the token launch narrative and drive quote-reposts of the pinned thread."
+          className="w-full rounded-lg border border-[var(--crm-border)] bg-[var(--crm-bg)] px-3 py-2 text-sm text-[var(--crm-foreground)]"
+        />
+      </div>
+
+      <div>
+        <span className="block text-sm font-medium text-[var(--crm-foreground)] mb-1">
+          Creator resources (up to 5 links)
+        </span>
+        <p className="text-xs text-[var(--crm-muted)] mb-2">
+          Posts to amplify, Notion briefs, media kits, or X threads. Creators see these on the campaign view where supported.
+        </p>
+        <div className="space-y-2">
+          {Array.from({ length: 5 }, (_, i) => {
+            const link = campaign.guidance_links?.[i];
+            return (
+              <div key={i} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+                <input
+                  name={`guidance_link_${i}_label`}
+                  type="text"
+                  defaultValue={link?.label ?? ""}
+                  placeholder="Label (e.g. Brief)"
+                  className="w-full rounded-lg border border-[var(--crm-border)] bg-[var(--crm-bg)] px-3 py-2 text-sm text-[var(--crm-foreground)]"
+                />
+                <input
+                  name={`guidance_link_${i}_url`}
+                  type="text"
+                  defaultValue={link?.url ?? ""}
+                  placeholder="URL (x.com/…, notion.so/…)"
+                  className="w-full rounded-lg border border-[var(--crm-border)] bg-[var(--crm-bg)] px-3 py-2 text-sm text-[var(--crm-foreground)]"
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
         <label htmlFor="promoted_org_id" className="block text-sm font-medium text-[var(--crm-foreground)] mb-1">
           Promoted project / client (Linkary org ID or X handle)
         </label>
@@ -98,7 +148,7 @@ export function CampaignDefinitionForm({
             <p className="text-xs text-[var(--crm-muted)]">Loading profile preview…</p>
           )}
           {!previewLoading && preview?.ok === true && preview.kind === "x_profile" && (
-            <div className="flex gap-3 rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] p-3 text-sm">
+            <div className="flex gap-3 rounded-lg border-2 border-emerald-500/50 ring-2 ring-emerald-500/20 bg-[var(--crm-card)] p-3 text-sm shadow-sm">
               {preview.profile_image_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -141,14 +191,14 @@ export function CampaignDefinitionForm({
                 {preview.bio && (
                   <p className="mt-1 text-xs text-[var(--crm-muted)] line-clamp-2">{preview.bio}</p>
                 )}
-                <p className="mt-2 text-[11px] text-emerald-700 dark:text-emerald-400">
-                  This is the X account analytics will track when you save (also added to &quot;Accounts to track&quot; if not already listed).
+                <p className="mt-2 text-[11px] font-medium text-emerald-800 dark:text-emerald-300">
+                  ✓ Selected promoted account — this X profile is what will be tied to the campaign when you click Save (also added to &quot;Accounts to track&quot; if not already listed).
                 </p>
               </div>
             </div>
           )}
           {!previewLoading && preview?.ok === true && preview.kind === "linkary_org" && (
-            <div className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] p-3 text-sm">
+            <div className="rounded-lg border-2 border-emerald-500/50 ring-2 ring-emerald-500/20 bg-[var(--crm-card)] p-3 text-sm shadow-sm">
               <p className="font-semibold text-[var(--crm-foreground)]">
                 {preview.name?.trim() || "Linkary organization"}
               </p>
@@ -172,12 +222,18 @@ export function CampaignDefinitionForm({
                   No X username stored on this org — add an X handle under &quot;Accounts to track&quot; if you need profile analytics.
                 </p>
               )}
+              <p className="mt-2 text-[11px] font-medium text-emerald-800 dark:text-emerald-300">
+                ✓ Selected Linkary org — promoted org ID will be saved when you click Save.
+              </p>
             </div>
           )}
           {!previewLoading && preview?.ok === true && preview.kind === "x_handle_only" && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 text-xs text-amber-900 dark:text-amber-200">
+            <div className="rounded-lg border-2 border-emerald-500/40 ring-2 ring-emerald-500/15 bg-amber-50 dark:border-emerald-800 dark:bg-amber-950/30 p-3 text-xs text-amber-900 dark:text-amber-200 shadow-sm">
               <p className="font-medium">@{preview.handle}</p>
               <p className="mt-1 opacity-90">{preview.message}</p>
+              <p className="mt-2 text-[11px] font-medium text-emerald-800 dark:text-emerald-300">
+                ✓ Handle selected — tracking will use this @ when you save (configure API key for full preview).
+              </p>
             </div>
           )}
           {!previewLoading && preview?.ok === false && promotedInput.trim() && (
@@ -298,6 +354,9 @@ export function CampaignDefinitionForm({
 
       {state?.error && (
         <p className="text-sm text-red-600">{state.error}</p>
+      )}
+      {state?.success && (
+        <p className="text-sm text-emerald-600 dark:text-emerald-400">Campaign definition saved.</p>
       )}
       <button
         type="submit"

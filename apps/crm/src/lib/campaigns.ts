@@ -257,6 +257,8 @@ export type UpdateCampaignDefinitionPayload = {
   daily_engagement_required?: string | null;
   promoted_org_id?: string | null;
   promoted_social_handles?: PromotedSocialHandle[] | null;
+  campaign_objective?: string | null;
+  guidance_links?: Array<{ label?: string; url: string }> | null;
 };
 
 /**
@@ -281,6 +283,10 @@ export async function updateCampaignDefinition(
     update.promoted_social_handles = Array.isArray(payload.promoted_social_handles)
       ? payload.promoted_social_handles
       : [];
+  if (payload.campaign_objective !== undefined)
+    update.campaign_objective = payload.campaign_objective?.trim() || null;
+  if (payload.guidance_links !== undefined)
+    update.guidance_links = Array.isArray(payload.guidance_links) ? payload.guidance_links : [];
 
   const { error } = await supabase.from("crm_campaigns").update(update).eq("id", campaignId);
   if (error) return { error: error.message };

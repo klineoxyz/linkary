@@ -20,7 +20,9 @@ export default async function CampaignsPage() {
 
   if (access.orgWorkspaces.length === 0) {
     const result = await ensureOrgWorkspacesForUser(supabase, user.id);
-    if (result && result.orgWorkspacesCreated > 0) access = await resolveCrmAccess(supabase, user.id);
+    if (result && (result.orgWorkspacesCreated > 0 || result.membershipsAdded > 0)) {
+      access = await resolveCrmAccess(supabase, user.id);
+    }
   }
 
   // Always show Campaigns page; no redirect to home so nav stays consistent.

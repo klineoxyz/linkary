@@ -96,6 +96,7 @@ export async function POST(
     } catch (_) {
       /* non-blocking */
     }
+    let crmSync: { ok: boolean; error?: string; campaign_id?: string; task_bundle_id?: string; tasks_created?: number } | null = null;
     try {
       const { triggerLinkaryCrmSync } = await import("@/lib/crm-sync");
       const jobTitle = (job as { title?: string }).title?.trim() || "Deliverables";
@@ -106,7 +107,7 @@ export async function POST(
         promoted_social_handles?: Array<{ platform: string; handle: string }> | null;
         weekly_required_posts?: number | null; daily_engagement_required?: string | null;
       };
-      await triggerLinkaryCrmSync({
+      crmSync = await triggerLinkaryCrmSync({
         org_id: j.org_id,
         source_linkary_campaign_id: j.id,
         campaign_title: jobTitle,
@@ -124,10 +125,21 @@ export async function POST(
             }
           : undefined,
       });
-    } catch (_) {
+      if (!crmSync?.ok) {
+        console.error("[applications/accept] CRM sync failed", {
+          applicationId,
+          jobId: j.id,
+          orgId: j.org_id,
+          error: crmSync?.error ?? "unknown",
+          campaign_id: crmSync?.campaign_id ?? null,
+        });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "unknown";
+      console.error("[applications/accept] CRM sync exception", { applicationId, jobId: job.id, orgId: job.org_id, error: msg });
       /* non-blocking; sync failure does not fail acceptance */
     }
-    return NextResponse.json({ ok: true, deal });
+    return NextResponse.json({ ok: true, deal, crm_sync: crmSync });
   }
 
   if (app.applicant_type === "org" && applicantOrgId) {

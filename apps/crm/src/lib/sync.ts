@@ -63,6 +63,76 @@ export async function getCrmWorkspaceIdByOrgId(
 }
 
 /**
+ * Ensure an org-linked CRM workspace exists for sync flows.
+ * Used as a fallback when org_id is provided but linked workspace is missing.
+ */
+async function ensureCrmWorkspaceByOrgId(
+  supabase: SupabaseClient,
+  orgId: string
+): Promise<string | null> {
+  const existing = await getCrmWorkspaceIdByOrgId(supabase, orgId);
+  if (existing) return existing;
+
+  const { data: orgRow } = await supabase
+    .from("orgs")
+    .select("id, name")
+    .eq("id", orgId)
+    .maybeSingle();
+  if (!orgRow) return null;
+
+  const { data: admins } = await supabase
+    .from("org_members")
+    .select("user_id, role")
+    .eq("org_id", orgId)
+    .in("role", ["owner", "admin"]);
+  const adminRows = (admins ?? []) as Array<{ user_id: string; role: string }>;
+  const owner = adminRows.find((r) => r.role === "owner");
+  const fallbackAdmin = adminRows.find((r) => r.role === "admin");
+  const ownerProfileId = owner?.user_id ?? fallbackAdmin?.user_id ?? null;
+  if (!ownerProfileId) return null;
+
+  const slug = `org-${orgId.replace(/-/g, "")}`;
+  const name = String((orgRow as { name?: string | null }).name ?? "Org workspace").trim() || "Org workspace";
+  const { data: inserted } = await supabase
+    .from("crm_workspaces")
+    .insert({
+      type: "org",
+      slug,
+      name,
+      owner_profile_id: ownerProfileId,
+      linked_org_id: orgId,
+    })
+    .select("id")
+    .maybeSingle();
+
+  const workspaceId = (inserted as { id?: string } | null)?.id ?? (await getCrmWorkspaceIdByOrgId(supabase, orgId));
+  if (!workspaceId) return null;
+
+  await supabase.from("crm_workspace_members").insert({
+    workspace_id: workspaceId,
+    profile_id: ownerProfileId,
+    role: "owner",
+  });
+
+  const { data: board } = await supabase
+    .from("crm_boards")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .in("kind", ["campaign", "ops"])
+    .limit(1)
+    .maybeSingle();
+  if (!board?.id) {
+    await supabase.from("crm_boards").insert({
+      workspace_id: workspaceId,
+      name: "Campaign tasks",
+      kind: "campaign",
+    });
+  }
+
+  return workspaceId;
+}
+
+/**
  * Ensure profile is a member of the workspace so they can see tasks on the org board (fallback when not eligible for creator workspace).
  */
 async function ensureWorkspaceMember(
@@ -148,7 +218,10 @@ async function resolveWorkspaceAndValidate(
   } else if (org_id && typeof org_id === "string" && org_id.trim()) {
     workspaceId = await getCrmWorkspaceIdByOrgId(supabase, org_id.trim());
     if (!workspaceId) {
-      return [null, "No CRM workspace linked to this org; create an org workspace in CRM with linked_org_id set"];
+      workspaceId = await ensureCrmWorkspaceByOrgId(supabase, org_id.trim());
+    }
+    if (!workspaceId) {
+      return [null, "No CRM workspace linked to this org and auto-provision failed"];
     }
   }
   if (!workspaceId) {

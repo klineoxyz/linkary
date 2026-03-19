@@ -14,12 +14,12 @@ function normalize(s: string): string {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** Above this, skip in-memory hyphen match (apply migration `20260424100000` and rely on RPC). */
+/** Above this, skip in-memory hyphen match (apply migrations through `20260425120000` and rely on RPC). */
 const MAX_ORGS_FOR_HYPHEN_COLLAPSE_SCAN = 20000;
 
 /**
- * desicryptoclub (URL) vs desicrypto-club (orgs.slug). Unique collapsed match only.
- * Used when RPC is missing/outdated or returns no row; bounded by org table size.
+ * Hyphen-stripped slug match (e.g. desicryptoclub ↔ desi-crypto-club).
+ * If multiple orgs collide on collapsed form, prefer exact lower(slug)=norm, then shortest slug, then id (matches RPC).
  */
 async function resolveOrgByHyphenCollapsedSlug(
   supabase: SupabaseClient,
@@ -41,7 +41,7 @@ async function resolveOrgByHyphenCollapsedSlug(
   const { count, error: countErr } = await scanClient.from("orgs").select("id", { count: "exact", head: true });
   if (countErr || count == null || count > MAX_ORGS_FOR_HYPHEN_COLLAPSE_SCAN) return null;
 
-  const { data: rows, error } = await scanClient.from("orgs").select("id, slug, name");
+  const { data: rows, error } = await scanClient.from("orgs").select("id, slug, name, created_at");
   if (error || !rows?.length) return null;
 
   const matches = rows.filter(
@@ -50,8 +50,29 @@ async function resolveOrgByHyphenCollapsedSlug(
         .toLowerCase()
         .replace(/-/g, "") === collapsed
   );
-  if (matches.length !== 1) return null;
-  const r = matches[0] as { id: string; slug: string; name: string };
+  if (matches.length === 0) return null;
+  if (matches.length === 1) {
+    const r = matches[0] as { id: string; slug: string; name: string };
+    return { id: r.id, slug: r.slug ?? "", name: r.name ?? "" };
+  }
+
+  const sorted = [...matches].sort((a, b) => {
+    const sa = String((a as { slug?: string | null }).slug ?? "")
+      .trim()
+      .toLowerCase();
+    const sb = String((b as { slug?: string | null }).slug ?? "")
+      .trim()
+      .toLowerCase();
+    const exactA = sa === norm ? 1 : 0;
+    const exactB = sb === norm ? 1 : 0;
+    if (exactB !== exactA) return exactB - exactA;
+    if (sa.length !== sb.length) return sa.length - sb.length;
+    const ta = String((a as { created_at?: string | null }).created_at ?? "");
+    const tb = String((b as { created_at?: string | null }).created_at ?? "");
+    if (tb !== ta) return tb.localeCompare(ta);
+    return String((a as { id: string }).id).localeCompare(String((b as { id: string }).id));
+  });
+  const r = sorted[0] as { id: string; slug: string; name: string };
   return { id: r.id, slug: r.slug ?? "", name: r.name ?? "" };
 }
 

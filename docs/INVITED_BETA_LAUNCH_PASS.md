@@ -56,6 +56,7 @@ Apply to the **same** Supabase project used by both Linkary (web) and CRM. Run i
 | `20260423000000_crm_campaigns_objective_guidance.sql` | campaign_objective, guidance_links on crm_campaigns. |
 | `20260424000000_resolve_org_public_by_segment.sql` | **Production /org/[slug] 404 fix:** `resolve_org_public_by_segment` RPC (SECURITY DEFINER) so SSR can resolve orgs even if direct `orgs`/`usernames` reads fail under RLS. |
 | `20260424100000_resolve_org_hyphen_slug_fallback.sql` | **Hyphen slug URLs:** same RPC, adds unique match on slug with hyphens removed (`desicryptoclub` ↔ `desicrypto-club`). |
+| `20260425120000_resolve_org_public_ambiguous_collapsed_slug.sql` | **Duplicate collapsed slugs:** when two orgs share the same hyphen-stripped slug, pick deterministically (exact slug match first, then shortest slug) so `/org/desicryptoclub` does not 404. |
 
 **Dependencies (must already be applied):** All earlier migrations that define `profiles`, `orgs`, `org_members`, `jobs`, `applications`, `deals`, `usernames`, and any RPCs used by CRM (e.g. `is_org_admin`). The repo has 160+ migrations; use your existing migration history. If starting fresh, apply in full timestamp order.
 

@@ -39,7 +39,7 @@ Short practical guide for support during invited beta.
 
 ## “Org not found” on /org/[slug]
 
-**If they see the default Next.js “404 | This page could not be found”** (not the in-app “Org not found.” line), the server could not resolve the org. **Redeploy the web app** (linkary.xyz): `resolveOrgServer` includes a bounded hyphen-collapse fallback (e.g. `desicryptoclub` → `desicrypto-club`) when org count is under ~20000. For scale, apply migrations `20260424000000_resolve_org_public_by_segment.sql` and **`20260424100000_resolve_org_hyphen_slug_fallback.sql`** so `resolve_org_public_by_segment` handles this in the database.
+**If they see the default Next.js “404 | This page could not be found”** (not the in-app “Org not found.” line), the server could not resolve the org. **Redeploy the web app** (linkary.xyz): `resolveOrgServer` includes a bounded hyphen-collapse fallback when org count is under ~20000. **If two orgs share the same hyphen-stripped slug** (e.g. `desicryptoclub` and `desi-crypto-club`), apply migration **`20260425120000_resolve_org_public_ambiguous_collapsed_slug.sql`** so `resolve_org_public_by_segment` picks deterministically (exact slug wins, then shortest slug). Also keep `20260424000000` / `20260424100000` in order before it.
 
 **Hyphen vs no hyphen:** If `orgs.slug` is `desicrypto-club` but marketing links use `desicryptoclub`, resolution needs the hyphen migration. If `usernames.username = desicryptoclub` is owned by a **profile**, org resolution cannot use the username row for the org—use canonical org slug in links or keep the migration applied.
 

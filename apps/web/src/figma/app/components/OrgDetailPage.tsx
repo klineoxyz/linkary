@@ -42,7 +42,8 @@ import { Briefcase, Sparkles, ListChecks } from "lucide-react";
 import OrgSourcingPipelineTab from "./OrgSourcingPipelineTab";
 import { getCrmAppUrl } from "@/lib/crmPublicUrl";
 import { getPublicEntityByUsername } from "@/lib/publicData";
-import { useOrgRouteInitialId } from "@/lib/orgRouteContext";
+import { getIdentifierKind } from "@/lib/entityResolver";
+import { useOrgRouteInitialId, useOrgRouteInitialSnapshot } from "@/lib/orgRouteContext";
 
 const CreatorProgramDetailDrawer = dynamic(
   () => import("./CreatorProgramDetailDrawer").then((m) => m.default),
@@ -77,6 +78,7 @@ export default function OrgDetailPage({
 }) {
   const orgId = data?.orgId ?? data?.slug;
   const initialOrgIdFromRoute = useOrgRouteInitialId();
+  const initialOrgSnapshot = useOrgRouteInitialSnapshot();
   const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
   const validTabs = ["dashboard", "insights", "members", "affiliates", "ambassadors", "jobs", "sourcing", "case_studies", "settings"] as const;
@@ -307,7 +309,6 @@ export default function OrgDetailPage({
         o = await getOrgById(initialOrgIdFromRoute);
       }
       if (!o) {
-        const { getIdentifierKind } = await import("@/lib/entityResolver");
         o =
           getIdentifierKind(orgId) === "uuid"
             ? await getOrgById(orgId)
@@ -317,6 +318,15 @@ export default function OrgDetailPage({
           const entity = norm ? await getPublicEntityByUsername(norm) : null;
           if (entity?.type === "org" && entity?.org?.id) o = await getOrgById(entity.org.id);
         }
+      }
+      if (!o && initialOrgSnapshot?.id) {
+        const matchesRouteId = initialOrgIdFromRoute && initialOrgSnapshot.id === initialOrgIdFromRoute;
+        const pathUuid = orgId?.trim() && getIdentifierKind(orgId.trim()) === "uuid" ? orgId.trim() : null;
+        const matchesPathUuid = pathUuid && initialOrgSnapshot.id === pathUuid;
+        const normSeg = orgId?.trim().toLowerCase().replace(/^@/, "") ?? "";
+        const snapSlug = (initialOrgSnapshot.slug ?? "").trim().toLowerCase().replace(/^@/, "");
+        const matchesSlug = normSeg && snapSlug && normSeg === snapSlug;
+        if (matchesRouteId || matchesPathUuid || matchesSlug) o = initialOrgSnapshot;
       }
       setOrg(o ?? null);
       if (o) {
@@ -402,7 +412,7 @@ export default function OrgDetailPage({
       }
       setLoading(false);
     })();
-  }, [orgId, data?.orgId, userId, accessToken, initialOrgIdFromRoute]);
+  }, [orgId, data?.orgId, userId, accessToken, initialOrgIdFromRoute, initialOrgSnapshot]);
 
   const fetchMembersWithProfiles = async () => {
     if (!org?.id) return;

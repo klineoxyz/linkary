@@ -52,3 +52,4 @@ alwaysApply: true
 ## Launch-Critical UI Clarity
 - In user-facing CRM tables and cards, show participant identity as handle/display name (e.g. `@username`) instead of raw profile UUIDs.
 - Raw IDs are allowed only as explicit fallback when profile identity fields are unavailable.
+- In user-facing CRM copy and forms, avoid exposing internal UUID-like slugs/IDs by default; prefer human-readable names/handles.

@@ -84,7 +84,7 @@ export default async function CampaignDetailPage({
       getCampaignContributors(supabase, id),
       getCampaignSubmissions(supabase, id),
       getCampaignTopContributors(supabase, id),
-      supabase.from("crm_workspaces").select("slug").eq("id", campaign.workspace_id).maybeSingle(),
+      supabase.from("crm_workspaces").select("slug, name").eq("id", campaign.workspace_id).maybeSingle(),
       getCampaignCompliance(supabase, id),
       writeContribution(supabase, id, { weighted: true }),
       getEndSnapshotStatus(supabase, id, promotedHandles),
@@ -119,8 +119,10 @@ export default async function CampaignDetailPage({
   complianceWithContribution.sort((a, b) => (b.contributionPercent ?? 0) - (a.contributionPercent ?? 0));
 
   const noMetrics = !kpis.has_metrics;
-  const workspaceSlug =
-    (workspaceRow?.data as { slug?: string } | null)?.slug ?? campaign.workspace_id.slice(0, 8);
+  const workspaceLabel =
+    (workspaceRow?.data as { name?: string } | null)?.name ??
+    (workspaceRow?.data as { slug?: string } | null)?.slug ??
+    "Operator workspace";
 
   return (
     <div className="space-y-8">
@@ -291,7 +293,7 @@ export default async function CampaignDetailPage({
           <CampaignDefinitionForm
             campaignId={id}
             campaign={campaign}
-            workspaceSlug={workspaceSlug}
+            workspaceLabel={workspaceLabel}
           />
         </div>
       </section>

@@ -9,11 +9,11 @@ const INITIAL_STATE = { error: undefined as string | undefined };
 export function CampaignDefinitionForm({
   campaignId,
   campaign,
-  workspaceSlug,
+  workspaceLabel,
 }: {
   campaignId: string;
   campaign: CampaignRow;
-  workspaceSlug: string;
+  workspaceLabel: string;
 }) {
   const [state, formAction] = useActionState(
     async (_prev: { error?: string }, formData: FormData) => {
@@ -32,7 +32,7 @@ export function CampaignDefinitionForm({
   return (
     <form action={formAction} className="space-y-6">
       <p className="text-xs text-[var(--crm-muted)]">
-        <strong>Who runs this campaign:</strong> This workspace ({workspaceSlug}). Operator cannot be changed here.
+        <strong>Who runs this campaign:</strong> This workspace ({workspaceLabel}). Operator cannot be changed here.
       </p>
 
       <div>
@@ -40,14 +40,14 @@ export function CampaignDefinitionForm({
           Promoted project / client (Linkary org ID)
         </label>
         <p className="text-xs text-[var(--crm-muted)] mb-1">
-          The project or client being promoted. Leave blank if the operator is promoting itself.
+          Use a Linkary org UUID only. If the project is not on Linkary yet, leave this blank and add its social handle below in tracked accounts.
         </p>
         <input
           id="promoted_org_id"
           name="promoted_org_id"
           type="text"
           defaultValue={campaign.promoted_org_id ?? ""}
-          placeholder="uuid or blank"
+          placeholder="Linkary org UUID (or leave blank)"
           className="w-full rounded-lg border border-[var(--crm-border)] bg-[var(--crm-bg)] px-3 py-2 text-sm text-[var(--crm-foreground)]"
         />
       </div>

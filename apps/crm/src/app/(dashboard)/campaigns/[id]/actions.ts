@@ -18,6 +18,65 @@ import type { SnapshotMetrics, SnapshotType } from "@/lib/snapshots";
 import { revalidatePath } from "next/cache";
 
 const REVIEW_STATUSES = ["approved", "rejected", "needs_revision"] as const;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function parseXHandleInput(input: string): string {
+  const raw = input.trim();
+  if (!raw) return "";
+  const noProto = raw.replace(/^https?:\/\//i, "");
+  const noDomain = noProto
+    .replace(/^www\./i, "")
+    .replace(/^x\.com\//i, "")
+    .replace(/^twitter\.com\//i, "");
+  const firstSegment = noDomain.split(/[/?#]/)[0] ?? "";
+  const handle = firstSegment.replace(/^@/, "").trim().toLowerCase();
+  return handle;
+}
+
+async function resolveXHandle(handleInput: string): Promise<{ handle: string | null; error?: string }> {
+  const handle = parseXHandleInput(handleInput);
+  if (!handle) return { handle: null };
+  if (!/^[a-z0-9_]{1,15}$/i.test(handle)) {
+    return { handle: null, error: "Invalid X handle format" };
+  }
+
+  const apiKey = process.env.TWITTERAPI_IO_KEY?.trim() || process.env.TWITTERAPI_API_KEY?.trim();
+  if (!apiKey) {
+    // Beta-safe fallback: accept normalized handle even when lookup key isn't configured.
+    return { handle };
+  }
+
+  try {
+    const res = await fetch(`https://api.twitterapi.io/twitter/user/info?userName=${encodeURIComponent(handle)}`, {
+      headers: { "X-API-Key": apiKey },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      return { handle: null, error: "Could not verify X handle. Check handle and try again." };
+    }
+    const data = (await res.json().catch(() => ({}))) as {
+      data?: { userName?: string; user_name?: string; screen_name?: string };
+      userName?: string;
+      username?: string;
+      screen_name?: string;
+    };
+    const resolved =
+      data.data?.userName ??
+      data.data?.user_name ??
+      data.data?.screen_name ??
+      data.userName ??
+      data.username ??
+      data.screen_name ??
+      handle;
+    const normalized = String(resolved).replace(/^@/, "").trim().toLowerCase();
+    if (!/^[a-z0-9_]{1,15}$/i.test(normalized)) {
+      return { handle: null, error: "Could not verify X handle. Check handle and try again." };
+    }
+    return { handle: normalized };
+  } catch {
+    return { handle: null, error: "Could not verify X handle. Check handle and try again." };
+  }
+}
 
 /**
  * Org review action: approve, reject, or request revision on a submission.
@@ -96,7 +155,8 @@ export async function updateCampaignDefinitionAction(
   const weekly_required_posts =
     weeklyRaw != null && weeklyRaw !== "" ? Number(weeklyRaw) : null;
   const daily_engagement_required = (formData.get("daily_engagement_required") as string | null)?.trim() || null;
-  const promoted_org_id = (formData.get("promoted_org_id") as string | null)?.trim() || null;
+  const promotedOrgInput = (formData.get("promoted_org_id") as string | null)?.trim() || "";
+  let promoted_org_id: string | null = null;
   const promotedHandlesRaw = (formData.get("promoted_social_handles") as string | null)?.trim();
   let promoted_social_handles: PromotedSocialHandle[] = [];
   if (promotedHandlesRaw) {
@@ -105,6 +165,26 @@ export async function updateCampaignDefinitionAction(
       const [platform, ...rest] = line.split(",").map((s) => s.trim());
       const handle = rest.join(",").trim();
       if (platform && handle) promoted_social_handles.push({ platform, handle });
+    }
+  }
+
+  if (promotedOrgInput) {
+    if (UUID_RE.test(promotedOrgInput)) {
+      promoted_org_id = promotedOrgInput;
+    } else {
+      const resolved = await resolveXHandle(promotedOrgInput);
+      if (resolved.error) return { error: resolved.error };
+      if (resolved.handle) {
+        const exists = promoted_social_handles.some(
+          (h) => h.platform.toLowerCase() === "x" && h.handle.replace(/^@/, "").toLowerCase() === resolved.handle
+        );
+        if (!exists) {
+          promoted_social_handles = [
+            { platform: "x", handle: `@${resolved.handle}` },
+            ...promoted_social_handles,
+          ];
+        }
+      }
     }
   }
 

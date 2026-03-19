@@ -37,17 +37,17 @@ export function CampaignDefinitionForm({
 
       <div>
         <label htmlFor="promoted_org_id" className="block text-sm font-medium text-[var(--crm-foreground)] mb-1">
-          Promoted project / client (Linkary org ID)
+          Promoted project / client (Linkary org ID or X handle)
         </label>
         <p className="text-xs text-[var(--crm-muted)] mb-1">
-          Use a Linkary org UUID only. If the project is not on Linkary yet, leave this blank and add its social handle below in tracked accounts.
+          Enter Linkary org UUID, <code className="bg-[var(--crm-bg)] px-1">@xhandle</code>, or <code className="bg-[var(--crm-bg)] px-1">x.com/handle</code>. If handle is provided, it is auto-added to tracked accounts for campaign analytics.
         </p>
         <input
           id="promoted_org_id"
           name="promoted_org_id"
           type="text"
           defaultValue={campaign.promoted_org_id ?? ""}
-          placeholder="Linkary org UUID (or leave blank)"
+          placeholder="UUID, @xhandle, or x.com/handle"
           className="w-full rounded-lg border border-[var(--crm-border)] bg-[var(--crm-bg)] px-3 py-2 text-sm text-[var(--crm-foreground)]"
         />
       </div>

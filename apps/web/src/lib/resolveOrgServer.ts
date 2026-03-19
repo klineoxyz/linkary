@@ -3,7 +3,7 @@
  * Resolves by slug (orgs table, any published state) or by usernames → org id.
  * Use from org page Server Component so valid orgs load and invalid segments 404.
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getUsernameOwner } from "./publicData";
 
 export type ResolvedOrg = { id: string; slug: string; name: string };
@@ -15,7 +15,7 @@ function normalize(s: string): string {
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Above this, skip in-memory hyphen match (apply migration `20260424100000` and rely on RPC). */
-const MAX_ORGS_FOR_HYPHEN_COLLAPSE_SCAN = 800;
+const MAX_ORGS_FOR_HYPHEN_COLLAPSE_SCAN = 20000;
 
 /**
  * desicryptoclub (URL) vs desicrypto-club (orgs.slug). Unique collapsed match only.
@@ -28,10 +28,20 @@ async function resolveOrgByHyphenCollapsedSlug(
   const collapsed = norm.replace(/-/g, "");
   if (collapsed.length < 2) return null;
 
-  const { count, error: countErr } = await supabase.from("orgs").select("*", { count: "exact", head: true });
+  // Use service-role for this scan because the SSR client is built with the anon key (RLS may block direct reads).
+  const serviceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
+  const scanClient =
+    serviceUrl && serviceKey
+      ? createClient(serviceUrl, serviceKey, {
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+        })
+      : supabase;
+
+  const { count, error: countErr } = await scanClient.from("orgs").select("id", { count: "exact", head: true });
   if (countErr || count == null || count > MAX_ORGS_FOR_HYPHEN_COLLAPSE_SCAN) return null;
 
-  const { data: rows, error } = await supabase.from("orgs").select("id, slug, name");
+  const { data: rows, error } = await scanClient.from("orgs").select("id, slug, name");
   if (error || !rows?.length) return null;
 
   const matches = rows.filter(

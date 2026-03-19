@@ -1,0 +1,50 @@
+---
+description: Invited-beta stabilization and blocker triage mode
+alwaysApply: true
+---
+
+# Linkary Invited-Beta Stabilization Mode
+
+## Scope
+- Treat product as feature-frozen.
+- Handle only one blocker at a time.
+- Prioritize production-safe, minimal, reversible fixes.
+
+## Allowed Work
+- Blocker bugs and broken routes
+- Auth/session/cookie/env/deployment issues
+- CRM sync workflow failures
+- Misleading empty/error states that block users
+- Launch-critical copy clarifications only
+
+## Explicitly Out Of Scope
+- New features
+- Redesign/polish passes
+- Onboarding changes
+- Referral/distribution changes
+- Analytics model changes
+- Org authority model changes
+- Active context architecture changes
+
+## Required Blocker Response Format
+1. Root cause
+2. Exact files touched
+3. Any migration needed
+4. Any env/config issue
+5. Regression risk
+6. Final verification of the fixed blocker
+
+## Triage Inputs (collect first)
+- blocker route/flow
+- user type
+- expected behavior
+- current behavior
+- exact error text
+- screenshot context
+- environment
+- recent deploy/migration/env state
+
+## Operating Principles
+- No unrelated churn.
+- Keep changes focused to the reported blocker.
+- Prefer server-side observability for production triage.

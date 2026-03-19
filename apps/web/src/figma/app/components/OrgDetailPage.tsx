@@ -41,6 +41,7 @@ import { listCaseStudiesForOrg, createCaseStudyForOrg, type CaseStudy } from "@/
 import { Briefcase, Sparkles, ListChecks } from "lucide-react";
 import OrgSourcingPipelineTab from "./OrgSourcingPipelineTab";
 import { getCrmAppUrl } from "@/lib/crmPublicUrl";
+import { getPublicEntityByUsername } from "@/lib/publicData";
 
 const CreatorProgramDetailDrawer = dynamic(
   () => import("./CreatorProgramDetailDrawer").then((m) => m.default),
@@ -295,9 +296,15 @@ export default function OrgDetailPage({
     setLoading(true);
     (async () => {
       const { getIdentifierKind } = await import("@/lib/entityResolver");
-      const o = getIdentifierKind(orgId) === "uuid"
-        ? await getOrgById(orgId)
-        : await getOrgBySlug(orgId);
+      let o: Org | null =
+        getIdentifierKind(orgId) === "uuid"
+          ? await getOrgById(orgId)
+          : await getOrgBySlug(orgId.trim().toLowerCase().replace(/^@/, ""));
+      if (!o) {
+        const norm = orgId.trim().toLowerCase().replace(/^@/, "");
+        const entity = norm ? await getPublicEntityByUsername(norm) : null;
+        if (entity?.type === "org" && entity?.org?.id) o = await getOrgById(entity.org.id);
+      }
       setOrg(o ?? null);
       if (o) {
         if (userId && (o as Org & { owner_profile_id?: string }).owner_profile_id === userId) {

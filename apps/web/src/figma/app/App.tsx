@@ -884,7 +884,9 @@ function routeFromPathname(pathname: string | null, searchParams?: URLSearchPara
   }
   if (parts[0] === "org" && parts[1]) {
     const tab = searchParams?.get("tab") ?? undefined;
-    return { name: "orgDetail", data: { orgId: parts[1], tab: tab || undefined } };
+    const rawSegment = fullPath.split("/")[1];
+    const orgSegment = rawSegment ? decodeURIComponent(rawSegment).trim() : "";
+    return { name: "orgDetail", data: { orgId: orgSegment, slug: orgSegment, tab: tab || undefined } };
   }
   if (parts[0] === "invites" && parts[1] === "lineage") {
     return { name: "inviteLineage" };

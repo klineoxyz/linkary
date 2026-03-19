@@ -2,7 +2,7 @@
 
 ## 1) Bug summary
 
-### Root causes
+### Root causes (Phase 1: analytics redirect + CRM bootstrap)
 
 | Issue | Cause |
 |-------|--------|
@@ -21,6 +21,8 @@
 - `supabase/migrations/20260421000000_crm_workspaces_owner_select_rls_fix.sql` — new
 - `apps/web/src/app/app/analytics/org/[slug]/page.tsx` — new
 - `apps/crm/src/lib/workspace.ts` — slug + membership repair
+- `apps/web/src/figma/app/App.tsx` — org segment decode in routeFromPathname (Phase 2)
+- `apps/web/src/figma/app/components/OrgDetailPage.tsx` — usernames fallback resolution (Phase 2)
 - `docs/ROUTE_RECOVERY_CRM_BOOTSTRAP_FIX.md` — this file
 
 ## 3) Migrations required
@@ -41,7 +43,7 @@ If CRM shows logged-in UI but **RLS still fails**, first verify cookies on `crm.
 | Route | Status |
 |-------|--------|
 | `/{username}` | Exists: `(public)/[username]/page.tsx` — entity resolver, published/unpublished, not touched. |
-| `/org/[slug]` | Exists: `org/[orgId]/page.tsx` — `orgId` is slug or id; shell + OrgDetailPage. |
+| `/org/[slug]` | **Fixed (Phase 2):** Decode segment + usernames fallback; slug or id; shell + OrgDetailPage. |
 | `/app/analytics/org/[slug]` | **302/307** → `/org/{slug}?tab=insights` (no dead link). |
 | CRM `/tasks`, `/tasks/[id]` | Bootstrap fixed post-migration; tasks load when `profile_type = individual`. |
 | CRM `/campaigns`, `/campaigns/[id]` | Unchanged; depend on org workspace membership as before. |
@@ -54,3 +56,27 @@ If CRM shows logged-in UI but **RLS still fails**, first verify cookies on `crm.
 
 - **After deploying migration + web + CRM:** `/app/analytics/org/...` should **no longer 404**; CRM **individual** users should **bootstrap workspace + board** (and **repair orphans**).
 - **Remaining blockers (if any):** Users with **`profile_type` ≠ `individual`** still get the truthful **wrong account type** state on Tasks (by design). **Session not shared** across domains without cookie domain still breaks CRM until env is fixed.
+
+---
+
+## Phase 2: Org route resolution (`/org/[slug]`)
+
+### Why `/org/[slug]` showed “Org not found”
+
+1. **Segment not decoded** — `routeFromPathname` used `parts` from `fullPath.split("/").map(p => p.toLowerCase())`, so the org segment was lowercased but **never `decodeURIComponent`’d**. Encoded segments (e.g. `%20`) were passed through and failed slug lookup.
+2. **Single resolution path** — Org was resolved only via `getOrgBySlug(orgId)` (and `getOrgById` when the segment looked like a UUID). If the slug lived in the **usernames** table (global namespace) but differed from `orgs.slug` or the direct slug lookup failed, the org was not found.
+
+### What changed (Phase 2)
+
+- **App.tsx** — For the org route, the segment is taken from the **raw** path (before lowercasing), then **`decodeURIComponent`**’d and trimmed. Route data now passes `{ orgId: orgSegment, slug: orgSegment, tab }` so the client receives a decoded segment.
+- **OrgDetailPage.tsx** — Resolution order: UUID → `getOrgById`; else `getOrgBySlug(normalized)`; if still null, **fallback** `getPublicEntityByUsername(normalized)` and, when `entity?.type === "org"` and `entity?.org?.id`, load full org with `getOrgById(entity.org.id)`. So orgs claimed in the usernames table resolve even when direct `orgs.slug` lookup would fail.
+
+### Files touched (Phase 2)
+
+- `apps/web/src/figma/app/App.tsx` — decode org segment in `routeFromPathname`
+- `apps/web/src/figma/app/components/OrgDetailPage.tsx` — usernames fallback + normalized slug passed to `getOrgBySlug`
+
+### Verification (Phase 2)
+
+- **`/org/[slug]`** — Valid orgs (by slug or by usernames) now resolve; “Org not found” only when no org exists for that segment. Mixed-case and lowercase URLs work; encoded segments are decoded before lookup.
+- **`/app/analytics/org/[slug]`** — Redirect lands on `/org/{slug}?tab=insights`; with the org fix, the org page loads and the insights tab is available.

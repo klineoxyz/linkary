@@ -1608,6 +1608,13 @@ function Topbar({ setMobileOpen, route, setRoute, me, activeContext, onActiveCon
         <div className="relative flex-1 min-w-0">
           <GlobalSearch
             onResultClick={(result) => {
+              const handle = String(result?.handleLabel ?? result?.handle ?? "")
+                .replace(/^@/, "")
+                .trim();
+              if (result?.type === "person" && handle) {
+                router.push(`/app/analytics/profile/${encodeURIComponent(handle)}`);
+                return;
+              }
               if (result?.url) router.push(result.url);
             }}
           />

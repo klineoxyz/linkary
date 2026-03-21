@@ -839,7 +839,7 @@ export default function DashboardPage({
                 backTitle="Potential Value Insights"
                 backInsights={["Complete a deal to see stats"]}
                 isPremium={false}
-                requiresPlan="starter"
+                requiresPlan="nano"
               />
               <FlipCard
                 frontContent={
@@ -853,7 +853,7 @@ export default function DashboardPage({
                 backTitle="Deal Breakdown"
                 backInsights={["Complete a deal to see stats"]}
                 isPremium={false}
-                requiresPlan="starter"
+                requiresPlan="nano"
               />
               <FlipCard
                 frontContent={
@@ -868,7 +868,7 @@ export default function DashboardPage({
                 backTitle="Performance Metrics"
                 backInsights={["Complete a deal to see stats"]}
                 isPremium={false}
-                requiresPlan="pro"
+                requiresPlan="kol"
               />
               <FlipCard
                 frontContent={
@@ -882,7 +882,7 @@ export default function DashboardPage({
                 backTitle="Rating Details"
                 backInsights={["Complete a deal to see stats"]}
                 isPremium={false}
-                requiresPlan="pro"
+                requiresPlan="kol"
               />
             </div>
             
@@ -991,7 +991,7 @@ export default function DashboardPage({
                 backTitle="View Analytics"
                 backInsights={["Connect X to see analytics"]}
                 isPremium={false}
-                requiresPlan="starter"
+                requiresPlan="nano"
               />
               <FlipCard
                 frontContent={
@@ -1006,7 +1006,7 @@ export default function DashboardPage({
                 backTitle="Engagement Breakdown"
                 backInsights={["Connect X to see analytics"]}
                 isPremium={false}
-                requiresPlan="pro"
+                requiresPlan="kol"
               />
               <FlipCard
                 frontContent={
@@ -1020,7 +1020,7 @@ export default function DashboardPage({
                 backTitle="Review Insights"
                 backInsights={["Complete a deal to see stats"]}
                 isPremium={false}
-                requiresPlan="starter"
+                requiresPlan="nano"
               />
             </div>
             

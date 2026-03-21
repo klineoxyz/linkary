@@ -1,11 +1,12 @@
 import React from "react";
 import { Lock, ArrowRight, X, Zap, Star } from "lucide-react";
+import type { PlanKeyUi } from "@/lib/planPackageUi";
 
 interface LockedFeatureModalProps {
   isOpen: boolean;
   onClose: () => void;
   featureName: string;
-  requiredPlan: "pro" | "host" | "brand" | "venture";
+  requiredPlan: Exclude<PlanKeyUi, "free">;
   description?: string;
   onUpgrade: () => void;
 }
@@ -21,33 +22,40 @@ export default function LockedFeatureModal({
   if (!isOpen) return null;
 
   const planDetails = {
-    pro: {
+    nano: {
       name: "NaNo Pack",
       price: "from $9/mo (illustrative)",
       color: "indigo",
       icon: Zap,
       features: ["Discovery search", "Full personal X charts", "Background ingest for your profile"],
     },
-    host: {
+    kol: {
       name: "KOL Pack",
       price: "from $99/mo (illustrative)",
       color: "purple",
       icon: Star,
       features: ["Everything in NaNo", "90d self-serve backfill where enabled", "Other-profile analytics eligibility"],
     },
-    brand: {
+    startup: {
       name: "StartUP Pack",
       price: "$39/mo org (illustrative)",
       color: "amber",
       icon: Star,
       features: ["CRM workspace", "Campaigns & task-board delivery", "External X profile search (quota)"],
     },
-    venture: {
+    unicorn: {
       name: "UniCorn Pack",
       price: "$99/mo org (illustrative)",
       color: "red",
       icon: Star,
-      features: ["Higher CRM quotas", "Same StartUP capabilities", "Custom for enterprise terms"],
+      features: ["Higher CRM quotas", "Same StartUP capabilities", "Sales-led Custom options"],
+    },
+    custom: {
+      name: "Custom",
+      price: "Contact sales",
+      color: "red",
+      icon: Star,
+      features: ["Negotiated org limits", "Enterprise terms", "Same CRM surface as UniCorn where applicable"],
     },
   };
 

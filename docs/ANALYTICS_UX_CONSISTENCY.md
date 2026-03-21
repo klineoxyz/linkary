@@ -7,7 +7,7 @@ Practical checklist for the analytics presentation pass. **No pipeline changes**
 | Surface | Route / usage | Data source | Owner vs cross-user |
 |--------|----------------|-------------|---------------------|
 | **AnalyticsPage** | `/app/analytics` | Owner KPI API + `GET /api/analytics/init-status` | **Owner** — refresh, freshness, private sync hints |
-| **AnalyticsTabContent** | Embedded (e.g. dashboard tab) | Same init-status + owner analytics API | **Owner** — aligned banners/CTAs via shared lib |
+| **Insights tab / profile dashboard** | Profile insights & `ProfileDashboardPage` embedded analytics | v2 owner analytics API (`/api/analytics/x`, etc.) | **Owner** — aligned banners/CTAs via shared lib (legacy `AnalyticsTabContent` removed) |
 | **CrossUserAnalyticsPage** | `/app/analytics/profile/[username]` | `GET /api/me/analytics/profile/:username` (aggregates only) | **Cross-user** — no refresh, no last-sync, no job errors |
 | **IntegrationsPage** | Settings → Integrations | N/A (journey) | Links to Analytics after X connected |
 | **DashboardPage** | Copy links to full Analytics | Deal/profile stats, not X window KPIs | Points to Analytics for full X |

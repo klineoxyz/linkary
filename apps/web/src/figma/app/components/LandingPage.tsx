@@ -61,7 +61,6 @@ type FeaturedItem = {
 
 export default function LandingPage({ setRoute }: LandingPageProps) {
   const [activeTab, setActiveTab] = useState<"x" | "youtube" | "tiktok">("x");
-  const [selectedPlan, setSelectedPlan] = useState<"free" | "starter" | "pro" | "institutional">("pro");
   const [featured, setFeatured] = useState<FeaturedItem[]>([]);
 
   useEffect(() => {

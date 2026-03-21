@@ -17,10 +17,11 @@ import {
   ChevronRight,
   Send,
 } from "lucide-react";
-import UpgradeModal from "./UpgradeModal";
+import UpgradeModal, { type UpgradeModalPack } from "./UpgradeModal";
+import type { PlanKeyUi } from "@/lib/planPackageUi";
 
 interface CalendarRefinedProps {
-  userPlan?: "free" | "pro" | "host" | "brand" | "venture";
+  userPlan?: PlanKeyUi;
 }
 
 export default function CalendarRefined({ userPlan = "free" }: CalendarRefinedProps) {
@@ -28,7 +29,7 @@ export default function CalendarRefined({ userPlan = "free" }: CalendarRefinedPr
   const [showEventDetail, setShowEventDetail] = useState(false);
   const [showSpeakerRequest, setShowSpeakerRequest] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [upgradeType, setUpgradeType] = useState<"speaker" | "host" | "brand" | "venture">("speaker");
+  const [upgradeType, setUpgradeType] = useState<UpgradeModalPack>("nano");
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [createStep, setCreateStep] = useState(1);
 
@@ -73,7 +74,7 @@ export default function CalendarRefined({ userPlan = "free" }: CalendarRefinedPr
       speakerSlots: 2,
       speakerRequests: 0,
       canRequestSpeak: false,
-      isHost: userPlan === "host",
+      isHost: userPlan === "kol",
     },
     {
       id: "ev-3",
@@ -99,8 +100,8 @@ export default function CalendarRefined({ userPlan = "free" }: CalendarRefinedPr
   ];
 
   const handleCreateClick = () => {
-    if (userPlan === "free" || userPlan === "pro") {
-      setUpgradeType("host");
+    if (userPlan === "free" || userPlan === "nano") {
+      setUpgradeType("kol");
       setShowUpgradeModal(true);
     } else {
       setShowCreateEvent(true);
@@ -109,7 +110,7 @@ export default function CalendarRefined({ userPlan = "free" }: CalendarRefinedPr
 
   const handleRequestSpeak = (event: any) => {
     if (userPlan === "free") {
-      setUpgradeType("speaker");
+      setUpgradeType("nano");
       setShowUpgradeModal(true);
     } else {
       setSelectedEvent(event);
@@ -307,7 +308,7 @@ export default function CalendarRefined({ userPlan = "free" }: CalendarRefinedPr
                     <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
                       <p className="text-xs text-amber-900">
                         <Lock className="h-3 w-3 inline mr-1" />
-                        Upgrade to Pro to request speaking slots
+                        Upgrade to NaNo Pack to request speaking slots
                       </p>
                     </div>
                   )}
@@ -679,7 +680,7 @@ function EventDetailModal({ event, userPlan, onClose, onRequestSpeak }: any) {
             <div className="mt-4 p-4 rounded-lg bg-amber-50 border border-amber-200">
               <p className="text-sm text-amber-900">
                 <Lock className="h-4 w-4 inline mr-1" />
-                Upgrade to Pro to request speaking slots at verified events
+                Upgrade to NaNo Pack to request speaking slots at verified events
               </p>
             </div>
           )}

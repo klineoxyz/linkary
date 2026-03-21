@@ -1,15 +1,31 @@
 import React from "react";
 import { X, Check, Sparkles, Mic, Users, Target } from "lucide-react";
+import type { PlanKeyUi } from "@/lib/planPackageUi";
+
+/** Paid packs shown in this demo modal (aligns with plan_key, excludes free/custom). */
+export type UpgradeModalPack = Exclude<PlanKeyUi, "free" | "custom">;
 
 interface UpgradeModalProps {
-  type: "speaker" | "host" | "brand" | "venture";
+  type: UpgradeModalPack;
   isOpen: boolean;
   onClose: () => void;
   onUpgrade?: () => void;
 }
 
-const modalContent = {
-  speaker: {
+const modalContent: Record<
+  UpgradeModalPack,
+  {
+    icon: typeof Mic;
+    headline: string;
+    body: string;
+    features: string[];
+    price: string;
+    period: string;
+    discount: string | null;
+    cta: string;
+  }
+> = {
+  nano: {
     icon: Mic,
     headline: "Creator upgrades",
     body: "NaNo Pack and above unlock discovery and full personal X analytics on linkary.xyz (see live pricing for details).",
@@ -24,7 +40,7 @@ const modalContent = {
     discount: "Billing coming soon",
     cta: "View NaNo Pack",
   },
-  host: {
+  kol: {
     icon: Users,
     headline: "Host & audience",
     body: "Higher creator packs include more workflow depth; calendar and Spaces flows stay tied to your profile subscription.",
@@ -38,7 +54,7 @@ const modalContent = {
     discount: null,
     cta: "View packs",
   },
-  brand: {
+  startup: {
     icon: Target,
     headline: "StartUP Pack (teams)",
     body: "Org workspace on crm.linkary.xyz — campaigns, KOL lists, task-board delivery, external X profile search (quota).",
@@ -52,7 +68,7 @@ const modalContent = {
     discount: null,
     cta: "View StartUP Pack",
   },
-  venture: {
+  unicorn: {
     icon: Sparkles,
     headline: "UniCorn Pack & Custom",
     body: "Higher org limits (e.g. external X search quota) and negotiated Custom terms for active teams.",

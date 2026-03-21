@@ -23,8 +23,9 @@ import {
 } from "lucide-react";
 import LockedFeatureModal from "./LockedFeatureModal";
 import PlanBadge from "./PlanBadge";
+import type { PlanKeyUi } from "@/lib/planPackageUi";
 
-export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: any) {
+export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: { setRoute?: (r: unknown) => void; userPlan?: PlanKeyUi }) {
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [showLockedModal, setShowLockedModal] = useState(false);
   const [showSpeakerRequest, setShowSpeakerRequest] = useState(false);
@@ -40,7 +41,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
       date: "Feb 20, 2026",
       time: "7:00 PM",
       host: "MatrixPay",
-      hostPlan: "brand",
+      hostPlan: "startup",
       speakers: ["Sarah Chen", "Alex Kim"],
       speakerSlots: 5,
       attendees: 234,
@@ -54,7 +55,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
       date: "Feb 22, 2026",
       time: "6:00 PM",
       host: "Muaz Xinthi",
-      hostPlan: "pro",
+      hostPlan: "nano",
       speakers: ["Muaz Xinthi"],
       speakerSlots: 2,
       attendees: 0,
@@ -67,7 +68,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
       date: "Feb 25, 2026",
       time: "8:00 PM",
       host: "Alex Builder",
-      hostPlan: "host",
+      hostPlan: "kol",
       speakers: ["Alex Builder", "Community"],
       speakerSlots: 10,
       attendees: 89,
@@ -80,8 +81,8 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
     if (userPlan === "free") {
       setLockedFeature({
         name: "Host Events",
-        plan: "host",
-        description: "Create and host unlimited X Spaces, podcasts, and AMAs with the X Space Host plan.",
+        plan: "kol",
+        description: "Create and host X Spaces, podcasts, and AMAs when your creator pack includes hosting (see KOL Pack on pricing).",
       });
       setShowLockedModal(true);
     } else {
@@ -93,7 +94,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
     if (userPlan === "free") {
       setLockedFeature({
         name: "Request to Speak",
-        plan: "pro",
+        plan: "nano",
         description: "Apply to speak at events and showcase your expertise (eligible creator packs — see pricing).",
       });
       setShowLockedModal(true);
@@ -111,7 +112,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
     if (userPlan === "free") {
       setLockedFeature({
         name: "External Calendar Sync",
-        plan: "pro",
+        plan: "nano",
         description: "Sync events to Google Calendar and Outlook where your pack allows.",
       });
       setShowLockedModal(true);

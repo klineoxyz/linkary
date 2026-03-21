@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { ArrowRight, Check, Sparkles, Users, Mic, Target, DollarSign } from "lucide-react";
-import UpgradeModal from "./UpgradeModal";
+import UpgradeModal, { type UpgradeModalPack } from "./UpgradeModal";
 
 export default function MonetizationFlowShowcase({ setRoute }: any) {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [upgradeType, setUpgradeType] = useState<"speaker" | "host" | "brand" | "venture">("speaker");
+  const [upgradeType, setUpgradeType] = useState<UpgradeModalPack>("nano");
 
   const scenarios = [
     {
@@ -17,7 +17,7 @@ export default function MonetizationFlowShowcase({ setRoute }: any) {
       features: [
         "Clean, minimal design",
         "Subtle discount formatting",
-        "Emphasized X Space Host plan",
+        "KOL Pack highlighted on live pricing",
         "Professional comparison table",
         "FAQ accordion",
       ],
@@ -38,13 +38,13 @@ export default function MonetizationFlowShowcase({ setRoute }: any) {
       ],
     },
     {
-      id: "speaker",
-      title: "Speaker Upgrade Flow",
-      description: "Conversion modal for creators requesting to speak",
+      id: "nano",
+      title: "NaNo Pack upgrade (creator)",
+      description: "Conversion modal for creators unlocking discovery and full personal analytics",
       icon: Users,
       color: "emerald",
       action: () => {
-        setUpgradeType("speaker");
+        setUpgradeType("nano");
         setShowUpgradeModal(true);
       },
       features: [
@@ -56,13 +56,13 @@ export default function MonetizationFlowShowcase({ setRoute }: any) {
       ],
     },
     {
-      id: "host",
-      title: "Host Upgrade Flow",
-      description: "Conversion modal for users wanting to create events",
+      id: "kol",
+      title: "KOL Pack upgrade (host depth)",
+      description: "Conversion modal for deeper creator workflows (e.g. hosting, backfill)",
       icon: Mic,
       color: "amber",
       action: () => {
-        setUpgradeType("host");
+        setUpgradeType("kol");
         setShowUpgradeModal(true);
       },
       features: [
@@ -74,13 +74,13 @@ export default function MonetizationFlowShowcase({ setRoute }: any) {
       ],
     },
     {
-      id: "brand",
-      title: "Brand Upgrade Flow",
-      description: "Conversion modal for campaign managers",
+      id: "startup",
+      title: "StartUP Pack (teams)",
+      description: "Conversion modal for org workspace / CRM campaigns",
       icon: Target,
       color: "rose",
       action: () => {
-        setUpgradeType("brand");
+        setUpgradeType("startup");
         setShowUpgradeModal(true);
       },
       features: [
@@ -89,6 +89,22 @@ export default function MonetizationFlowShowcase({ setRoute }: any) {
         "Geo insights",
         "Export capabilities",
         "Team collaboration",
+      ],
+    },
+    {
+      id: "unicorn",
+      title: "UniCorn Pack",
+      description: "Higher org limits and upgrade path before Custom",
+      icon: Sparkles,
+      color: "indigo",
+      action: () => {
+        setUpgradeType("unicorn");
+        setShowUpgradeModal(true);
+      },
+      features: [
+        "Higher CRM quotas",
+        "Same StartUP capabilities",
+        "Path to Custom",
       ],
     },
   ];

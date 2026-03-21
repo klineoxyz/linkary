@@ -1,46 +1,66 @@
 import React from "react";
-import { Zap, Mic, Building2, TrendingUp } from "lucide-react";
+import { Zap, Mic, Building2, TrendingUp, Sparkles } from "lucide-react";
+import type { PlanKeyUi } from "@/lib/planPackageUi";
 
 interface PlanBadgeProps {
-  plan: string;
+  plan: PlanKeyUi | string;
   size?: "sm" | "md";
 }
 
-export default function PlanBadge({ plan, size = "sm" }: PlanBadgeProps) {
-  if (plan === "free") return null;
+/** Normalize legacy demo keys if any old data slips through. */
+function normalizePlanKey(plan: string): PlanKeyUi | null {
+  const legacy: Record<string, PlanKeyUi> = {
+    pro: "nano",
+    speaker: "nano",
+    host: "kol",
+    brand: "startup",
+    venture: "unicorn",
+  };
+  const k = legacy[plan] ?? (["free", "nano", "kol", "startup", "unicorn", "custom"].includes(plan) ? (plan as PlanKeyUi) : null);
+  return k;
+}
 
-  const badges = {
-    pro: {
-      label: "PRO",
+export default function PlanBadge({ plan, size = "sm" }: PlanBadgeProps) {
+  const key = normalizePlanKey(String(plan));
+  if (!key || key === "free") return null;
+
+  const badges: Record<
+    Exclude<PlanKeyUi, "free">,
+    { label: string; icon: typeof Zap; bg: string; text: string }
+  > = {
+    nano: {
+      label: "NANO",
       icon: Zap,
-      color: "primary",
       bg: "bg-primary",
       text: "text-primary-foreground",
     },
-    host: {
-      label: "HOST",
+    kol: {
+      label: "KOL",
       icon: Mic,
-      color: "primary",
       bg: "bg-primary",
       text: "text-primary-foreground",
     },
-    brand: {
-      label: "BRAND",
+    startup: {
+      label: "STARTUP",
       icon: Building2,
-      color: "primary",
       bg: "bg-primary",
       text: "text-primary-foreground",
     },
-    venture: {
-      label: "VENTURE",
+    unicorn: {
+      label: "UNICORN",
       icon: TrendingUp,
-      color: "primary",
+      bg: "bg-primary",
+      text: "text-primary-foreground",
+    },
+    custom: {
+      label: "CUSTOM",
+      icon: Sparkles,
       bg: "bg-primary",
       text: "text-primary-foreground",
     },
   };
 
-  const badge = badges[plan as keyof typeof badges];
+  const badge = badges[key];
   if (!badge) return null;
   const Icon = badge.icon;
 

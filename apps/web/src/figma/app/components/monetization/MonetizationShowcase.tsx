@@ -150,25 +150,25 @@ export default function MonetizationShowcase({ setRoute }: any) {
           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
             <h3 className="text-xl font-semibold text-zinc-900 mb-2">Plan Badges</h3>
             <p className="text-sm text-zinc-600 mb-4">
-              User plan indicators (PRO/HOST/BRAND/VENTURE)
+              User plan indicators (approved plan_key packs)
             </p>
 
             <div className="space-y-3 mb-6">
               <div className="flex items-center gap-3">
-                <span className="text-sm text-zinc-700 w-20">PRO:</span>
-                <PlanBadge plan="pro" size="md" />
+                <span className="text-sm text-zinc-700 w-24">NaNo:</span>
+                <PlanBadge plan="nano" size="md" />
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-zinc-700 w-20">HOST:</span>
-                <PlanBadge plan="host" size="md" />
+                <span className="text-sm text-zinc-700 w-24">KOL:</span>
+                <PlanBadge plan="kol" size="md" />
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-zinc-700 w-20">BRAND:</span>
-                <PlanBadge plan="brand" size="md" />
+                <span className="text-sm text-zinc-700 w-24">StartUP:</span>
+                <PlanBadge plan="startup" size="md" />
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-zinc-700 w-20">VENTURE:</span>
-                <PlanBadge plan="venture" size="md" />
+                <span className="text-sm text-zinc-700 w-24">UniCorn:</span>
+                <PlanBadge plan="unicorn" size="md" />
               </div>
             </div>
 
@@ -275,7 +275,7 @@ export default function MonetizationShowcase({ setRoute }: any) {
         isOpen={showLockedModal}
         onClose={() => setShowLockedModal(false)}
         featureName="Demo Feature"
-        requiredPlan="pro"
+        requiredPlan="nano"
         description="This is a demonstration of the locked feature modal. It shows when users try to access gated features."
         onUpgrade={() => {
           setShowLockedModal(false);

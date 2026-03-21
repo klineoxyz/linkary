@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
 import { Lock, ArrowRight, Crown } from "lucide-react";
+import { PLAN_DISPLAY_NAME, type PlanKeyUi } from "@/lib/planPackageUi";
 
 /**
  * FlipCard Component - Interactive 3D flip card for stats/metrics
@@ -20,7 +21,7 @@ interface FlipCardProps {
   
   // Premium features
   isPremium?: boolean;
-  requiresPlan?: "free" | "starter" | "pro" | "institutional";
+  requiresPlan?: PlanKeyUi;
   onPremiumClick?: () => void;
   premiumCTA?: string;
   
@@ -33,19 +34,12 @@ export default function FlipCard({
   backTitle,
   backInsights,
   isPremium = false,
-  requiresPlan = "pro",
+  requiresPlan = "kol",
   onPremiumClick,
   premiumCTA = "View Details",
   className = "",
 }: FlipCardProps) {
   const [isFlipped, setIsFlipped] = useState(false);
-
-  const planLabels = {
-    free: "Free",
-    starter: "Starter",
-    pro: "Pro",
-    institutional: "Institutional",
-  };
 
   return (
     <div
@@ -117,7 +111,7 @@ export default function FlipCard({
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-semibold text-foreground mb-1.5">
-                      Unlock with {planLabels[requiresPlan]}
+                      Unlock with {PLAN_DISPLAY_NAME[requiresPlan]}
                     </p>
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       Upgrade to access detailed analytics and insights
@@ -153,7 +147,7 @@ export default function FlipCard({
  *     "Average ETHOS score: 742"
  *   ]}
  *   isPremium={true}
- *   requiresPlan="pro"
+ *   requiresPlan="kol"
  *   onPremiumClick={() => setRoute({ name: "explore" })}
  *   premiumCTA="Explore Creators"
  * />

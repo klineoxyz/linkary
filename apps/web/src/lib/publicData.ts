@@ -135,8 +135,19 @@ async function getSubscriptionTier(ownerType: "profile" | "org", ownerId: string
   if (!data || (data as { status?: string }).status !== "active") return "free";
   const end = (data as { current_period_end?: string }).current_period_end;
   if (end && new Date(end) < new Date()) return "free";
-  const tier = (data as { tier?: string }).tier;
-  return tier === "pro" || tier === "host" || tier === "brand" || tier === "venture" ? "pro" : "free";
+  const tier = (data as { tier?: string }).tier ?? "";
+  const paid = new Set([
+    "pro",
+    "host",
+    "brand",
+    "venture",
+    "nano",
+    "kol",
+    "startup",
+    "unicorn",
+    "custom",
+  ]);
+  return paid.has(tier) ? "pro" : "free";
 }
 
 /**

@@ -43,6 +43,22 @@ export function normalizePlatform(platform: string | null): string | null {
   return p;
 }
 
+/** Count existing proof rows for this campaign + participant (any status). Used for first-submission follow gate. */
+export async function countSubmissionsForCampaignParticipant(
+  supabase: SupabaseClient,
+  campaignId: string,
+  participantProfileId: string
+): Promise<number> {
+  const { count, error } = await supabase
+    .from("crm_submissions")
+    .select("id", { count: "exact", head: true })
+    .eq("campaign_id", campaignId)
+    .eq("participant_profile_id", participantProfileId);
+
+  if (error) return 0;
+  return count ?? 0;
+}
+
 export async function fetchSubmissionsForTask(
   supabase: SupabaseClient,
   taskId: string

@@ -18,6 +18,8 @@ import { ParticipantCell } from "@/components/ParticipantCell";
 import { toParticipantLabel } from "@/lib/profileDisplay";
 import { GenerateRecurringTasksButton } from "./GenerateRecurringTasksButton";
 import { FinalizeCampaignButton } from "./FinalizeCampaignButton";
+import { ParticipantFollowReviewCell } from "./ParticipantFollowReviewCell";
+import { parseFollowRules } from "@/lib/followRules";
 import { ArrowLeft } from "lucide-react";
 
 function KpiCard({
@@ -65,6 +67,9 @@ export default async function CampaignDetailPage({
   const { id } = await params;
   const campaign = await getCampaign(supabase, id);
   if (!campaign) notFound();
+
+  const campaignFollowRules = parseFollowRules(campaign.follow_rules);
+  const campaignRequiresFollow = campaignFollowRules.requiresFollow;
 
   const promotedHandles = campaign.promoted_social_handles ?? [];
   const [kpis, contributors, submissions, topContributors, workspaceRow, complianceResult, contributionRows, endSnapshotStatus] =
@@ -597,6 +602,11 @@ export default async function CampaignDetailPage({
                   <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
                     Accepted
                   </th>
+                  {campaignRequiresFollow && (
+                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)] min-w-[12rem]">
+                      X follow
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -622,6 +632,16 @@ export default async function CampaignDetailPage({
                         ? new Date(p.accepted_at).toLocaleDateString()
                         : "—"}
                     </td>
+                    {campaignRequiresFollow && (
+                      <td className="p-3 align-top">
+                        <ParticipantFollowReviewCell
+                          campaignId={id}
+                          participantRowId={p.id}
+                          attestationJson={p.x_follow_attestation}
+                          verificationJson={p.x_follow_verification}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

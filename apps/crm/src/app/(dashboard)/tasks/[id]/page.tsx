@@ -4,7 +4,12 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { SetupRequired } from "@/components/SetupRequired";
 import { getTask } from "@/lib/tasks";
 import { getCampaign } from "@/lib/campaigns";
-import { fetchSubmissionsForTask } from "@/lib/submissions";
+import { countSubmissionsForCampaignParticipant, fetchSubmissionsForTask } from "@/lib/submissions";
+import {
+  parseAttestation,
+  parseFollowRules,
+  parseVerification,
+} from "@/lib/followRules";
 import { TaskDetailClient } from "./TaskDetailClient";
 import { ArrowLeft } from "lucide-react";
 
@@ -36,6 +41,7 @@ export default async function TaskDetailPage({
       ? "Personal task"
       : "From campaign (Linkary)";
 
+  const rulesForContext = campaignContext ? parseFollowRules(campaignContext.follow_rules) : null;
   const hasCampaignContext =
     campaignContext &&
     (campaignContext.campaign_objective ||
@@ -43,7 +49,51 @@ export default async function TaskDetailPage({
       (campaignContext.required_platforms?.length ?? 0) > 0 ||
       (campaignContext.promoted_social_handles?.length ?? 0) > 0 ||
       campaignContext.weekly_required_posts != null ||
-      campaignContext.daily_engagement_required);
+      campaignContext.daily_engagement_required ||
+      (rulesForContext?.requiresFollow ?? false));
+
+  let taskFollowContext:
+    | {
+        campaignId: string;
+        mustFollowHandles: string[];
+        notes?: string;
+        submissionCount: number;
+        enforceOnThisSubmit: boolean;
+        attestationConfirmedAt: string | null;
+        attestationHandles: string[];
+        verificationStatus: string | null;
+      }
+    | null = null;
+
+  if (task.campaign_id && campaignContext) {
+    const rules = parseFollowRules(campaignContext.follow_rules);
+    if (rules.requiresFollow) {
+      const submissionCount = await countSubmissionsForCampaignParticipant(
+        supabase,
+        task.campaign_id,
+        user.id
+      );
+      const { data: part } = await supabase
+        .from("crm_campaign_participants")
+        .select("x_follow_attestation, x_follow_verification")
+        .eq("campaign_id", task.campaign_id)
+        .eq("participant_profile_id", user.id)
+        .maybeSingle();
+      const verification = parseVerification(part?.x_follow_verification);
+      const attestation = parseAttestation(part?.x_follow_attestation);
+      const cleared = verification.status === "verified" || verification.status === "waived";
+      taskFollowContext = {
+        campaignId: task.campaign_id,
+        mustFollowHandles: rules.mustFollowHandles,
+        notes: rules.notes,
+        submissionCount,
+        enforceOnThisSubmit: submissionCount === 0 && !cleared,
+        attestationConfirmedAt: attestation.confirmedAt,
+        attestationHandles: attestation.followedHandles,
+        verificationStatus: verification.status,
+      };
+    }
+  }
 
   return (
     <div className="space-y-6 min-w-0 max-w-full px-1 sm:px-0">
@@ -160,6 +210,25 @@ export default async function TaskDetailPage({
                   </ul>
                 </div>
               )}
+              {rulesForContext?.requiresFollow && (
+                <div>
+                  <span className="font-medium text-[var(--crm-muted)]">X follow (first submission)</span>
+                  <p className="text-[var(--crm-foreground)] mt-1">
+                    You must follow the required account(s) on X before your first proof submission for this campaign.
+                    Confirm follow on this task page when prompted.
+                  </p>
+                  {rulesForContext.mustFollowHandles.length > 0 && (
+                    <ul className="mt-2 list-disc list-inside text-[var(--crm-foreground)]">
+                      {rulesForContext.mustFollowHandles.map((h) => (
+                        <li key={h}>@{h}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {rulesForContext.notes && (
+                    <p className="mt-2 text-[var(--crm-muted)]">{rulesForContext.notes}</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -173,6 +242,7 @@ export default async function TaskDetailPage({
           initialPlatform={task.platform ?? ""}
           initialDueAt={task.due_at ?? ""}
           submissions={submissions}
+          followContext={taskFollowContext}
         />
       </div>
     </div>

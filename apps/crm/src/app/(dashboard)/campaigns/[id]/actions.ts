@@ -23,6 +23,7 @@ import {
 } from "@/lib/xUserPreview";
 
 const REVIEW_STATUSES = ["approved", "rejected", "needs_revision"] as const;
+const FOLLOW_VERIFICATION_STATUSES = ["pending", "verified", "waived"] as const;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type PromotedAccountPreview =
@@ -177,6 +178,84 @@ async function resolveXHandle(handleInput: string): Promise<{ handle: string | n
  * Permission-gated: caller must be a member of the campaign's workspace and must
  * not be the submission's participant (creators cannot review their own).
  */
+/**
+ * Workspace member: set manual X follow verification / waive on a participant row.
+ * Audit fields are merged into x_follow_verification JSON (no recurring API checks).
+ */
+export async function updateParticipantFollowVerificationAction(
+  campaignId: string,
+  participantRowId: string,
+  status: (typeof FOLLOW_VERIFICATION_STATUSES)[number],
+  note?: string | null,
+  waiveReason?: string | null
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabase();
+  if (!supabase) return { error: "Not configured" };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Unauthorized" };
+
+  if (!FOLLOW_VERIFICATION_STATUSES.includes(status)) {
+    return { error: "Invalid verification status" };
+  }
+
+  const campaign = await getCampaign(supabase, campaignId);
+  if (!campaign) return { error: "Campaign not found or access denied" };
+
+  const { data: row, error: selErr } = await supabase
+    .from("crm_campaign_participants")
+    .select("id, x_follow_verification")
+    .eq("id", participantRowId)
+    .eq("campaign_id", campaignId)
+    .maybeSingle();
+
+  if (selErr || !row) return { error: "Participant not found or access denied" };
+
+  const existing =
+    row.x_follow_verification && typeof row.x_follow_verification === "object"
+      ? ({ ...(row.x_follow_verification as Record<string, unknown>) } as Record<string, unknown>)
+      : ({} as Record<string, unknown>);
+
+  const now = new Date().toISOString();
+  const events = Array.isArray(existing.events) ? [...(existing.events as unknown[])] : [];
+
+  if (status === "waived") {
+    const wr = waiveReason?.trim() ?? "";
+    if (!wr) return { error: "Waive reason is required" };
+    events.push({ at: now, by: user.id, action: "waived", reason: wr });
+  } else if (status === "verified") {
+    events.push({ at: now, by: user.id, action: "verified", note: note?.trim() || null });
+  } else {
+    events.push({ at: now, by: user.id, action: "reset_pending" });
+  }
+
+  const next: Record<string, unknown> = {
+    ...existing,
+    status,
+    decided_at: now,
+    decided_by_profile_id: user.id,
+    note: note?.trim() || null,
+  };
+  if (status === "waived") {
+    next.waive_reason = waiveReason?.trim() ?? null;
+  } else {
+    next.waive_reason = null;
+  }
+  next.events = events;
+
+  const { error } = await supabase
+    .from("crm_campaign_participants")
+    .update({ x_follow_verification: next, updated_at: now })
+    .eq("id", participantRowId)
+    .eq("campaign_id", campaignId);
+
+  if (error) return { error: error.message };
+  revalidatePath(`/campaigns/${campaignId}`);
+  return {};
+}
+
 export async function reviewSubmissionAction(
   submissionId: string,
   status: (typeof REVIEW_STATUSES)[number],
@@ -286,6 +365,20 @@ export async function updateCampaignDefinitionAction(
   const guidanceParsed = parseGuidanceLinksFromForm(formData);
   if (guidanceParsed.error) return { error: guidanceParsed.error };
 
+  const require_x_follow = formData.get("require_x_follow") === "on";
+  const mustFollowRaw = (formData.get("must_follow_handles") as string | null)?.trim() ?? "";
+  const must_follow_handles = mustFollowRaw
+    ? mustFollowRaw
+        .split(/[\n,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+  const follow_rules_notes = (formData.get("follow_rules_notes") as string | null)?.trim() || null;
+
+  const follow_rules: Record<string, unknown> = { require_x_follow };
+  if (must_follow_handles.length) follow_rules.must_follow_handles = must_follow_handles;
+  if (follow_rules_notes) follow_rules.notes = follow_rules_notes;
+
   const result = await updateCampaignDefinition(supabase, campaignId, {
     reward_date,
     campaign_value_usd: Number.isNaN(campaign_value_usd) ? null : campaign_value_usd,
@@ -297,6 +390,7 @@ export async function updateCampaignDefinitionAction(
     promoted_social_handles,
     campaign_objective,
     guidance_links: guidanceParsed.links,
+    follow_rules,
   });
 
   if (result.error) return result;

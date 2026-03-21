@@ -3,10 +3,17 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import { getTask, updateTask } from "@/lib/tasks";
 import {
+  countSubmissionsForCampaignParticipant,
   createSubmission,
   isValidProofUrl,
   normalizePlatform,
 } from "@/lib/submissions";
+import { getCampaign } from "@/lib/campaigns";
+import {
+  evaluateFollowRequirementForFirstSubmission,
+  parseFollowRules,
+  parseHandlesFromUserInput,
+} from "@/lib/followRules";
 import { revalidatePath } from "next/cache";
 
 /** Allowed status values for creator updates */
@@ -109,6 +116,41 @@ export async function submitProofAction(
   const notes = payload.notes?.trim() || null;
   const title = payload.title?.trim() || null;
 
+  if (task.campaign_id) {
+    const campaign = await getCampaign(supabase, task.campaign_id);
+    if (!campaign) return { error: "Campaign not found or access denied" };
+    const rules = parseFollowRules(campaign.follow_rules);
+    if (rules.requiresFollow) {
+      const priorCount = await countSubmissionsForCampaignParticipant(
+        supabase,
+        task.campaign_id,
+        profileId
+      );
+      if (priorCount === 0) {
+        const { data: participant, error: partErr } = await supabase
+          .from("crm_campaign_participants")
+          .select("id, x_follow_attestation, x_follow_verification")
+          .eq("campaign_id", task.campaign_id)
+          .eq("participant_profile_id", profileId)
+          .maybeSingle();
+
+        if (partErr || !participant) {
+          return {
+            error:
+              "You are not enrolled on this campaign as a participant. Contact the campaign operator.",
+          };
+        }
+
+        const gate = evaluateFollowRequirementForFirstSubmission({
+          rules,
+          attestation: participant.x_follow_attestation,
+          verification: participant.x_follow_verification,
+        });
+        if (!gate.ok) return { error: gate.message };
+      }
+    }
+  }
+
   for (const url of urls) {
     const result = await createSubmission(supabase, {
       task_id: taskId,
@@ -125,5 +167,45 @@ export async function submitProofAction(
   }
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
+  return {};
+}
+
+export async function saveFollowAttestationAction(
+  campaignId: string,
+  followedHandlesRaw: string,
+  statement?: string | null,
+  taskIdForRevalidate?: string | null
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabase();
+  if (!supabase) return { error: "Not configured" };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Unauthorized" };
+
+  const handles = parseHandlesFromUserInput(followedHandlesRaw ?? "");
+  const attestation: Record<string, unknown> = {
+    confirmed_at: new Date().toISOString(),
+    followed_handles: handles,
+  };
+  const st = statement?.trim();
+  if (st) attestation.statement = st;
+
+  const { error } = await supabase.rpc("crm_participant_save_x_follow_attestation", {
+    p_campaign_id: campaignId,
+    p_attestation: attestation,
+  });
+
+  if (error) {
+    const msg = error.message ?? "";
+    if (/not allowed|not found/i.test(msg)) {
+      return { error: "Could not save follow confirmation. Make sure you are accepted on this campaign." };
+    }
+    return { error: msg || "Could not save follow confirmation" };
+  }
+
+  revalidatePath("/tasks");
+  if (taskIdForRevalidate) revalidatePath(`/tasks/${taskIdForRevalidate}`);
   return {};
 }

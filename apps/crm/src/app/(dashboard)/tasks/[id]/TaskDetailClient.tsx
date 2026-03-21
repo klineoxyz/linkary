@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { updateTaskAction, submitProofAction } from "./actions";
+import { updateTaskAction, submitProofAction, saveFollowAttestationAction } from "./actions";
 import type { SubmissionRow } from "@/lib/submissions";
 
 const STATUS_OPTIONS = [
@@ -26,6 +26,7 @@ export function TaskDetailClient({
   initialPlatform,
   initialDueAt,
   submissions: initialSubmissions,
+  followContext = null,
 }: {
   taskId: string;
   currentStatus: string;
@@ -35,6 +36,16 @@ export function TaskDetailClient({
   initialPlatform: string;
   initialDueAt: string;
   submissions: SubmissionRow[];
+  followContext?: {
+    campaignId: string;
+    mustFollowHandles: string[];
+    notes?: string;
+    submissionCount: number;
+    enforceOnThisSubmit: boolean;
+    attestationConfirmedAt: string | null;
+    attestationHandles: string[];
+    verificationStatus: string | null;
+  } | null;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState(currentStatus);
@@ -53,6 +64,43 @@ export function TaskDetailClient({
   const [submissionNotes, setSubmissionNotes] = useState("");
   const [submissionLoading, setSubmissionLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+
+  const [followHandlesInput, setFollowHandlesInput] = useState("");
+  const [followStatement, setFollowStatement] = useState("");
+  const [followSaving, setFollowSaving] = useState(false);
+  const [followSaveError, setFollowSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!followContext) return;
+    setFollowHandlesInput(
+      followContext.attestationHandles.length > 0
+        ? followContext.attestationHandles.map((h) => `@${h}`).join(", ")
+        : ""
+    );
+  }, [
+    followContext?.campaignId,
+    followContext?.attestationConfirmedAt,
+    followContext?.attestationHandles.join("\0"),
+  ]);
+
+  async function handleSaveFollow(e: React.FormEvent) {
+    e.preventDefault();
+    if (!followContext) return;
+    setFollowSaveError(null);
+    setFollowSaving(true);
+    const result = await saveFollowAttestationAction(
+      followContext.campaignId,
+      followHandlesInput,
+      followStatement.trim() || null,
+      taskId
+    );
+    setFollowSaving(false);
+    if (result.error) {
+      setFollowSaveError(result.error);
+      return;
+    }
+    router.refresh();
+  }
 
   async function handleStatusChange(newStatus: string) {
     setError(null);
@@ -206,6 +254,96 @@ export function TaskDetailClient({
 
       <section className="mt-8 pt-6 border-t border-[var(--crm-border)] space-y-4">
         <h3 className="text-sm font-semibold text-[var(--crm-foreground)]">Proof submissions</h3>
+
+        {followContext && (
+          <div className="crm-surface-muted p-4 rounded-[var(--crm-radius)] space-y-3 text-sm">
+            <h4 className="text-sm font-semibold text-[var(--crm-foreground)]">X follow requirement</h4>
+            {followContext.verificationStatus === "verified" && (
+              <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                The campaign team verified your follow. You can submit proof below.
+              </p>
+            )}
+            {followContext.verificationStatus === "waived" && (
+              <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                The follow requirement was waived for you.
+              </p>
+            )}
+            {followContext.submissionCount > 0 && (
+              <p className="text-xs text-[var(--crm-muted)]">
+                You already submitted proof for this campaign; the first-submission follow check no longer applies to new links here.
+              </p>
+            )}
+            {followContext.enforceOnThisSubmit &&
+              followContext.verificationStatus !== "verified" &&
+              followContext.verificationStatus !== "waived" && (
+                <>
+                  <p className="text-xs text-[var(--crm-foreground)] leading-relaxed">
+                    Before your first proof submission, follow the required account(s) on X, then save your confirmation here.
+                  </p>
+                  {followContext.mustFollowHandles.length > 0 && (
+                    <ul className="list-disc list-inside text-xs text-[var(--crm-muted)]">
+                      {followContext.mustFollowHandles.map((h) => (
+                        <li key={h}>@{h}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {followContext.notes && (
+                    <p className="text-xs text-[var(--crm-muted)]">{followContext.notes}</p>
+                  )}
+                  {followContext.attestationConfirmedAt && (
+                    <p className="text-xs text-[var(--crm-muted)]">
+                      Last saved{" "}
+                      {new Date(followContext.attestationConfirmedAt).toLocaleString()}
+                      {followContext.attestationHandles.length > 0 && (
+                        <>
+                          {" "}
+                          · {followContext.attestationHandles.map((h) => `@${h}`).join(", ")}
+                        </>
+                      )}
+                    </p>
+                  )}
+                  <form onSubmit={handleSaveFollow} className="space-y-2 max-w-lg">
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--crm-muted)] mb-1">
+                        Accounts you follow (@handle, comma or new line)
+                      </label>
+                      <textarea
+                        value={followHandlesInput}
+                        onChange={(e) => setFollowHandlesInput(e.target.value)}
+                        rows={2}
+                        className="crm-textarea bg-[var(--crm-card)] text-sm"
+                        placeholder="@brand"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--crm-muted)] mb-1">
+                        Optional note
+                      </label>
+                      <input
+                        value={followStatement}
+                        onChange={(e) => setFollowStatement(e.target.value)}
+                        className="crm-input bg-[var(--crm-card)] text-sm"
+                        placeholder="Short note for the reviewer"
+                      />
+                    </div>
+                    {followSaveError && (
+                      <p className="text-xs text-red-600" role="alert">
+                        {followSaveError}
+                      </p>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={followSaving}
+                      className="crm-btn-secondary text-sm"
+                    >
+                      {followSaving ? "Saving…" : "Save follow confirmation"}
+                    </button>
+                  </form>
+                </>
+              )}
+          </div>
+        )}
+
         {initialSubmissions.length === 0 ? (
           <p className="text-sm text-[var(--crm-muted)] crm-surface-muted px-3 py-3">No submissions yet. Add links below when your post is live.</p>
         ) : (

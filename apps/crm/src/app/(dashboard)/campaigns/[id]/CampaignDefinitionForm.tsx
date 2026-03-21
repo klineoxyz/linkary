@@ -7,6 +7,7 @@ import {
   type PromotedAccountPreview,
 } from "./actions";
 import type { CampaignRow } from "@/lib/campaigns";
+import { parseFollowRules } from "@/lib/followRules";
 
 type DefinitionFormState = { error?: string; success?: boolean };
 const INITIAL_STATE: DefinitionFormState = {};
@@ -69,6 +70,12 @@ export function CampaignDefinitionForm({
       ? campaign.promoted_social_handles!
           .map((h) => `${h.platform}, ${h.handle}`)
           .join("\n")
+      : "";
+
+  const followRules = parseFollowRules(campaign.follow_rules);
+  const mustFollowDefault =
+    followRules.mustFollowHandles.length > 0
+      ? followRules.mustFollowHandles.map((h) => `@${h}`).join("\n")
       : "";
 
   return (
@@ -321,6 +328,52 @@ export function CampaignDefinitionForm({
           placeholder="x, youtube, tiktok"
           className="w-full rounded-lg border border-[var(--crm-border)] bg-[var(--crm-bg)] px-3 py-2 text-sm text-[var(--crm-foreground)]"
         />
+      </div>
+
+      <div className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-bg)] p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <input
+            id="require_x_follow"
+            name="require_x_follow"
+            type="checkbox"
+            defaultChecked={followRules.requiresFollow}
+            className="mt-1 h-4 w-4 rounded border-[var(--crm-border)]"
+          />
+          <div>
+            <label htmlFor="require_x_follow" className="text-sm font-medium text-[var(--crm-foreground)]">
+              Require X follow before first proof submission
+            </label>
+            <p className="text-xs text-[var(--crm-muted)] mt-0.5">
+              Creators can join without this; the first task-board proof submission is blocked until they attest (or you verify/waive on the campaign page). No automatic polling of X.
+            </p>
+          </div>
+        </div>
+        <div>
+          <label htmlFor="must_follow_handles" className="block text-sm font-medium text-[var(--crm-foreground)] mb-1">
+            Must-follow X accounts (one @handle per line or comma-separated)
+          </label>
+          <textarea
+            id="must_follow_handles"
+            name="must_follow_handles"
+            rows={3}
+            defaultValue={mustFollowDefault}
+            placeholder="@brand&#10;@founder"
+            className="w-full rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-3 py-2 text-sm text-[var(--crm-foreground)] font-mono"
+          />
+        </div>
+        <div>
+          <label htmlFor="follow_rules_notes" className="block text-sm font-medium text-[var(--crm-foreground)] mb-1">
+            Follow rule notes (optional, shown in campaign context where supported)
+          </label>
+          <textarea
+            id="follow_rules_notes"
+            name="follow_rules_notes"
+            rows={2}
+            defaultValue={followRules.notes ?? ""}
+            placeholder="e.g. Follow the main brand account before posting."
+            className="w-full rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-3 py-2 text-sm text-[var(--crm-foreground)]"
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

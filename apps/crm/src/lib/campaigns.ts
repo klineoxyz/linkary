@@ -31,6 +31,7 @@ export type CampaignRow = {
   campaign_objective?: string | null;
   guidance_links?: Array<{ label?: string; url: string }> | null;
   finalized_at?: string | null;
+  follow_rules?: unknown;
 };
 
 export type CampaignListItem = CampaignRow & {
@@ -60,6 +61,8 @@ export type CampaignParticipantRow = {
   status: string;
   invited_at: string;
   accepted_at: string | null;
+  x_follow_attestation?: unknown;
+  x_follow_verification?: unknown;
 };
 
 export type CampaignSubmissionRow = {
@@ -103,7 +106,7 @@ export async function fetchCampaignsForUser(
 
   const { data: campaigns } = await supabase
     .from("crm_campaigns")
-    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at, reward_date, campaign_value_usd, token_or_usdt, required_platforms, weekly_required_posts, daily_engagement_required, promoted_org_id, promoted_social_handles, campaign_objective, guidance_links")
+    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at, reward_date, campaign_value_usd, token_or_usdt, required_platforms, weekly_required_posts, daily_engagement_required, promoted_org_id, promoted_social_handles, campaign_objective, guidance_links, follow_rules")
     .in("workspace_id", orgWorkspaceIds)
     .order("updated_at", { ascending: false });
 
@@ -133,7 +136,7 @@ export async function getCampaign(
 ): Promise<CampaignRow | null> {
   const { data } = await supabase
     .from("crm_campaigns")
-    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at, reward_date, campaign_value_usd, token_or_usdt, required_platforms, weekly_required_posts, daily_engagement_required, promoted_org_id, promoted_social_handles, campaign_objective, guidance_links, finalized_at")
+    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at, reward_date, campaign_value_usd, token_or_usdt, required_platforms, weekly_required_posts, daily_engagement_required, promoted_org_id, promoted_social_handles, campaign_objective, guidance_links, finalized_at, follow_rules")
     .eq("id", campaignId)
     .maybeSingle();
 
@@ -204,7 +207,7 @@ export async function getCampaignContributors(
 ): Promise<CampaignParticipantRow[]> {
   const { data } = await supabase
     .from("crm_campaign_participants")
-    .select("id, campaign_id, participant_profile_id, role, status, invited_at, accepted_at")
+    .select("id, campaign_id, participant_profile_id, role, status, invited_at, accepted_at, x_follow_attestation, x_follow_verification")
     .eq("campaign_id", campaignId)
     .order("accepted_at", { ascending: false, nullsFirst: false });
 
@@ -259,6 +262,7 @@ export type UpdateCampaignDefinitionPayload = {
   promoted_social_handles?: PromotedSocialHandle[] | null;
   campaign_objective?: string | null;
   guidance_links?: Array<{ label?: string; url: string }> | null;
+  follow_rules?: unknown;
 };
 
 /**
@@ -287,6 +291,7 @@ export async function updateCampaignDefinition(
     update.campaign_objective = payload.campaign_objective?.trim() || null;
   if (payload.guidance_links !== undefined)
     update.guidance_links = Array.isArray(payload.guidance_links) ? payload.guidance_links : [];
+  if (payload.follow_rules !== undefined) update.follow_rules = payload.follow_rules ?? {};
 
   const { error } = await supabase.from("crm_campaigns").update(update).eq("id", campaignId);
   if (error) return { error: error.message };

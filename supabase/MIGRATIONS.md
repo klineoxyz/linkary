@@ -72,3 +72,4 @@ After all migrations are applied, the backend (web app + worker) expects the ful
 | … | `20260430120000_crm_try_consume_external_x_search_quota.sql` | `crm_try_consume_external_x_search_quota` |
 | … | `20260430120001_crm_refund_external_x_search_slot.sql` | `crm_refund_external_x_search_slot` |
 | … | `20260430120002_crm_external_x_search_grants.sql` | `REVOKE`/`GRANT`/`COMMENT` for CRM X quota RPCs (`DO` block) |
+| … | `20260431120003_crm_participant_save_x_follow_attestation.sql` | `crm_participant_save_x_follow_attestation` — creator-only attestation JSON update |

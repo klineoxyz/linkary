@@ -17,7 +17,8 @@ config({ path: resolve(repoRoot, "apps/web/.env.local") });
 
 import { getSupabaseAdmin } from "./lib/supabase.js";
 import { isPlanGatingEnabled } from "./lib/planGating.js";
-import { planAllowsBackgroundXIngest } from "./lib/planKey.js";
+import { buildProfileCompScopesMap } from "./lib/opsEntitlementsMerge.js";
+import { effectiveBackgroundIngest } from "./lib/planCompGate.js";
 import { buildPlanKeyMapForProfileIds } from "./lib/subscriptionPlan.js";
 import { getApiKeyInfo } from "./lib/twitterapi.js";
 import { ingestXTweets } from "./lib/ingestXTweets.js";
@@ -118,11 +119,10 @@ async function main() {
 
   let ingestList = list;
   if (isPlanGatingEnabled() && list.length > 0) {
-    const planMap = await buildPlanKeyMapForProfileIds(
-      supabase,
-      list.map((p) => p.id)
-    );
-    ingestList = list.filter((p) => planAllowsBackgroundXIngest(planMap.get(p.id) ?? "free"));
+    const ids = list.map((p) => p.id);
+    const planMap = await buildPlanKeyMapForProfileIds(supabase, ids);
+    const compMap = await buildProfileCompScopesMap(supabase, ids);
+    ingestList = list.filter((p) => effectiveBackgroundIngest(planMap.get(p.id) ?? "free", compMap.get(p.id)));
   }
 
   // Count skipped due to recent sync (eligible but x_last_tweets_sync_at >= pastThreshold)

@@ -5,7 +5,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isPlanGatingEnabled } from "./planGating.js";
-import { planAllowsSelfServe90dBackfill } from "./planKey.js";
+import { buildProfileCompScopesMap } from "./opsEntitlementsMerge.js";
+import { effectiveSelfServe90d } from "./planCompGate.js";
 import { buildPlanKeyMapForProfileIds, bypassPlanKeyMap } from "./subscriptionPlan.js";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
@@ -48,13 +49,14 @@ export async function enqueueXBackfill90d(supabase: SupabaseClient): Promise<Enq
         list.map((p) => p.id)
       )
     : bypassPlanKeyMap(list.map((p) => p.id));
+  const compMap = gating ? await buildProfileCompScopesMap(supabase, list.map((p) => p.id)) : new Map();
 
   const twoHoursAgo = new Date(Date.now() - TWO_HOURS_MS).toISOString();
   const staleCutoff = new Date(Date.now() - STALE_MAX_AGE_MS).toISOString();
   let enqueued = 0;
 
   for (const p of list) {
-    if (gating && !planAllowsSelfServe90dBackfill(planMap.get(p.id) ?? "free")) {
+    if (gating && !effectiveSelfServe90d(planMap.get(p.id) ?? "free", compMap.get(p.id))) {
       continue;
     }
     const { data: row90 } = await supabase

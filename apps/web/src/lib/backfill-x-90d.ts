@@ -5,7 +5,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchXUserInfo } from "@/lib/x-analytics-server";
 import { isPlanGatingEnabled } from "@/lib/planGating";
-import { planAllowsSelfServe90dBackfill } from "@/lib/planKey";
+import { buildProfileCompScopesMap } from "@/lib/opsEntitlementsMerge";
+import { effectiveSelfServe90d } from "@/lib/planCompGate";
 import { buildPlanKeyMapForProfileIds, bypassPlanKeyMap } from "@/lib/subscriptionPlan";
 
 const CONCURRENCY = 3;
@@ -70,9 +71,9 @@ export async function enqueueXBackfill90dJobs(
   }
 
   const gating = isPlanGatingEnabled();
-  const planMap = gating
-    ? await buildPlanKeyMapForProfileIds(service, profileList.map((p) => p.id))
-    : bypassPlanKeyMap(profileList.map((p) => p.id));
+  const ids = profileList.map((p) => p.id);
+  const planMap = gating ? await buildPlanKeyMapForProfileIds(service, ids) : bypassPlanKeyMap(ids);
+  const compMap = gating ? await buildProfileCompScopesMap(service, ids) : new Map();
 
   const twoHoursAgo = new Date(Date.now() - TWO_HOURS_MS).toISOString();
   const staleCutoff = new Date(Date.now() - staleMaxAgeMs).toISOString();
@@ -80,7 +81,7 @@ export async function enqueueXBackfill90dJobs(
 
   for (const p of profileList) {
     const planKey = planMap.get(p.id) ?? "free";
-    if (gating && !bypassPlanGate && !planAllowsSelfServe90dBackfill(planKey)) {
+    if (gating && !bypassPlanGate && !effectiveSelfServe90d(planKey, compMap.get(p.id))) {
       continue;
     }
     if (!forceRefresh) {

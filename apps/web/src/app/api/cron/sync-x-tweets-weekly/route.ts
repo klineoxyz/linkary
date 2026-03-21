@@ -5,8 +5,9 @@ import {
   insertXTweets,
   computeAndUpsertRollups,
 } from "@/lib/x-analytics-server";
+import { buildProfileCompScopesMap } from "@/lib/opsEntitlementsMerge";
+import { effectiveBackgroundIngest } from "@/lib/planCompGate";
 import { isPlanGatingEnabled } from "@/lib/planGating";
-import { planAllowsBackgroundXIngest } from "@/lib/planKey";
 import { buildPlanKeyMapForProfileIds, bypassPlanKeyMap } from "@/lib/subscriptionPlan";
 
 const BATCH_SIZE = 100;
@@ -54,9 +55,10 @@ export async function POST(request: NextRequest) {
       )
     : bypassPlanKeyMap(listRaw.map((p) => p.id));
 
+  const compMap = gating ? await buildProfileCompScopesMap(supabase, listRaw.map((p) => p.id)) : new Map();
   const list = listRaw.filter((p) => {
     if (!gating) return true;
-    return planAllowsBackgroundXIngest(planMap.get(p.id) ?? "free");
+    return effectiveBackgroundIngest(planMap.get(p.id) ?? "free", compMap.get(p.id));
   });
 
   let ok = 0;

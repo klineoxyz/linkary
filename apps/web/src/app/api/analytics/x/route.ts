@@ -8,7 +8,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { isPlanGatingEnabled } from "@/lib/planGating";
-import { planAllowsDeepAnalyticsPayload, planKeyFromSubscriptionRow, type PlanKey } from "@/lib/planKey";
+import { profileHasCompScope } from "@/lib/opsEntitlementsMerge";
+import { effectiveDeepAnalytics } from "@/lib/planCompGate";
+import { planKeyFromSubscriptionRow, type PlanKey } from "@/lib/planKey";
 import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -299,9 +301,11 @@ export async function GET(request: NextRequest) {
     if (isPlanGatingEnabled()) {
       const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
       let planKey: PlanKey = "free";
+      let compDeep = false;
       if (svcKey) {
         const svc = createClient(supabaseUrl, svcKey);
         planKey = await resolveEffectivePlanKeyForProfile(svc, userId);
+        compDeep = await profileHasCompScope(svc, userId, "analytics_full");
       } else {
         const { data: sub } = await supabase
           .from("subscriptions")
@@ -313,7 +317,8 @@ export async function GET(request: NextRequest) {
           sub as Parameters<typeof planKeyFromSubscriptionRow>[0]
         );
       }
-      if (!planAllowsDeepAnalyticsPayload(planKey)) {
+      const allowDeep = effectiveDeepAnalytics(planKey, compDeep ? new Set(["analytics_full"] as const) : undefined);
+      if (!allowDeep) {
         const k = kpis as Record<string, unknown>;
         payload.analytics_entitlement = "basic";
         payload.chart_points = {

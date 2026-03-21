@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchActivePlanOverrideMapForProfiles } from "./opsEntitlementsMerge.js";
 import { planKeyFromSubscriptionRow, type PlanKey } from "./planKey.js";
 
 const CHUNK = 120;
@@ -25,6 +26,12 @@ export async function buildPersonalPlanKeyMapForProfileIds(
       const pk = planKeyFromSubscriptionRow(row as Parameters<typeof planKeyFromSubscriptionRow>[0]);
       out.set(id, pk);
     }
+  }
+
+  const overrides = await fetchActivePlanOverrideMapForProfiles(service, unique);
+  for (const id of unique) {
+    const o = overrides.get(id);
+    if (o) out.set(id, o);
   }
 
   return out;

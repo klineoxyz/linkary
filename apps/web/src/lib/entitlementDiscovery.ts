@@ -15,6 +15,8 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isPlanGatingEnabled } from "@/lib/planGating";
+import { buildProfileCompScopesMap } from "@/lib/opsEntitlementsMerge";
+import { effectivePaidDiscovery } from "@/lib/planCompGate";
 import { planAllowsPaidDiscovery } from "@/lib/planKey";
 import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 
@@ -23,6 +25,7 @@ export type DiscoveryEligibilityOutcome =
   | { eligible: true; reason: "allowlist" }
   | { eligible: true; reason: "feature_flag" }
   | { eligible: true; reason: "billing" }
+  | { eligible: true; reason: "ops_comp" }
   | { eligible: false; reason: "not_eligible" };
 
 /** Fallback from env if superadmin_emails table is empty (comma-separated). */
@@ -90,8 +93,13 @@ export async function checkDiscoveryEligibility(
   if (isPlanGatingEnabled() && serviceSupabase) {
     try {
       const plan = await resolveEffectivePlanKeyForProfile(serviceSupabase, userId);
-      if (planAllowsPaidDiscovery(plan)) {
-        return { eligible: true, reason: "billing" };
+      const compMap = await buildProfileCompScopesMap(serviceSupabase, [userId]);
+      const comp = compMap.get(userId);
+      if (effectivePaidDiscovery(plan, comp)) {
+        return {
+          eligible: true,
+          reason: planAllowsPaidDiscovery(plan) ? "billing" : "ops_comp",
+        };
       }
     } catch {
       /* non-fatal */

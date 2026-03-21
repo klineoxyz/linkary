@@ -17,7 +17,8 @@ config({ path: resolve(repoRoot, "apps/web/.env.local") });
 
 import { getSupabaseAdmin } from "./lib/supabase.js";
 import { isPlanGatingEnabled } from "./lib/planGating.js";
-import { planAllowsBackgroundXIngest } from "./lib/planKey.js";
+import { buildProfileCompScopesMap } from "./lib/opsEntitlementsMerge.js";
+import { effectiveBackgroundIngest } from "./lib/planCompGate.js";
 import { buildPlanKeyMapForProfileIds } from "./lib/subscriptionPlan.js";
 import { getUserInfo } from "./lib/twitterapi.js";
 import { sleep, normalizeHandle } from "./lib/utils.js";
@@ -78,11 +79,10 @@ async function main() {
   let skipped = 0;
 
   if (isPlanGatingEnabled() && list.length > 0) {
-    const planMap = await buildPlanKeyMapForProfileIds(
-      supabase,
-      list.map((p) => p.id)
-    );
-    list = list.filter((p) => planAllowsBackgroundXIngest(planMap.get(p.id) ?? "free"));
+    const ids = list.map((p) => p.id);
+    const planMap = await buildPlanKeyMapForProfileIds(supabase, ids);
+    const compMap = await buildProfileCompScopesMap(supabase, ids);
+    list = list.filter((p) => effectiveBackgroundIngest(planMap.get(p.id) ?? "free", compMap.get(p.id)));
   }
 
   console.log(

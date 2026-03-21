@@ -3,7 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
 import { rateLimit } from "@/lib/rate-limit";
 import { isPlanGatingEnabled } from "@/lib/planGating";
-import { planAllowsSelfServe90dBackfill } from "@/lib/planKey";
+import { buildProfileCompScopesMap } from "@/lib/opsEntitlementsMerge";
+import { effectiveSelfServe90d } from "@/lib/planCompGate";
 import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -97,7 +98,8 @@ export async function POST(request: NextRequest) {
 
   if (isPlanGatingEnabled()) {
     const plan = await resolveEffectivePlanKeyForProfile(service, user.id);
-    if (!planAllowsSelfServe90dBackfill(plan)) {
+    const compMap = await buildProfileCompScopesMap(service, [user.id]);
+    if (!effectiveSelfServe90d(plan, compMap.get(user.id))) {
       return ok({ enqueued: false, reason: "plan_not_eligible_for_backfill" });
     }
   }

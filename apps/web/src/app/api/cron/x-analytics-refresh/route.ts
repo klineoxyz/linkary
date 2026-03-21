@@ -13,8 +13,9 @@ import {
   computeAndUpsertRollups,
 } from "@/lib/x-analytics-server";
 import { enqueueXBackfill90dJobs } from "@/lib/backfill-x-90d";
+import { buildProfileCompScopesMap } from "@/lib/opsEntitlementsMerge";
+import { effectiveBackgroundIngest } from "@/lib/planCompGate";
 import { isPlanGatingEnabled } from "@/lib/planGating";
-import { planAllowsBackgroundXIngest } from "@/lib/planKey";
 import { buildPlanKeyMapForProfileIds, bypassPlanKeyMap } from "@/lib/subscriptionPlan";
 
 const BATCH_SIZE = 50;
@@ -76,10 +77,11 @@ export async function POST(request: NextRequest) {
       )
     : bypassPlanKeyMap(mapped.map((r) => r.profile_id));
 
+  const compMap = gating ? await buildProfileCompScopesMap(supabase, mapped.map((r) => r.profile_id)) : new Map();
   const list = mapped
     .filter((r) => {
       if (!gating) return true;
-      return planAllowsBackgroundXIngest(planMap.get(r.profile_id) ?? "free");
+      return effectiveBackgroundIngest(planMap.get(r.profile_id) ?? "free", compMap.get(r.profile_id));
     })
     .slice(0, BATCH_SIZE);
 

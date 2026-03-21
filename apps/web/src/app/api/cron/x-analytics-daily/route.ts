@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabase, fetchXUserInfo } from "@/lib/x-analytics-server";
+import { buildProfileCompScopesMap } from "@/lib/opsEntitlementsMerge";
+import { effectiveBackgroundIngest } from "@/lib/planCompGate";
 import { isPlanGatingEnabled } from "@/lib/planGating";
-import { planAllowsBackgroundXIngest } from "@/lib/planKey";
 import { buildPlanKeyMapForProfileIds, bypassPlanKeyMap } from "@/lib/subscriptionPlan";
 
 const BATCH_SIZE = 100;
@@ -56,9 +57,10 @@ export async function POST(request: NextRequest) {
       )
     : bypassPlanKeyMap(listAll.map((r) => r.user_id));
 
+  const compMap = gating ? await buildProfileCompScopesMap(supabase, listAll.map((r) => r.user_id)) : new Map();
   const list = listAll.filter((r) => {
     if (!gating) return true;
-    return planAllowsBackgroundXIngest(planMap.get(r.user_id) ?? "free");
+    return effectiveBackgroundIngest(planMap.get(r.user_id) ?? "free", compMap.get(r.user_id));
   });
 
   let ok = 0;

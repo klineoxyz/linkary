@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isPlanGatingEnabled } from "@/lib/planGating";
-import { planAllowsSelfServe90dBackfill } from "@/lib/planKey";
+import { buildProfileCompScopesMap } from "@/lib/opsEntitlementsMerge";
+import { effectiveSelfServe90d } from "@/lib/planCompGate";
 import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -67,7 +68,8 @@ export async function POST(request: NextRequest) {
       let allowBackfill = shouldBackfill;
       if (allowBackfill && isPlanGatingEnabled()) {
         const plan = await resolveEffectivePlanKeyForProfile(service, profile.id);
-        allowBackfill = planAllowsSelfServe90dBackfill(plan);
+        const compMap = await buildProfileCompScopesMap(service, [profile.id]);
+        allowBackfill = effectiveSelfServe90d(plan, compMap.get(profile.id));
       }
       if (allowBackfill) {
         const { error: jobErr } = await service.from("analytics_jobs").insert({

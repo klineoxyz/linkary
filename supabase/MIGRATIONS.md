@@ -66,3 +66,4 @@ After all migrations are applied, the backend (web app + worker) expects the ful
 
 | … | `20260426120000_plan_key_ops_members_audit_log.sql` | `subscriptions.plan_key`, backfill from `tier`; `internal_ops_members`; `platform_audit_log` (service-role only) |
 | … | `20260427120000_batch2_usage_x_cache_follow_fields.sql` | `plan_usage_counters`; `external_x_profile_cache`; CRM `follow_rules` + participant follow JSON; audit `target_id` comment |
+| … | `20260428120000_platform_ops_entitlements.sql` | `platform_ops_entitlements` (comp / discount metadata / plan override; service-role only) |

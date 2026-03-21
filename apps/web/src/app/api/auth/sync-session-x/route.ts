@@ -3,7 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { extractTwitterIdentity } from "@/lib/auth-x-identity";
 import { claimSafeSlug } from "@/lib/slug/safeSlug";
 import { isPlanGatingEnabled } from "@/lib/planGating";
-import { planAllowsSelfServe90dBackfill } from "@/lib/planKey";
+import { buildProfileCompScopesMap } from "@/lib/opsEntitlementsMerge";
+import { effectiveSelfServe90d } from "@/lib/planCompGate";
 import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -120,7 +121,8 @@ export async function POST(request: Request) {
       let allowBackfill = (count ?? 0) < 7;
       if (allowBackfill && isPlanGatingEnabled()) {
         const plan = await resolveEffectivePlanKeyForProfile(service, profile.id);
-        allowBackfill = planAllowsSelfServe90dBackfill(plan);
+        const compMap = await buildProfileCompScopesMap(service, [profile.id]);
+        allowBackfill = effectiveSelfServe90d(plan, compMap.get(profile.id));
       }
       if (allowBackfill) {
         await service.from("analytics_jobs").insert({

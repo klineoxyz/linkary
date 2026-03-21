@@ -4,6 +4,7 @@ const items = [
   { href: "/ops/overview", label: "Overview" },
   { href: "/ops/users", label: "Users & plans" },
   { href: "/ops/campaigns", label: "Campaigns & participants" },
+  { href: "/ops/actions", label: "Ops actions" },
   { href: "/ops/audit", label: "Audit log" },
 ];
 

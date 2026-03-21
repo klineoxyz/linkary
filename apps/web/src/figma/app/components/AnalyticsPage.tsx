@@ -3,7 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { Users, BarChart2, Eye, TrendingUp, Heart, ThumbsUp, MessageCircle } from "lucide-react";
+import Link from "next/link";
+import { Users, BarChart2, Eye, TrendingUp, Heart, ThumbsUp, MessageCircle, Lock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
   getOwnerStateBanner,
@@ -25,6 +26,11 @@ import { SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
 import { formatTryAgainAfter, rateLimitFullMessage } from "@/lib/rateLimitUx";
 import { SWR_KEY_OWNER_ANALYTICS_INIT, swrKeyAnalyticsX } from "@/lib/swrCacheKeys";
 import { RC_STORAGE } from "@/lib/releaseCandidateUx";
+import {
+  effectiveAnalyticsEntitlement,
+  type AnalyticsXContractData,
+} from "@/lib/analyticsContractUi";
+import { PRICING_PATH, upgradeCtaLine } from "@/lib/planPackageUi";
 
 function formatIslandValue(n: number): string {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
@@ -71,6 +77,7 @@ type ApiSuccess = {
       last_sync_at: string | null;
       data_state: "none" | "partial" | "full";
     };
+    analytics_entitlement?: "basic" | "full";
   };
 };
 
@@ -249,6 +256,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   }, [mutateOwnerStatus, mutateAnalytics]);
 
   const payload = res?.ok === true ? res.data : null;
+  const analyticsEntitlement = effectiveAnalyticsEntitlement(payload as AnalyticsXContractData | null);
+  const chartsLockedBasic = analyticsEntitlement === "basic";
 
   const deltaPct = useMemo(() => {
     if (!payload) return (_c: number, _p?: number) => null as number | null;
@@ -365,6 +374,19 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             <button type="button" onClick={dismissAnalyticsReady} className="text-xs font-medium text-emerald-800 shrink-0 self-start sm:self-center hover:underline">
               Got it
             </button>
+          </div>
+        )}
+        {chartsLockedBasic && platform === "x" && payload && (
+          <div
+            className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-950"
+            role="status"
+          >
+            <strong>Basic analytics (Free).</strong> Summary KPIs below respect your selected window (7d / 30d / 90d). Interactive charts and
+            period-over-period deltas unlock on{" "}
+            <Link href={PRICING_PATH} className="font-medium underline underline-offset-2">
+              NaNo Pack+
+            </Link>
+            .
           </div>
         )}
         {/* Platform tabs — X active; YouTube / TikTok / Facebook coming soon */}
@@ -652,31 +674,48 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             <ChartSkeleton title="Follower Growth" />
           </>
         ) : payload ? (
-          <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <EngagementChart
-                points={engagementPoints}
-                coverageDays={activeDaysEngagement}
-                windowDays={windowDays}
-                tweetCountWindow={payload.kpis.posts_total}
-                noPostsInPeriod={noPostsEngagement}
-                insufficientForTrend={insufficientEngagement}
-              />
-              <PostingCadenceChart
-                points={cadencePoints}
-                tweetCountWindow={payload.kpis.posts_total}
-                windowDays={windowDays}
-                noPostsInPeriod={noPostsCadence}
-                insufficientForTrend={insufficientCadence}
-              />
+          chartsLockedBasic ? (
+            <div className="rounded-xl border border-border bg-muted/25 p-8 text-center space-y-4">
+              <Lock className="h-10 w-10 mx-auto text-muted-foreground" aria-hidden />
+              <h3 className="text-sm font-semibold text-foreground">Charts locked on Free</h3>
+              <p className="text-sm text-muted-foreground max-w-lg mx-auto">{upgradeCtaLine("analytics")}</p>
+              <Link
+                href={PRICING_PATH}
+                className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+              >
+                View packs
+              </Link>
+              <p className="text-xs text-muted-foreground">
+                Values in the summary tiles above still update when you change 7d / 30d / 90d — they are not placeholders.
+              </p>
             </div>
-            <FollowerGrowthChart
-              points={followerPoints}
-              coverageDays={followerCoverageDays}
-              windowDays={windowDays}
-              insufficientData={followerInsufficient}
-            />
-          </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <EngagementChart
+                  points={engagementPoints}
+                  coverageDays={activeDaysEngagement}
+                  windowDays={windowDays}
+                  tweetCountWindow={payload.kpis.posts_total}
+                  noPostsInPeriod={noPostsEngagement}
+                  insufficientForTrend={insufficientEngagement}
+                />
+                <PostingCadenceChart
+                  points={cadencePoints}
+                  tweetCountWindow={payload.kpis.posts_total}
+                  windowDays={windowDays}
+                  noPostsInPeriod={noPostsCadence}
+                  insufficientForTrend={insufficientCadence}
+                />
+              </div>
+              <FollowerGrowthChart
+                points={followerPoints}
+                coverageDays={followerCoverageDays}
+                windowDays={windowDays}
+                insufficientData={followerInsufficient}
+              />
+            </>
+          )
         ) : null}
 
         {showDebug && payload && platform === "x" && (

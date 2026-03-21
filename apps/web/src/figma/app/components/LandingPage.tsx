@@ -99,69 +99,80 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
       .catch(() => setFeatured([]));
   }, []);
 
-  // Pricing tiers with SPECIFIC numbers (no "limited")
+  /** Marketing tiles aligned to plan_key packs (personal vs org). */
   const pricingPlans = [
     {
       id: "free",
       name: "Free",
       price: "$0",
-      description: "Get started with basic reputation tracking",
+      description: "Creators — public profile & basic self analytics",
       features: [
-        "Public profile",
-        "ETHOS + XScore + Index scores",
-        "Analytics for your own profile only",
-        "View 10 profiles/month",
-        "Featured network only (no search)",
+        "Public profile & scores",
+        "Basic X summary on your account (no paid background pipelines)",
+        "Discovery off; join campaigns when invited (delivery via CRM)",
       ],
-      cta: "Get Started",
+      cta: "Get started",
       highlighted: false,
     },
     {
-      id: "starter",
-      name: "Starter",
-      price: "$29",
+      id: "nano",
+      name: "NaNo Pack",
+      price: "$9",
       period: "/mo",
-      description: "Perfect for individual creators building reputation",
+      description: "Creators — discovery + full charts for your X",
       features: [
-        "Full X analytics for your profile",
-        "50 global searches/month",
-        "View 50 profiles/month",
-        "5 verification requests/month",
-        "3 basic case studies",
+        "Discovery search (profiles & orgs)",
+        "Full X analytics & charts for your connected account",
+        "No automatic personal 90d backfill (see KOL Pack)",
       ],
       cta: "Early access",
       highlighted: false,
     },
     {
-      id: "pro",
-      name: "Pro",
+      id: "kol",
+      name: "KOL Pack",
       price: "$99",
       period: "/mo",
-      badge: "Most Popular",
-      description: "For professionals who need full visibility & verification",
+      badge: "Deeper analytics",
+      description: "Creators — history, other-profile analytics eligibility",
       features: [
-        "Unlimited global search + filters",
-        "Unlimited profile views (shared/public)",
-        "Shared analytics + compare view",
-        "Projects, gigs, shortlists + AI recommendations",
-        "Full verification workflow + priority queue",
-        "Early access: YouTube + TikTok analytics",
+        "Everything in NaNo Pack",
+        "Self-serve 90d X backfill where enabled",
+        "Eligible to view other creators’ allowlisted analytics",
       ],
       cta: "Early access",
       highlighted: true,
     },
     {
-      id: "institutional",
-      name: "Institutional",
-      price: "Custom",
-      description: "Enterprise solution for companies & agencies",
+      id: "startup",
+      name: "StartUP Pack",
+      price: "$39",
+      period: "/mo",
+      description: "Projects & teams — CRM workspace subscription",
       features: [
-        "Company profile + subsidiaries",
-        "Team seats + permissions",
-        "Advanced analytics compare",
-        "Priority verification + API exports",
-        "Dedicated support",
+        "Org entitlements on crm.linkary.xyz",
+        "Campaigns, gigs, KOL lists, task-board delivery",
+        "External X profile search by handle (quota)",
       ],
+      cta: "Early access",
+      highlighted: false,
+    },
+    {
+      id: "unicorn",
+      name: "UniCorn Pack",
+      price: "$99",
+      period: "/mo",
+      description: "Teams — higher CRM limits",
+      features: ["Everything in StartUP Pack", "Higher external X search quota", "Scale reporting & ops"],
+      cta: "Early access",
+      highlighted: false,
+    },
+    {
+      id: "custom",
+      name: "Custom",
+      price: "Custom",
+      description: "Enterprise-style quotas & terms",
+      features: ["Negotiated caps", "CRM + ops alignment", "Contact sales"],
       cta: "Contact us",
       highlighted: false,
     },
@@ -688,7 +699,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 <p className="text-gray-600 mb-4">Track video performance and subscriber growth</p>
                 <div className="p-4 rounded-xl bg-muted border border-border">
                   <p className="text-sm text-foreground">
-                    <strong>Early access available</strong> for Pro plan members. Sign up to get notified when we launch.
+                    <strong>Early access</strong> will target KOL Pack+ when launched. Sign up to get notified.
                   </p>
                 </div>
               </div>
@@ -699,7 +710,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
                 <p className="text-gray-600 mb-4">Monitor viral content and audience engagement</p>
                 <div className="p-4 rounded-xl bg-muted border border-border">
                   <p className="text-sm text-foreground">
-                    <strong>Early access available</strong> for Pro plan members. Sign up to get notified when we launch.
+                    <strong>Early access</strong> will target KOL Pack+ when launched. Sign up to get notified.
                   </p>
                 </div>
               </div>
@@ -717,7 +728,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
             <p className="text-sm text-gray-500">A 7-day free trial will apply when paid plans go live.</p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {pricingPlans.map((plan) => (
               <motion.div
                 key={plan.id}

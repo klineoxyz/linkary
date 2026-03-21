@@ -2,8 +2,10 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { BarChart2, ExternalLink, Lock, AlertCircle, Users } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { PRICING_PATH, upgradeCtaLine } from "@/lib/planPackageUi";
 import {
   CROSS_USER_ANALYTICS_EMPTY_BODY,
   CROSS_USER_ANALYTICS_EMPTY_TITLE,
@@ -132,19 +134,25 @@ export default function CrossUserAnalyticsPage({
       <div className="max-w-2xl mx-auto p-6" data-page="cross-user-analytics">
         <div className="rounded-xl border border-border bg-card p-8 text-center">
           <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h2 className="text-lg font-medium text-foreground">Analytics view not available</h2>
-          <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-            Viewing other profiles&apos; analytics is available on eligible plans. Upgrade or contact support for access.
-          </p>
-          {setRoute && (
-            <button
-              type="button"
-              onClick={() => setRoute({ name: "analytics" })}
-              className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          <h2 className="text-lg font-medium text-foreground">Other profiles&apos; analytics</h2>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">{upgradeCtaLine("cross_user_analytics")}</p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <Link
+              href={PRICING_PATH}
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
-              Back to Analytics
-            </button>
-          )}
+              View packs
+            </Link>
+            {setRoute && (
+              <button
+                type="button"
+                onClick={() => setRoute({ name: "analytics" })}
+                className="inline-flex items-center justify-center rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium text-foreground"
+              >
+                Back to Analytics
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );

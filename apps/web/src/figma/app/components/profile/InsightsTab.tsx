@@ -15,6 +15,14 @@ import type { SocialGraphDataPoint } from "../profile-dashboard";
 import type { ScoreBreakdownRow } from "../profile-dashboard";
 import { BarChart3 } from "lucide-react";
 import { computeLinkaryPower } from "@/lib/linkaryScore";
+import {
+  parseAnalyticsXJson,
+  effectiveAnalyticsEntitlement,
+  buildFollowerSeriesFromV2,
+  type AnalyticsXContractData,
+} from "@/lib/analyticsContractUi";
+import Link from "next/link";
+import { PRICING_PATH, upgradeCtaLine } from "@/lib/planPackageUi";
 
 export interface InsightsTabProps {
   setRoute: (r: { name: string; data?: Record<string, unknown>; handle?: string }) => void;
@@ -30,10 +38,6 @@ interface MeStatsResponse {
   xscore?: number | null;
   reviews?: { avg: number; count: number };
   verifiedGigsCount?: number;
-}
-
-interface AnalyticsXResponse {
-  snapshots?: Array<{ snapshot_date: string; followers_total: number | null; tweets_count?: number | null; engagement_rate?: number | null }>;
 }
 
 interface CacheBucketMeta {
@@ -127,7 +131,7 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
   const targetUsername = isOwn ? (me?.username ?? me?.twitter_username ?? "").replace(/^@/, "").toLowerCase() : username?.replace(/^@/, "").toLowerCase();
 
   const [meStats, setMeStats] = useState<MeStatsResponse | null>(null);
-  const [analyticsX, setAnalyticsX] = useState<AnalyticsXResponse | null>(null);
+  const [analyticsV2, setAnalyticsV2] = useState<AnalyticsXContractData | null>(null);
   const [insights, setInsights] = useState<SocialInsightsResponse | null>(null);
   const [publicDto, setPublicDto] = useState<{ display_name?: string | null; username?: string | null; bio?: string | null; avatar_url?: string | null; linkaryPower?: number | null } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -222,7 +226,8 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
         const analyticsData = analyticsRes.ok ? await analyticsRes.json() : null;
         const insightsData = insightsRes.ok ? await insightsRes.json() : null;
         setMeStats(statsData);
-        setAnalyticsX(analyticsData);
+        const ax = parseAnalyticsXJson(analyticsData);
+        setAnalyticsV2(ax.ok ? ax.data : null);
         setInsights(normalizeInsightsResponse(insightsData));
         setPublicDto(null);
         if (insightsData?.recommendedAccounts?.length) {
@@ -246,7 +251,7 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
         setPublicDto(dto);
         setInsights(normalizeInsightsResponse(insightsData));
         setMeStats(null);
-        setAnalyticsX(null);
+        setAnalyticsV2(null);
         if (insightsData?.recommendedAccounts?.length) {
           setRecommended(
             (insightsData.recommendedAccounts as Array<{ id: string; name: string; username: string; avatar_url?: string | null }>).map((r) => ({
@@ -322,9 +327,10 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
     const scoreByDate = new Map<string, number>((insightsSeries.score ?? []).map((p: { date: string; value: number }) => [p.date, p.value]));
     dates.forEach((date) => chartData.push({ date, followers: followersByDate.get(date), score: scoreByDate.get(date) }));
   }
-  if (chartData.length === 0 && analyticsX?.snapshots?.length) {
-    analyticsX.snapshots.forEach((s: { snapshot_date?: string; followers_total?: number | null }) => {
-      chartData.push({ date: s.snapshot_date?.slice(0, 10) ?? "", followers: s.followers_total ?? undefined, score: meStats?.reputationIndex ?? undefined });
+  if (chartData.length === 0 && analyticsV2 && effectiveAnalyticsEntitlement(analyticsV2) === "full") {
+    const series = buildFollowerSeriesFromV2(analyticsV2);
+    series.forEach(({ date, followers }) => {
+      chartData.push({ date, followers, score: meStats?.reputationIndex ?? undefined });
     });
   }
   if (chartData.length === 0 && meStats?.reputationIndex != null) {
@@ -395,6 +401,16 @@ export default function InsightsTab({ setRoute, me, username, getAuthHeaders }: 
             actionLabel="Go to Integrations"
             onAction={() => setRoute({ name: "integrations" })}
           />
+        </div>
+      )}
+
+      {isOwn && analyticsV2 && effectiveAnalyticsEntitlement(analyticsV2) === "basic" && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950">
+          <strong>Basic analytics.</strong>{" "}
+          <span className="text-amber-950/90">{upgradeCtaLine("analytics")}</span>{" "}
+          <Link href={PRICING_PATH} className="font-medium underline underline-offset-2">
+            View packs
+          </Link>
         </div>
       )}
 

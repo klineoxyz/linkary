@@ -138,7 +138,9 @@ export default async function TasksPage({
           <div className="min-w-0">
             <h1 className="crm-page-title">Your workspace</h1>
             <p className="crm-page-subtitle mt-0 max-w-none">
-              Tasks from accepted work on Linkary appear here, grouped by campaign. Submit proof links when ready.
+              Tasks from accepted work on Linkary appear here, grouped by campaign. Counted delivery is when you{" "}
+              <strong className="text-[var(--crm-foreground)]">submit proof from this task board</strong> (stored as submissions)—applying
+              alone does not complete work.
             </p>
           </div>
           <div className="shrink-0">

@@ -2,8 +2,10 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Search, Users, Building2, Lock, AlertCircle, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { PRICING_PATH, upgradeCtaLine } from "@/lib/planPackageUi";
 
 const DEBOUNCE_MS = 350;
 const DEFAULT_LIMIT = 20;
@@ -145,19 +147,25 @@ export default function DiscoveryPage({ setRoute }: { setRoute?: (r: { name: str
       {status === "locked" && (
         <div className="rounded-xl border border-border bg-card p-8 text-center">
           <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h2 className="text-lg font-medium text-foreground">Discovery is not available</h2>
-          <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-            Discovery is available on eligible plans. Upgrade or contact support to get access.
-          </p>
-          {setRoute && (
-            <button
-              type="button"
-              onClick={() => setRoute({ name: "overview" })}
-              className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          <h2 className="text-lg font-medium text-foreground">Discovery is not on your current pack</h2>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">{upgradeCtaLine("discovery")}</p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <Link
+              href={PRICING_PATH}
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
-              Back to overview
-            </button>
-          )}
+              View packs
+            </Link>
+            {setRoute && (
+              <button
+                type="button"
+                onClick={() => setRoute({ name: "overview" })}
+                className="inline-flex items-center justify-center rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium text-foreground"
+              >
+                Back to overview
+              </button>
+            )}
+          </div>
         </div>
       )}
 

@@ -18,6 +18,14 @@ const nav = [
   { href: "/campaigns", label: "Campaigns (review & reports)", icon: Megaphone },
 ];
 
+const opsNav = [
+  { href: "/ops/overview", label: "Overview" },
+  { href: "/ops/campaigns", label: "Campaigns" },
+  { href: "/ops/users", label: "Users" },
+  { href: "/ops/audit", label: "Audit log" },
+  { href: "/ops/actions", label: "Write actions" },
+];
+
 export function DashboardShell({
   user,
   children,
@@ -67,17 +75,28 @@ export function DashboardShell({
             );
           })}
           {showOpsNav ? (
-            <Link
-              href="/ops/overview"
-              className={`flex items-center gap-2.5 rounded-[var(--crm-radius)] px-3 py-2.5 text-sm font-medium transition-colors ${
-                pathname.startsWith("/ops")
-                  ? "bg-[var(--crm-primary)] text-[var(--crm-primary-foreground)] shadow-sm"
-                  : "text-[var(--crm-muted)] hover:bg-[var(--crm-accent)] hover:text-[var(--crm-foreground)]"
-              }`}
-            >
-              <Shield className="h-4 w-4 shrink-0 opacity-90" />
-              <span className="leading-snug">Ops</span>
-            </Link>
+            <div className="pt-2 border-t border-[var(--crm-border)] mt-2 space-y-0.5">
+              <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--crm-muted)] flex items-center gap-2">
+                <Shield className="h-3.5 w-3.5 opacity-80" aria-hidden />
+                Ops
+              </p>
+              {opsNav.map(({ href, label }) => {
+                const active = pathname === href || pathname.startsWith(`${href}/`);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`flex items-center gap-2 rounded-[var(--crm-radius)] px-3 py-2 text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-[var(--crm-accent)] text-[var(--crm-foreground)]"
+                        : "text-[var(--crm-muted)] hover:bg-[var(--crm-accent)] hover:text-[var(--crm-foreground)]"
+                    }`}
+                  >
+                    <span className="leading-snug">{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
           ) : null}
         </nav>
         <div className="mt-8 pt-5 border-t border-[var(--crm-border)] space-y-3">

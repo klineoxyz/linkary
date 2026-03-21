@@ -22,32 +22,32 @@ export default function LockedFeatureModal({
 
   const planDetails = {
     pro: {
-      name: "Creator Pro",
-      price: "$9/month",
+      name: "NaNo Pack",
+      price: "from $9/mo (illustrative)",
       color: "indigo",
       icon: Zap,
-      features: ["Request to speak", "Unlimited circles", "Advanced analytics", "External calendar sync"],
+      features: ["Discovery search", "Full personal X charts", "Background ingest for your profile"],
     },
     host: {
-      name: "X Space Host",
-      price: "$9.99/month",
+      name: "KOL Pack",
+      price: "from $99/mo (illustrative)",
       color: "purple",
       icon: Star,
-      features: ["Host unlimited events", "Speaker applications", "Event analytics", "Discovery boost"],
+      features: ["Everything in NaNo", "90d self-serve backfill where enabled", "Other-profile analytics eligibility"],
     },
     brand: {
-      name: "Brand / Project",
-      price: "$39/month",
+      name: "StartUP Pack",
+      price: "$39/mo org (illustrative)",
       color: "amber",
       icon: Star,
-      features: ["Full KOL Lists", "Campaign intelligence", "Geo targeting", "Team collaboration"],
+      features: ["CRM workspace", "Campaigns & task-board delivery", "External X profile search (quota)"],
     },
     venture: {
-      name: "Venture",
-      price: "$99/month",
+      name: "UniCorn Pack",
+      price: "$99/mo org (illustrative)",
       color: "red",
       icon: Star,
-      features: ["Capital circles", "Portfolio amplification", "Network graph", "Deal flow intelligence"],
+      features: ["Higher CRM quotas", "Same StartUP capabilities", "Custom for enterprise terms"],
     },
   };
 

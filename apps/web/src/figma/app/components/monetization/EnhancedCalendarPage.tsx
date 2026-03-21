@@ -94,7 +94,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
       setLockedFeature({
         name: "Request to Speak",
         plan: "pro",
-        description: "Apply to speak at events and showcase your expertise with Creator Pro.",
+        description: "Apply to speak at events and showcase your expertise (eligible creator packs — see pricing).",
       });
       setShowLockedModal(true);
     } else {
@@ -112,7 +112,7 @@ export default function EnhancedCalendarPage({ setRoute, userPlan = "free" }: an
       setLockedFeature({
         name: "External Calendar Sync",
         plan: "pro",
-        description: "Sync events to Google Calendar and Outlook with Creator Pro.",
+        description: "Sync events to Google Calendar and Outlook where your pack allows.",
       });
       setShowLockedModal(true);
     } else {

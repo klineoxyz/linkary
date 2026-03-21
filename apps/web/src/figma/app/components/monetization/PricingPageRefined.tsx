@@ -20,118 +20,129 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
     listMyOrgs(userId).then((list) => setOrgs(list.map((o) => ({ id: o.id, name: o.name }))));
   }, [userId]);
 
-  const plans = [
+  /** plan_key–aligned packs: personal subs vs org (CRM) subs — illustrative prices until billing is live. */
+  const creatorPlans = [
     {
       id: "free",
       name: "Free",
       price: 0,
       period: "forever",
-      description: "Perfect for getting started",
+      description: "Start on Linkary with your public profile",
       features: [
-        "Public profile",
-        "Link builder",
-        "Join circles (max 3)",
-        "View events",
-        "Set reminders",
-        "Basic analytics",
+        "Public profile & credibility signals",
+        "Basic X summary analytics (no paid background ingest)",
+        "Join campaigns when invited (delivery on Linkary CRM)",
+        "Circles, events, and core social features where enabled",
       ],
-      lockedFeatures: [
-        "Request to speak",
-        "Host events",
-      ],
-      cta: "Get Started",
-      popular: false,
+      lockedFeatures: ["Discovery search", "Full analytics charts on linkary.xyz"],
+      cta: "Get started",
       emphasized: false,
     },
     {
-      id: "creator-pro",
-      name: "Creator Pro",
+      id: "nano",
+      name: "NaNo Pack",
       price: billingPeriod === "monthly" ? 18 : 172.8,
       discountedPrice: billingPeriod === "monthly" ? 9 : 86.4,
       period: billingPeriod === "monthly" ? "/month" : "/year",
-      discount: "Founding Member Rate – First 3 months",
-      description: "For active creators and speakers",
+      discount: "Illustrative — billing coming soon",
+      description: "Creators who want discovery + full self-serve X analytics",
       features: [
-        "Request to speak at events",
-        "Unlimited circles",
-        "Advanced analytics",
-        "Discovery boost",
-        "Availability toggle",
-        "External calendar sync",
+        "Discovery search (profiles & orgs)",
+        "Full X analytics & charts for your own connected account",
+        "Paid background X ingest for your profile",
+        "No automatic 90d self-serve backfill (KOL Pack adds that)",
       ],
-      cta: "Upgrade to Pro",
-      popular: false,
+      cta: "Choose NaNo",
       emphasized: false,
     },
     {
-      id: "x-space-host",
-      name: "X Space Host",
-      price: billingPeriod === "monthly" ? 9.99 : 95.9,
+      id: "kol",
+      name: "KOL Pack",
+      price: billingPeriod === "monthly" ? 49 : 470.4,
       period: billingPeriod === "monthly" ? "/month" : "/year",
-      description: "For hosts and event organizers",
-      topLabel: "Most Popular for Hosts",
+      description: "Professional creators — deeper history & workflows",
+      topLabel: "Deeper analytics",
       features: [
-        "Create unlimited X Spaces",
-        "Accept speaker applications",
-        "Co-host system",
-        "Event analytics dashboard",
-        "Pin events to profile",
-        "Speaker management tools",
+        "Everything in NaNo Pack",
+        "Self-serve 90d X backfill & richer history where available",
+        "Eligible to view other creators’ allowlisted analytics",
+        "Priority on growth and collaboration workflows",
       ],
-      cta: "Become a Host",
-      popular: true,
+      cta: "Choose KOL",
       emphasized: true,
     },
+  ];
+
+  const teamPlans = [
     {
-      id: "brand",
-      name: "Brand / Project",
+      id: "startup",
+      name: "StartUP Pack",
       price: billingPeriod === "monthly" ? 39 : 374.4,
       period: billingPeriod === "monthly" ? "/month" : "/year",
-      description: "For teams running campaigns",
+      description: "Org subscription — CRM, campaigns, team delivery",
       features: [
-        "Full KOL Lists",
-        "Campaign intelligence",
-        "Geo reach targeting",
-        "Invite creators to gigs",
-        "Campaign analytics export",
-        "Team collaboration",
+        "Org / workspace entitlements on crm.linkary.xyz",
+        "Campaigns, gigs, KOL lists, and task-board delivery",
+        "External X profile lookup by handle (monthly quota)",
+        "Does not upgrade creators’ personal packs automatically",
       ],
-      cta: "Start Campaign Plan",
-      popular: false,
+      cta: "StartUP (org)",
       emphasized: false,
     },
     {
-      id: "venture",
-      name: "Venture",
+      id: "unicorn",
+      name: "UniCorn Pack",
       price: billingPeriod === "monthly" ? 99 : 950.4,
       period: billingPeriod === "monthly" ? "/month" : "/year",
-      description: "For VCs and investment firms",
+      description: "Higher limits for active project teams",
       features: [
-        "Capital Partner Circles",
-        "Portfolio amplification",
-        "Influence network graph",
-        "Portfolio event hosting",
-        "Deal flow intelligence",
-        "White-label reports",
+        "Everything in StartUP Pack with higher external X search quota",
+        "Scale campaigns, reporting, and operator workflows",
       ],
-      cta: "Upgrade to Venture",
-      popular: false,
+      cta: "UniCorn (org)",
+      emphasized: false,
+    },
+    {
+      id: "custom",
+      name: "Custom",
+      price: "Custom" as const,
+      period: "",
+      description: "Enterprise-style terms & quotas",
+      features: ["Negotiated caps (e.g. external X search)", "CRM + ops alignment", "Contact sales"],
+      cta: "Contact us",
       emphasized: false,
     },
   ];
 
-  const comparisonFeatures = [
-    { name: "Public Profile", free: true, pro: true, host: true, brand: true, venture: true },
-    { name: "Host Events", free: false, pro: false, host: true, brand: true, venture: true },
-    { name: "Request to Speak", free: false, pro: true, host: true, brand: true, venture: true },
-    { name: "Circles Limit", free: "3", pro: "∞", host: "∞", brand: "∞", venture: "∞" },
-    { name: "KOL Lists", free: false, pro: "View", host: "View", brand: "Full", venture: "Full" },
-    { name: "Advanced Analytics", free: false, pro: true, host: true, brand: true, venture: true },
-    { name: "Event Analytics", free: false, pro: false, host: true, brand: true, venture: true },
-    { name: "Discovery Boost", free: false, pro: true, host: true, brand: true, venture: true },
-    { name: "Calendar Sync", free: false, pro: true, host: true, brand: true, venture: true },
-    { name: "Capital Tools", free: false, pro: false, host: false, brand: false, venture: true },
+  type Comp = boolean | string;
+  const comparisonFeatures: Array<{
+    name: string;
+    free: Comp;
+    nano: Comp;
+    kol: Comp;
+    startup: Comp;
+    unicorn: Comp;
+    custom: Comp;
+  }> = [
+    { name: "Personal profile subscription (linkary.xyz)", free: true, nano: true, kol: true, startup: "—", unicorn: "—", custom: "—" },
+    { name: "Org / CRM workspace subscription", free: "—", nano: "—", kol: "—", startup: true, unicorn: true, custom: true },
+    { name: "Discovery search", free: false, nano: true, kol: true, startup: true, unicorn: true, custom: true },
+    { name: "Full own-profile X charts (linkary.xyz)", free: false, nano: true, kol: true, startup: "—", unicorn: "—", custom: "—" },
+    { name: "Self-serve 90d X backfill (personal)", free: false, nano: false, kol: true, startup: "—", unicorn: "—", custom: "—" },
+    { name: "CRM campaigns & task-board proof (crm_submissions)", free: "Invited", nano: "Invited", kol: "Invited", startup: true, unicorn: true, custom: true },
+    { name: "External X profile search (CRM org quota)", free: false, nano: false, kol: false, startup: true, unicorn: true, custom: true },
   ];
+
+  function renderCompCell(v: Comp) {
+    if (typeof v === "boolean") {
+      return v ? (
+        <Check className="h-4 w-4 text-indigo-600 mx-auto" />
+      ) : (
+        <span className="text-zinc-300">—</span>
+      );
+    }
+    return <span className="text-sm text-zinc-700">{v}</span>;
+  }
 
   // MVP: Billing is not live. Do not call checkout; show coming-soon message only.
   const handleUpgrade = async (_packageKey: string) => {
@@ -159,6 +170,11 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
     {
       question: "What happens to my data if I downgrade?",
       answer: "Your data remains accessible. Some advanced features may be view-only or limited based on your plan.",
+    },
+    {
+      question: "What’s the difference between a creator pack and a team (CRM) pack?",
+      answer:
+        "Creator packs (Free, NaNo, KOL) apply to your personal profile on linkary.xyz. StartUP, UniCorn, and Custom are org/workspace subscriptions for crm.linkary.xyz. They don’t automatically give every org member a personal upgrade; counted campaign work still flows through task-board submissions.",
     },
   ];
 
@@ -234,84 +250,131 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
       </div>
 
       {/* Pricing Cards */}
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-20">
-          {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className={`rounded-xl bg-white p-6 transition-all relative flex flex-col ${
-                plan.emphasized
-                  ? "border-2 border-indigo-400 shadow-lg"
-                  : "border border-zinc-200 hover:shadow-md"
-              }`}
-            >
-              {/* Top Label */}
-              {plan.topLabel && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                  <span className="inline-flex items-center rounded-full bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm">
-                    {plan.topLabel}
-                  </span>
-                </div>
-              )}
-
-              {/* Plan Header */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-zinc-900 mb-1">{plan.name}</h3>
-                <p className="text-sm text-zinc-600 mb-4">{plan.description}</p>
-
-                {/* Pricing */}
-                <div className="flex items-baseline gap-2">
-                  {plan.discountedPrice && (
-                    <span className="text-lg text-zinc-400 line-through">${plan.price}</span>
-                  )}
-                  <span className="text-4xl font-bold text-zinc-900">
-                    ${plan.discountedPrice || plan.price}
-                  </span>
-                  {plan.period !== "forever" && (
-                    <span className="text-sm text-zinc-600">{plan.period}</span>
-                  )}
-                </div>
-
-                {/* Discount Badge */}
-                {plan.discount && (
-                  <p className="text-xs text-zinc-600 mt-2">{plan.discount}</p>
-                )}
-              </div>
-
-              {/* CTA Button */}
-              <button
-                type="button"
-                disabled={plan.id !== "free" && (checkoutLoading || (userId && orgs.length > 0 && !selectedOrgId))}
-                onClick={() => plan.id !== "free" && userId && handleUpgrade(plan.id)}
-                className={`w-full h-11 rounded-lg font-medium text-sm transition-all mb-6 ${
+      <div className="max-w-7xl mx-auto px-6 py-16 space-y-16">
+        <section>
+          <h2 className="text-2xl font-bold text-zinc-900 mb-2">For creators</h2>
+          <p className="text-sm text-zinc-600 mb-8 max-w-2xl">
+            Personal subscriptions on <strong>linkary.xyz</strong> — profile, discovery, and your own X analytics. They do{" "}
+            <strong>not</strong> auto-upgrade org seats on CRM.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {creatorPlans.map((plan) => (
+              <div
+                key={plan.id}
+                className={`rounded-xl bg-white p-6 transition-all relative flex flex-col ${
                   plan.emphasized
-                    ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                    : "border border-zinc-300 hover:border-zinc-400 text-zinc-900 hover:bg-zinc-50"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    ? "border-2 border-indigo-400 shadow-lg"
+                    : "border border-zinc-200 hover:shadow-md"
+                }`}
               >
-                {plan.id !== "free" && checkoutLoading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : plan.cta}
-              </button>
-
-              {/* Features */}
-              <div className="space-y-3 flex-1">
-                {plan.features.map((feature, idx) => (
-                  <div key={idx} className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-indigo-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-zinc-700">{feature}</span>
+                {plan.topLabel && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                    <span className="inline-flex items-center rounded-full bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm">
+                      {plan.topLabel}
+                    </span>
                   </div>
-                ))}
-
-                {/* Locked Features */}
-                {plan.lockedFeatures?.map((feature, idx) => (
-                  <div key={`locked-${idx}`} className="flex items-start gap-2">
-                    <Lock className="h-4 w-4 text-zinc-400 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-zinc-400">{feature}</span>
+                )}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-zinc-900 mb-1">{plan.name}</h3>
+                  <p className="text-sm text-zinc-600 mb-4">{plan.description}</p>
+                  <div className="flex items-baseline gap-2">
+                    {typeof plan.price === "number" && "discountedPrice" in plan && plan.discountedPrice != null && (
+                      <span className="text-lg text-zinc-400 line-through">${plan.price}</span>
+                    )}
+                    <span className="text-4xl font-bold text-zinc-900">
+                      {typeof plan.price === "string"
+                        ? plan.price
+                        : `$${"discountedPrice" in plan && plan.discountedPrice != null ? plan.discountedPrice : plan.price}`}
+                    </span>
+                    {plan.period && plan.period !== "forever" && (
+                      <span className="text-sm text-zinc-600">{plan.period}</span>
+                    )}
                   </div>
-                ))}
+                  {"discount" in plan && plan.discount && <p className="text-xs text-zinc-600 mt-2">{plan.discount}</p>}
+                </div>
+                <button
+                  type="button"
+                  disabled={plan.id !== "free" && checkoutLoading}
+                  onClick={() => {
+                    if (plan.id === "free") return;
+                    void handleUpgrade(plan.id);
+                  }}
+                  className={`w-full h-11 rounded-lg font-medium text-sm transition-all mb-6 ${
+                    plan.emphasized
+                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                      : "border border-zinc-300 hover:border-zinc-400 text-zinc-900 hover:bg-zinc-50"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {plan.id !== "free" && checkoutLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                  ) : (
+                    plan.cta
+                  )}
+                </button>
+                <div className="space-y-3 flex-1">
+                  {plan.features.map((feature, idx) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-zinc-700">{feature}</span>
+                    </div>
+                  ))}
+                  {"lockedFeatures" in plan &&
+                    plan.lockedFeatures?.map((feature, idx) => (
+                      <div key={`locked-${idx}`} className="flex items-start gap-2">
+                        <Lock className="h-4 w-4 text-zinc-400 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm text-zinc-400">{feature}</span>
+                      </div>
+                    ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-bold text-zinc-900 mb-2">For projects &amp; teams</h2>
+          <p className="text-sm text-zinc-600 mb-8 max-w-2xl">
+            Org / workspace plans on <strong>crm.linkary.xyz</strong> — campaigns, delivery, and operator tools. Creators can still participate when invited;{" "}
+            <strong>counted work</strong> flows through task-board submissions.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+            {teamPlans.map((plan) => (
+              <div
+                key={plan.id}
+                className={`rounded-xl bg-white p-6 transition-all relative flex flex-col border border-zinc-200 hover:shadow-md`}
+              >
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-zinc-900 mb-1">{plan.name}</h3>
+                  <p className="text-sm text-zinc-600 mb-4">{plan.description}</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold text-zinc-900">
+                      {typeof plan.price === "string" ? plan.price : `$${plan.price}`}
+                    </span>
+                    {plan.period ? <span className="text-sm text-zinc-600">{plan.period}</span> : null}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={checkoutLoading || (userId && orgs.length > 0 && !selectedOrgId)}
+                  onClick={() => {
+                    void handleUpgrade(plan.id);
+                  }}
+                  className="w-full h-11 rounded-lg font-medium text-sm transition-all mb-6 border border-zinc-300 hover:border-zinc-400 text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+                >
+                  {checkoutLoading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : plan.cta}
+                </button>
+                <div className="space-y-3 flex-1">
+                  {plan.features.map((feature, idx) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-zinc-700">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* Comparison Table */}
         <div className="rounded-xl border border-zinc-200 bg-white p-8 mb-16">
@@ -324,11 +387,12 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
                   <th className="text-left py-4 px-4 text-sm font-semibold text-zinc-900 sticky left-0 bg-white">
                     Feature
                   </th>
-                  <th className="text-center py-4 px-4 text-sm font-semibold text-zinc-900">Free</th>
-                  <th className="text-center py-4 px-4 text-sm font-semibold text-zinc-900">Pro</th>
-                  <th className="text-center py-4 px-4 text-sm font-semibold text-zinc-900">Host</th>
-                  <th className="text-center py-4 px-4 text-sm font-semibold text-zinc-900">Brand</th>
-                  <th className="text-center py-4 px-4 text-sm font-semibold text-zinc-900">Venture</th>
+                  <th className="text-center py-4 px-2 text-xs font-semibold text-zinc-900">Free</th>
+                  <th className="text-center py-4 px-2 text-xs font-semibold text-zinc-900">NaNo</th>
+                  <th className="text-center py-4 px-2 text-xs font-semibold text-zinc-900">KOL</th>
+                  <th className="text-center py-4 px-2 text-xs font-semibold text-zinc-900">StartUP</th>
+                  <th className="text-center py-4 px-2 text-xs font-semibold text-zinc-900">UniCorn</th>
+                  <th className="text-center py-4 px-2 text-xs font-semibold text-zinc-900">Custom</th>
                 </tr>
               </thead>
               <tbody>
@@ -337,61 +401,12 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
                     <td className="py-4 px-4 text-sm text-zinc-700 sticky left-0 bg-white">
                       {feature.name}
                     </td>
-                    <td className="py-4 px-4 text-center">
-                      {typeof feature.free === "boolean" ? (
-                        feature.free ? (
-                          <Check className="h-4 w-4 text-indigo-600 mx-auto" />
-                        ) : (
-                          <span className="text-zinc-300">—</span>
-                        )
-                      ) : (
-                        <span className="text-sm text-zinc-700">{feature.free}</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      {typeof feature.pro === "boolean" ? (
-                        feature.pro ? (
-                          <Check className="h-4 w-4 text-indigo-600 mx-auto" />
-                        ) : (
-                          <span className="text-zinc-300">—</span>
-                        )
-                      ) : (
-                        <span className="text-sm text-zinc-700">{feature.pro}</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      {typeof feature.host === "boolean" ? (
-                        feature.host ? (
-                          <Check className="h-4 w-4 text-indigo-600 mx-auto" />
-                        ) : (
-                          <span className="text-zinc-300">—</span>
-                        )
-                      ) : (
-                        <span className="text-sm text-zinc-700">{feature.host}</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      {typeof feature.brand === "boolean" ? (
-                        feature.brand ? (
-                          <Check className="h-4 w-4 text-indigo-600 mx-auto" />
-                        ) : (
-                          <span className="text-zinc-300">—</span>
-                        )
-                      ) : (
-                        <span className="text-sm text-zinc-700">{feature.brand}</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      {typeof feature.venture === "boolean" ? (
-                        feature.venture ? (
-                          <Check className="h-4 w-4 text-indigo-600 mx-auto" />
-                        ) : (
-                          <span className="text-zinc-300">—</span>
-                        )
-                      ) : (
-                        <span className="text-sm text-zinc-700">{feature.venture}</span>
-                      )}
-                    </td>
+                    <td className="py-4 px-2 text-center">{renderCompCell(feature.free)}</td>
+                    <td className="py-4 px-2 text-center">{renderCompCell(feature.nano)}</td>
+                    <td className="py-4 px-2 text-center">{renderCompCell(feature.kol)}</td>
+                    <td className="py-4 px-2 text-center">{renderCompCell(feature.startup)}</td>
+                    <td className="py-4 px-2 text-center">{renderCompCell(feature.unicorn)}</td>
+                    <td className="py-4 px-2 text-center">{renderCompCell(feature.custom)}</td>
                   </tr>
                 ))}
               </tbody>

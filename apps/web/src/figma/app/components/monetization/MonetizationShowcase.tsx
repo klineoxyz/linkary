@@ -17,7 +17,7 @@ export default function MonetizationShowcase({ setRoute }: any) {
       id: "pricing",
       name: "Pricing Page",
       description: "5-tier pricing with monthly/yearly toggle and comparison table",
-      features: ["Free, Pro, Host, Brand, Venture", "Yearly savings badge", "Feature comparison"],
+      features: ["Free, NaNo, KOL, StartUP, UniCorn, Custom", "Yearly savings badge", "Feature comparison"],
       component: <PricingPage setRoute={setRoute} />,
     },
     {
@@ -66,7 +66,7 @@ export default function MonetizationShowcase({ setRoute }: any) {
           </div>
           <h1 className="text-4xl font-bold text-zinc-900 mb-3">Complete Pricing & Billing Layer</h1>
           <p className="text-lg text-zinc-700 mb-6">
-            Professional SaaS monetization with 5-tier pricing, plan gating, and event hosting
+            Plan-aware monetization UI (approved packs), gating, and event flows
           </p>
           <div className="flex items-center justify-center gap-4">
             <span className="inline-flex items-center rounded-full border border-border bg-accent px-3 py-1 text-sm font-medium text-foreground">

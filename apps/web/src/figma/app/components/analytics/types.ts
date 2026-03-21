@@ -85,6 +85,8 @@ export interface XAnalyticsData {
   };
   debug?: Record<string, unknown>;
   diagnostics?: Record<string, unknown>;
+  /** Present when plan gating is on: Free = basic KPIs only; paid personal = full payload. */
+  analytics_entitlement?: "basic" | "full";
 }
 
 /** KPI delta: null = not enough data (show "--" and "Not enough data"); number = real delta (round 1 decimal, arrow only if !== 0). */

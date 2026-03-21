@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Check, Lock, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Check, Lock, ChevronDown, ChevronUp, Loader2, Minus } from "lucide-react";
 import { listMyOrgs } from "@/lib/orgs";
 import { supabase } from "@/lib/supabase";
 
 export default function PricingPageRefined({ setRoute, userId = null }: { setRoute: (r: { name: string }) => void; userId?: string | null }) {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
   const [orgs, setOrgs] = useState<{ id: string; name: string }[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -41,8 +42,7 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
     {
       id: "nano",
       name: "NaNo Pack",
-      price: billingPeriod === "monthly" ? 18 : 172.8,
-      discountedPrice: billingPeriod === "monthly" ? 9 : 86.4,
+      price: billingPeriod === "monthly" ? 9 : 86.4,
       period: billingPeriod === "monthly" ? "/month" : "/year",
       discount: "Illustrative — billing coming soon",
       description: "Creators who want discovery + full self-serve X analytics",
@@ -58,7 +58,7 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
     {
       id: "kol",
       name: "KOL Pack",
-      price: billingPeriod === "monthly" ? 49 : 470.4,
+      price: billingPeriod === "monthly" ? 29 : 278.4,
       period: billingPeriod === "monthly" ? "/month" : "/year",
       description: "Professional creators — deeper history & workflows",
       topLabel: "Deeper analytics",
@@ -92,7 +92,7 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
     {
       id: "unicorn",
       name: "UniCorn Pack",
-      price: billingPeriod === "monthly" ? 99 : 950.4,
+      price: billingPeriod === "monthly" ? 199 : 1910.4,
       period: billingPeriod === "monthly" ? "/month" : "/year",
       description: "Higher limits for active project teams",
       features: [
@@ -114,35 +114,88 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
     },
   ];
 
-  type Comp = boolean | string;
-  const comparisonFeatures: Array<{
-    name: string;
-    free: Comp;
-    nano: Comp;
-    kol: Comp;
-    startup: Comp;
-    unicorn: Comp;
-    custom: Comp;
-  }> = [
-    { name: "Personal profile subscription (linkary.xyz)", free: true, nano: true, kol: true, startup: "—", unicorn: "—", custom: "—" },
-    { name: "Org / CRM workspace subscription", free: "—", nano: "—", kol: "—", startup: true, unicorn: true, custom: true },
-    { name: "Discovery search", free: false, nano: true, kol: true, startup: true, unicorn: true, custom: true },
-    { name: "Full own-profile X charts (linkary.xyz)", free: false, nano: true, kol: true, startup: "—", unicorn: "—", custom: "—" },
-    { name: "Self-serve 90d X backfill (personal)", free: false, nano: false, kol: true, startup: "—", unicorn: "—", custom: "—" },
-    { name: "CRM campaigns & task-board proof (crm_submissions)", free: "Invited", nano: "Invited", kol: "Invited", startup: true, unicorn: true, custom: true },
-    { name: "External X profile search (CRM org quota)", free: false, nano: false, kol: false, startup: true, unicorn: true, custom: true },
+  /** Approved comparison matrix (UI only — not enforcement). */
+  type CompareCell = true | string | null;
+  const compareColumns: { key: string; title: string; priceLine: string }[] = [
+    { key: "free", title: "Free", priceLine: "$0" },
+    { key: "nano", title: "NaNo Pack", priceLine: "$9" },
+    { key: "kol", title: "KOL Pack", priceLine: "$29" },
+    { key: "startup", title: "StartUP Pack", priceLine: "$99" },
+    { key: "unicorn", title: "UniCorn Pack", priceLine: "$199" },
+    { key: "custom", title: "Custom", priceLine: "Contact sales" },
+  ];
+  const compareRows: { label: string; cells: CompareCell[] }[] = [
+    { label: "Public profile", cells: [true, true, true, true, true, true] },
+    { label: "ETHOS + XScore + Reputation Index", cells: [true, true, true, true, true, true] },
+    { label: "7D / 30D / 90D analytics tabs", cells: [true, true, true, true, true, true] },
+    { label: "Basic self analytics", cells: [true, true, true, true, true, true] },
+    { label: "Full X analytics dashboard", cells: [null, true, true, true, true, true] },
+    { label: "Advanced performance insights", cells: [null, null, true, true, true, true] },
+    { label: "Personal discovery on Linkary", cells: [null, true, true, true, true, true] },
+    {
+      label: "Peer profile analytics access",
+      cells: ["Limited", "Limited", "More depth", "More depth", "More depth", "Custom"],
+    },
+    { label: "Manual insights refresh", cells: [null, "Limited", "More", "More", "Higher", "Custom"] },
+    {
+      label: "Self-serve 90D backfill",
+      cells: [null, null, "Limited", "Included with limits", "Higher limits", "Custom"],
+    },
+    {
+      label: "Background refresh priority",
+      cells: [null, "Daily", "Faster", "Priority", "Priority", "Custom"],
+    },
+    { label: "Can join campaigns / gigs / sprints", cells: [true, true, true, null, null, null] },
+    { label: "Full verification workflow", cells: [null, "Limited", true, true, true, true] },
+    {
+      label: "Case-study / credibility utility",
+      cells: ["Basic", "Basic", "Advanced", "Advanced", "Advanced", "Custom"],
+    },
+    { label: "CRM workspace access", cells: [null, null, null, true, true, true] },
+    { label: "Active campaigns included", cells: [null, null, null, "1", "2", "5+"] },
+    { label: "Creators per campaign", cells: [null, null, null, "Up to 50", "Higher", "Custom"] },
+    { label: "Tracked creators total", cells: [null, null, null, "Up to 50", "Up to 100", "300+"] },
+    { label: "External X profile search", cells: [null, null, null, true, true, true] },
+    { label: "External X search quota / month", cells: [null, null, null, "50", "200", "Custom"] },
+    { label: "Team seats", cells: [null, null, null, "1", "3", "8–10+"] },
+    { label: "Campaign analytics + creator submissions", cells: [null, null, null, true, true, true] },
+    { label: "Tracked campaign delivery workflow", cells: [null, null, null, true, true, true] },
+    {
+      label: "Team operations & reporting",
+      cells: [null, null, null, "Basic", "Higher", "Custom"],
+    },
+    { label: "API / exports", cells: [null, null, null, null, "Later (limited)", true] },
+    { label: "Priority support", cells: [null, null, null, null, null, true] },
   ];
 
-  function renderCompCell(v: Comp) {
-    if (typeof v === "boolean") {
-      return v ? (
-        <Check className="h-4 w-4 text-indigo-600 mx-auto" />
-      ) : (
-        <span className="text-zinc-300">—</span>
+  function renderCompareCell(v: CompareCell) {
+    if (v === true) {
+      return (
+        <span className="flex min-h-[2.25rem] items-center justify-center">
+          <Check className="h-4 w-4 shrink-0 text-indigo-600" strokeWidth={2.25} aria-label="Included" />
+        </span>
       );
     }
-    return <span className="text-sm text-zinc-700">{v}</span>;
+    if (v === null) {
+      return (
+        <span className="flex min-h-[2.25rem] items-center justify-center text-zinc-200" aria-hidden>
+          <Minus className="h-3.5 w-3.5" strokeWidth={1.5} />
+        </span>
+      );
+    }
+    return (
+      <span className="flex min-h-[2.25rem] items-center justify-center px-1 text-center text-xs font-medium leading-snug text-zinc-700 sm:text-sm">
+        {v}
+      </span>
+    );
   }
+
+  const compareNotes = [
+    "Free creators can still participate in campaigns when eligible.",
+    "External X search is available only for paid org plans and is quota-limited.",
+    "90D backfill is controlled to keep performance and cost sustainable.",
+    "Custom plans can include higher limits, more seats, exports, and negotiated terms.",
+  ];
 
   // MVP: Billing is not live. Do not call checkout; show coming-soon message only.
   const handleUpgrade = async (_packageKey: string) => {
@@ -376,43 +429,101 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
           </div>
         </section>
 
-        {/* Comparison Table */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-8 mb-16">
-          <h2 className="text-2xl font-bold text-zinc-900 mb-8">Feature Comparison</h2>
+        {/* Compare all features — collapsed by default */}
+        <section className="mb-16" aria-labelledby="compare-features-heading">
+          <button
+            type="button"
+            id="compare-features-heading"
+            aria-expanded={compareOpen}
+            aria-controls="compare-features-panel"
+            onClick={() => setCompareOpen((o) => !o)}
+            className="flex w-full min-h-[3.25rem] items-center justify-between gap-4 rounded-2xl border border-zinc-200/90 bg-white px-5 py-4 text-left shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+          >
+            <div>
+              <span className="block text-base font-semibold text-zinc-900">Compare all features</span>
+              <span className="mt-0.5 block text-sm text-zinc-500">
+                Full matrix for creators and teams — same packages as above
+              </span>
+            </div>
+            <span
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-600 transition-transform duration-300 ${
+                compareOpen ? "rotate-180" : ""
+              }`}
+            >
+              <ChevronDown className="h-5 w-5" aria-hidden />
+            </span>
+          </button>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-zinc-200">
-                  <th className="text-left py-4 px-4 text-sm font-semibold text-zinc-900 sticky left-0 bg-white">
-                    Feature
-                  </th>
-                  <th className="text-center py-4 px-2 text-xs font-semibold text-zinc-900">Free</th>
-                  <th className="text-center py-4 px-2 text-xs font-semibold text-zinc-900">NaNo</th>
-                  <th className="text-center py-4 px-2 text-xs font-semibold text-zinc-900">KOL</th>
-                  <th className="text-center py-4 px-2 text-xs font-semibold text-zinc-900">StartUP</th>
-                  <th className="text-center py-4 px-2 text-xs font-semibold text-zinc-900">UniCorn</th>
-                  <th className="text-center py-4 px-2 text-xs font-semibold text-zinc-900">Custom</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonFeatures.map((feature, idx) => (
-                  <tr key={idx} className="border-b border-zinc-100">
-                    <td className="py-4 px-4 text-sm text-zinc-700 sticky left-0 bg-white">
-                      {feature.name}
-                    </td>
-                    <td className="py-4 px-2 text-center">{renderCompCell(feature.free)}</td>
-                    <td className="py-4 px-2 text-center">{renderCompCell(feature.nano)}</td>
-                    <td className="py-4 px-2 text-center">{renderCompCell(feature.kol)}</td>
-                    <td className="py-4 px-2 text-center">{renderCompCell(feature.startup)}</td>
-                    <td className="py-4 px-2 text-center">{renderCompCell(feature.unicorn)}</td>
-                    <td className="py-4 px-2 text-center">{renderCompCell(feature.custom)}</td>
-                  </tr>
+          <div
+            id="compare-features-panel"
+            role="region"
+            aria-labelledby="compare-features-heading"
+            className={`overflow-hidden transition-[max-height] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+              compareOpen ? "max-h-[min(12000px,200vh)]" : "max-h-0"
+            }`}
+          >
+            <div className="mt-4 rounded-2xl border border-zinc-200/90 bg-gradient-to-b from-zinc-50/80 to-white p-5 shadow-sm sm:p-8">
+              <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-zinc-100 bg-white shadow-inner [-webkit-overflow-scrolling:touch]">
+                <table className="w-full min-w-[56rem] border-separate border-spacing-0">
+                  <thead>
+                    <tr>
+                      <th
+                        scope="col"
+                        className="sticky left-0 z-20 min-w-[11rem] border-b border-r border-zinc-200 bg-white py-4 pl-4 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 shadow-[6px_0_12px_-6px_rgba(0,0,0,0.08)] sm:min-w-[13rem] sm:pl-5"
+                      >
+                        Feature
+                      </th>
+                      {compareColumns.map((col) => (
+                        <th
+                          key={col.key}
+                          scope="col"
+                          className="min-w-[7.25rem] border-b border-zinc-200 bg-zinc-50/90 px-2 py-4 text-center align-bottom sm:min-w-[8rem] sm:px-3"
+                        >
+                          <span className="block text-xs font-semibold leading-tight text-zinc-900 sm:text-sm">{col.title}</span>
+                          <span className="mt-1 block text-[11px] font-medium leading-tight text-indigo-600 sm:text-xs">
+                            {col.priceLine}
+                          </span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {compareRows.map((row, idx) => (
+                      <tr
+                        key={row.label}
+                        className={`border-b border-zinc-100 transition-colors hover:bg-zinc-50/60 ${idx % 2 === 1 ? "bg-zinc-50/30" : ""}`}
+                      >
+                        <th
+                          scope="row"
+                          className="sticky left-0 z-10 border-r border-zinc-100 bg-white py-3.5 pl-4 pr-3 text-left text-sm font-medium text-zinc-800 shadow-[6px_0_12px_-6px_rgba(0,0,0,0.06)] sm:pl-5"
+                        >
+                          {row.label}
+                        </th>
+                        {row.cells.map((cell, ci) => (
+                          <td
+                            key={ci}
+                            className="border-b border-zinc-100 px-1 py-2 text-center align-middle sm:px-2"
+                          >
+                            {renderCompareCell(cell)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <ul className="mt-6 space-y-2.5 border-t border-zinc-200 pt-6 text-sm leading-relaxed text-zinc-600">
+                {compareNotes.map((note) => (
+                  <li key={note} className="flex gap-2">
+                    <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-indigo-400" aria-hidden />
+                    <span>{note}</span>
+                  </li>
                 ))}
-              </tbody>
-            </table>
+              </ul>
+            </div>
           </div>
-        </div>
+        </section>
 
         {/* FAQ Section */}
         <div className="max-w-3xl mx-auto">

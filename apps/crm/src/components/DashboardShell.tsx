@@ -8,6 +8,7 @@ import {
   ListTodo,
   Megaphone,
   LogOut,
+  Shield,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
@@ -20,9 +21,12 @@ const nav = [
 export function DashboardShell({
   user,
   children,
+  showOpsNav = false,
 }: {
   user: User;
   children: React.ReactNode;
+  /** Server-computed: internal_ops_members active row for this user. */
+  showOpsNav?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -62,6 +66,19 @@ export function DashboardShell({
               </Link>
             );
           })}
+          {showOpsNav ? (
+            <Link
+              href="/ops/overview"
+              className={`flex items-center gap-2.5 rounded-[var(--crm-radius)] px-3 py-2.5 text-sm font-medium transition-colors ${
+                pathname.startsWith("/ops")
+                  ? "bg-[var(--crm-primary)] text-[var(--crm-primary-foreground)] shadow-sm"
+                  : "text-[var(--crm-muted)] hover:bg-[var(--crm-accent)] hover:text-[var(--crm-foreground)]"
+              }`}
+            >
+              <Shield className="h-4 w-4 shrink-0 opacity-90" />
+              <span className="leading-snug">Ops</span>
+            </Link>
+          ) : null}
         </nav>
         <div className="mt-8 pt-5 border-t border-[var(--crm-border)] space-y-3">
           <p className="text-[10px] leading-relaxed text-[var(--crm-muted)] px-1">

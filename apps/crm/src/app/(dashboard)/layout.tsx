@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { DashboardShell } from "@/components/DashboardShell";
 import { SetupRequired } from "@/components/SetupRequired";
+import { userHasOpsMembership } from "@/lib/opsAccess";
 
 export default async function DashboardLayout({
   children,
@@ -21,5 +22,11 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  return <DashboardShell user={session.user}>{children}</DashboardShell>;
+  const showOpsNav = await userHasOpsMembership(session.user.id);
+
+  return (
+    <DashboardShell user={session.user} showOpsNav={showOpsNav}>
+      {children}
+    </DashboardShell>
+  );
 }

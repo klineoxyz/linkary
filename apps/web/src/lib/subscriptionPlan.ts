@@ -1,13 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { maxPlanKey, planKeyFromSubscriptionRow, type PlanKey } from "@/lib/planKey";
+import { planKeyFromSubscriptionRow, type PlanKey } from "@/lib/planKey";
 
 const CHUNK = 120;
 
 /**
- * Effective commercial plan for a profile: active profile subscription ∪ active org subscriptions
- * for orgs this user belongs to (any org_members role). Service-role client required for full merge.
+ * Personal (linkary.xyz) entitlements: active profile subscription only.
+ * Does not merge org_members / org subscriptions (Phase 3A).
  */
-export async function buildPlanKeyMapForProfileIds(
+export async function buildPersonalPlanKeyMapForProfileIds(
   service: SupabaseClient,
   profileIds: string[]
 ): Promise<Map<string, PlanKey>> {
@@ -26,59 +26,59 @@ export async function buildPlanKeyMapForProfileIds(
     for (const row of profSubs ?? []) {
       const id = String((row as { owner_id: string }).owner_id);
       const pk = planKeyFromSubscriptionRow(row as Parameters<typeof planKeyFromSubscriptionRow>[0]);
-      out.set(id, maxPlanKey(out.get(id) ?? "free", pk));
+      out.set(id, pk);
     }
-  }
-
-  const { data: members } = await service.from("org_members").select("user_id, org_id").in("user_id", unique);
-
-  const orgByUser = new Map<string, string[]>();
-  const allOrgIds = new Set<string>();
-  for (const m of members ?? []) {
-    const uid = String((m as { user_id: string }).user_id);
-    const oid = String((m as { org_id: string }).org_id);
-    const arr = orgByUser.get(uid) ?? [];
-    arr.push(oid);
-    orgByUser.set(uid, arr);
-    allOrgIds.add(oid);
-  }
-
-  const orgIdList = [...allOrgIds];
-  const orgPlan = new Map<string, PlanKey>();
-  for (let i = 0; i < orgIdList.length; i += CHUNK) {
-    const chunk = orgIdList.slice(i, i + CHUNK);
-    if (chunk.length === 0) continue;
-    const { data: orgSubs } = await service
-      .from("subscriptions")
-      .select("owner_id, plan_key, tier, status, current_period_end")
-      .eq("owner_type", "org")
-      .in("owner_id", chunk);
-    for (const row of orgSubs ?? []) {
-      const oid = String((row as { owner_id: string }).owner_id);
-      const pk = planKeyFromSubscriptionRow(row as Parameters<typeof planKeyFromSubscriptionRow>[0]);
-      orgPlan.set(oid, maxPlanKey(orgPlan.get(oid) ?? "free", pk));
-    }
-  }
-
-  for (const id of unique) {
-    const orgs = orgByUser.get(id) ?? [];
-    let best = out.get(id) ?? "free";
-    for (const oid of orgs) {
-      const op = orgPlan.get(oid);
-      if (op) best = maxPlanKey(best, op);
-    }
-    out.set(id, best);
   }
 
   return out;
 }
 
+/**
+ * @deprecated Prefer buildPersonalPlanKeyMapForProfileIds — same behavior (profile-only).
+ * Kept so cron/worker imports keep working; org uplift removed.
+ */
+export async function buildPlanKeyMapForProfileIds(
+  service: SupabaseClient,
+  profileIds: string[]
+): Promise<Map<string, PlanKey>> {
+  return buildPersonalPlanKeyMapForProfileIds(service, profileIds);
+}
+
+/**
+ * Personal surfaces: profile subscription row only (owner_type = profile, owner_id = profileId).
+ */
+export async function resolvePersonalPlanKeyForProfile(
+  service: SupabaseClient,
+  profileId: string
+): Promise<PlanKey> {
+  const map = await buildPersonalPlanKeyMapForProfileIds(service, [profileId]);
+  return map.get(profileId) ?? "free";
+}
+
+/** Alias for personal-only resolution (analytics, discovery, ingest, backfill on linkary.xyz). */
 export async function resolveEffectivePlanKeyForProfile(
   service: SupabaseClient,
   profileId: string
 ): Promise<PlanKey> {
-  const map = await buildPlanKeyMapForProfileIds(service, [profileId]);
-  return map.get(profileId) ?? "free";
+  return resolvePersonalPlanKeyForProfile(service, profileId);
+}
+
+/**
+ * Org / CRM context: subscription for public.orgs (owner_type = org).
+ * Use linked_org_id from crm_workspaces — not profile merge.
+ */
+export async function resolveOrgPlanKeyForOrgId(
+  service: SupabaseClient,
+  orgId: string | null | undefined
+): Promise<PlanKey> {
+  if (!orgId || typeof orgId !== "string") return "free";
+  const { data } = await service
+    .from("subscriptions")
+    .select("plan_key, tier, status, current_period_end")
+    .eq("owner_type", "org")
+    .eq("owner_id", orgId)
+    .maybeSingle();
+  return planKeyFromSubscriptionRow(data as Parameters<typeof planKeyFromSubscriptionRow>[0]);
 }
 
 export function bypassPlanKeyMap(profileIds: string[]): Map<string, PlanKey> {

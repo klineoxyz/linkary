@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { createServiceSupabase } from "@/lib/supabase/admin";
 import { SetupRequired } from "@/components/SetupRequired";
 import { HomeShell } from "@/components/HomeShell";
 import { resolveCrmAccess } from "@/lib/access";
+import { getOpsMembershipRole } from "@/lib/internalOps";
 import { ListTodo, Megaphone, LayoutDashboard } from "lucide-react";
 
 export default async function HomePage() {
@@ -21,6 +23,16 @@ export default async function HomePage() {
   }
 
   const access = await resolveCrmAccess(supabase, session.user.id);
+
+  if (access.accessType === "none") {
+    const service = createServiceSupabase();
+    if (service) {
+      const opsRole = await getOpsMembershipRole(service, session.user.id);
+      if (opsRole) {
+        redirect("/ops/overview");
+      }
+    }
+  }
 
   if (access.accessType === "creator_only") {
     redirect("/tasks");

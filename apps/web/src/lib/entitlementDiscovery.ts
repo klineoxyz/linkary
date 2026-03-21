@@ -10,7 +10,7 @@
  * 1. Admin override (superadmin_emails or SUPERADMIN_EMAILS env)
  * 2. Internal allowlist (LINKARY_DISCOVERY_ALLOWED_USER_IDS env, comma-separated)
  * 3. Feature flag (LINKARY_DISCOVERY_ELIGIBLE=true env)
- * 4. Billing: active plan_key (profile ∪ org subscriptions) when LINKARY_PLAN_GATING is not false
+ * 4. Billing: active profile plan_key only when LINKARY_PLAN_GATING is not false
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -47,7 +47,7 @@ function getAllowedUserIdsFromEnv(): Set<string> {
  * Check if the user is eligible for discovery. Returns outcome and reason.
  * Pass service Supabase client for admin/DB checks; pass user id and email from auth.
  *
- * Billing uses resolveEffectivePlanKeyForProfile (profile + org subscriptions) when plan gating is on.
+ * Billing uses profile subscription only (resolveEffectivePlanKeyForProfile); no org uplift (Phase 3A).
  */
 export async function checkDiscoveryEligibility(
   userId: string,

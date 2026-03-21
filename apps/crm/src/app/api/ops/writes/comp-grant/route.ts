@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOpsApiAccess } from "@/lib/opsAccess";
-import { insertPlatformAuditLog } from "@/lib/opsAuditWrite";
-import { softRevokeActiveBySubjectKind } from "@/lib/opsEntitlementsWrite";
+import { mapOpsRpcError } from "@/lib/opsRpcError";
 import { canCreateCompGrant } from "@/lib/opsWritePermissions";
 import {
   parseExpiresAt,
@@ -55,71 +54,35 @@ export async function POST(request: Request) {
   }
 
   const replace = body.replace_existing === true;
-  let priorRevokedIds: string[] = [];
-  if (replace) {
-    const { error: revErr, revokedIds } = await softRevokeActiveBySubjectKind(
-      gate.service,
-      subject.subject_type,
-      subject.subject_id,
-      "comp_grant"
-    );
-    priorRevokedIds = revokedIds;
-    if (revErr) {
-      return NextResponse.json({ ok: false as const, code: "REVOKE_FAILED", message: revErr }, { status: 500 });
-    }
-  }
+  const payload_json = {
+    scopes,
+    ...(typeof body.payload_extra === "object" && body.payload_extra !== null ? (body.payload_extra as object) : {}),
+  };
 
-  const payload_json = { scopes, ...(typeof body.payload_extra === "object" && body.payload_extra !== null ? (body.payload_extra as object) : {}) };
-
-  const { data: inserted, error: insErr } = await gate.service
-    .from("platform_ops_entitlements")
-    .insert({
-      subject_type: subject.subject_type,
-      subject_id: subject.subject_id,
-      kind: "comp_grant",
-      expires_at,
-      payload_json,
-      reason,
-      created_by: gate.userId,
-    })
-    .select("id")
-    .single();
-
-  if (insErr || !inserted?.id) {
-    return NextResponse.json({ ok: false as const, code: "INSERT_FAILED", message: insErr?.message ?? "insert failed" }, { status: 500 });
-  }
-
-  if (priorRevokedIds.length > 0) {
-    const supAudit = await insertPlatformAuditLog(gate.service, {
-      actor_user_id: gate.userId,
-      action: "ops.entitlement.comp_grant.supersede_revoke",
-      target_type: subject.subject_type,
-      target_id: subject.subject_id,
-      payload_json: { revoked_entitlement_ids: priorRevokedIds },
-      reason,
-    });
-    if (!supAudit.ok) {
-      return NextResponse.json({ ok: false as const, code: "AUDIT_FAILED", message: supAudit.message }, { status: 500 });
-    }
-  }
-
-  const audit = await insertPlatformAuditLog(gate.service, {
-    actor_user_id: gate.userId,
-    action: "ops.entitlement.comp_grant.create",
-    target_type: subject.subject_type,
-    target_id: subject.subject_id,
-    payload_json: {
-      entitlement_id: inserted.id,
-      scopes,
-      expires_at,
-      replace_existing: replace,
-      prior_revoked_ids: priorRevokedIds,
-    },
-    reason,
+  const { data, error } = await gate.service.rpc("ops_atomic_comp_grant", {
+    p_actor_user_id: gate.userId,
+    p_subject_type: subject.subject_type,
+    p_subject_id: subject.subject_id,
+    p_expires_at: expires_at,
+    p_reason: reason,
+    p_payload_json: payload_json,
+    p_replace_existing: replace,
   });
-  if (!audit.ok) {
-    return NextResponse.json({ ok: false as const, code: "AUDIT_FAILED", message: audit.message }, { status: 500 });
+
+  if (error) {
+    const m = mapOpsRpcError(error);
+    return NextResponse.json({ ok: false as const, code: m.code, message: m.message }, { status: m.status });
   }
 
-  return NextResponse.json({ ok: true as const, entitlement_id: inserted.id });
+  const row = data as { entitlement_id?: string; prior_revoked_ids?: unknown } | null;
+  const entitlement_id = row?.entitlement_id;
+  if (!entitlement_id) {
+    return NextResponse.json({ ok: false as const, code: "RPC_FAILED", message: "Missing entitlement_id in RPC result" }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    ok: true as const,
+    entitlement_id,
+    prior_revoked_ids: row?.prior_revoked_ids ?? [],
+  });
 }

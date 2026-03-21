@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOpsApiAccess } from "@/lib/opsAccess";
-import { insertPlatformAuditLog } from "@/lib/opsAuditWrite";
+import { mapOpsRpcError } from "@/lib/opsRpcError";
 import type { OpsEntitlementKind } from "@/lib/opsWritePermissions";
 import { canRevokeEntitlement } from "@/lib/opsWritePermissions";
 import { isUuid, parseRequiredReason } from "@/lib/opsWritesValidation";
@@ -31,10 +31,12 @@ export async function POST(request: Request) {
     );
   }
 
+  const entitlementId = eid.trim().toLowerCase();
+
   const { data: row, error: fetchErr } = await gate.service
     .from("platform_ops_entitlements")
     .select("id, kind, subject_type, subject_id, revoked_at")
-    .eq("id", eid.trim().toLowerCase())
+    .eq("id", entitlementId)
     .maybeSingle();
 
   if (fetchErr || !row) {
@@ -54,28 +56,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false as const, code: "ALREADY_REVOKED", message: "Already revoked" }, { status: 409 });
   }
 
-  const now = new Date().toISOString();
-  const { error: updErr } = await gate.service
-    .from("platform_ops_entitlements")
-    .update({ revoked_at: now })
-    .eq("id", row.id)
-    .is("revoked_at", null);
-
-  if (updErr) {
-    return NextResponse.json({ ok: false as const, code: "UPDATE_FAILED", message: updErr.message }, { status: 500 });
-  }
-
-  const audit = await insertPlatformAuditLog(gate.service, {
-    actor_user_id: gate.userId,
-    action: "ops.entitlement.revoke",
-    target_type: String(row.subject_type),
-    target_id: String(row.subject_id),
-    payload_json: { entitlement_id: row.id, kind: row.kind, revoked_at: now },
-    reason,
+  const { data, error } = await gate.service.rpc("ops_atomic_revoke_entitlement", {
+    p_actor_user_id: gate.userId,
+    p_entitlement_id: entitlementId,
+    p_reason: reason,
   });
-  if (!audit.ok) {
-    return NextResponse.json({ ok: false as const, code: "AUDIT_FAILED", message: audit.message }, { status: 500 });
+
+  if (error) {
+    const m = mapOpsRpcError(error);
+    return NextResponse.json({ ok: false as const, code: m.code, message: m.message }, { status: m.status });
   }
 
-  return NextResponse.json({ ok: true as const, entitlement_id: row.id, revoked_at: now });
+  const out = data as { entitlement_id?: string; revoked_at?: string } | null;
+  const revoked_at = typeof out?.revoked_at === "string" ? out.revoked_at : new Date().toISOString();
+
+  return NextResponse.json({
+    ok: true as const,
+    entitlement_id: out?.entitlement_id ?? row.id,
+    revoked_at,
+  });
 }

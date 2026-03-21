@@ -4,6 +4,9 @@
  * Railway-only: no dependency on web or Vercel cron.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isPlanGatingEnabled } from "./planGating.js";
+import { planAllowsSelfServe90dBackfill } from "./planKey.js";
+import { buildPlanKeyMapForProfileIds, bypassPlanKeyMap } from "./subscriptionPlan.js";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const STALE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -38,11 +41,22 @@ export async function enqueueXBackfill90d(supabase: SupabaseClient): Promise<Enq
     return { enqueued: 0, processed: 0 };
   }
 
+  const gating = isPlanGatingEnabled();
+  const planMap = gating
+    ? await buildPlanKeyMapForProfileIds(
+        supabase,
+        list.map((p) => p.id)
+      )
+    : bypassPlanKeyMap(list.map((p) => p.id));
+
   const twoHoursAgo = new Date(Date.now() - TWO_HOURS_MS).toISOString();
   const staleCutoff = new Date(Date.now() - STALE_MAX_AGE_MS).toISOString();
   let enqueued = 0;
 
   for (const p of list) {
+    if (gating && !planAllowsSelfServe90dBackfill(planMap.get(p.id) ?? "free")) {
+      continue;
+    }
     const { data: row90 } = await supabase
       .from("x_window_aggregates")
       .select("updated_at")

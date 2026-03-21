@@ -16,6 +16,9 @@ config({ path: resolve(__dirname, "../.env") });
 config({ path: resolve(repoRoot, "apps/web/.env.local") });
 
 import { getSupabaseAdmin } from "./lib/supabase.js";
+import { isPlanGatingEnabled } from "./lib/planGating.js";
+import { planAllowsBackgroundXIngest } from "./lib/planKey.js";
+import { buildPlanKeyMapForProfileIds } from "./lib/subscriptionPlan.js";
 import { getUserInfo } from "./lib/twitterapi.js";
 import { sleep, normalizeHandle } from "./lib/utils.js";
 
@@ -73,6 +76,14 @@ async function main() {
   let ok = 0;
   let err = 0;
   let skipped = 0;
+
+  if (isPlanGatingEnabled() && list.length > 0) {
+    const planMap = await buildPlanKeyMapForProfileIds(
+      supabase,
+      list.map((p) => p.id)
+    );
+    list = list.filter((p) => planAllowsBackgroundXIngest(planMap.get(p.id) ?? "free"));
+  }
 
   console.log(
     "[sync_x_profiles_daily] profiles_selected=%d first_10_ids=[%s] priority_included=%s",

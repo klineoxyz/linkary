@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { isPlanGatingEnabled } from "@/lib/planGating";
+import { planAllowsSelfServe90dBackfill } from "@/lib/planKey";
+import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -62,6 +65,7 @@ async function ensureBackfill(request: NextRequest) {
   }
 
   let targetProfileId: string = user.id;
+  let superadminDelegatingToOtherProfile = false;
   try {
     if (request.method === "POST") {
       const body = await request.json().catch(() => ({}));
@@ -84,6 +88,7 @@ async function ensureBackfill(request: NextRequest) {
           return fail("FORBIDDEN", "Forbidden", 403, { enqueued: false });
         }
         targetProfileId = requestedId;
+        superadminDelegatingToOtherProfile = true;
       }
     }
   } catch {
@@ -206,6 +211,13 @@ async function ensureBackfill(request: NextRequest) {
 
   if (recentJobs?.length) {
     return ok({ enqueued: false, reason: "job_pending" });
+  }
+
+  if (isPlanGatingEnabled() && !superadminDelegatingToOtherProfile) {
+    const plan = await resolveEffectivePlanKeyForProfile(service, profile.id);
+    if (!planAllowsSelfServe90dBackfill(plan)) {
+      return ok({ enqueued: false, reason: "plan_not_eligible_for_backfill" });
+    }
   }
 
   const now = new Date().toISOString();

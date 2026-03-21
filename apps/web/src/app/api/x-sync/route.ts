@@ -3,6 +3,9 @@ import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
 import { rateLimit } from "@/lib/rate-limit";
 import { claimSafeSlug } from "@/lib/slug/safeSlug";
+import { isPlanGatingEnabled } from "@/lib/planGating";
+import { planAllowsSelfServe90dBackfill } from "@/lib/planKey";
+import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -189,7 +192,12 @@ async function handleSync(request: NextRequest) {
       { onConflict: "owner_type,owner_id,day" }
     );
     const { count } = await service.from("x_daily_snapshots").select("id", { count: "exact", head: true }).eq("owner_type", "profile").eq("owner_id", user.id);
-    if ((count ?? 0) < 7) {
+    let allowBackfill = (count ?? 0) < 7;
+    if (allowBackfill && isPlanGatingEnabled()) {
+      const plan = await resolveEffectivePlanKeyForProfile(service, user.id);
+      allowBackfill = planAllowsSelfServe90dBackfill(plan);
+    }
+    if (allowBackfill) {
       const now = new Date().toISOString();
       await service.from("analytics_jobs").insert({
         job_type: "x_backfill_90d",

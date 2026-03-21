@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabase, fetchXUserInfo } from "@/lib/x-analytics-server";
+import { isPlanGatingEnabled } from "@/lib/planGating";
+import { planAllowsBackgroundXIngest } from "@/lib/planKey";
+import { buildPlanKeyMapForProfileIds, bypassPlanKeyMap } from "@/lib/subscriptionPlan";
 
 const BATCH_SIZE = 100;
 const DELAY_MS = 400;
@@ -41,9 +44,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: listError.message }, { status: 500 });
   }
 
-  const list = (socialRows ?? []).filter(
+  const listAll = (socialRows ?? []).filter(
     (r: { user_id: string; username?: string | null }) => r.user_id && (r.username ?? "").toString().trim()
   ) as Array<{ user_id: string; username: string | null }>;
+
+  const gating = isPlanGatingEnabled();
+  const planMap = gating
+    ? await buildPlanKeyMapForProfileIds(
+        supabase,
+        listAll.map((r) => r.user_id)
+      )
+    : bypassPlanKeyMap(listAll.map((r) => r.user_id));
+
+  const list = listAll.filter((r) => {
+    if (!gating) return true;
+    return planAllowsBackgroundXIngest(planMap.get(r.user_id) ?? "free");
+  });
 
   let ok = 0;
   let err = 0;

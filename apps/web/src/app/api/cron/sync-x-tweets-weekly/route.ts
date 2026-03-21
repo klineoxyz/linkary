@@ -5,6 +5,9 @@ import {
   insertXTweets,
   computeAndUpsertRollups,
 } from "@/lib/x-analytics-server";
+import { isPlanGatingEnabled } from "@/lib/planGating";
+import { planAllowsBackgroundXIngest } from "@/lib/planKey";
+import { buildPlanKeyMapForProfileIds, bypassPlanKeyMap } from "@/lib/subscriptionPlan";
 
 const BATCH_SIZE = 100;
 const MAX_TWEETS_PER_USER = 50;
@@ -39,9 +42,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: listError.message }, { status: 500 });
   }
 
-  const list = (profiles ?? []).filter(
+  const listRaw = (profiles ?? []).filter(
     (p: { twitter_username: string | null }) => p.twitter_username && String(p.twitter_username).trim()
-  );
+  ) as Array<{ id: string; twitter_username: string | null; followers_total?: number | null }>;
+
+  const gating = isPlanGatingEnabled();
+  const planMap = gating
+    ? await buildPlanKeyMapForProfileIds(
+        supabase,
+        listRaw.map((p) => p.id)
+      )
+    : bypassPlanKeyMap(listRaw.map((p) => p.id));
+
+  const list = listRaw.filter((p) => {
+    if (!gating) return true;
+    return planAllowsBackgroundXIngest(planMap.get(p.id) ?? "free");
+  });
+
   let ok = 0;
   let err = 0;
   let totalTweetsInserted = 0;

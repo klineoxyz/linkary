@@ -16,6 +16,9 @@ config({ path: resolve(__dirname, "../.env") });
 config({ path: resolve(repoRoot, "apps/web/.env.local") });
 
 import { getSupabaseAdmin } from "./lib/supabase.js";
+import { isPlanGatingEnabled } from "./lib/planGating.js";
+import { planAllowsBackgroundXIngest } from "./lib/planKey.js";
+import { buildPlanKeyMapForProfileIds } from "./lib/subscriptionPlan.js";
 import { getApiKeyInfo } from "./lib/twitterapi.js";
 import { ingestXTweets } from "./lib/ingestXTweets.js";
 import { refreshXRollupsForProfile } from "./lib/refreshXRollups.js";
@@ -113,6 +116,15 @@ async function main() {
     (p) => p.twitter_username != null && String(p.twitter_username).trim().length > 0
   );
 
+  let ingestList = list;
+  if (isPlanGatingEnabled() && list.length > 0) {
+    const planMap = await buildPlanKeyMapForProfileIds(
+      supabase,
+      list.map((p) => p.id)
+    );
+    ingestList = list.filter((p) => planAllowsBackgroundXIngest(planMap.get(p.id) ?? "free"));
+  }
+
   // Count skipped due to recent sync (eligible but x_last_tweets_sync_at >= pastThreshold)
   const { count: skippedDueToRecentSync } = await supabase
     .from(TABLE)
@@ -127,7 +139,7 @@ async function main() {
     " skipped_recent_sync=" + (skippedDueToRecentSync ?? "?")
   );
 
-  if (list.length === 0) {
+  if (ingestList.length === 0) {
     const enqueueResult = await enqueueXBackfill90d(supabase);
     console.log("[INGEST] no profiles to sync this run. enqueue_backfill enqueued=" + enqueueResult.enqueued + " processed=" + enqueueResult.processed);
     process.exit(0);
@@ -137,7 +149,7 @@ async function main() {
   let tweetsTotalUpserted = 0;
   let err = 0;
 
-  for (const profile of list) {
+  for (const profile of ingestList) {
     const raw = String(profile.twitter_username ?? "").trim().replace(/^@/, "");
     const handle = raw.toLowerCase();
     if (!handle) continue;

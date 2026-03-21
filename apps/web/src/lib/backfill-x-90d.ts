@@ -4,6 +4,9 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchXUserInfo } from "@/lib/x-analytics-server";
+import { isPlanGatingEnabled } from "@/lib/planGating";
+import { planAllowsSelfServe90dBackfill } from "@/lib/planKey";
+import { buildPlanKeyMapForProfileIds, bypassPlanKeyMap } from "@/lib/subscriptionPlan";
 
 const CONCURRENCY = 3;
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -16,6 +19,8 @@ export type BackfillX90dOptions = {
   forceRefresh?: boolean;
   /** Used with forceRefresh: max age in ms for existing 90d row to still enqueue (default 24h). */
   staleMaxAgeMs?: number;
+  /** Admin/ops batch: ignore kol+ self-serve plan gate (still respects LINKARY_PLAN_GATING=false rollback). */
+  bypassPlanGate?: boolean;
 };
 
 export type BackfillX90dResult = {
@@ -42,6 +47,7 @@ export async function enqueueXBackfill90dJobs(
   const dryRun = options.dryRun === true;
   const forceRefresh = options.forceRefresh === true;
   const staleMaxAgeMs = options.staleMaxAgeMs ?? 24 * 60 * 60 * 1000;
+  const bypassPlanGate = options.bypassPlanGate === true;
 
   const { data: socialRows } = await service
     .from("social_accounts")
@@ -63,11 +69,20 @@ export async function enqueueXBackfill90dJobs(
     return { ok: true, dryRun, processed: 0, enqueued: 0, message: "No X-connected profiles" };
   }
 
+  const gating = isPlanGatingEnabled();
+  const planMap = gating
+    ? await buildPlanKeyMapForProfileIds(service, profileList.map((p) => p.id))
+    : bypassPlanKeyMap(profileList.map((p) => p.id));
+
   const twoHoursAgo = new Date(Date.now() - TWO_HOURS_MS).toISOString();
   const staleCutoff = new Date(Date.now() - staleMaxAgeMs).toISOString();
   let enqueued = 0;
 
   for (const p of profileList) {
+    const planKey = planMap.get(p.id) ?? "free";
+    if (gating && !bypassPlanGate && !planAllowsSelfServe90dBackfill(planKey)) {
+      continue;
+    }
     if (!forceRefresh) {
       const { data: has90 } = await service
         .from("x_window_aggregates")

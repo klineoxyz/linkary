@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabase, fetchXUserInfo } from "@/lib/x-analytics-server";
+import { isPlanGatingEnabled } from "@/lib/planGating";
+import { planAllowsBackgroundXIngest } from "@/lib/planKey";
+import { buildPlanKeyMapForProfileIds, bypassPlanKeyMap } from "@/lib/subscriptionPlan";
 
 const BATCH_SIZE = 500;
 const DELAY_MS = 400;
@@ -65,6 +68,19 @@ export async function POST(request: NextRequest) {
       seen.add(p.id);
       list.push(p);
     }
+  }
+
+  const gating = isPlanGatingEnabled();
+  if (gating && list.length > 0) {
+    const planMap = await buildPlanKeyMapForProfileIds(
+      supabase,
+      list.map((p) => p.id)
+    );
+    list.splice(
+      0,
+      list.length,
+      ...list.filter((p) => planAllowsBackgroundXIngest(planMap.get(p.id) ?? "free"))
+    );
   }
 
   let ok = 0;

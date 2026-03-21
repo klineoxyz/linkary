@@ -7,6 +7,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { isPlanGatingEnabled } from "@/lib/planGating";
+import { planAllowsDeepAnalyticsPayload, planKeyFromSubscriptionRow, type PlanKey } from "@/lib/planKey";
+import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -291,6 +294,44 @@ export async function GET(request: NextRequest) {
       payload.debug = {
         auth_mode,
       };
+    }
+
+    if (isPlanGatingEnabled()) {
+      const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
+      let planKey: PlanKey = "free";
+      if (svcKey) {
+        const svc = createClient(supabaseUrl, svcKey);
+        planKey = await resolveEffectivePlanKeyForProfile(svc, userId);
+      } else {
+        const { data: sub } = await supabase
+          .from("subscriptions")
+          .select("plan_key, tier, status, current_period_end")
+          .eq("owner_type", "profile")
+          .eq("owner_id", userId)
+          .maybeSingle();
+        planKey = planKeyFromSubscriptionRow(
+          sub as Parameters<typeof planKeyFromSubscriptionRow>[0]
+        );
+      }
+      if (!planAllowsDeepAnalyticsPayload(planKey)) {
+        const k = kpis as Record<string, unknown>;
+        payload.analytics_entitlement = "basic";
+        payload.chart_points = {
+          engagement_rate: [],
+          posting_cadence: [],
+          follower_growth: [],
+        };
+        payload.kpis = {
+          posts_total: k.posts_total,
+          impressions_total: k.impressions_total,
+          engagements_total: k.engagements_total,
+          followers_latest: k.followers_latest,
+          avg_likes_per_post: k.avg_likes_per_post,
+          potential_reach: k.potential_reach,
+        };
+      } else {
+        payload.analytics_entitlement = "full";
+      }
     }
 
     return ok(payload);

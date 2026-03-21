@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ok, fail } from "@/lib/api-response";
 import { rateLimit } from "@/lib/rate-limit";
+import { isPlanGatingEnabled } from "@/lib/planGating";
+import { planAllowsSelfServe90dBackfill } from "@/lib/planKey";
+import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -90,6 +93,13 @@ export async function POST(request: NextRequest) {
   const username = (socialX as { username?: string | null })?.username?.toString().trim().replace(/^@/, "").toLowerCase();
   if (!username) {
     return ok({ enqueued: false, reason: "no_x_connection" });
+  }
+
+  if (isPlanGatingEnabled()) {
+    const plan = await resolveEffectivePlanKeyForProfile(service, user.id);
+    if (!planAllowsSelfServe90dBackfill(plan)) {
+      return ok({ enqueued: false, reason: "plan_not_eligible_for_backfill" });
+    }
   }
 
   const { error: insertErr } = await service.from("analytics_jobs").insert({

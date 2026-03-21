@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
   const service = createClient(supabaseUrl, supabaseServiceKey);
   try {
-    const result = await enqueueXBackfill90dJobs(service, { limit, dryRun });
+    const result = await enqueueXBackfill90dJobs(service, { limit, dryRun, bypassPlanGate: true });
     return NextResponse.json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Enqueue failed";

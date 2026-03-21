@@ -55,3 +55,60 @@ export function effectivePlanKey(row: SubscriptionPlanInput): PlanKey {
   if (pk) return pk;
   return legacyTierToPlanKey(row.tier);
 }
+
+/** Strongest plan wins when merging profile + org subscriptions. */
+export const PLAN_RANK: Record<PlanKey, number> = {
+  free: 0,
+  nano: 1,
+  kol: 2,
+  startup: 3,
+  unicorn: 4,
+  custom: 5,
+};
+
+export function maxPlanKey(a: PlanKey, b: PlanKey): PlanKey {
+  return PLAN_RANK[a] >= PLAN_RANK[b] ? a : b;
+}
+
+export function mergePlanKeys(keys: PlanKey[]): PlanKey {
+  return keys.reduce((acc, k) => maxPlanKey(acc, k), "free" as PlanKey);
+}
+
+export type SubscriptionStatusRow = {
+  status?: string | null;
+  current_period_end?: string | null;
+};
+
+export function isSubscriptionRowActive(row: SubscriptionStatusRow | null | undefined): boolean {
+  if (!row || row.status !== "active") return false;
+  const end = row.current_period_end;
+  if (end && new Date(end) < new Date()) return false;
+  return true;
+}
+
+export function planKeyFromSubscriptionRow(
+  row: (SubscriptionPlanInput & SubscriptionStatusRow) | null | undefined
+): PlanKey {
+  if (!row || !isSubscriptionRowActive(row)) return "free";
+  return effectivePlanKey(row);
+}
+
+/** Paid API / background X ingest (cron + worker). Free = no automatic paid ingestion. */
+export function planAllowsBackgroundXIngest(key: PlanKey): boolean {
+  return key !== "free";
+}
+
+/** Self-serve or automated 90d history backfill (ensure-backfill, OAuth hooks, enqueue helpers). */
+export function planAllowsSelfServe90dBackfill(key: PlanKey): boolean {
+  return key === "kol" || key === "startup" || key === "unicorn" || key === "custom";
+}
+
+/** Paid discovery when feature flag is off; free blocked unless admin/allowlist/flag. */
+export function planAllowsPaidDiscovery(key: PlanKey): boolean {
+  return key !== "free";
+}
+
+/** Full analytics API payload (chart series, prior-window KPIs). */
+export function planAllowsDeepAnalyticsPayload(key: PlanKey): boolean {
+  return key !== "free";
+}

@@ -13,6 +13,9 @@ import {
   computeAndUpsertRollups,
 } from "@/lib/x-analytics-server";
 import { enqueueXBackfill90dJobs } from "@/lib/backfill-x-90d";
+import { isPlanGatingEnabled } from "@/lib/planGating";
+import { planAllowsBackgroundXIngest } from "@/lib/planKey";
+import { buildPlanKeyMapForProfileIds, bypassPlanKeyMap } from "@/lib/subscriptionPlan";
 
 const BATCH_SIZE = 50;
 const MAX_TWEETS_PER_USER = 50;
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: listError.message }, { status: 500 });
   }
 
-  const list = (socialRows ?? [])
+  const mapped = (socialRows ?? [])
     .filter(
       (r: { user_id: string; username?: string | null }) =>
         r.user_id && (r.username ?? "").toString().trim()
@@ -63,7 +66,21 @@ export async function POST(request: NextRequest) {
     .map((r: { user_id: string; username?: string | null }) => ({
       profile_id: r.user_id,
       twitter_username: (r.username ?? "").toString().trim().replace(/^@/, ""),
-    }))
+    }));
+
+  const gating = isPlanGatingEnabled();
+  const planMap = gating
+    ? await buildPlanKeyMapForProfileIds(
+        supabase,
+        mapped.map((r) => r.profile_id)
+      )
+    : bypassPlanKeyMap(mapped.map((r) => r.profile_id));
+
+  const list = mapped
+    .filter((r) => {
+      if (!gating) return true;
+      return planAllowsBackgroundXIngest(planMap.get(r.profile_id) ?? "free");
+    })
     .slice(0, BATCH_SIZE);
 
   if (list.length === 0) {

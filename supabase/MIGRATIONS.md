@@ -65,3 +65,4 @@ Mark the migration reverted, then push again:
 After all migrations are applied, the backend (web app + worker) expects the full schema including `public_profile_view`, `public_org_view`, `x_daily_snapshots`, `x_window_aggregates`, `social_accounts`, and `ethos_scores` to be present and up to date.
 
 | … | `20260426120000_plan_key_ops_members_audit_log.sql` | `subscriptions.plan_key`, backfill from `tier`; `internal_ops_members`; `platform_audit_log` (service-role only) |
+| … | `20260427120000_batch2_usage_x_cache_follow_fields.sql` | `plan_usage_counters`; `external_x_profile_cache`; CRM `follow_rules` + participant follow JSON; audit `target_id` comment |

@@ -10,13 +10,13 @@
  * 1. Admin override (superadmin_emails or SUPERADMIN_EMAILS env)
  * 2. Internal allowlist (LINKARY_DISCOVERY_ALLOWED_USER_IDS env, comma-separated)
  * 3. Feature flag (LINKARY_DISCOVERY_ELIGIBLE=true env)
- * 4. Future: billing/plan gate (subscriptions or entitlements table) — NOT YET IMPLEMENTED
- *
- * Where to plug in paid plans later: add a step after feature flag that queries
- * subscriptions/entitlements for the user and returns eligible/reason: 'billing'.
+ * 4. Billing: active plan_key (profile ∪ org subscriptions) when LINKARY_PLAN_GATING is not false
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isPlanGatingEnabled } from "@/lib/planGating";
+import { planAllowsPaidDiscovery } from "@/lib/planKey";
+import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 
 export type DiscoveryEligibilityOutcome =
   | { eligible: true; reason: "admin" }
@@ -47,8 +47,7 @@ function getAllowedUserIdsFromEnv(): Set<string> {
  * Check if the user is eligible for discovery. Returns outcome and reason.
  * Pass service Supabase client for admin/DB checks; pass user id and email from auth.
  *
- * Future billing: add here a query to subscriptions/entitlements by userId and return
- * { eligible: true, reason: "billing" } when the user has an active discovery-capable plan.
+ * Billing uses resolveEffectivePlanKeyForProfile (profile + org subscriptions) when plan gating is on.
  */
 export async function checkDiscoveryEligibility(
   userId: string,
@@ -87,13 +86,17 @@ export async function checkDiscoveryEligibility(
     return { eligible: true, reason: "feature_flag" };
   }
 
-  // 4) Future: billing/plan gate
-  // --- WHERE TO PLUG IN PAID PLANS LATER ---
-  // Add here (after feature flag, before return): query subscriptions or entitlements table by userId.
-  // If the user has an active plan that includes discovery (e.g. plan.features.discovery === true),
-  // return { eligible: true, reason: "billing" }.
-  // Example: const plan = await getActivePlanForUser(serviceSupabase, userId); if (plan?.features?.discovery) return { eligible: true, reason: "billing" };
-  // Do not expose plan details in the response; only eligibility outcome.
+  // 4) Billing: paid discovery (nano+); free blocked when global discovery flag is off
+  if (isPlanGatingEnabled() && serviceSupabase) {
+    try {
+      const plan = await resolveEffectivePlanKeyForProfile(serviceSupabase, userId);
+      if (planAllowsPaidDiscovery(plan)) {
+        return { eligible: true, reason: "billing" };
+      }
+    } catch {
+      /* non-fatal */
+    }
+  }
 
   return { eligible: false, reason: "not_eligible" };
 }

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isPlanGatingEnabled } from "@/lib/planGating";
+import { planAllowsSelfServe90dBackfill } from "@/lib/planKey";
+import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -61,7 +64,12 @@ export async function POST(request: NextRequest) {
     if (profile?.id) {
       const { count } = await service.from("x_daily_snapshots").select("id", { count: "exact", head: true }).eq("owner_type", "profile").eq("owner_id", profile.id);
       const shouldBackfill = (count ?? 0) < 7;
-      if (shouldBackfill) {
+      let allowBackfill = shouldBackfill;
+      if (allowBackfill && isPlanGatingEnabled()) {
+        const plan = await resolveEffectivePlanKeyForProfile(service, profile.id);
+        allowBackfill = planAllowsSelfServe90dBackfill(plan);
+      }
+      if (allowBackfill) {
         const { error: jobErr } = await service.from("analytics_jobs").insert({
           job_type: "x_backfill_90d",
           owner_type: "profile",

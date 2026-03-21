@@ -1,4 +1,6 @@
 {
   "framework": "nextjs",
+  "installCommand": "corepack enable && corepack prepare pnpm@9.0.0 --activate && cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && pnpm --filter web run build",
   "crons": []
 }

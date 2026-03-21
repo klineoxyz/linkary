@@ -1,0 +1,97 @@
+-- Single-statement migration (Supabase pooler: one command per migration file).
+CREATE OR REPLACE FUNCTION public.ops_atomic_comp_grant(
+  p_actor_user_id uuid,
+  p_subject_type text,
+  p_subject_id uuid,
+  p_expires_at timestamptz,
+  p_reason text,
+  p_payload_json jsonb,
+  p_replace_existing boolean
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_now timestamptz := now();
+  v_new_id uuid;
+  v_prior_ids uuid[];
+BEGIN
+  IF p_subject_type NOT IN ('profile', 'org') THEN
+    RAISE EXCEPTION 'OPS_INVALID_SUBJECT';
+  END IF;
+  IF length(trim(coalesce(p_reason, ''))) < 3 THEN
+    RAISE EXCEPTION 'OPS_REASON_REQUIRED';
+  END IF;
+  IF p_expires_at <= v_now THEN
+    RAISE EXCEPTION 'OPS_EXPIRES_INVALID';
+  END IF;
+  IF p_payload_json IS NULL OR jsonb_typeof(p_payload_json) <> 'object' THEN
+    RAISE EXCEPTION 'OPS_PAYLOAD_INVALID';
+  END IF;
+  IF NOT (
+    jsonb_exists(p_payload_json, 'scopes')
+    AND jsonb_typeof(p_payload_json->'scopes') = 'array'
+    AND jsonb_array_length(p_payload_json->'scopes') >= 1
+  ) THEN
+    RAISE EXCEPTION 'OPS_SCOPES_REQUIRED';
+  END IF;
+
+  IF p_replace_existing THEN
+    WITH sup_rev AS (
+      UPDATE public.platform_ops_entitlements e
+      SET revoked_at = v_now
+      WHERE e.subject_type = p_subject_type
+        AND e.subject_id = p_subject_id
+        AND e.kind = 'comp_grant'
+        AND e.revoked_at IS NULL
+      RETURNING e.id
+    )
+    SELECT coalesce((SELECT array_agg(id) FROM sup_rev), ARRAY[]::uuid[]) INTO v_prior_ids;
+  ELSE
+    v_prior_ids := ARRAY[]::uuid[];
+  END IF;
+
+  INSERT INTO public.platform_ops_entitlements (
+    subject_type, subject_id, kind, expires_at, payload_json, reason, created_by
+  ) VALUES (
+    p_subject_type, p_subject_id, 'comp_grant', p_expires_at,
+    p_payload_json, trim(p_reason), p_actor_user_id
+  )
+  RETURNING id INTO v_new_id;
+
+  IF cardinality(v_prior_ids) > 0 THEN
+    INSERT INTO public.platform_audit_log (actor_user_id, action, target_type, target_id, payload_json, reason)
+    VALUES (
+      p_actor_user_id,
+      'ops.entitlement.comp_grant.supersede_revoke',
+      p_subject_type,
+      p_subject_id,
+      jsonb_build_object('revoked_entitlement_ids', to_jsonb(v_prior_ids)),
+      trim(p_reason)
+    );
+  END IF;
+
+  INSERT INTO public.platform_audit_log (actor_user_id, action, target_type, target_id, payload_json, reason)
+  VALUES (
+    p_actor_user_id,
+    'ops.entitlement.comp_grant.create',
+    p_subject_type,
+    p_subject_id,
+    jsonb_build_object(
+      'entitlement_id', v_new_id,
+      'scopes', p_payload_json->'scopes',
+      'expires_at', to_jsonb(p_expires_at),
+      'replace_existing', to_jsonb(p_replace_existing),
+      'prior_revoked_ids', to_jsonb(v_prior_ids)
+    ),
+    trim(p_reason)
+  );
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'entitlement_id', v_new_id,
+    'prior_revoked_ids', to_jsonb(v_prior_ids)
+  );
+END;
+$fn$;

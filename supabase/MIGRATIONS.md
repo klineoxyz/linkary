@@ -67,5 +67,8 @@ After all migrations are applied, the backend (web app + worker) expects the ful
 | … | `20260426120000_plan_key_ops_members_audit_log.sql` | `subscriptions.plan_key`, backfill from `tier`; `internal_ops_members`; `platform_audit_log` (service-role only) |
 | … | `20260427120000_batch2_usage_x_cache_follow_fields.sql` | `plan_usage_counters`; `external_x_profile_cache`; CRM `follow_rules` + participant follow JSON; audit `target_id` comment |
 | … | `20260428120000_platform_ops_entitlements.sql` | `platform_ops_entitlements` (comp / discount metadata / plan override; service-role only) |
-| … | `20260429120000_ops_writes_atomic_rpc.sql` | Atomic `ops_atomic_*` RPCs (entitlement writes + audit; usage reset + audit); `EXECUTE` for `service_role` only |
-| … | `20260430120000_crm_external_x_search_quota.sql` | `crm_try_consume_external_x_search_quota` / `crm_refund_external_x_search_slot` (org monthly cap; service_role) |
+| … | `20260429120001`–`20260429120005` `_ops_atomic_*.sql` | Atomic `ops_atomic_*` functions (one `CREATE` per file; avoids pooler multi-command errors) |
+| … | `20260429120006_ops_atomic_rpc_grants.sql` | `REVOKE`/`GRANT`/`COMMENT` for ops RPCs in a single `DO` block |
+| … | `20260430120000_crm_try_consume_external_x_search_quota.sql` | `crm_try_consume_external_x_search_quota` |
+| … | `20260430120001_crm_refund_external_x_search_slot.sql` | `crm_refund_external_x_search_slot` |
+| … | `20260430120002_crm_external_x_search_grants.sql` | `REVOKE`/`GRANT`/`COMMENT` for CRM X quota RPCs (`DO` block) |

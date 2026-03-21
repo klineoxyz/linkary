@@ -112,3 +112,26 @@ export function planAllowsPaidDiscovery(key: PlanKey): boolean {
 export function planAllowsDeepAnalyticsPayload(key: PlanKey): boolean {
   return key !== "free";
 }
+
+/**
+ * CRM: external X profile lookup by handle (non-connected profiles), org subscription only.
+ * StartUP / UniCorn / Custom — not free / nano / kol.
+ */
+export function planAllowsExternalXProfileSearch(key: PlanKey): boolean {
+  return key === "startup" || key === "unicorn" || key === "custom";
+}
+
+/**
+ * Hard monthly cap per org for external X profile searches.
+ * `customDefault` is used when plan is custom (e.g. from env in the app).
+ */
+export function externalXProfileSearchMonthlyCap(key: PlanKey, customDefault: number): number | null {
+  if (key === "startup") return 50;
+  if (key === "unicorn") return 200;
+  if (key === "custom") {
+    const n = Math.floor(Number(customDefault));
+    if (!Number.isFinite(n) || n < 1) return 50;
+    return Math.min(n, 1_000_000);
+  }
+  return null;
+}

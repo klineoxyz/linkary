@@ -3,6 +3,7 @@
  */
 export {
   effectivePlanKey,
+  externalXProfileSearchMonthlyCap,
   isSubscriptionRowActive,
   legacyTierToPlanKey,
   maxPlanKey,
@@ -10,6 +11,7 @@ export {
   normalizePlanKey,
   planAllowsBackgroundXIngest,
   planAllowsDeepAnalyticsPayload,
+  planAllowsExternalXProfileSearch,
   planAllowsPaidDiscovery,
   planAllowsSelfServe90dBackfill,
   planKeyFromSubscriptionRow,

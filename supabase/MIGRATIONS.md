@@ -68,3 +68,4 @@ After all migrations are applied, the backend (web app + worker) expects the ful
 | … | `20260427120000_batch2_usage_x_cache_follow_fields.sql` | `plan_usage_counters`; `external_x_profile_cache`; CRM `follow_rules` + participant follow JSON; audit `target_id` comment |
 | … | `20260428120000_platform_ops_entitlements.sql` | `platform_ops_entitlements` (comp / discount metadata / plan override; service-role only) |
 | … | `20260429120000_ops_writes_atomic_rpc.sql` | Atomic `ops_atomic_*` RPCs (entitlement writes + audit; usage reset + audit); `EXECUTE` for `service_role` only |
+| … | `20260430120000_crm_external_x_search_quota.sql` | `crm_try_consume_external_x_search_quota` / `crm_refund_external_x_search_slot` (org monthly cap; service_role) |

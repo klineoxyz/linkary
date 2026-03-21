@@ -128,7 +128,7 @@ async function getSubscriptionTier(ownerType: "profile" | "org", ownerId: string
   const db = client ?? supabase;
   const { data } = await db
     .from("subscriptions")
-    .select("tier, status, current_period_end")
+    .select("tier, plan_key, status, current_period_end")
     .eq("owner_type", ownerType)
     .eq("owner_id", ownerId)
     .maybeSingle();

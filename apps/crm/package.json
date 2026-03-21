@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3002",
+    "prebuild": "pnpm --filter @linkary/plan-key run build",
     "build": "next build",
     "start": "next start --port 3002",
     "lint": "eslint ."
   },
   "dependencies": {
+    "@linkary/plan-key": "workspace:*",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.96.0",
     "lucide-react": "^0.570.0",

@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
+    "prebuild": "pnpm --filter @linkary/plan-key run build",
     "build": "tsc -p tsconfig.json",
     "sync:x:profiles:daily": "node dist/sync_x_profiles_daily.js",
     "sync:x:daily": "node dist/sync_x_profiles_daily.js",
@@ -22,6 +23,7 @@
     "sync:x:insights:daily": "node dist/sync_x_insights_daily.js"
   },
   "dependencies": {
+    "@linkary/plan-key": "workspace:*",
     "@supabase/supabase-js": "^2.47.0",
     "dotenv": "^17.3.1"
   },

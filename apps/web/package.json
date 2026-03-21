@@ -8,6 +8,7 @@
     "dev:webpack": "next dev --webpack",
     "dev:3001": "next dev --port 3001",
     "dev:minimal-server": "node scripts/minimal-server.js",
+    "prebuild": "pnpm --filter @linkary/plan-key run build",
     "build": "next build",
     "db:push": "pnpm -w run db:push",
     "start": "next start",
@@ -30,6 +31,7 @@
     "release:gate": "pnpm run build && pnpm test:route && pnpm run test:profile-analytics"
   },
   "dependencies": {
+    "@linkary/plan-key": "workspace:*",
     "@coinbase/cdp-core": "^0.0.85",
     "@coinbase/cdp-hooks": "^0.0.85",
     "@coinbase/cdp-react": "^0.0.85",

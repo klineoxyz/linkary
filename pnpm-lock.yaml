@@ -36,6 +36,9 @@ importers:
 
   apps/crm:
     dependencies:
+      '@linkary/plan-key':
+        specifier: workspace:*
+        version: link:../../packages/plan-key
       '@supabase/ssr':
         specifier: ^0.8.0
         version: 0.8.0(@supabase/supabase-js@2.97.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))
@@ -94,6 +97,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.71.1(react@19.2.3))
+      '@linkary/plan-key':
+        specifier: workspace:*
+        version: link:../../packages/plan-key
       '@radix-ui/react-accordion':
         specifier: ^1.2.12
         version: 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -302,12 +308,24 @@ importers:
 
   apps/worker:
     dependencies:
+      '@linkary/plan-key':
+        specifier: workspace:*
+        version: link:../../packages/plan-key
       '@supabase/supabase-js':
         specifier: ^2.47.0
         version: 2.97.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       dotenv:
         specifier: ^17.3.1
         version: 17.3.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.11
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
+  packages/plan-key:
     devDependencies:
       '@types/node':
         specifier: ^22.10.0

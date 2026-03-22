@@ -1,8 +1,13 @@
+import { notFound } from "next/navigation";
 import { assertOpsPageAccess } from "@/lib/opsAccess";
 import { OpsActionsPanel } from "@/components/OpsActionsPanel";
+import { canAccessOpsWriteActionsArea } from "@/lib/internalOps";
 
 export default async function OpsActionsPage() {
   const { role } = await assertOpsPageAccess();
+  if (!canAccessOpsWriteActionsArea(role)) {
+    notFound();
+  }
 
   return (
     <div className="space-y-4">

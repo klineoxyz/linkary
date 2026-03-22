@@ -8,6 +8,11 @@ export function isOpsRole(s: string | null | undefined): s is OpsRole {
   return !!s && (OPS_ROLES as readonly string[]).includes(s);
 }
 
+/** Write-actions UI and /ops/actions: allowed for any ops role except read-only observers. */
+export function canAccessOpsWriteActionsArea(role: OpsRole): boolean {
+  return role !== "ops_readonly";
+}
+
 /**
  * Active internal ops membership (service-role client required — table has no anon/authenticated policies).
  */

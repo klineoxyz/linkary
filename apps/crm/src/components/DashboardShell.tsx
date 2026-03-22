@@ -11,6 +11,8 @@ import {
   Shield,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import type { OpsRole } from "@/lib/internalOps";
+import { canAccessOpsWriteActionsArea } from "@/lib/internalOps";
 
 const nav = [
   { href: "/", label: "Home", icon: LayoutDashboard },
@@ -29,12 +31,12 @@ const opsNav = [
 export function DashboardShell({
   user,
   children,
-  showOpsNav = false,
+  opsRole = null,
 }: {
   user: User;
   children: React.ReactNode;
-  /** Server-computed: internal_ops_members active row for this user. */
-  showOpsNav?: boolean;
+  /** Server-computed: active internal_ops_members role, or null when not ops / service role unavailable. */
+  opsRole?: OpsRole | null;
 }) {
   const pathname = usePathname();
 
@@ -74,13 +76,16 @@ export function DashboardShell({
               </Link>
             );
           })}
-          {showOpsNav ? (
+          {opsRole ? (
             <div className="pt-2 border-t border-[var(--crm-border)] mt-2 space-y-0.5">
               <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--crm-muted)] flex items-center gap-2">
                 <Shield className="h-3.5 w-3.5 opacity-80" aria-hidden />
                 Ops
               </p>
               {opsNav.map(({ href, label }) => {
+                if (href === "/ops/actions" && !canAccessOpsWriteActionsArea(opsRole)) {
+                  return null;
+                }
                 const active = pathname === href || pathname.startsWith(`${href}/`);
                 return (
                   <Link

@@ -22,10 +22,11 @@ const nav = [
 
 const opsNav = [
   { href: "/ops/overview", label: "Overview" },
+  { href: "/ops/reports", label: "Financial reports" },
+  { href: "/ops/users", label: "Users & plans" },
   { href: "/ops/campaigns", label: "Campaigns" },
-  { href: "/ops/users", label: "Users" },
   { href: "/ops/audit", label: "Audit log" },
-  { href: "/ops/actions", label: "Write actions" },
+  { href: "/ops/actions", label: "Actions" },
 ];
 
 export function DashboardShell({

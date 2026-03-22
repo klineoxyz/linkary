@@ -12,6 +12,7 @@ import { profileHasCompScope } from "@/lib/opsEntitlementsMerge";
 import { effectiveDeepAnalytics } from "@/lib/planCompGate";
 import { planKeyFromSubscriptionRow, type PlanKey } from "@/lib/planKey";
 import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
+import { shouldGrantDeepAnalyticsBeyondPlan } from "@/lib/analyticsDeepEntitlement";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -72,6 +73,9 @@ export async function GET(request: NextRequest) {
     if (!userId) {
       return fail("UNAUTHORIZED", "Unauthorized", 401);
     }
+
+    const { data: authUserData } = await supabase.auth.getUser();
+    const userEmail = authUserData?.user?.email ?? null;
 
     const utcDayStr = (d: Date) => d.toISOString().slice(0, 10);
     const now = new Date();
@@ -302,10 +306,11 @@ export async function GET(request: NextRequest) {
       const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
       let planKey: PlanKey = "free";
       let compDeep = false;
+      let serviceClient: ReturnType<typeof createClient> | null = null;
       if (svcKey) {
-        const svc = createClient(supabaseUrl, svcKey);
-        planKey = await resolveEffectivePlanKeyForProfile(svc, userId);
-        compDeep = await profileHasCompScope(svc, userId, "analytics_full");
+        serviceClient = createClient(supabaseUrl, svcKey);
+        planKey = await resolveEffectivePlanKeyForProfile(serviceClient, userId);
+        compDeep = await profileHasCompScope(serviceClient, userId, "analytics_full");
       } else {
         const { data: sub } = await supabase
           .from("subscriptions")
@@ -317,7 +322,18 @@ export async function GET(request: NextRequest) {
           sub as Parameters<typeof planKeyFromSubscriptionRow>[0]
         );
       }
-      const allowDeep = effectiveDeepAnalytics(planKey, compDeep ? new Set(["analytics_full"] as const) : undefined);
+      let allowDeep = effectiveDeepAnalytics(planKey, compDeep ? new Set(["analytics_full"] as const) : undefined);
+      if (!allowDeep) {
+        const granted = await shouldGrantDeepAnalyticsBeyondPlan({
+          userId,
+          userEmail,
+          service: serviceClient,
+          userSupabase: supabase,
+        });
+        if (granted) {
+          allowDeep = true;
+        }
+      }
       if (!allowDeep) {
         const k = kpis as Record<string, unknown>;
         payload.analytics_entitlement = "basic";

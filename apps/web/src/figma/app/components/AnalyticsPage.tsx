@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
@@ -131,6 +131,34 @@ async function analyticsFetcher(url: string): Promise<ApiResponse> {
     return json as ApiSuccess;
   }
   return { ok: false, code: "BAD_RESPONSE", message: "Invalid response shape" };
+}
+
+const KPI_ISLAND_CLASS =
+  "relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card";
+
+function KpiIslandOuter(props: {
+  chartsLockedBasic: boolean;
+  style: CSSProperties;
+  children: React.ReactNode;
+}) {
+  const { chartsLockedBasic, style, children } = props;
+  if (chartsLockedBasic) {
+    return (
+      <Link
+        href={PRICING_PATH}
+        className={`${KPI_ISLAND_CLASS} block no-underline text-inherit focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary`}
+        style={style}
+        aria-label="View pricing to unlock full X analytics charts"
+      >
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <div className={KPI_ISLAND_CLASS} style={style}>
+      {children}
+    </div>
+  );
 }
 
 type OwnerAnalyticsInitStatus = {
@@ -580,7 +608,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         ) : (
           <>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)" }}>
+          <KpiIslandOuter
+            chartsLockedBasic={chartsLockedBasic}
+            style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)" }}
+          >
             <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-foreground/80 transition-all duration-500 group-hover:from-primary/95 group-hover:to-foreground/90" />
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-2">
@@ -592,8 +623,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               <h2 className="text-4xl font-bold text-white mb-1">{payload ? (payload.kpis.followers_latest != null ? formatIslandValue(payload.kpis.followers_latest) : "—") : "—"}</h2>
               <span className="text-xs flex items-center gap-1 text-white">{payload?.kpis.followers_latest != null && payload.kpis.followers_latest > 0 ? "Latest in window" : "Beta"}</span>
             </div>
-          </div>
-          <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80)" }}>
+          </KpiIslandOuter>
+          <KpiIslandOuter
+            chartsLockedBasic={chartsLockedBasic}
+            style={{ backgroundImage: "url(https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80)" }}
+          >
             <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-2">
@@ -609,8 +643,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               </h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.posts_total ?? 0) > 0 ? "In window" : "Beta"}</span>
             </div>
-          </div>
-          <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683311-eac922347aa1?w=800&q=80)" }}>
+          </KpiIslandOuter>
+          <KpiIslandOuter
+            chartsLockedBasic={chartsLockedBasic}
+            style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683311-eac922347aa1?w=800&q=80)" }}
+          >
             <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-2">
@@ -622,8 +659,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               <h2 className="text-4xl font-bold text-white mb-1">{payload ? formatIslandValue(payload.kpis.impressions_total) : "—"}</h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.impressions_total ?? 0) > 0 ? "Total in window" : "Beta"}</span>
             </div>
-          </div>
-          <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80)" }}>
+          </KpiIslandOuter>
+          <KpiIslandOuter
+            chartsLockedBasic={chartsLockedBasic}
+            style={{ backgroundImage: "url(https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80)" }}
+          >
             <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-2">
@@ -639,13 +679,16 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               </h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.posts_total ?? 0) > 0 ? "Avg in window" : "Beta"}</span>
             </div>
-          </div>
+          </KpiIslandOuter>
         </div>
 
         {/* Second row — same island style as first: 4 islands in 1 row */}
         {payload ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)" }}>
+            <KpiIslandOuter
+              chartsLockedBasic={chartsLockedBasic}
+              style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)" }}
+            >
               <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-foreground/80 transition-all duration-500 group-hover:from-primary/95 group-hover:to-foreground/90" />
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
@@ -661,8 +704,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                     : "Total impressions"}
                 </span>
               </div>
-            </div>
-            <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80)" }}>
+            </KpiIslandOuter>
+            <KpiIslandOuter
+              chartsLockedBasic={chartsLockedBasic}
+              style={{ backgroundImage: "url(https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80)" }}
+            >
               <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
@@ -678,8 +724,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                     : "Likes + replies + reposts + quotes"}
                 </span>
               </div>
-            </div>
-            <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683311-eac922347aa1?w=800&q=80)" }}>
+            </KpiIslandOuter>
+            <KpiIslandOuter
+              chartsLockedBasic={chartsLockedBasic}
+              style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683311-eac922347aa1?w=800&q=80)" }}
+            >
               <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
@@ -695,8 +744,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                     : "Likes per post in window"}
                 </span>
               </div>
-            </div>
-            <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80)" }}>
+            </KpiIslandOuter>
+            <KpiIslandOuter
+              chartsLockedBasic={chartsLockedBasic}
+              style={{ backgroundImage: "url(https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80)" }}
+            >
               <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 transition-all duration-500 group-hover:from-primary/95 group-hover:to-primary/80" />
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
@@ -712,7 +764,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                     : "Replies per post in window"}
                 </span>
               </div>
-            </div>
+            </KpiIslandOuter>
           </div>
         ) : null}
           </>
@@ -728,20 +780,21 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           </>
         ) : payload ? (
           chartsLockedBasic ? (
-            <div className="rounded-xl border border-border bg-muted/25 p-8 text-center space-y-4">
+            <Link
+              href={PRICING_PATH}
+              className="block rounded-xl border border-border bg-muted/25 p-8 text-center space-y-4 no-underline text-inherit hover:bg-muted/35 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              aria-label="View pricing and upgrade for full analytics charts"
+            >
               <Lock className="h-10 w-10 mx-auto text-muted-foreground" aria-hidden />
               <h3 className="text-sm font-semibold text-foreground">Charts locked on Free</h3>
               <p className="text-sm text-muted-foreground max-w-lg mx-auto">{upgradeCtaLine("analytics")}</p>
-              <Link
-                href={PRICING_PATH}
-                className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-              >
+              <span className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
                 View packs
-              </Link>
+              </span>
               <p className="text-xs text-muted-foreground">
-                Values in the summary tiles above still update when you change 7d / 30d / 90d — they are not placeholders.
+                Tap anywhere on this card to open plans. Summary tiles above still update when you change 7d / 30d / 90d.
               </p>
-            </div>
+            </Link>
           ) : (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

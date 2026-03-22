@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { assertOpsPageAccess } from "@/lib/opsAccess";
 import { fetchOpsEntitlementUsageReport } from "@/lib/opsData";
+import { canCreateDiscountMetadata } from "@/lib/opsWritePermissions";
 import { fetchOpsAuditActionHistogram, fetchOpsEntitlementsForTable } from "@/lib/opsReporting";
 import { parseEntitlementActiveMode, parseEntitlementKind, parseOpsDateRangeExplicit, parsePage, parsePageSize } from "@/lib/opsReportParams";
 import { OpsReportFilterForm } from "@/components/OpsReportFilterForm";
@@ -21,7 +22,8 @@ export default async function OpsReportsDiscountsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { service } = await assertOpsPageAccess();
+  const { service, role } = await assertOpsPageAccess();
+  const canGrantDiscounts = canCreateDiscountMetadata(role);
   const sp = new URLSearchParams();
   const raw = await searchParams;
   for (const [k, v] of Object.entries(raw)) {
@@ -56,6 +58,14 @@ export default async function OpsReportsDiscountsPage({
         <div>
           <h1 className="crm-page-title">Discount / comp usage</h1>
           <p className="crm-page-subtitle">
+            <strong className="text-[var(--crm-foreground)]">Read-only reporting.</strong> To grant comp, record discount metadata, plan
+            overrides, or revokes, use the left sidebar{" "}
+            <Link href="/ops/actions" className="text-[var(--crm-primary)] font-medium underline-offset-2 hover:underline">
+              Ops → Actions
+            </Link>{" "}
+            (search subject → choose action). This tab only shows usage and history.
+          </p>
+          <p className="crm-page-subtitle mt-2 text-sm">
             Entitlements table + audit histogram. Actor-level attribution is in{" "}
             <Link href="/ops/audit/entitlements" className="text-[var(--crm-primary)] underline-offset-2 hover:underline">
               Entitlement actions
@@ -63,12 +73,22 @@ export default async function OpsReportsDiscountsPage({
             .
           </p>
         </div>
-        <a
-          href={`/api/ops/export/entitlements?${exportQs.toString()}`}
-          className="text-sm px-3 py-2 rounded-[var(--crm-radius)] border border-[var(--crm-border)] text-[var(--crm-foreground)] hover:bg-[var(--crm-accent)] no-underline shrink-0"
-        >
-          Export CSV
-        </a>
+        <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
+          {canGrantDiscounts ? (
+            <Link
+              href="/ops/actions"
+              className="text-sm px-3 py-2 rounded-[var(--crm-radius)] bg-[var(--crm-primary)] text-[var(--crm-primary-foreground)] font-medium text-center no-underline hover:opacity-95"
+            >
+              Grant discount / comp → Actions
+            </Link>
+          ) : null}
+          <a
+            href={`/api/ops/export/entitlements?${exportQs.toString()}`}
+            className="text-sm px-3 py-2 rounded-[var(--crm-radius)] border border-[var(--crm-border)] text-[var(--crm-foreground)] hover:bg-[var(--crm-accent)] no-underline text-center"
+          >
+            Export CSV
+          </a>
+        </div>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-3">

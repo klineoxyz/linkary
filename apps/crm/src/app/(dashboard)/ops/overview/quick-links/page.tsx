@@ -6,6 +6,7 @@ const links = [
   { href: "/ops/reports/monetization", label: "Subscription & monetization", hint: "Plan mix + budget proxy" },
   { href: "/ops/reports/projects", label: "Project reports", hint: "Org / workspace campaign density" },
   { href: "/ops/reports/campaigns", label: "Campaign reports", hint: "Per-campaign funnel counts" },
+  { href: "/ops/reports/creators", label: "Creators & participants", hint: "Reliability + drill-down" },
   { href: "/ops/reports/discounts", label: "Discount / comp usage", hint: "platform_ops_entitlements" },
   { href: "/ops/users/profiles", label: "Profiles", hint: "PII — handle carefully" },
   { href: "/ops/campaigns/campaigns", label: "Campaigns", hint: "Workspace + org plan" },

@@ -27,6 +27,7 @@ function sectionForPath(pathname: string, role: OpsRole): { title: string; tabs:
         { href: "/ops/reports/monetization", label: "Subscription & monetization" },
         { href: "/ops/reports/projects", label: "Project reports" },
         { href: "/ops/reports/campaigns", label: "Campaign reports" },
+        { href: "/ops/reports/creators", label: "Creators & participants" },
         { href: "/ops/reports/discounts", label: "Discount / comp usage" },
       ],
     };

@@ -42,20 +42,31 @@ function RatioCard({
   );
 }
 
-export function FinancialReportsView({ report }: { report: OpsFinancialReport }) {
+export function FinancialReportsView({
+  report,
+  embedded = false,
+}: {
+  report: OpsFinancialReport;
+  /** When true, omit page-level header (parent route supplies section title). */
+  embedded?: boolean;
+}) {
   const { counts, personalSubscriptions, orgSubscriptions, ratios, disclaimers, generatedAt } = report;
 
   return (
     <div className="space-y-8">
-      <header className="crm-page-header">
-        <h1 className="crm-page-title">Financial &amp; business reports</h1>
-        <p className="crm-page-subtitle">
-          Snapshot from Supabase only. Dollar MRR / ARPU / Stripe revenue are{" "}
-          <strong className="text-[var(--crm-foreground)]">not</strong> available in-schema — use ratios and counts as
-          operational signals.
-        </p>
-        <p className="text-xs text-[var(--crm-muted)] mt-1">Generated {new Date(generatedAt).toLocaleString()}</p>
-      </header>
+      {!embedded ? (
+        <header className="crm-page-header">
+          <h1 className="crm-page-title">Financial &amp; business reports</h1>
+          <p className="crm-page-subtitle">
+            Snapshot from Supabase only. Dollar MRR / ARPU / Stripe revenue are{" "}
+            <strong className="text-[var(--crm-foreground)]">not</strong> available in-schema — use ratios and counts as
+            operational signals.
+          </p>
+          <p className="text-xs text-[var(--crm-muted)] mt-1">Generated {new Date(generatedAt).toLocaleString()}</p>
+        </header>
+      ) : (
+        <p className="text-xs text-[var(--crm-muted)]">Generated {new Date(generatedAt).toLocaleString()}</p>
+      )}
 
       <div className="crm-surface-raised p-4 rounded-[var(--crm-radius)] border border-red-500/20 bg-red-500/5 space-y-2">
         <p className="text-sm font-medium text-[var(--crm-foreground)]">Important limitations</p>

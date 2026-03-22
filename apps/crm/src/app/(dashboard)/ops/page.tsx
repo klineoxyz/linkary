@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function OpsIndexPage() {
-  redirect("/ops/overview");
+  redirect("/ops/overview/summary");
 }

@@ -21,11 +21,11 @@ const nav = [
 ];
 
 const opsNav = [
-  { href: "/ops/overview", label: "Overview" },
-  { href: "/ops/reports", label: "Financial reports" },
-  { href: "/ops/users", label: "Users & plans" },
-  { href: "/ops/campaigns", label: "Campaigns" },
-  { href: "/ops/audit", label: "Audit log" },
+  { href: "/ops/overview/summary", label: "Overview" },
+  { href: "/ops/reports/snapshot", label: "Financial reports" },
+  { href: "/ops/users/profiles", label: "Users & plans" },
+  { href: "/ops/campaigns/campaigns", label: "Campaigns & participants" },
+  { href: "/ops/audit/platform", label: "Audit log" },
   { href: "/ops/actions", label: "Actions" },
 ];
 
@@ -87,7 +87,14 @@ export function DashboardShell({
                 if (href === "/ops/actions" && !canAccessOpsWriteActionsArea(opsRole)) {
                   return null;
                 }
-                const active = pathname === href || pathname.startsWith(`${href}/`);
+                const active =
+                  pathname === href ||
+                  pathname.startsWith(`${href}/`) ||
+                  (href === "/ops/overview/summary" && pathname.startsWith("/ops/overview")) ||
+                  (href === "/ops/reports/snapshot" && pathname.startsWith("/ops/reports")) ||
+                  (href === "/ops/users/profiles" && pathname.startsWith("/ops/users")) ||
+                  (href === "/ops/campaigns/campaigns" && pathname.startsWith("/ops/campaigns")) ||
+                  (href === "/ops/audit/platform" && pathname.startsWith("/ops/audit"));
                 return (
                   <Link
                     key={href}

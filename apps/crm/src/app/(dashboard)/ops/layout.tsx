@@ -1,12 +1,12 @@
 import { assertOpsPageAccess } from "@/lib/opsAccess";
-import { OpsSubNav } from "@/components/OpsSubNav";
+import { OpsSectionTabs } from "@/components/OpsSectionTabs";
 
 export default async function OpsAreaLayout({ children }: { children: React.ReactNode }) {
   const { role } = await assertOpsPageAccess();
 
   return (
     <div className="space-y-6">
-      <OpsSubNav role={role} />
+      <OpsSectionTabs role={role} />
       {children}
     </div>
   );

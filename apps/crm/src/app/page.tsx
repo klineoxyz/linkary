@@ -29,7 +29,7 @@ export default async function HomePage() {
     if (service) {
       const opsRole = await getOpsMembershipRole(service, session.user.id);
       if (opsRole) {
-        redirect("/ops/overview");
+        redirect("/ops/overview/summary");
       }
     }
   }

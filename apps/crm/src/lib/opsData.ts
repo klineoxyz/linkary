@@ -539,6 +539,14 @@ function sanitizeOpsSearchQuery(q: string): string {
   return q.replace(/[%_,]/g, " ").trim().slice(0, 64);
 }
 
+/**
+ * profiles.username / org slugs are stored without a leading @ (same as linkary.xyz public routes).
+ * Searching "@handle" must still match username "handle".
+ */
+function handleSearchCore(safe: string): string {
+  return safe.replace(/^@+/, "").trim();
+}
+
 export async function searchOpsProfiles(
   service: SupabaseClient,
   q: string,
@@ -546,11 +554,16 @@ export async function searchOpsProfiles(
 ): Promise<OpsSearchProfileHit[]> {
   const safe = sanitizeOpsSearchQuery(q);
   if (safe.length < 2) return [];
-  const p = `%${safe}%`;
+  const core = handleSearchCore(safe);
+  if (!core) return [];
+  const pFull = `%${safe}%`;
+  const pCore = `%${core}%`;
   const { data } = await service
     .from("profiles")
     .select("id, username, display_name, email")
-    .or(`username.ilike.${p},display_name.ilike.${p},email.ilike.${p}`)
+    .or(
+      `username.ilike.${pCore},twitter_username.ilike.${pCore},display_name.ilike.${pFull},email.ilike.${pFull}`
+    )
     .limit(limit);
 
   return ((data ?? []) as Array<{ id: string; username: string | null; display_name: string | null; email?: string | null }>).map(
@@ -567,8 +580,15 @@ export async function searchOpsProfiles(
 export async function searchOpsOrgs(service: SupabaseClient, q: string, limit = 12): Promise<OpsSearchOrgHit[]> {
   const safe = sanitizeOpsSearchQuery(q);
   if (safe.length < 2) return [];
-  const p = `%${safe}%`;
-  const { data } = await service.from("orgs").select("id, name, slug").or(`name.ilike.${p},slug.ilike.${p}`).limit(limit);
+  const core = handleSearchCore(safe);
+  if (!core) return [];
+  const pFull = `%${safe}%`;
+  const pCore = `%${core}%`;
+  const { data } = await service
+    .from("orgs")
+    .select("id, name, slug")
+    .or(`name.ilike.${pFull},name.ilike.${pCore},slug.ilike.${pFull},slug.ilike.${pCore}`)
+    .limit(limit);
 
   return ((data ?? []) as Array<{ id: string; name: string | null; slug: string | null }>).map((row) => ({
     type: "org" as const,

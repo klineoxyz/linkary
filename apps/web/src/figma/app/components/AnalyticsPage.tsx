@@ -32,10 +32,20 @@ import {
 } from "@/lib/analyticsContractUi";
 import { PRICING_PATH, upgradeCtaLine } from "@/lib/planPackageUi";
 
-function formatIslandValue(n: number): string {
+function formatIslandValue(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
   return n.toLocaleString();
+}
+
+/** Avoid runtime throws when API returns ok:true but an incomplete payload (crashes entire page → ClientErrorBoundary). */
+function extractAnalyticsPayload(res: ApiResponse | undefined): ApiSuccess["data"] | null {
+  if (!res || res.ok !== true || !res.data || typeof res.data !== "object") return null;
+  const d = res.data;
+  if (!d.kpis || typeof d.kpis !== "object") return null;
+  if (!d.chart_points || typeof d.chart_points !== "object") return null;
+  return d;
 }
 
 type ApiSuccess = {
@@ -255,11 +265,17 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     }
   }, [mutateOwnerStatus, mutateAnalytics]);
 
-  const payload = res?.ok === true ? res.data : null;
+  const payload = extractAnalyticsPayload(res);
   const analyticsEntitlement = effectiveAnalyticsEntitlement(payload as AnalyticsXContractData | null);
   const chartsLockedBasic = analyticsEntitlement === "basic";
   /** Avoid flashing "0" KPI tiles while SWR has no payload yet (initial load / key change). */
   const kpiTilesLoading = platform === "x" && (isLoading || !payload);
+  const analyticsPayloadMalformed =
+    platform === "x" &&
+    !isLoading &&
+    res?.ok === true &&
+    res.data != null &&
+    payload == null;
 
   const deltaPct = useMemo(() => {
     if (!payload) return (_c: number, _p?: number) => null as number | null;
@@ -362,6 +378,29 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     );
   }
 
+  if (analyticsPayloadMalformed) {
+    return (
+      <div className="min-h-screen bg-background" data-page="analytics">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+          <div className="rounded-xl border border-border bg-card p-6 text-center space-y-2">
+            <p className="text-sm font-medium text-foreground">Analytics data incomplete</p>
+            <p className="text-sm text-muted-foreground">
+              The server returned an unexpected shape. Try reloading; if it persists, check the Network tab for{" "}
+              <code className="text-xs bg-muted px-1 rounded">/api/analytics/x</code>.
+            </p>
+            <button
+              type="button"
+              onClick={() => void mutateAnalytics()}
+              className="mt-2 inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background overflow-x-hidden" data-page="analytics">
       <div className="max-w-7xl mx-auto px-3 min-[390px]:px-4 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-4 sm:space-y-6">
@@ -439,7 +478,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         ) : (
           <>
         {/* Same layout for all profiles; empty state when no X handle or no synced data */}
-        {payload && payload.kpis.posts_total === 0 && payload.kpis.followers_latest == null && (
+        {payload && payload.kpis?.posts_total === 0 && payload.kpis?.followers_latest == null && (
           <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-4 text-center space-y-2">
             <p className="text-sm text-muted-foreground">{emptyKpi.body}</p>
             {emptyKpi.showIntegrationsCta && (
@@ -563,7 +602,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   <BarChart2 className="h-4 w-4 text-white stroke-[1.75]" />
                 </div>
               </div>
-              <h2 className="text-4xl font-bold text-white mb-1">{payload ? payload.kpis.posts_total.toLocaleString() : "—"}</h2>
+              <h2 className="text-4xl font-bold text-white mb-1">
+                {payload?.kpis?.posts_total != null && Number.isFinite(Number(payload.kpis.posts_total))
+                  ? Number(payload.kpis.posts_total).toLocaleString()
+                  : "—"}
+              </h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.posts_total ?? 0) > 0 ? "In window" : "Beta"}</span>
             </div>
           </div>
@@ -589,7 +632,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   <TrendingUp className="h-4 w-4 text-white stroke-[1.75]" />
                 </div>
               </div>
-              <h2 className="text-4xl font-bold text-white mb-1">{payload && payload.kpis.posts_total > 0 ? `${Number(payload.kpis.engagement_pct_avg).toFixed(2)}%` : "—"}</h2>
+              <h2 className="text-4xl font-bold text-white mb-1">
+                {payload && (payload.kpis?.posts_total ?? 0) > 0 && Number.isFinite(Number(payload.kpis?.engagement_pct_avg))
+                  ? `${Number(payload.kpis.engagement_pct_avg).toFixed(2)}%`
+                  : "—"}
+              </h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.posts_total ?? 0) > 0 ? "Avg in window" : "Beta"}</span>
             </div>
           </div>

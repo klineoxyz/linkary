@@ -14,9 +14,9 @@ import { formatTryAgainAfter } from "@/lib/rateLimitUx";
 
 type Profile = { username: string; display_name: string | null; avatar_url: string | null };
 type Analytics = {
-  posts_7d: number | null;
+  posts_7d?: number | null;
   posts_30d: number | null;
-  posts_90d: number | null;
+  posts_90d?: number | null;
   avg_likes_30d: number | null;
   avg_replies_30d: number | null;
   engagement_rate_30d: number | null;
@@ -286,11 +286,23 @@ export default function CrossUserAnalyticsPage({
       {analytics ? (
         <div className="rounded-xl border border-border bg-card p-6">
           <h2 className="text-base font-semibold text-foreground mb-4">X analytics snapshot</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {analytics.posts_7d != null && (
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-xs font-medium text-muted-foreground">Posts (7d)</p>
+                <p className="text-lg font-semibold text-foreground tabular-nums">{Number(analytics.posts_7d)}</p>
+              </div>
+            )}
             {analytics.posts_30d != null && (
               <div className="rounded-lg bg-muted/50 p-3">
                 <p className="text-xs font-medium text-muted-foreground">Posts (30d)</p>
                 <p className="text-lg font-semibold text-foreground tabular-nums">{Number(analytics.posts_30d)}</p>
+              </div>
+            )}
+            {analytics.posts_90d != null && (
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-xs font-medium text-muted-foreground">Posts (90d)</p>
+                <p className="text-lg font-semibold text-foreground tabular-nums">{Number(analytics.posts_90d)}</p>
               </div>
             )}
             {analytics.engagement_rate_30d != null && (

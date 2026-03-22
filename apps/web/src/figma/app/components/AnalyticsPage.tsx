@@ -258,6 +258,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const payload = res?.ok === true ? res.data : null;
   const analyticsEntitlement = effectiveAnalyticsEntitlement(payload as AnalyticsXContractData | null);
   const chartsLockedBasic = analyticsEntitlement === "basic";
+  /** Avoid flashing "0" KPI tiles while SWR has no payload yet (initial load / key change). */
+  const kpiTilesLoading = platform === "x" && (isLoading || !payload);
 
   const deltaPct = useMemo(() => {
     if (!payload) return (_c: number, _p?: number) => null as number | null;
@@ -530,6 +532,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           </div>
         )}
         {/* Stats islands — same style as Overview page */}
+        {kpiTilesLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-6 animate-pulse h-[140px]" />
+            ))}
+          </div>
+        ) : (
+          <>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)" }}>
             <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-foreground/80 transition-all duration-500 group-hover:from-primary/95 group-hover:to-foreground/90" />
@@ -540,7 +550,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   <Users className="h-4 w-4 text-white stroke-[1.75]" />
                 </div>
               </div>
-              <h2 className="text-4xl font-bold text-white mb-1">{payload ? (payload.kpis.followers_latest != null ? formatIslandValue(payload.kpis.followers_latest) : "—") : "0"}</h2>
+              <h2 className="text-4xl font-bold text-white mb-1">{payload ? (payload.kpis.followers_latest != null ? formatIslandValue(payload.kpis.followers_latest) : "—") : "—"}</h2>
               <span className="text-xs flex items-center gap-1 text-white">{payload?.kpis.followers_latest != null && payload.kpis.followers_latest > 0 ? "Latest in window" : "Beta"}</span>
             </div>
           </div>
@@ -553,7 +563,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   <BarChart2 className="h-4 w-4 text-white stroke-[1.75]" />
                 </div>
               </div>
-              <h2 className="text-4xl font-bold text-white mb-1">{payload ? payload.kpis.posts_total.toLocaleString() : "0"}</h2>
+              <h2 className="text-4xl font-bold text-white mb-1">{payload ? payload.kpis.posts_total.toLocaleString() : "—"}</h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.posts_total ?? 0) > 0 ? "In window" : "Beta"}</span>
             </div>
           </div>
@@ -566,7 +576,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   <Eye className="h-4 w-4 text-white stroke-[1.75]" />
                 </div>
               </div>
-              <h2 className="text-4xl font-bold text-white mb-1">{payload ? formatIslandValue(payload.kpis.impressions_total) : "0"}</h2>
+              <h2 className="text-4xl font-bold text-white mb-1">{payload ? formatIslandValue(payload.kpis.impressions_total) : "—"}</h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.impressions_total ?? 0) > 0 ? "Total in window" : "Beta"}</span>
             </div>
           </div>
@@ -579,20 +589,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   <TrendingUp className="h-4 w-4 text-white stroke-[1.75]" />
                 </div>
               </div>
-              <h2 className="text-4xl font-bold text-white mb-1">{payload && payload.kpis.posts_total > 0 ? `${Number(payload.kpis.engagement_pct_avg).toFixed(2)}%` : "0%"}</h2>
+              <h2 className="text-4xl font-bold text-white mb-1">{payload && payload.kpis.posts_total > 0 ? `${Number(payload.kpis.engagement_pct_avg).toFixed(2)}%` : "—"}</h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.posts_total ?? 0) > 0 ? "Avg in window" : "Beta"}</span>
             </div>
           </div>
         </div>
 
         {/* Second row — same island style as first: 4 islands in 1 row */}
-        {isLoading || !res ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-border bg-card p-6 animate-pulse h-[140px]" />
-            ))}
-          </div>
-        ) : payload ? (
+        {payload ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="relative overflow-hidden rounded-xl p-6 bg-cover bg-center border-0 h-full transition-all duration-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/10 cursor-pointer group border border-border bg-card" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80)" }}>
               <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-foreground/80 transition-all duration-500 group-hover:from-primary/95 group-hover:to-foreground/90" />
@@ -664,8 +668,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             </div>
           </div>
         ) : null}
+          </>
+        )}
 
-        {isLoading || !res ? (
+        {kpiTilesLoading ? (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <ChartSkeleton title="Engagement Rate" />

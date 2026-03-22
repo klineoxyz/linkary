@@ -130,7 +130,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
     {
       id: "kol",
       name: "KOL Pack",
-      price: "$99",
+      price: "$29",
       period: "/mo",
       badge: "Deeper analytics",
       description: "Creators — history, other-profile analytics eligibility",
@@ -145,7 +145,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
     {
       id: "startup",
       name: "StartUP Pack",
-      price: "$39",
+      price: "$99",
       period: "/mo",
       description: "Projects & teams — CRM workspace subscription",
       features: [
@@ -159,7 +159,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
     {
       id: "unicorn",
       name: "UniCorn Pack",
-      price: "$99",
+      price: "$199",
       period: "/mo",
       description: "Teams — higher CRM limits",
       features: ["Everything in StartUP Pack", "Higher external X search quota", "Scale reporting & ops"],

@@ -321,9 +321,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const activeDaysEngagement = engagementPoints.filter((p) => (p.posts ?? 0) > 0).length;
   const activeDaysCadence = cadencePoints.filter((p) => (p.posts ?? 0) > 0).length;
   const noPostsEngagement = activeDaysEngagement === 0;
-  const insufficientEngagement = activeDaysEngagement > 0 && activeDaysEngagement < 3;
   const noPostsCadence = activeDaysCadence === 0;
-  const insufficientCadence = activeDaysCadence > 0 && activeDaysCadence < 3;
+  /** Daily series already has one bar per day in the window; show it whenever any day has posts (avoid blocking 7d on “3 posting days”). */
+  const insufficientEngagement = false;
+  const insufficientCadence = false;
   const followerInsufficient = followerPoints.length < 3;
 
   const freshness = payload?.freshness;

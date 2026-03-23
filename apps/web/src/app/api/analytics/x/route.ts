@@ -215,9 +215,11 @@ export async function GET(request: NextRequest) {
       followersByDay.set(s.day, s.followers);
     }
 
-    /** One point per calendar day in the window; forward-fill counts; null delta when no level yet. */
+    /** One point per calendar day in the window; forward-fill counts; null delta only when we have no known follower level at all. */
     const follower_growth: Array<{ date: string; follower_delta: number | null }> = [];
-    let prevLevel: number | null = baselineFollowers;
+    const firstWindowFollowers = followerSnapshots.length > 0 ? followerSnapshots[0].followers : null;
+    // If we have at least one in-window snapshot but no pre-window baseline, backfill prior days as flat.
+    let prevLevel: number | null = baselineFollowers ?? firstWindowFollowers;
     for (const date of fullWindowDates) {
       const snap = followersByDay.get(date);
       const level =

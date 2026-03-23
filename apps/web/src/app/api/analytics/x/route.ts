@@ -195,6 +195,10 @@ export async function GET(request: NextRequest) {
     const follower_data_coverage_days = followerSnapshots.length;
 
     const follower_growth: Array<{ date: string; follower_delta: number }> = [];
+    if (followerSnapshots.length > 0) {
+      // Seed first observed day so sparse follower history still renders a chart bar.
+      follower_growth.push({ date: followerSnapshots[0].day, follower_delta: 0 });
+    }
     for (let i = 1; i < followerSnapshots.length; i++) {
       const prev = followerSnapshots[i - 1];
       const curr = followerSnapshots[i];

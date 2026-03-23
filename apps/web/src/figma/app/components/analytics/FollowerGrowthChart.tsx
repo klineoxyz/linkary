@@ -74,22 +74,6 @@ export function FollowerGrowthChart({
     );
   }
 
-  const MIN_POINTS_FOR_TREND = 3;
-  if (points.length < MIN_POINTS_FOR_TREND) {
-    return (
-      <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel}>
-        <EmptyState
-          message={earliestDate ? "Follower history starts on " + earliestDate + "." : "Need at least 3 days to show trend."}
-          secondary="Need a few more days of follower tracking to show a trend."
-          coverage={coverage ?? (earliestDate ? `First: ${earliestDate}` : undefined)}
-          onRefresh={onRefresh}
-          refreshDisabled={refreshDisabled}
-          integrationsHref={integrationsHref}
-        />
-      </ChartCard>
-    );
-  }
-
   const zeroPct = min < 0 && max > 0 ? ((0 - min) / range) * 100 : min >= 0 ? 0 : 100;
   const CHART_H = 180;
   const barAreaHeight = CHART_H - 28;

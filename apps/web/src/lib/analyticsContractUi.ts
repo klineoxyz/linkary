@@ -18,7 +18,7 @@ export type AnalyticsXContractData = {
       is_capped?: boolean;
     }>;
     posting_cadence: Array<{ date: string; posts: number }>;
-    follower_growth: Array<{ date: string; follower_delta: number }>;
+    follower_growth: Array<{ date: string; follower_delta: number | null }>;
   };
   kpis: Record<string, unknown>;
   analytics_entitlement?: AnalyticsEntitlement;
@@ -53,7 +53,8 @@ export function buildFollowerSeriesFromV2(data: AnalyticsXContractData): Array<{
     const row = fg[i];
     if (!row?.date) continue;
     out.unshift({ date: row.date.slice(0, 10), followers: Math.round(f) });
-    f -= Number(row.follower_delta) || 0;
+    const d = row.follower_delta;
+    if (d != null && Number.isFinite(d)) f -= d;
   }
   return out;
 }

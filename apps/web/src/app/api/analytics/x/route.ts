@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     const tweetsFrom = new Date(priorStartUTC);
     const tweetsFromStr = tweetsFrom.toISOString();
 
-    const [dailySnapshotsRes, tweetsRes, profileRes] = await Promise.all([
+    const [dailySnapshotsRes, baselineSnapshotRes, tweetsRes, profileRes] = await Promise.all([
       supabase
         .from("x_daily_snapshots")
         .select("day, followers")
@@ -107,6 +107,16 @@ export async function GET(request: NextRequest) {
         .gte("day", windowStartStr)
         .lte("day", windowEndStr)
         .order("day", { ascending: true }),
+      supabase
+        .from("x_daily_snapshots")
+        .select("day, followers")
+        .eq("owner_type", "profile")
+        .eq("owner_id", userId)
+        .lt("day", windowStartStr)
+        .not("followers", "is", null)
+        .order("day", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
       supabase
         .from("x_tweets")
         .select("tweeted_at, like_count, reply_count, repost_count, quote_count, impression_count")
@@ -194,15 +204,38 @@ export async function GET(request: NextRequest) {
 
     const follower_data_coverage_days = followerSnapshots.length;
 
-    const follower_growth: Array<{ date: string; follower_delta: number }> = [];
-    if (followerSnapshots.length > 0) {
-      // Seed first observed day so sparse follower history still renders a chart bar.
-      follower_growth.push({ date: followerSnapshots[0].day, follower_delta: 0 });
+    const baselineRow = baselineSnapshotRes.data as { day?: string; followers?: number | null } | null;
+    const baselineFollowers =
+      baselineRow?.followers != null && Number.isFinite(Number(baselineRow.followers))
+        ? Number(baselineRow.followers)
+        : null;
+
+    const followersByDay = new Map<string, number>();
+    for (const s of followerSnapshots) {
+      followersByDay.set(s.day, s.followers);
     }
-    for (let i = 1; i < followerSnapshots.length; i++) {
-      const prev = followerSnapshots[i - 1];
-      const curr = followerSnapshots[i];
-      follower_growth.push({ date: curr.day, follower_delta: curr.followers - prev.followers });
+
+    /** One point per calendar day in the window; forward-fill counts; null delta when no level yet. */
+    const follower_growth: Array<{ date: string; follower_delta: number | null }> = [];
+    let prevLevel: number | null = baselineFollowers;
+    for (const date of fullWindowDates) {
+      const snap = followersByDay.get(date);
+      const level =
+        snap != null && Number.isFinite(snap) ? snap : prevLevel != null && Number.isFinite(prevLevel) ? prevLevel : null;
+
+      if (level == null || !Number.isFinite(level)) {
+        follower_growth.push({ date, follower_delta: null });
+        continue;
+      }
+
+      if (prevLevel == null || !Number.isFinite(prevLevel)) {
+        follower_growth.push({ date, follower_delta: 0 });
+        prevLevel = level;
+        continue;
+      }
+
+      follower_growth.push({ date, follower_delta: level - prevLevel });
+      prevLevel = level;
     }
 
     const tweetsInWindow = tweets.filter((t) => {

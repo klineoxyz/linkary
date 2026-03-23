@@ -64,7 +64,7 @@ type ApiSuccess = {
         is_capped?: boolean;
       }>;
       posting_cadence: Array<{ date: string; posts: number }>;
-      follower_growth: Array<{ date: string; follower_delta: number }>;
+      follower_growth: Array<{ date: string; follower_delta: number | null }>;
     };
     kpis: {
       posts_total: number;

@@ -2340,6 +2340,12 @@ function ExplorePage({ setRoute }) {
 }
 
 function MarketplacePage({ setRoute, route }) {
+  const formatMoney = (n?: number | null) =>
+    n == null || !Number.isFinite(Number(n))
+      ? "—"
+      : new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(n));
+  const formatDate = (iso?: string | null) =>
+    iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—";
   const initialView = route?.data?.view === "creator_programs" ? "creator_programs" : "all";
   const [q, setQ] = useState("");
   const [view, setView] = useState(initialView);
@@ -2355,9 +2361,29 @@ function MarketplacePage({ setRoute, route }) {
       org?: { id: string; name: string; slug: string } | null;
     }>
   >([]);
+  const [crmCampaigns, setCrmCampaigns] = useState<
+    Array<{
+      id: string;
+      title: string;
+      description?: string | null;
+      campaign_type: string;
+      starts_at?: string | null;
+      ends_at?: string | null;
+      days_left?: number | null;
+      visibility?: string;
+      accepts_new_users?: boolean;
+      value_usd?: number | null;
+      participant_count?: number;
+      status: "upcoming" | "active" | "ending_soon" | "closed";
+      org?: { id: string; name: string; slug: string } | null;
+      trend?: { delta_7d?: number | null; series?: Array<{ day: string; contributors: number }> } | null;
+    }>
+  >([]);
   const [browseProgram, setBrowseProgram] = useState<(typeof openPrograms)[0] | null>(null);
+  const [browseCampaign, setBrowseCampaign] = useState<(typeof crmCampaigns)[0] | null>(null);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [programsLoading, setProgramsLoading] = useState(false);
+  const [campaignsLoading, setCampaignsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [myOrgs, setMyOrgs] = useState<{ id: string; name: string; org_type: string }[]>([]);
@@ -2373,6 +2399,20 @@ function MarketplacePage({ setRoute, route }) {
 
   useEffect(() => {
     listJobs().then(setDbJobs);
+  }, []);
+
+  useEffect(() => {
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    if (!base) {
+      setCrmCampaigns([]);
+      return;
+    }
+    setCampaignsLoading(true);
+    fetch(`${base}/api/marketplace/campaigns`)
+      .then((r) => r.json())
+      .then((json) => setCrmCampaigns(Array.isArray(json.campaigns) ? json.campaigns : []))
+      .catch(() => setCrmCampaigns([]))
+      .finally(() => setCampaignsLoading(false));
   }, []);
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -2409,6 +2449,7 @@ function MarketplacePage({ setRoute, route }) {
   const jobs = dbJobs.filter((j) => j.type === "job" && (j.title + (j.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()));
   const sprints = dbJobs.filter((j) => j.type === "sprint" && (j.title + (j.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()));
   const programsFiltered = openPrograms.filter((p) => (p.title + (p.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()));
+  const campaignsFiltered = crmCampaigns.filter((c) => (c.title + (c.org?.name ?? "")).toLowerCase().includes(q.toLowerCase()));
 
   const handleApplySubmit = async () => {
     if (!applyJob || !userId || !profileId) return;
@@ -2489,7 +2530,7 @@ function MarketplacePage({ setRoute, route }) {
           variant={view === "creator_programs" ? "primary" : "outline"}
           onClick={() => setView("creator_programs")}
         >
-          Creator Programs ({openPrograms.length})
+          Creator Programs ({openPrograms.length + crmCampaigns.length})
         </Button>
         <div className="ml-auto">
           <div className="relative">
@@ -2507,10 +2548,50 @@ function MarketplacePage({ setRoute, route }) {
             </p>
           {programsLoading ? (
             <p className="text-sm text-zinc-500">Loading…</p>
-          ) : programsFiltered.length === 0 ? (
-            <p className="text-zinc-600">No open creator programs yet.</p>
+          ) : (campaignsFiltered.length === 0 && programsFiltered.length === 0) ? (
+            <p className="text-zinc-600">No open creator programs or campaigns yet.</p>
           ) : (
             <div className="space-y-3">
+              {campaignsLoading ? <p className="text-sm text-zinc-500">Loading campaign sync…</p> : null}
+              {campaignsFiltered.map((c) => (
+                <div
+                  key={c.id}
+                  className="p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 bg-zinc-50/60 dark:bg-zinc-800/40"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-zinc-900 dark:text-zinc-100">{c.title}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      {c.org?.name ?? "—"} · CRM Campaign · {c.participant_count ?? 0} participants
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">Starts: {formatDate(c.starts_at)}</span>
+                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">Ends: {formatDate(c.ends_at)}</span>
+                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">{c.days_left == null ? "Days left: —" : `${Math.max(0, c.days_left)} days left`}</span>
+                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">{c.visibility === "public" ? "Open to all" : "Invite only"}</span>
+                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">{c.accepts_new_users ? "Accepting new users" : "Closed to new users"}</span>
+                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">Value: {formatMoney(c.value_usd)}</span>
+                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">
+                        {c.status === "upcoming" ? "Upcoming" : c.status === "ending_soon" ? "Ending soon" : c.status === "closed" ? "Closed" : "Active"}
+                      </span>
+                    </div>
+                    {c.description?.trim() ? (
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 line-clamp-2">{c.description.trim()}</p>
+                    ) : (
+                      <p className="text-xs text-zinc-500 mt-2 italic">No public description yet.</p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => setBrowseCampaign(c)}>
+                      View details
+                    </Button>
+                    {c.accepts_new_users ? (
+                      <Button size="sm" onClick={() => setBrowseCampaign(c)}>
+                        Join
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
               {programsFiltered.map((p) => (
                 <div
                   key={p.id}
@@ -2740,6 +2821,68 @@ function MarketplacePage({ setRoute, route }) {
                   Open org workspace
                 </Button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {browseCampaign && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50"
+          onClick={() => setBrowseCampaign(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{browseCampaign.title}</h3>
+            <p className="text-sm text-zinc-500 mt-1">
+              {browseCampaign.org?.name ?? "Organization"} · {browseCampaign.participant_count ?? 0} participants · {browseCampaign.accepts_new_users ? "Join open" : "Join closed"}
+            </p>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+              <div className="rounded-lg border border-zinc-200 px-3 py-2">Starts: <strong>{formatDate(browseCampaign.starts_at)}</strong></div>
+              <div className="rounded-lg border border-zinc-200 px-3 py-2">Ends: <strong>{formatDate(browseCampaign.ends_at)}</strong></div>
+              <div className="rounded-lg border border-zinc-200 px-3 py-2">Days left: <strong>{browseCampaign.days_left == null ? "—" : Math.max(0, browseCampaign.days_left)}</strong></div>
+              <div className="rounded-lg border border-zinc-200 px-3 py-2">Value: <strong>{formatMoney(browseCampaign.value_usd)}</strong></div>
+              <div className="rounded-lg border border-zinc-200 px-3 py-2">Visibility: <strong>{browseCampaign.visibility === "public" ? "Open to all" : "Invite only"}</strong></div>
+              <div className="rounded-lg border border-zinc-200 px-3 py-2">Status: <strong>{browseCampaign.status.replace("_", " ")}</strong></div>
+            </div>
+            <div className="mt-4 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+              {browseCampaign.description?.trim() || "No public description provided."}
+            </div>
+            {browseCampaign.trend?.series?.length ? (
+              <div className="mt-4 rounded-lg border border-zinc-200 p-3">
+                <p className="text-xs text-zinc-500 mb-2">Participant trend (last {browseCampaign.trend.series.length} snapshots)</p>
+                <div className="flex items-end gap-1 h-16">
+                  {(() => {
+                    const max = Math.max(1, ...browseCampaign.trend!.series!.map((s) => s.contributors || 0));
+                    return browseCampaign.trend!.series!.map((s) => (
+                      <div key={s.day} className="flex-1 bg-primary/70 rounded-sm" style={{ height: `${Math.max(6, ((s.contributors || 0) / max) * 100)}%` }} title={`${s.day}: ${s.contributors}`} />
+                    ));
+                  })()}
+                </div>
+                <p className="text-xs text-zinc-600 mt-2">
+                  {browseCampaign.trend.delta_7d == null ? "No 7-day delta yet." : `7-day contributor change: ${browseCampaign.trend.delta_7d >= 0 ? "+" : ""}${browseCampaign.trend.delta_7d}`}
+                </p>
+              </div>
+            ) : null}
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => setBrowseCampaign(null)}>
+                Close
+              </Button>
+              {browseCampaign.org?.id ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setBrowseCampaign(null);
+                    setRoute({ name: "orgDetail", data: { orgId: browseCampaign.org!.id, slug: browseCampaign.org!.slug } });
+                  }}
+                >
+                  View project
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>

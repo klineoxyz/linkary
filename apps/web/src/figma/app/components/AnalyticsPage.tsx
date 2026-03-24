@@ -798,6 +798,12 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             </Link>
           ) : (
             <>
+              <p className="text-xs text-muted-foreground -mt-1 mb-2 max-w-3xl">
+                The <span className="tabular-nums">7d</span> / <span className="tabular-nums">30d</span> /{" "}
+                <span className="tabular-nums">90d</span> control applies to every chart below. Each day is one bucket; series are built from{" "}
+                <code className="text-[10px] bg-muted px-1 rounded">x_tweets</code> (engagement &amp; cadence) and{" "}
+                <code className="text-[10px] bg-muted px-1 rounded">x_daily_snapshots</code> (followers), written by sync and backfill jobs.
+              </p>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <EngagementChart
                   points={engagementPoints}
@@ -806,13 +812,16 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   tweetCountWindow={payload.kpis.posts_total}
                   noPostsInPeriod={noPostsEngagement}
                   insufficientForTrend={insufficientEngagement}
+                  bucketLabel="Daily"
                 />
                 <PostingCadenceChart
                   points={cadencePoints}
+                  activePostingDays={activeDaysCadence}
                   tweetCountWindow={payload.kpis.posts_total}
                   windowDays={windowDays}
                   noPostsInPeriod={noPostsCadence}
                   insufficientForTrend={insufficientCadence}
+                  bucketLabel="Daily"
                 />
               </div>
               <FollowerGrowthChart
@@ -820,6 +829,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                 coverageDays={followerCoverageDays}
                 windowDays={windowDays}
                 insufficientData={followerInsufficient}
+                bucketLabel="Daily"
               />
             </>
           )

@@ -36,7 +36,8 @@ function classifySyncError(message: string): string {
 }
 
 const BATCH_SIZE = 100;
-const MAX_TWEETS = 50;
+/** Match 90d analytics depth; provider paginates until this cap (see getRecentTweets). Was 50 and dropped most history. */
+const MAX_TWEETS = 500;
 const DELAY_MS = 600;
 const STALE_HOURS = 6;
 

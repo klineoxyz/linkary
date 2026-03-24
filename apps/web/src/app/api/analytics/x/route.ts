@@ -29,6 +29,43 @@ function fail(code: string, message: string, status: number) {
 
 const ER_CAP_PCT = 50;
 
+/** PostgREST returns at most ~1000 rows per request; 90d + prior window needs pagination. */
+const X_TWEETS_PAGE = 1000;
+const X_TWEETS_CAP = 25000;
+
+type AnalyticsTweetRow = {
+  tweeted_at: string;
+  like_count: number;
+  reply_count: number;
+  repost_count: number;
+  quote_count?: number | null;
+  impression_count?: number | null;
+};
+
+async function fetchXTweetsForAnalytics(
+  supabase: SupabaseClient,
+  profileId: string,
+  tweetsFromIso: string
+): Promise<{ data: AnalyticsTweetRow[]; error: { message: string } | null }> {
+  const out: AnalyticsTweetRow[] = [];
+  for (let from = 0; from < X_TWEETS_CAP; from += X_TWEETS_PAGE) {
+    const { data, error } = await supabase
+      .from("x_tweets")
+      .select("tweeted_at, like_count, reply_count, repost_count, quote_count, impression_count")
+      .eq("profile_id", profileId)
+      .gte("tweeted_at", tweetsFromIso)
+      .order("tweeted_at", { ascending: true })
+      .range(from, from + X_TWEETS_PAGE - 1);
+    if (error) {
+      return { data: [], error: { message: error.message } };
+    }
+    const batch = (data ?? []) as AnalyticsTweetRow[];
+    out.push(...batch);
+    if (batch.length < X_TWEETS_PAGE) break;
+  }
+  return { data: out, error: null };
+}
+
 export async function GET(request: NextRequest) {
   try {
     if (!supabaseUrl || !supabaseAnonKey) {
@@ -98,7 +135,7 @@ export async function GET(request: NextRequest) {
     const tweetsFrom = new Date(priorStartUTC);
     const tweetsFromStr = tweetsFrom.toISOString();
 
-    const [dailySnapshotsRes, baselineSnapshotRes, tweetsRes, profileRes] = await Promise.all([
+    const [dailySnapshotsRes, baselineSnapshotRes, profileRes] = await Promise.all([
       supabase
         .from("x_daily_snapshots")
         .select("day, followers")
@@ -118,30 +155,21 @@ export async function GET(request: NextRequest) {
         .limit(1)
         .maybeSingle(),
       supabase
-        .from("x_tweets")
-        .select("tweeted_at, like_count, reply_count, repost_count, quote_count, impression_count")
-        .eq("profile_id", userId)
-        .gte("tweeted_at", tweetsFromStr)
-        .order("tweeted_at", { ascending: true }),
-      supabase
         .from("profiles")
         .select("twitter_username, x_last_profile_sync_at, followers_total")
         .eq("id", userId)
         .maybeSingle(),
     ]);
 
+    const tweetsFetch = await fetchXTweetsForAnalytics(supabase, userId, tweetsFromStr);
+    if (tweetsFetch.error) {
+      return fail("SERVER_ERROR", tweetsFetch.error.message, 500);
+    }
+
     type SnapshotRow = { day: string; followers: number | null };
-    type TweetRow = {
-      tweeted_at: string;
-      like_count: number;
-      reply_count: number;
-      repost_count: number;
-      quote_count?: number | null;
-      impression_count?: number | null;
-    };
 
     const dailyRows = (dailySnapshotsRes.data ?? []) as SnapshotRow[];
-    const tweets = (tweetsRes.data ?? []) as TweetRow[];
+    const tweets = tweetsFetch.data;
 
     const fullWindowDates: string[] = [];
     for (let i = 0; i < windowDays; i++) {

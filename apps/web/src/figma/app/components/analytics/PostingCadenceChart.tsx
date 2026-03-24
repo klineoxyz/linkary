@@ -8,6 +8,8 @@ const CHART_H = 180;
 
 export interface PostingCadenceChartProps {
   points: Array<{ date: string; posts: number }>;
+  /** Days in the window with at least one post (same idea as engagement active days). */
+  activePostingDays?: number;
   tweetCountWindow?: number;
   windowDays?: number;
   noPostsInPeriod: boolean;
@@ -20,6 +22,7 @@ export interface PostingCadenceChartProps {
 
 export function PostingCadenceChart({
   points,
+  activePostingDays,
   tweetCountWindow,
   windowDays,
   noPostsInPeriod,
@@ -36,14 +39,24 @@ export function PostingCadenceChart({
     return { maxPosts: max, lowVariance: max - min <= 1 && vals.length > 0 };
   }, [points]);
 
+  const coverage = useMemo(() => {
+    const parts: string[] = [];
+    if (activePostingDays != null && windowDays != null) {
+      parts.push(`${activePostingDays}/${windowDays}d`);
+    }
+    if (tweetCountWindow != null) {
+      parts.push(`${tweetCountWindow} posts`);
+    }
+    return parts.length > 0 ? parts.join(" · ") : undefined;
+  }, [activePostingDays, windowDays, tweetCountWindow]);
+
   const hasAnyData = points.length > 0 && points.some((p) => (p.posts ?? 0) > 0);
-  const coverage = tweetCountWindow != null ? `${tweetCountWindow} posts` : undefined;
 
   const integrationsHref = "/settings/integrations";
 
   if (noPostsInPeriod) {
     return (
-      <ChartCard title="Posting Cadence" coverage={coverage}>
+      <ChartCard title="Posting Cadence" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
           message="No posts in this window."
           secondary="Post on X to unlock trends."
@@ -57,7 +70,7 @@ export function PostingCadenceChart({
 
   if (insufficientForTrend) {
     return (
-      <ChartCard title="Posting Cadence" coverage={coverage}>
+      <ChartCard title="Posting Cadence" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
           message="Not enough data for trend yet."
           secondary={tweetCountWindow != null && windowDays != null ? `${tweetCountWindow} posts in ${windowDays}d. Need more activity.` : "Need more posts to show trend."}
@@ -87,7 +100,7 @@ export function PostingCadenceChart({
   const MIN_POINTS_FOR_TREND = 3;
   if (points.length < MIN_POINTS_FOR_TREND) {
     return (
-      <ChartCard title="Posting Cadence" coverage={coverage}>
+      <ChartCard title="Posting Cadence" coverage={coverage} bucketLabel={bucketLabel}>
         <EmptyState
           message="Need at least 3 data points to show trend."
           secondary={coverage ? `${coverage} in window.` : "More posts will fill the chart."}

@@ -2593,7 +2593,11 @@ function MarketplacePage({ setRoute, route }) {
                         <p className="text-[11px] uppercase tracking-wide text-rose-700">Value</p>
                         <p className="text-sm font-semibold text-zinc-900">{formatMoney(c.value_usd)}</p>
                       </div>
-                      <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white px-3 py-2 sm:col-span-2">
+                      <div className="rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-wide text-sky-700">Participants</p>
+                        <p className="text-sm font-semibold text-zinc-900">{c.participant_count ?? 0}</p>
+                      </div>
+                      <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white px-3 py-2">
                         <p className="text-[11px] uppercase tracking-wide text-zinc-600">Status</p>
                         <p className="text-sm font-semibold text-zinc-900">
                           {c.status === "upcoming" ? "Upcoming" : c.status === "ending_soon" ? "Ending soon" : c.status === "closed" ? "Closed" : "Active"}

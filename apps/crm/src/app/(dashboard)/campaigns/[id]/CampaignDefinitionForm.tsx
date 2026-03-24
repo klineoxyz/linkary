@@ -423,8 +423,8 @@ export function CampaignDefinitionForm({
               defaultValue={campaign.visibility_mode ?? "private_hidden"}
               className="w-full rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-3 py-2 text-sm text-[var(--crm-foreground)]"
             >
-              <option value="public">Public (open discovery)</option>
-              <option value="invite_only">Invite only (public details)</option>
+              <option value="public">Open to all (public)</option>
+              <option value="invite_only">Invite only</option>
               <option value="private_hidden">Private / hidden</option>
             </select>
           </div>

@@ -90,25 +90,33 @@ export function FollowerGrowthChart({
             style={{ bottom: `calc(${zeroPct}% + 1.25rem)` }}
           />
         )}
-        <div className="flex items-end gap-px pl-0 w-full" style={{ height: barAreaHeight }}>
+        {/* items-stretch + per-column flex-col so bar height % resolves against a definite column height */}
+        <div className="flex items-stretch gap-px pl-0 w-full" style={{ height: barAreaHeight }}>
           {points.map((p, i) => {
             const val = p.follower_delta;
             const hasData = val !== null && val !== undefined && Number.isFinite(val);
             const heightPct = hasData ? Math.max(minBarHeightPct, (((val as number) - min) / range) * 100) : 0;
             const isNegative = hasData && (val as number) < 0;
 
-            if (!hasData) {
-              return <div key={`${p.date}-${i}`} className="flex-1 min-w-0" title={`${p.date}: No snapshot`} />;
-            }
             return (
               <div
                 key={`${p.date}-${i}`}
-                className={`flex-1 min-w-0 rounded-t border-t transition-all ${
-                  isNegative ? "bg-amber-500/70 border-amber-500/50" : "bg-primary/80 border-primary/50"
-                }`}
-                style={{ height: `${heightPct}%` }}
-                title={`${p.date}: ${(val as number) >= 0 ? "+" : ""}${(val as number).toLocaleString()}`}
-              />
+                className="flex min-h-0 min-w-0 flex-1 flex-col justify-end"
+                title={
+                  hasData
+                    ? `${p.date}: ${(val as number) >= 0 ? "+" : ""}${(val as number).toLocaleString()}`
+                    : `${p.date}: No snapshot`
+                }
+              >
+                {hasData ? (
+                  <div
+                    className={`w-full rounded-t border-t transition-all ${
+                      isNegative ? "bg-amber-500/70 border-amber-500/50" : "bg-primary/80 border-primary/50"
+                    }`}
+                    style={{ height: `${heightPct}%`, minHeight: 4 }}
+                  />
+                ) : null}
+              </div>
             );
           })}
         </div>

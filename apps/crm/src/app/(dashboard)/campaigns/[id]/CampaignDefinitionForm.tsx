@@ -376,6 +376,91 @@ export function CampaignDefinitionForm({
         </div>
       </div>
 
+      <div className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-bg)] p-4 space-y-3">
+        <h4 className="text-sm font-semibold text-[var(--crm-foreground)]">Marketplace visibility</h4>
+        <p className="text-xs text-[var(--crm-muted)]">
+          Control how this campaign appears publicly on Linkary marketplace. Category is locked to Creator Programs for this release.
+        </p>
+        <div className="flex items-start gap-3">
+          <input
+            id="marketplace_enabled"
+            name="marketplace_enabled"
+            type="checkbox"
+            defaultChecked={campaign.marketplace_enabled ?? false}
+            className="mt-1 h-4 w-4 rounded border-[var(--crm-border)]"
+          />
+          <div>
+            <label htmlFor="marketplace_enabled" className="text-sm font-medium text-[var(--crm-foreground)]">
+              Show on marketplace
+            </label>
+            <p className="text-xs text-[var(--crm-muted)] mt-0.5">
+              When enabled, this campaign can surface publicly under Creator Programs.
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="marketplace_category" className="block text-sm font-medium text-[var(--crm-foreground)] mb-1">
+              Marketplace category
+            </label>
+            <input
+              id="marketplace_category"
+              name="marketplace_category"
+              type="text"
+              value="creator_programs"
+              disabled
+              readOnly
+              className="w-full rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-3 py-2 text-sm text-[var(--crm-muted)]"
+            />
+          </div>
+          <div>
+            <label htmlFor="visibility_mode" className="block text-sm font-medium text-[var(--crm-foreground)] mb-1">
+              Visibility mode
+            </label>
+            <select
+              id="visibility_mode"
+              name="visibility_mode"
+              defaultValue={campaign.visibility_mode ?? "private_hidden"}
+              className="w-full rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-3 py-2 text-sm text-[var(--crm-foreground)]"
+            >
+              <option value="public">Public (open discovery)</option>
+              <option value="invite_only">Invite only (public details)</option>
+              <option value="private_hidden">Private / hidden</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <input
+            id="accepting_new_users"
+            name="accepting_new_users"
+            type="checkbox"
+            defaultChecked={campaign.accepting_new_users ?? true}
+            className="mt-1 h-4 w-4 rounded border-[var(--crm-border)]"
+          />
+          <div>
+            <label htmlFor="accepting_new_users" className="text-sm font-medium text-[var(--crm-foreground)]">
+              Accepting new users
+            </label>
+            <p className="text-xs text-[var(--crm-muted)] mt-0.5">
+              Controls whether Join/Apply CTAs are shown in public marketplace.
+            </p>
+          </div>
+        </div>
+        <div>
+          <label htmlFor="public_summary" className="block text-sm font-medium text-[var(--crm-foreground)] mb-1">
+            Public summary
+          </label>
+          <textarea
+            id="public_summary"
+            name="public_summary"
+            rows={3}
+            defaultValue={campaign.public_summary ?? campaign.description ?? ""}
+            placeholder="Short marketplace-facing summary for creators."
+            className="w-full rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-3 py-2 text-sm text-[var(--crm-foreground)]"
+          />
+        </div>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="weekly_required_posts" className="block text-sm font-medium text-[var(--crm-foreground)] mb-1">

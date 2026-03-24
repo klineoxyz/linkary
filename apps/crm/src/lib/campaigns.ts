@@ -32,6 +32,11 @@ export type CampaignRow = {
   guidance_links?: Array<{ label?: string; url: string }> | null;
   finalized_at?: string | null;
   follow_rules?: unknown;
+  marketplace_enabled?: boolean;
+  marketplace_category?: "creator_programs";
+  visibility_mode?: "public" | "invite_only" | "private_hidden";
+  accepting_new_users?: boolean;
+  public_summary?: string | null;
 };
 
 export type CampaignListItem = CampaignRow & {
@@ -106,7 +111,7 @@ export async function fetchCampaignsForUser(
 
   const { data: campaigns } = await supabase
     .from("crm_campaigns")
-    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at, reward_date, campaign_value_usd, token_or_usdt, required_platforms, weekly_required_posts, daily_engagement_required, promoted_org_id, promoted_social_handles, campaign_objective, guidance_links, follow_rules")
+    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at, reward_date, campaign_value_usd, token_or_usdt, required_platforms, weekly_required_posts, daily_engagement_required, promoted_org_id, promoted_social_handles, campaign_objective, guidance_links, follow_rules, marketplace_enabled, marketplace_category, visibility_mode, accepting_new_users, public_summary")
     .in("workspace_id", orgWorkspaceIds)
     .order("updated_at", { ascending: false });
 
@@ -136,7 +141,7 @@ export async function getCampaign(
 ): Promise<CampaignRow | null> {
   const { data } = await supabase
     .from("crm_campaigns")
-    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at, reward_date, campaign_value_usd, token_or_usdt, required_platforms, weekly_required_posts, daily_engagement_required, promoted_org_id, promoted_social_handles, campaign_objective, guidance_links, finalized_at, follow_rules")
+    .select("id, workspace_id, title, description, starts_at, ends_at, budget, currency, status, created_at, updated_at, reward_date, campaign_value_usd, token_or_usdt, required_platforms, weekly_required_posts, daily_engagement_required, promoted_org_id, promoted_social_handles, campaign_objective, guidance_links, finalized_at, follow_rules, marketplace_enabled, marketplace_category, visibility_mode, accepting_new_users, public_summary")
     .eq("id", campaignId)
     .maybeSingle();
 
@@ -263,6 +268,11 @@ export type UpdateCampaignDefinitionPayload = {
   campaign_objective?: string | null;
   guidance_links?: Array<{ label?: string; url: string }> | null;
   follow_rules?: unknown;
+  marketplace_enabled?: boolean;
+  marketplace_category?: "creator_programs";
+  visibility_mode?: "public" | "invite_only" | "private_hidden";
+  accepting_new_users?: boolean;
+  public_summary?: string | null;
 };
 
 /**
@@ -292,6 +302,11 @@ export async function updateCampaignDefinition(
   if (payload.guidance_links !== undefined)
     update.guidance_links = Array.isArray(payload.guidance_links) ? payload.guidance_links : [];
   if (payload.follow_rules !== undefined) update.follow_rules = payload.follow_rules ?? {};
+  if (payload.marketplace_enabled !== undefined) update.marketplace_enabled = payload.marketplace_enabled;
+  if (payload.marketplace_category !== undefined) update.marketplace_category = payload.marketplace_category;
+  if (payload.visibility_mode !== undefined) update.visibility_mode = payload.visibility_mode;
+  if (payload.accepting_new_users !== undefined) update.accepting_new_users = payload.accepting_new_users;
+  if (payload.public_summary !== undefined) update.public_summary = payload.public_summary?.trim() || null;
 
   const { error } = await supabase.from("crm_campaigns").update(update).eq("id", campaignId);
   if (error) return { error: error.message };

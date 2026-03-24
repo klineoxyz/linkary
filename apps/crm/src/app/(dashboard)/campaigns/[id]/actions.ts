@@ -374,6 +374,15 @@ export async function updateCampaignDefinitionAction(
         .filter(Boolean)
     : [];
   const follow_rules_notes = (formData.get("follow_rules_notes") as string | null)?.trim() || null;
+  const marketplace_enabled = formData.get("marketplace_enabled") === "on";
+  const marketplace_category = "creator_programs" as const;
+  const visibilityRaw = (formData.get("visibility_mode") as string | null)?.trim();
+  const visibility_mode: "public" | "invite_only" | "private_hidden" =
+    visibilityRaw === "public" || visibilityRaw === "invite_only" || visibilityRaw === "private_hidden"
+      ? visibilityRaw
+      : "private_hidden";
+  const accepting_new_users = formData.get("accepting_new_users") === "on";
+  const public_summary = (formData.get("public_summary") as string | null)?.trim() || null;
 
   const follow_rules: Record<string, unknown> = { require_x_follow };
   if (must_follow_handles.length) follow_rules.must_follow_handles = must_follow_handles;
@@ -391,6 +400,11 @@ export async function updateCampaignDefinitionAction(
     campaign_objective,
     guidance_links: guidanceParsed.links,
     follow_rules,
+    marketplace_enabled,
+    marketplace_category,
+    visibility_mode,
+    accepting_new_users,
+    public_summary,
   });
 
   if (result.error) return result;

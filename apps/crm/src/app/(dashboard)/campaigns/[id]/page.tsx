@@ -243,7 +243,11 @@ export default async function CampaignDetailPage({
           campaign.promoted_org_id ||
           (campaign.promoted_social_handles?.length ?? 0) > 0 ||
           campaign.campaign_objective ||
-          (campaign.guidance_links?.length ?? 0) > 0) && (
+          (campaign.guidance_links?.length ?? 0) > 0 ||
+          campaign.marketplace_enabled != null ||
+          campaign.visibility_mode ||
+          campaign.accepting_new_users != null ||
+          campaign.public_summary) && (
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 space-y-3 text-sm mb-6">
             <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {campaign.reward_date != null && (
@@ -302,7 +306,33 @@ export default async function CampaignDetailPage({
                   <dd className="text-[var(--crm-foreground)]">{campaign.campaign_objective}</dd>
                 </>
               )}
+              {campaign.marketplace_enabled != null && (
+                <>
+                  <dt className="text-[var(--crm-muted)]">Marketplace</dt>
+                  <dd className="text-[var(--crm-foreground)]">
+                    {campaign.marketplace_enabled ? "Enabled" : "Hidden"}
+                  </dd>
+                </>
+              )}
+              {campaign.visibility_mode && (
+                <>
+                  <dt className="text-[var(--crm-muted)]">Visibility mode</dt>
+                  <dd className="text-[var(--crm-foreground)]">{campaign.visibility_mode}</dd>
+                </>
+              )}
+              {campaign.accepting_new_users != null && (
+                <>
+                  <dt className="text-[var(--crm-muted)]">Accepting new users</dt>
+                  <dd className="text-[var(--crm-foreground)]">{campaign.accepting_new_users ? "Yes" : "No"}</dd>
+                </>
+              )}
             </dl>
+            {campaign.public_summary?.trim() ? (
+              <div className="mb-1">
+                <p className="text-[var(--crm-muted)] mb-1">Public summary</p>
+                <p className="text-[var(--crm-foreground)] text-sm">{campaign.public_summary.trim()}</p>
+              </div>
+            ) : null}
             {(campaign.guidance_links?.length ?? 0) > 0 && (
               <div className="mb-3">
                 <p className="text-[var(--crm-muted)] mb-1">Guidance links for creators</p>

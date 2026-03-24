@@ -2365,12 +2365,12 @@ function MarketplacePage({ setRoute, route }) {
     Array<{
       id: string;
       title: string;
-      description?: string | null;
+      summary?: string | null;
       campaign_type: string;
       starts_at?: string | null;
       ends_at?: string | null;
       days_left?: number | null;
-      visibility?: string;
+      visibility_mode?: "public" | "invite_only" | "private_hidden";
       accepts_new_users?: boolean;
       value_usd?: number | null;
       participant_count?: number;
@@ -2567,15 +2567,15 @@ function MarketplacePage({ setRoute, route }) {
                       <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">Starts: {formatDate(c.starts_at)}</span>
                       <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">Ends: {formatDate(c.ends_at)}</span>
                       <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">{c.days_left == null ? "Days left: —" : `${Math.max(0, c.days_left)} days left`}</span>
-                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">{c.visibility === "public" ? "Open to all" : "Invite only"}</span>
+                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">{c.visibility_mode === "public" ? "Open to all" : c.visibility_mode === "invite_only" ? "Invite only" : "Hidden"}</span>
                       <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">{c.accepts_new_users ? "Accepting new users" : "Closed to new users"}</span>
                       <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">Value: {formatMoney(c.value_usd)}</span>
                       <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">
                         {c.status === "upcoming" ? "Upcoming" : c.status === "ending_soon" ? "Ending soon" : c.status === "closed" ? "Closed" : "Active"}
                       </span>
                     </div>
-                    {c.description?.trim() ? (
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 line-clamp-2">{c.description.trim()}</p>
+                    {c.summary?.trim() ? (
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 line-clamp-2">{c.summary.trim()}</p>
                     ) : (
                       <p className="text-xs text-zinc-500 mt-2 italic">No public description yet.</p>
                     )}
@@ -2584,7 +2584,7 @@ function MarketplacePage({ setRoute, route }) {
                     <Button size="sm" variant="outline" onClick={() => setBrowseCampaign(c)}>
                       View details
                     </Button>
-                    {c.accepts_new_users ? (
+                    {c.accepts_new_users && c.visibility_mode === "public" ? (
                       <Button size="sm" onClick={() => setBrowseCampaign(c)}>
                         Join
                       </Button>
@@ -2846,11 +2846,11 @@ function MarketplacePage({ setRoute, route }) {
               <div className="rounded-lg border border-zinc-200 px-3 py-2">Ends: <strong>{formatDate(browseCampaign.ends_at)}</strong></div>
               <div className="rounded-lg border border-zinc-200 px-3 py-2">Days left: <strong>{browseCampaign.days_left == null ? "—" : Math.max(0, browseCampaign.days_left)}</strong></div>
               <div className="rounded-lg border border-zinc-200 px-3 py-2">Value: <strong>{formatMoney(browseCampaign.value_usd)}</strong></div>
-              <div className="rounded-lg border border-zinc-200 px-3 py-2">Visibility: <strong>{browseCampaign.visibility === "public" ? "Open to all" : "Invite only"}</strong></div>
+              <div className="rounded-lg border border-zinc-200 px-3 py-2">Visibility: <strong>{browseCampaign.visibility_mode === "public" ? "Open to all" : browseCampaign.visibility_mode === "invite_only" ? "Invite only" : "Hidden"}</strong></div>
               <div className="rounded-lg border border-zinc-200 px-3 py-2">Status: <strong>{browseCampaign.status.replace("_", " ")}</strong></div>
             </div>
             <div className="mt-4 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
-              {browseCampaign.description?.trim() || "No public description provided."}
+              {browseCampaign.summary?.trim() || "No public description provided."}
             </div>
             {browseCampaign.trend?.series?.length ? (
               <div className="mt-4 rounded-lg border border-zinc-200 p-3">

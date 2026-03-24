@@ -2346,6 +2346,11 @@ function MarketplacePage({ setRoute, route }) {
       : new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(n));
   const formatDate = (iso?: string | null) =>
     iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—";
+  const formatDaysLeft = (n?: number | null) => {
+    if (n == null || !Number.isFinite(Number(n))) return "Set in CRM";
+    const d = Math.max(0, Number(n));
+    return d === 0 ? "Ends today" : `${d} days left`;
+  };
   const initialView = route?.data?.view === "creator_programs" ? "creator_programs" : "all";
   const [q, setQ] = useState("");
   const [view, setView] = useState(initialView);
@@ -2563,21 +2568,42 @@ function MarketplacePage({ setRoute, route }) {
                     <p className="text-xs text-zinc-500 mt-0.5">
                       {c.org?.name ?? "—"} · CRM Campaign · {c.participant_count ?? 0} participants
                     </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">Starts: {formatDate(c.starts_at)}</span>
-                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">Ends: {formatDate(c.ends_at)}</span>
-                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">{c.days_left == null ? "Days left: —" : `${Math.max(0, c.days_left)} days left`}</span>
-                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">{c.visibility_mode === "public" ? "Open to all" : c.visibility_mode === "invite_only" ? "Invite only" : "Hidden"}</span>
-                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">{c.accepts_new_users ? "Accepting new users" : "Closed to new users"}</span>
-                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">Value: {formatMoney(c.value_usd)}</span>
-                      <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-700">
-                        {c.status === "upcoming" ? "Upcoming" : c.status === "ending_soon" ? "Ending soon" : c.status === "closed" ? "Closed" : "Active"}
-                      </span>
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-wide text-indigo-600">Starts</p>
+                        <p className="text-sm font-semibold text-zinc-900">{c.starts_at ? formatDate(c.starts_at) : "Set in CRM"}</p>
+                      </div>
+                      <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-wide text-violet-600">Ends</p>
+                        <p className="text-sm font-semibold text-zinc-900">{c.ends_at ? formatDate(c.ends_at) : "Set in CRM"}</p>
+                      </div>
+                      <div className="rounded-xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-white px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-wide text-cyan-700">Window</p>
+                        <p className="text-sm font-semibold text-zinc-900">{formatDaysLeft(c.days_left)}</p>
+                      </div>
+                      <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-wide text-emerald-700">Visibility</p>
+                        <p className="text-sm font-semibold text-zinc-900">{c.visibility_mode === "public" ? "Open to all" : c.visibility_mode === "invite_only" ? "Invite only" : "Hidden"}</p>
+                      </div>
+                      <div className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-wide text-amber-700">Joinability</p>
+                        <p className="text-sm font-semibold text-zinc-900">{c.accepts_new_users ? "Accepting new users" : "Closed to new users"}</p>
+                      </div>
+                      <div className="rounded-xl border border-rose-200 bg-gradient-to-br from-rose-50 to-white px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-wide text-rose-700">Value</p>
+                        <p className="text-sm font-semibold text-zinc-900">{formatMoney(c.value_usd)}</p>
+                      </div>
+                      <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white px-3 py-2 sm:col-span-2">
+                        <p className="text-[11px] uppercase tracking-wide text-zinc-600">Status</p>
+                        <p className="text-sm font-semibold text-zinc-900">
+                          {c.status === "upcoming" ? "Upcoming" : c.status === "ending_soon" ? "Ending soon" : c.status === "closed" ? "Closed" : "Active"}
+                        </p>
+                      </div>
                     </div>
                     {c.summary?.trim() ? (
                       <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 line-clamp-2">{c.summary.trim()}</p>
                     ) : (
-                      <p className="text-xs text-zinc-500 mt-2 italic">No public description yet.</p>
+                      <p className="text-xs text-zinc-500 mt-2 italic">No public summary yet. Add one in CRM campaign definition.</p>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">

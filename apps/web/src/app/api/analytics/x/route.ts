@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
         .order("tweeted_at", { ascending: true }),
       supabase
         .from("profiles")
-        .select("twitter_username, x_last_profile_sync_at")
+        .select("twitter_username, x_last_profile_sync_at, followers_total")
         .eq("id", userId)
         .maybeSingle(),
     ]);
@@ -209,6 +209,12 @@ export async function GET(request: NextRequest) {
       baselineRow?.followers != null && Number.isFinite(Number(baselineRow.followers))
         ? Number(baselineRow.followers)
         : null;
+    const profileFollowers =
+      profileRes.data &&
+      typeof (profileRes.data as { followers_total?: unknown }).followers_total === "number" &&
+      Number.isFinite((profileRes.data as { followers_total?: number }).followers_total)
+        ? Number((profileRes.data as { followers_total?: number }).followers_total)
+        : null;
 
     const followersByDay = new Map<string, number>();
     for (const s of followerSnapshots) {
@@ -219,7 +225,7 @@ export async function GET(request: NextRequest) {
     const follower_growth: Array<{ date: string; follower_delta: number | null }> = [];
     const firstWindowFollowers = followerSnapshots.length > 0 ? followerSnapshots[0].followers : null;
     // If we have at least one in-window snapshot but no pre-window baseline, backfill prior days as flat.
-    let prevLevel: number | null = baselineFollowers ?? firstWindowFollowers;
+    let prevLevel: number | null = baselineFollowers ?? firstWindowFollowers ?? profileFollowers;
     for (const date of fullWindowDates) {
       const snap = followersByDay.get(date);
       const level =

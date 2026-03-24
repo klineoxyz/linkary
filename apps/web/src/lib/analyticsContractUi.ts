@@ -8,6 +8,7 @@ export type AnalyticsXContractData = {
   window_days: number;
   window_start: string;
   window_end: string;
+  /** Count of window days where follower_growth has a finite delta (matches chart; includes forward-fill from profile/baseline). */
   follower_data_coverage_days: number;
   chart_points: {
     engagement_rate: Array<{

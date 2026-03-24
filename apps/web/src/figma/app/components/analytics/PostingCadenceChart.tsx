@@ -107,17 +107,23 @@ export function PostingCadenceChart({
       <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 w-full" style={{ height: CHART_H }}>
         <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{maxPosts}</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>
-        <div className="flex items-end gap-px pl-0 w-full" style={{ height: barAreaHeight }}>
+        <div className="flex items-stretch gap-px pl-0 w-full" style={{ height: barAreaHeight }}>
           {points.map((p, i) => {
             const posts = p.posts ?? 0;
             const heightPct = maxPosts > 0 && posts > 0 ? Math.max(minBarHeightPct, (posts / maxPosts) * 100) : 0;
             return (
               <div
                 key={`${p.date}-${i}`}
-                className="flex-1 min-w-0 rounded-t border-t bg-primary/80 border-primary/50 transition-all"
-                style={{ height: `${heightPct}%` }}
+                className="flex min-h-0 min-w-0 flex-1 flex-col justify-end"
                 title={`${p.date}: ${posts} posts`}
-              />
+              >
+                {heightPct > 0 ? (
+                  <div
+                    className="w-full rounded-t border-t bg-primary/80 border-primary/50 transition-all"
+                    style={{ height: `${heightPct}%`, minHeight: 4 }}
+                  />
+                ) : null}
+              </div>
             );
           })}
         </div>

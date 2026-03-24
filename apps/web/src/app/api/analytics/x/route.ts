@@ -202,8 +202,6 @@ export async function GET(request: NextRequest) {
       .map((r) => ({ day: r.day, followers: Number(r.followers) as number }))
       .sort((a, b) => a.day.localeCompare(b.day));
 
-    const follower_data_coverage_days = followerSnapshots.length;
-
     const baselineRow = baselineSnapshotRes.data as { day?: string; followers?: number | null } | null;
     const baselineFollowers =
       baselineRow?.followers != null && Number.isFinite(Number(baselineRow.followers))
@@ -245,6 +243,11 @@ export async function GET(request: NextRequest) {
       follower_growth.push({ date, follower_delta: level - prevLevel });
       prevLevel = level;
     }
+
+    /** Days in the window where the chart has a numeric delta (includes forward-filled series from profile/baseline). */
+    const follower_data_coverage_days = follower_growth.filter(
+      (p) => p.follower_delta != null && Number.isFinite(p.follower_delta)
+    ).length;
 
     const tweetsInWindow = tweets.filter((t) => {
       const d = (t.tweeted_at ?? "").slice(0, 10);

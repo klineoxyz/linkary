@@ -114,7 +114,7 @@ export function EngagementChart({
       <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 w-full" style={{ height: CHART_H }}>
         <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{scaleMax.toFixed(1)}%</div>
         <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>
-        <div className="flex items-end gap-px pl-0 w-full" style={{ height: barAreaHeight }}>
+        <div className="flex items-stretch gap-px pl-0 w-full" style={{ height: barAreaHeight }}>
           {points.map((p, i) => {
             const val = p.engagement_pct;
             const heightPct = Number.isFinite(val) && val > 0 ? Math.max(minBarHeightPct, (val / scaleMax) * 100) : 0;
@@ -123,10 +123,16 @@ export function EngagementChart({
             return (
               <div
                 key={`${p.date}-${i}`}
-                className="flex-1 min-w-0 rounded-t border-t bg-primary/80 border-primary/50 transition-all"
-                style={{ height: `${heightPct}%` }}
+                className="flex min-h-0 min-w-0 flex-1 flex-col justify-end"
                 title={`${p.date}: ${Number.isFinite(val) ? `${val.toFixed(1)}%` : "—"}${estSuffix}${cappedSuffix}`}
-              />
+              >
+                {heightPct > 0 ? (
+                  <div
+                    className="w-full rounded-t border-t bg-primary/80 border-primary/50 transition-all"
+                    style={{ height: `${heightPct}%`, minHeight: 4 }}
+                  />
+                ) : null}
+              </div>
             );
           })}
         </div>

@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     ? priorityHeader.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
 
-  let list: Array<{ id: string; twitter_username: string | null; followers_total?: number }> = [];
+  let list: Array<{ id: string; twitter_username: string | null; followers_total?: number; x_last_profile_sync_at?: string | null }> = [];
 
   if (priorityIds.length > 0) {
     const { data: priorityProfiles } = await supabase
@@ -50,9 +50,11 @@ export async function POST(request: NextRequest) {
 
   const { data: profiles, error: listError } = await supabase
     .from("profiles")
-    .select("id, twitter_username, followers_total")
+    .select("id, twitter_username, followers_total, x_last_profile_sync_at")
     .eq("is_indexed", true)
     .not("twitter_username", "is", null)
+    // Stale/never-synced first so follower daily history is captured consistently.
+    .order("x_last_profile_sync_at", { ascending: true, nullsFirst: true })
     .limit(BATCH_SIZE);
 
   if (listError) {

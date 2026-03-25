@@ -324,17 +324,19 @@ export default async function CampaignReportPage({
               Target account — daily ingest timeline (<code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code>)
             </p>
             <p className="text-xs text-[var(--crm-muted)] px-4 py-2">
-              Per-day values are activity on that calendar day (not cumulative). <strong className="text-[var(--crm-foreground)]">Window totals</strong> sum all days and match the headline cards above.
+              Per-day values are activity on that calendar day (not cumulative). <strong className="text-[var(--crm-foreground)]">Window totals</strong> sum all ingested days and match the headline cards above.{" "}
+              <strong className="text-[var(--crm-foreground)]">Important:</strong> the earliest and latest columns are the first and last <em>rows in this ingest series</em> — if sync started after the campaign start date in overview, that is{" "}
+              <em>not</em> “growth from campaign start,” only from when daily rows began.
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
                     <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Metric</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">First day ({target_daily_summary.first_day})</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Latest day ({target_daily_summary.last_day})</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Δ latest − first</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Window sum</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Earliest ingested day ({target_daily_summary.first_day})</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Most recent day ({target_daily_summary.last_day})</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Δ (recent − earliest row)</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Sum of ingested days</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -370,7 +372,7 @@ export default async function CampaignReportPage({
           </div>
         ) : (
           <div className="mt-6 rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 overflow-x-auto">
-            <p className="text-xs font-medium text-[var(--crm-foreground)] mb-2">Daily timeline (same window as table above)</p>
+            <p className="text-xs font-medium text-[var(--crm-foreground)] mb-2">Daily timeline (same ingested series as table above)</p>
             <div className="flex gap-3 items-center text-[10px] text-[var(--crm-muted)] mb-2">
               <span className="inline-flex items-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-sm bg-sky-500" /> Views

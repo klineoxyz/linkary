@@ -19,7 +19,7 @@ export function CampaignAttributionNote({ className = "" }: { className?: string
           private actions (e.g. bookmarks).
         </li>
         <li>
-          <strong className="text-[var(--crm-foreground)]">CPM / CPV / CPE</strong> use recorded spend from <code className="text-[10px] bg-[var(--crm-card)] px-1 rounded">crm_campaign_metrics_daily.spend_used</code> and target-account impressions/views/engagements only. They stay hidden until spend is recorded.{" "}
+          <strong className="text-[var(--crm-foreground)]">CPM / CPV / CPE</strong> use recorded spend from <code className="text-[10px] bg-[var(--crm-card)] px-1 rounded">crm_campaign_metrics_daily.spend_used</code> and target-account impressions/views/engagements for the same window. The block stays hidden until spend is recorded <em>and</em> at least one denominator (views or engagements) is non-zero; individual metrics show — if their denominator is zero.{" "}
           <strong className="text-[var(--crm-foreground)]">CPC is never shown</strong> — clicks are not ingested.
         </li>
       </ul>

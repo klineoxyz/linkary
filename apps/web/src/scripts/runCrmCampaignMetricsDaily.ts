@@ -13,10 +13,17 @@ const projectDir = resolve(__dirname, "../..");
 loadEnvConfig(projectDir);
 
 const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
-const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+const key = (
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_SERVICE_KEY ||
+  process.env.SERVICE_ROLE_KEY ||
+  ""
+).trim();
 
 if (!url || !key) {
-  console.error("[crm_campaign_metrics_daily] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  console.error(
+    "[crm_campaign_metrics_daily] Missing URL (SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL) or service role key (SUPABASE_SERVICE_ROLE_KEY or SERVICE_ROLE_KEY)"
+  );
   process.exit(1);
 }
 

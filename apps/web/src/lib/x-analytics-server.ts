@@ -16,9 +16,17 @@ export type ProfileRow = {
 
 /** Create Supabase client with service role (bypasses RLS). Use only in cron/backend. */
 export function createServiceSupabase(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL required");
+  const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
+  const key = (
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SERVICE_KEY ||
+    process.env.SERVICE_ROLE_KEY ||
+    ""
+  ).trim();
+  if (!url || !key)
+    throw new Error(
+      "Service Supabase client needs NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY or SERVICE_ROLE_KEY"
+    );
   return createClient(url, key);
 }
 

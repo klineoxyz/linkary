@@ -347,6 +347,7 @@ export async function runCrmCampaignMetricsDailyIngest(
         total_views: bkt.views,
         total_engagements: bkt.engagements,
         total_posts: bkt.posts,
+        // Not used for participant counts (always 0). Enrolled creators live in crm_campaign_participants — do not surface this as "contributors" in UI.
         total_contributors: 0,
         spend_used: null,
         metadata: {

@@ -8,6 +8,7 @@ import {
   getCampaignKpis,
   getCampaignSubmissions,
   getCampaignTopContributors,
+  getCampaignTopContributorsByApprovedSubmissions,
   type CampaignRow,
   type CampaignSubmissionRow,
   type TopContributor,
@@ -27,6 +28,12 @@ export type TopContributorWithContribution = TopContributor & {
   contribution_percent: number | null;
 };
 
+/** Leaderboard by weighted task completion (approved + done); not X engagement. */
+export type ContributionRankRow = {
+  participant_profile_id: string;
+  contribution_percent: number;
+};
+
 export type CampaignReportData = {
   campaign: CampaignRow;
   promoted_org_id: string | null;
@@ -42,8 +49,11 @@ export type CampaignReportData = {
   replies: number | null;
   quotes: number | null;
   reposts: number | null;
-  contributor_count: number;
-  top_contributors: TopContributorWithContribution[];
+  /** Enrolled participants (all statuses) from crm_campaign_participants — not promoted-account metrics. */
+  participant_enrolled_count: number;
+  top_contributors_all_submissions: TopContributorWithContribution[];
+  top_contributors_approved_submissions: TopContributorWithContribution[];
+  top_by_contribution_percent: ContributionRankRow[];
   contribution_rows: ContributionRow[];
   submissions: CampaignSubmissionRow[];
   chart_series: ReportChartPoint[];
@@ -67,7 +77,7 @@ export async function getCampaignReportData(
 
   const useFinalShare = !!campaign.finalized_at;
   const promotedHandles = campaign.promoted_social_handles ?? [];
-  const [kpis, submissions, topContributors, dailyRows, contributionRows, accountGrowth, endSnapshotStatus] =
+  const [kpis, submissions, topAllSubs, topApprovedSubs, dailyRows, contributionRows, accountGrowth, endSnapshotStatus] =
     await Promise.all([
       getCampaignKpis(supabase, campaignId, {
         budget: campaign.budget,
@@ -75,6 +85,7 @@ export async function getCampaignReportData(
       }),
       getCampaignSubmissions(supabase, campaignId),
       getCampaignTopContributors(supabase, campaignId),
+      getCampaignTopContributorsByApprovedSubmissions(supabase, campaignId),
       supabase
         .from("crm_campaign_metrics_daily")
         .select("day, total_views, total_engagements, total_posts")
@@ -91,10 +102,22 @@ export async function getCampaignReportData(
   const contributionByProfile = new Map(
     contributionRows.map((r) => [r.participant_profile_id, r.contributionPercent])
   );
-  const topWithContribution: TopContributorWithContribution[] = topContributors.map((t) => ({
-    ...t,
-    contribution_percent: contributionByProfile.get(t.participant_profile_id) ?? null,
-  }));
+  const mergeContribution = (list: TopContributor[]): TopContributorWithContribution[] =>
+    list.map((t) => ({
+      ...t,
+      contribution_percent: contributionByProfile.get(t.participant_profile_id) ?? null,
+    }));
+
+  const top_contributors_all_submissions = mergeContribution(topAllSubs);
+  const top_contributors_approved_submissions = mergeContribution(topApprovedSubs);
+
+  const top_by_contribution_percent: ContributionRankRow[] = [...contributionRows]
+    .sort((a, b) => b.contributionPercent - a.contributionPercent)
+    .slice(0, 10)
+    .map((r) => ({
+      participant_profile_id: r.participant_profile_id,
+      contribution_percent: r.contributionPercent,
+    }));
 
   const daily = (dailyRows?.data ?? []) as {
     day: string;
@@ -143,8 +166,10 @@ export async function getCampaignReportData(
     replies,
     quotes,
     reposts,
-    contributor_count: kpis.total_contributors,
-    top_contributors: topWithContribution,
+    participant_enrolled_count: kpis.total_contributors,
+    top_contributors_all_submissions,
+    top_contributors_approved_submissions,
+    top_by_contribution_percent,
     contribution_rows: contributionRows,
     submissions,
     chart_series,
@@ -173,10 +198,26 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
     value: `${data.end_snapshot_status.endSnapshotCount}/${data.end_snapshot_status.promotedCount}`,
   });
 
-  rows.push({ section: "campaign_period", label: "Total posts (campaign-period)", value: data.total_posts });
-  rows.push({ section: "campaign_period", label: "Total views (campaign-period)", value: data.total_views });
-  rows.push({ section: "campaign_period", label: "Total engagements (campaign-period)", value: data.total_engagements });
-  rows.push({ section: "campaign_period", label: "Contributors", value: data.contributor_count });
+  rows.push({
+    section: "promoted_account_daily",
+    label: "Total posts (promoted account tweets, campaign window)",
+    value: data.total_posts,
+  });
+  rows.push({
+    section: "promoted_account_daily",
+    label: "Total views/impressions (promoted account tweets)",
+    value: data.total_views,
+  });
+  rows.push({
+    section: "promoted_account_daily",
+    label: "Total engagements on promoted account tweets",
+    value: data.total_engagements,
+  });
+  rows.push({
+    section: "participant_execution",
+    label: "Participants enrolled (CRM)",
+    value: data.participant_enrolled_count,
+  });
 
   rows.push({
     section: "snapshot_totals",
@@ -217,16 +258,25 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
     });
   }
 
-  for (const t of data.top_contributors) {
+  for (const t of data.top_contributors_all_submissions) {
     rows.push({
-      section: "top_contributors",
-      label: `${t.participant_profile_id} submissions`,
+      section: "leaderboard_all_submissions",
+      label: `${t.participant_profile_id} proof submissions (all statuses)`,
       value: t.submission_count,
     });
+  }
+  for (const t of data.top_contributors_approved_submissions) {
     rows.push({
-      section: "top_contributors",
-      label: `${t.participant_profile_id} contribution % (final share when campaign finalized)`,
-      value: t.contribution_percent ?? "",
+      section: "leaderboard_approved_submissions",
+      label: `${t.participant_profile_id} approved proof submissions`,
+      value: t.submission_count,
+    });
+  }
+  for (const t of data.top_by_contribution_percent) {
+    rows.push({
+      section: "leaderboard_task_contribution_pct",
+      label: `${t.participant_profile_id} task contribution %`,
+      value: t.contribution_percent,
     });
   }
 

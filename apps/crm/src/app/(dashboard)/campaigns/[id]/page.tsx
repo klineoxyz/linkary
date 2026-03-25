@@ -8,6 +8,7 @@ import {
   getCampaignContributors,
   getCampaignSubmissions,
   getCampaignTopContributors,
+  getCampaignTopContributorsByApprovedSubmissions,
 } from "@/lib/campaigns";
 import { getCampaignCompliance } from "@/lib/compliance";
 import { writeContribution } from "@/lib/contribution";
@@ -22,6 +23,7 @@ import { updateCampaignStatusAction, deleteDraftCampaignAction } from "./statusA
 import { ParticipantFollowReviewCell } from "./ParticipantFollowReviewCell";
 import { parseFollowRules } from "@/lib/followRules";
 import { ArrowLeft } from "lucide-react";
+import { CampaignAttributionNote } from "@/components/CampaignAttributionNote";
 
 function KpiCard({
   label,
@@ -73,7 +75,7 @@ export default async function CampaignDetailPage({
   const campaignRequiresFollow = campaignFollowRules.requiresFollow;
 
   const promotedHandles = campaign.promoted_social_handles ?? [];
-  const [kpis, contributors, submissions, topContributors, workspaceRow, complianceResult, contributionRows, endSnapshotStatus] =
+  const [kpis, contributors, submissions, topContributors, topApprovedContributors, workspaceRow, complianceResult, contributionRows, endSnapshotStatus] =
     await Promise.all([
       getCampaignKpis(supabase, id, {
         budget: campaign.budget,
@@ -82,6 +84,7 @@ export default async function CampaignDetailPage({
       getCampaignContributors(supabase, id),
       getCampaignSubmissions(supabase, id),
       getCampaignTopContributors(supabase, id),
+      getCampaignTopContributorsByApprovedSubmissions(supabase, id),
       supabase.from("crm_workspaces").select("slug, name").eq("id", campaign.workspace_id).maybeSingle(),
       getCampaignCompliance(supabase, id),
       writeContribution(supabase, id, { weighted: true }),
@@ -92,6 +95,7 @@ export default async function CampaignDetailPage({
     new Set([
       ...contributors.map((p) => p.participant_profile_id),
       ...topContributors.map((p) => p.participant_profile_id),
+      ...topApprovedContributors.map((p) => p.participant_profile_id),
       ...(contributionRows ?? []).map((r) => r.participant_profile_id),
       ...(complianceResult?.compliance ?? []).map((r) => r.participant_profile_id),
       ...submissions.map((s) => s.participant_profile_id),
@@ -137,10 +141,13 @@ export default async function CampaignDetailPage({
       </Link>
 
       <div className="crm-surface-muted px-4 py-3.5 text-sm text-[var(--crm-muted)] leading-relaxed">
-        <strong className="text-[var(--crm-foreground)]">For your team:</strong> This page is where you{" "}
-        <strong className="text-[var(--crm-foreground)]">approve or reject</strong> creator post links, see campaign KPIs (views, CPV/CPM-style metrics when data exists), and open the report.{" "}
-        Discovery and hiring stay on <strong className="text-[var(--crm-foreground)]">linkary.xyz</strong>; delivery is tracked here.
+        <strong className="text-[var(--crm-foreground)]">For your team:</strong> Approve proof links, review{" "}
+        <strong className="text-[var(--crm-foreground)]">promoted-account</strong> tweet metrics separately from{" "}
+        <strong className="text-[var(--crm-foreground)]">participant</strong> execution, and open the full report (including baseline/end snapshots).{" "}
+        Discovery stays on <strong className="text-[var(--crm-foreground)]">linkary.xyz</strong>.
       </div>
+
+      <CampaignAttributionNote />
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="min-w-0">
@@ -499,10 +506,10 @@ export default async function CampaignDetailPage({
         contributionRows.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
-            Contribution
+            Task contribution % (participant execution)
           </h2>
           <p className="text-sm text-[var(--crm-muted)] mb-4">
-            Share of approved/done tasks per participant (weighted by deliverable type).
+            Share of approved/done tasks per enrolled participant (weighted by deliverable type). This is not X engagement on the target account.
           </p>
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
             <div className="overflow-x-auto">
@@ -539,20 +546,21 @@ export default async function CampaignDetailPage({
       )}
 
       <section>
-        <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
-          KPIs
+        <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-1">
+          Promoted account performance (Layer 1)
         </h2>
+        <p className="text-sm text-[var(--crm-muted)] mb-4 max-w-3xl">
+          From <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code>: the{" "}
+          <strong className="text-[var(--crm-foreground)]">target account&apos;s own tweets</strong> in the campaign window. Includes all public engagement on those tweets — not participant-specific.
+        </p>
         {noMetrics && (promotedHandles.length > 0 ? (
           <p className="text-sm text-[var(--crm-muted)] mb-4">
-            No <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code> rows yet for this campaign.
-            Run <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">pnpm sync:crm:campaign-metrics</code> (or the CRM metrics cron) with{" "}
-            <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">TWITTERAPI_API_KEY</code> set: external promoted accounts are fetched via twitterapi.io even when they are not Linkary profiles.
-            If a handle matches a Linkary profile, metrics can also use stored <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">x_tweets</code>.
-            Submission KPIs below stay live regardless.
+            No daily rows yet. Run <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">pnpm sync:crm:campaign-metrics</code> (or CRM metrics cron) with{" "}
+            <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">TWITTERAPI_API_KEY</code> for external handles (no Linkary profile required). Linked profiles can also use <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">x_tweets</code>.
           </p>
         ) : (
           <p className="text-sm text-[var(--crm-muted)] mb-4">
-            Add promoted X accounts under campaign definition, then run metrics sync (with twitterapi key for external handles). Contributor and submission KPIs below are already live.
+            Add promoted X handles under campaign definition to populate target-account tweet metrics.
           </p>
         ))}
         {kpis.has_metrics && perf?.handles_unresolved?.length ? (
@@ -563,30 +571,68 @@ export default async function CampaignDetailPage({
         ) : null}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           <KpiCard
-            label="Tweet impressions (tracked)"
+            label="Target tweet impressions / views"
             value={kpis.total_views.toLocaleString()}
             insufficient={noMetrics}
             sub={
               kpis.has_metrics
                 ? kpis.performance_meta?.partial_impressions_hint
                   ? "Sum of impression_count / API viewCount when present; some tweets had no impression field."
-                  : `${perf?.source?.includes("twitterapi") ? "Includes twitterapi.io data for external handles. " : ""}From ${kpis.metrics_posts_total.toLocaleString()} tweet(s) in window (see daily metadata for MODE A vs B).`
+                  : `${perf?.source?.includes("twitterapi") ? "Includes twitterapi.io for external handles. " : ""}${kpis.metrics_posts_total.toLocaleString()} target tweet(s) in window.`
                 : undefined
             }
           />
           <KpiCard
-            label="Tweet engagements (tracked)"
+            label="Target tweet engagements"
             value={kpis.total_engagements.toLocaleString()}
             insufficient={noMetrics}
             sub={
               kpis.has_metrics
-                ? "Likes + replies + reposts + quotes on tracked-account tweets"
+                ? "Likes + replies + reposts + quotes on promoted account tweets only"
                 : undefined
             }
           />
-          <KpiCard label="Contributors" value={kpis.accepted_contributors} sub={`accepted · ${kpis.total_contributors} total`} />
           <KpiCard
-            label="Submissions"
+            label="CPV vs target views"
+            value={
+              kpis.cpv != null
+                ? `${kpis.currency} ${kpis.cpv.toFixed(4)}`
+                : "—"
+            }
+            insufficient={noMetrics || kpis.cpv == null}
+            sub="Budget ÷ target-account tweet views (not participant reach)"
+          />
+          <KpiCard
+            label="CPE vs target engagements"
+            value={
+              kpis.cpe != null
+                ? `${kpis.currency} ${kpis.cpe.toFixed(4)}`
+                : "—"
+            }
+            insufficient={noMetrics || kpis.cpe == null}
+            sub="Budget ÷ engagements on target tweets only"
+          />
+        </div>
+        <p className="text-xs text-[var(--crm-muted)] mt-3">
+          For follower/account-level deltas, use <Link href={`/campaigns/${id}/report`} className="text-[var(--crm-primary)] underline">Campaign report</Link> → baseline / end snapshots.
+        </p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-1">
+          Participant contribution & execution (Layer 2)
+        </h2>
+        <p className="text-sm text-[var(--crm-muted)] mb-4 max-w-3xl">
+          Enrolled CRM members only — tasks and proof submissions. Not organic X users.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <KpiCard
+            label="Participants (enrolled)"
+            value={kpis.accepted_contributors}
+            sub={`${kpis.total_contributors} total rows (invited + accepted + declined + removed)`}
+          />
+          <KpiCard
+            label="Proof submissions (all)"
             value={kpis.total_submissions}
           />
           <KpiCard label="Approved submissions" value={kpis.submissions_by_status.approved} />
@@ -596,79 +642,126 @@ export default async function CampaignDetailPage({
           <KpiCard label="Tasks approved" value={kpis.tasks_by_status.approved ?? 0} />
           <KpiCard label="Tasks done" value={kpis.tasks_by_status.done ?? 0} />
           <KpiCard
-            label="Budget used"
+            label="Budget used (planned)"
             value={`${kpis.currency} ${kpis.budget_used.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
             sub={
               kpis.budget_total != null
-                ? `of ${kpis.currency} ${kpis.budget_total.toLocaleString()} (planned; ingest does not set spend_used)`
-                : "Ingest does not populate spend_used; CPV/CPE need real spend in daily rows"
+                ? `of ${kpis.currency} ${kpis.budget_total.toLocaleString()} — daily ingest does not set spend_used`
+                : "Daily ingest does not populate spend_used"
             }
-          />
-          <KpiCard
-            label="CPV (cost per view)"
-            value={
-              kpis.cpv != null
-                ? `${kpis.currency} ${kpis.cpv.toFixed(4)}`
-                : "—"
-            }
-            insufficient={noMetrics || kpis.cpv == null}
-          />
-          <KpiCard
-            label="CPE (cost per engagement)"
-            value={
-              kpis.cpe != null
-                ? `${kpis.currency} ${kpis.cpe.toFixed(4)}`
-                : "—"
-            }
-            insufficient={noMetrics || kpis.cpe == null}
           />
         </div>
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
-          Top contributors
+        <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-1">
+          Participant leaderboards
         </h2>
-        {topContributors.length === 0 ? (
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
-            No submissions yet; top contributors will appear here.
+        <p className="text-xs text-[var(--crm-muted)] mb-4 max-w-3xl">
+          Rankings use CRM proof and task data only — not likes/reposts on the target account (Phase 2+).
+        </p>
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">Most proof submissions (all statuses)</h3>
+            {topContributors.length === 0 ? (
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
+                No submissions yet.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+                      <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
+                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Submissions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topContributors.map((t) => (
+                      <tr key={t.participant_profile_id} className="border-b border-[var(--crm-border)] last:border-0">
+                        <td className="p-3 text-sm text-[var(--crm-foreground)]">
+                          <ParticipantCell
+                            avatarUrl={participantById.get(t.participant_profile_id)?.avatar_url}
+                            label={toParticipantLabel(participantById.get(t.participant_profile_id), t.participant_profile_id)}
+                          />
+                        </td>
+                        <td className="p-3 text-right">{t.submission_count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
-            <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
-                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">
-                    Contributor
-                  </th>
-                  <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">
-                    Submissions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {topContributors.map((t) => (
-                  <tr
-                    key={t.participant_profile_id}
-                    className="border-b border-[var(--crm-border)] last:border-0"
-                  >
-                    <td className="p-3 text-sm text-[var(--crm-foreground)]">
-                      <ParticipantCell
-                        avatarUrl={participantById.get(t.participant_profile_id)?.avatar_url}
-                        label={toParticipantLabel(participantById.get(t.participant_profile_id), t.participant_profile_id)}
-                      />
-                    </td>
-                    <td className="p-3 text-right">
-                      {t.submission_count}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">Most approved proof submissions</h3>
+            {topApprovedContributors.length === 0 ? (
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
+                No approved submissions yet.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+                      <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
+                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Approved</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topApprovedContributors.map((t) => (
+                      <tr key={t.participant_profile_id} className="border-b border-[var(--crm-border)] last:border-0">
+                        <td className="p-3 text-sm text-[var(--crm-foreground)]">
+                          <ParticipantCell
+                            avatarUrl={participantById.get(t.participant_profile_id)?.avatar_url}
+                            label={toParticipantLabel(participantById.get(t.participant_profile_id), t.participant_profile_id)}
+                          />
+                        </td>
+                        <td className="p-3 text-right">{t.submission_count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">Top by task contribution %</h3>
+            <p className="text-xs text-[var(--crm-muted)] mb-2">Weighted approved/done tasks — same basis as compliance table when present.</p>
+            {contributionRows.length === 0 ? (
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
+                No task bundles yet.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+                      <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
+                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Contribution %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...contributionRows]
+                      .sort((a, b) => b.contributionPercent - a.contributionPercent)
+                      .slice(0, 10)
+                      .map((r) => (
+                        <tr key={r.bundleId} className="border-b border-[var(--crm-border)] last:border-0">
+                          <td className="p-3 text-sm text-[var(--crm-foreground)]">
+                            <ParticipantCell
+                              avatarUrl={participantById.get(r.participant_profile_id)?.avatar_url}
+                              label={toParticipantLabel(participantById.get(r.participant_profile_id), r.participant_profile_id)}
+                            />
+                          </td>
+                          <td className="p-3 text-right font-medium text-[var(--crm-primary)]">{r.contributionPercent}%</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </section>
 
       <section>

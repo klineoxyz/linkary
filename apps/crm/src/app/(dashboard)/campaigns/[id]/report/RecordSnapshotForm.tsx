@@ -35,10 +35,17 @@ export function RecordSnapshotForm({
   return (
     <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 mb-4">
       <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-3">
-        Record snapshot (all promoted accounts)
+        Record promoted-account snapshot (all handles)
       </h3>
-      <p className="text-xs text-[var(--crm-muted)] mb-3">
-        Same metrics and timestamp will be stored for each promoted_social_handles entry. Leave metrics blank if not available.
+      <p className="text-xs text-[var(--crm-muted)] mb-3 space-y-1">
+        <span className="block">
+          <strong className="text-[var(--crm-foreground)]">Baseline</strong> — once at (or before) campaign start, for growth math.{" "}
+          <strong className="text-[var(--crm-foreground)]">Daily</strong> — optional manual checkpoints.{" "}
+          <strong className="text-[var(--crm-foreground)]">End</strong> — at wrap-up; the growth table compares baseline → end.
+        </span>
+        <span className="block">
+          One submit stores the same numbers for every entry in <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">promoted_social_handles</code>. Leave fields blank if unknown.
+        </span>
       </p>
       <form action={submit} className="space-y-3">
         <div className="flex flex-wrap gap-4 items-end">

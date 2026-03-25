@@ -182,7 +182,7 @@ export async function getCampaignKpis(
 ): Promise<CampaignKpis> {
   const { data: dailyRows } = await supabase
     .from("crm_campaign_metrics_daily")
-    .select("day, total_views, total_engagements, total_posts, total_contributors, spend_used, metadata")
+    .select("day, total_views, total_engagements, total_posts, spend_used, metadata")
     .eq("campaign_id", campaignId)
     .order("day", { ascending: false });
 
@@ -410,6 +410,21 @@ export async function getCampaignSubmissions(
 /**
  * Top contributors by submission count (stored data only).
  */
+function submissionCountsByParticipant(
+  rows: { participant_profile_id: string }[] | null | undefined
+): TopContributor[] {
+  const byProfile = new Map<string, number>();
+  for (const row of rows ?? []) {
+    const pid = row.participant_profile_id;
+    byProfile.set(pid, (byProfile.get(pid) ?? 0) + 1);
+  }
+  return Array.from(byProfile.entries())
+    .map(([participant_profile_id, submission_count]) => ({ participant_profile_id, submission_count }))
+    .sort((a, b) => b.submission_count - a.submission_count)
+    .slice(0, 10);
+}
+
+/** All submissions (every status). Rank = raw proof rows submitted. */
 export async function getCampaignTopContributors(
   supabase: SupabaseClient,
   campaignId: string
@@ -419,15 +434,21 @@ export async function getCampaignTopContributors(
     .select("participant_profile_id")
     .eq("campaign_id", campaignId);
 
-  const byProfile = new Map<string, number>();
-  for (const row of data ?? []) {
-    const pid = (row as { participant_profile_id: string }).participant_profile_id;
-    byProfile.set(pid, (byProfile.get(pid) ?? 0) + 1);
-  }
-  return Array.from(byProfile.entries())
-    .map(([participant_profile_id, submission_count]) => ({ participant_profile_id, submission_count }))
-    .sort((a, b) => b.submission_count - a.submission_count)
-    .slice(0, 10);
+  return submissionCountsByParticipant(data as { participant_profile_id: string }[] | null);
+}
+
+/** Approved submissions only (proof-of-work accepted). */
+export async function getCampaignTopContributorsByApprovedSubmissions(
+  supabase: SupabaseClient,
+  campaignId: string
+): Promise<TopContributor[]> {
+  const { data } = await supabase
+    .from("crm_submissions")
+    .select("participant_profile_id")
+    .eq("campaign_id", campaignId)
+    .eq("status", "approved");
+
+  return submissionCountsByParticipant(data as { participant_profile_id: string }[] | null);
 }
 
 /** Payload for updating campaign definition (operator = workspace_id is unchanged). */

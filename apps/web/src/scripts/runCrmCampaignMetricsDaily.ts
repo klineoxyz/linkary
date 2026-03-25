@@ -3,14 +3,34 @@
  * pnpm sync:crm:campaign-metrics
  */
 import { loadEnvConfig } from "@next/env";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
+import { resolve } from "path";
+import { readFileSync, existsSync } from "fs";
 import { createClient } from "@supabase/supabase-js";
 import { runCrmCampaignMetricsDailyIngest } from "../lib/crmCampaignMetricsDailyIngest";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const projectDir = resolve(__dirname, "../..");
+// This script is invoked from repo root via pnpm.
+const projectDir = resolve(process.cwd(), "apps/web");
 loadEnvConfig(projectDir);
+
+function loadEnvLocalFallback() {
+  const envLocalPath = resolve(projectDir, ".env.local");
+  if (!existsSync(envLocalPath)) return;
+  const content = readFileSync(envLocalPath, "utf8");
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const idx = trimmed.indexOf("=");
+    if (idx <= 0) continue;
+    const k = trimmed.slice(0, idx).trim();
+    const v = trimmed.slice(idx + 1).trim();
+    if (!k) continue;
+    if (process.env[k] == null || process.env[k] === "") {
+      process.env[k] = v;
+    }
+  }
+}
+
+loadEnvLocalFallback();
 
 const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
 const key = (

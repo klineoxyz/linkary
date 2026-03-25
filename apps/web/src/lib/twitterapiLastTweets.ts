@@ -36,10 +36,12 @@ export async function fetchXUserTweets(
     if (!res.ok) break;
     const json = (await res.json()) as {
       tweets?: XTweetRaw[];
+      data?: { tweets?: XTweetRaw[] };
       has_next_page?: boolean;
       next_cursor?: string;
     };
-    const tweets: XTweetRaw[] = json?.tweets ?? [];
+    // twitterapi.io may return tweets either at root or nested under data.tweets (seen in prod).
+    const tweets: XTweetRaw[] = json?.tweets ?? json?.data?.tweets ?? [];
     if (tweets.length === 0) break;
     for (const t of tweets) {
       if (out.length >= maxTweets) break;

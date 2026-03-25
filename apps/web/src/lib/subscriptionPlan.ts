@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { profileRowIsPlatformSuperadmin } from "@linkary/plan-key";
 import { fetchActivePlanOverrideMapForProfiles, fetchActivePlanOverrideForOrg } from "@/lib/opsEntitlementsMerge";
-import { planKeyFromSubscriptionRow, type PlanKey } from "@/lib/planKey";
+import { maxPlanKey, planKeyFromSubscriptionRow, type PlanKey } from "@/lib/planKey";
 
 const CHUNK = 120;
 
@@ -35,6 +36,20 @@ export async function buildPersonalPlanKeyMapForProfileIds(
   for (const id of unique) {
     const o = overrides.get(id);
     if (o) out.set(id, o);
+  }
+
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
+    const { data: profRows } = await service
+      .from("profiles")
+      .select("id, username, twitter_username")
+      .in("id", chunk);
+    for (const row of profRows ?? []) {
+      const id = String((row as { id: string }).id);
+      if (profileRowIsPlatformSuperadmin(row as { username?: string | null; twitter_username?: string | null })) {
+        out.set(id, maxPlanKey(out.get(id) ?? "free", "custom"));
+      }
+    }
   }
 
   return out;

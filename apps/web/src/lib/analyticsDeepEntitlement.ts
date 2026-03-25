@@ -3,9 +3,9 @@
  * Trial clock is started server-side via touch_deep_analytics_trial (service role).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { normalizeUsername } from "@/lib/socialInsightsContracts";
+import { profileRowIsPlatformSuperadmin } from "@linkary/plan-key";
 
-/** Canonical Linkary founder / ops account (profiles.username); not the sole admin mechanism — superadmin_emails still applies. */
+/** @deprecated Use profileRowIsPlatformSuperadmin from @linkary/plan-key */
 export const DEEP_ANALYTICS_FOUNDER_USERNAME = "muazxinthi";
 
 function superadminEmailsFromEnv(): string[] {
@@ -51,11 +51,10 @@ export async function shouldGrantDeepAnalyticsBeyondPlan(params: {
 
   const { data: prof } = await params.userSupabase
     .from("profiles")
-    .select("username")
+    .select("username, twitter_username")
     .eq("id", params.userId)
     .maybeSingle();
-  const uname = normalizeUsername((prof as { username?: string | null } | null)?.username ?? null);
-  if (uname === DEEP_ANALYTICS_FOUNDER_USERNAME) {
+  if (profileRowIsPlatformSuperadmin(prof)) {
     return true;
   }
 

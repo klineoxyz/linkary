@@ -1,3 +1,9 @@
+export {
+  normalizeProfileHandle,
+  PLATFORM_SUPERADMIN_NORMALIZED_HANDLES,
+  profileRowIsPlatformSuperadmin,
+} from "./platformSuperadmin.js";
+
 /**
  * Canonical plan keys for Linkary monetization. Legacy DB column subscriptions.tier
  * remains during migration; use effectivePlanKey() for enforcement and UI prep.

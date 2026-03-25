@@ -8,12 +8,14 @@
  *
  * Layered check order (first match wins):
  * 1. Admin override (superadmin_emails or SUPERADMIN_EMAILS env)
+ * 1b. Platform superadmin profile handles (@linkary/plan-key PLATFORM_SUPERADMIN_NORMALIZED_HANDLES)
  * 2. Internal allowlist (LINKARY_DISCOVERY_ALLOWED_USER_IDS env, comma-separated)
  * 3. Feature flag (LINKARY_DISCOVERY_ELIGIBLE=true env)
  * 4. Billing: active profile plan_key only when LINKARY_PLAN_GATING is not false
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { profileRowIsPlatformSuperadmin } from "@linkary/plan-key";
 import { isPlanGatingEnabled } from "@/lib/planGating";
 import { buildProfileCompScopesMap } from "@/lib/opsEntitlementsMerge";
 import { effectivePaidDiscovery } from "@/lib/planCompGate";
@@ -75,6 +77,21 @@ export async function checkDiscoveryEligibility(
       }
     } catch {
       /* non-fatal; continue to next layer */
+    }
+  }
+
+  if (serviceSupabase) {
+    try {
+      const { data: prof } = await serviceSupabase
+        .from("profiles")
+        .select("username, twitter_username")
+        .eq("id", userId)
+        .maybeSingle();
+      if (profileRowIsPlatformSuperadmin(prof)) {
+        return { eligible: true, reason: "admin" };
+      }
+    } catch {
+      /* non-fatal */
     }
   }
 

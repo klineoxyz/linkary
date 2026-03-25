@@ -2,7 +2,6 @@
  * CLI / ops: populate crm_campaign_metrics_daily. Run from repo root:
  * pnpm sync:crm:campaign-metrics
  */
-import { loadEnvConfig } from "@next/env";
 import { resolve } from "path";
 import { readFileSync, existsSync } from "fs";
 import { createClient } from "@supabase/supabase-js";
@@ -10,7 +9,6 @@ import { runCrmCampaignMetricsDailyIngest } from "../lib/crmCampaignMetricsDaily
 
 // This script is invoked from repo root via pnpm.
 const projectDir = resolve(process.cwd(), "apps/web");
-loadEnvConfig(projectDir);
 
 function loadEnvLocalFallback() {
   const envLocalPath = resolve(projectDir, ".env.local");

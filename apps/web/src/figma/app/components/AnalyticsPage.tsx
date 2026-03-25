@@ -55,6 +55,7 @@ type ApiSuccess = {
     window_start: string;
     window_end: string;
     follower_data_coverage_days: number;
+    follower_earliest_snapshot_date?: string | null;
     chart_points: {
       engagement_rate: Array<{
         date: string;
@@ -318,6 +319,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const followerPoints = payload?.chart_points?.follower_growth ?? [];
   const windowDays = payload?.window_days ?? 30;
   const followerCoverageDays = payload?.follower_data_coverage_days ?? 0;
+  const followerEarliestDate = payload?.follower_earliest_snapshot_date ?? null;
   const activeDaysEngagement = engagementPoints.filter((p) => (p.posts ?? 0) > 0).length;
   const activeDaysCadence = cadencePoints.filter((p) => (p.posts ?? 0) > 0).length;
   const noPostsEngagement = activeDaysEngagement === 0;
@@ -828,6 +830,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                 points={followerPoints}
                 coverageDays={followerCoverageDays}
                 windowDays={windowDays}
+                earliestDate={followerEarliestDate}
                 insufficientData={followerInsufficient}
                 bucketLabel="Daily"
               />

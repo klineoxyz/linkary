@@ -235,47 +235,39 @@ export async function GET(request: NextRequest) {
       baselineRow?.followers != null && Number.isFinite(Number(baselineRow.followers))
         ? Number(baselineRow.followers)
         : null;
-    const profileFollowers =
-      profileRes.data &&
-      typeof (profileRes.data as { followers_total?: unknown }).followers_total === "number" &&
-      Number.isFinite((profileRes.data as { followers_total?: number }).followers_total)
-        ? Number((profileRes.data as { followers_total?: number }).followers_total)
-        : null;
 
     const followersByDay = new Map<string, number>();
     for (const s of followerSnapshots) {
       followersByDay.set(s.day, s.followers);
     }
 
-    /** One point per calendar day in the window; forward-fill counts; null delta only when we have no known follower level at all. */
+    /**
+     * One point per calendar day in the window.
+     * Truth source is x_daily_snapshots followers only:
+     * - no snapshot on a day => null delta (do not synthesize from profiles.followers_total)
+     * - first in-window snapshot uses pre-window baseline when available, otherwise null
+     */
     const follower_growth: Array<{ date: string; follower_delta: number | null }> = [];
-    const firstWindowFollowers = followerSnapshots.length > 0 ? followerSnapshots[0].followers : null;
-    // If we have at least one in-window snapshot but no pre-window baseline, backfill prior days as flat.
-    let prevLevel: number | null = baselineFollowers ?? firstWindowFollowers ?? profileFollowers;
+    let prevLevel: number | null = baselineFollowers;
     for (const date of fullWindowDates) {
       const snap = followersByDay.get(date);
-      const level =
-        snap != null && Number.isFinite(snap) ? snap : prevLevel != null && Number.isFinite(prevLevel) ? prevLevel : null;
-
-      if (level == null || !Number.isFinite(level)) {
+      if (snap == null || !Number.isFinite(snap)) {
         follower_growth.push({ date, follower_delta: null });
         continue;
       }
 
       if (prevLevel == null || !Number.isFinite(prevLevel)) {
-        follower_growth.push({ date, follower_delta: 0 });
-        prevLevel = level;
+        follower_growth.push({ date, follower_delta: null });
+        prevLevel = snap;
         continue;
       }
 
-      follower_growth.push({ date, follower_delta: level - prevLevel });
-      prevLevel = level;
+      follower_growth.push({ date, follower_delta: snap - prevLevel });
+      prevLevel = snap;
     }
 
-    /** Days in the window where the chart has a numeric delta (includes forward-filled series from profile/baseline). */
-    const follower_data_coverage_days = follower_growth.filter(
-      (p) => p.follower_delta != null && Number.isFinite(p.follower_delta)
-    ).length;
+    const follower_data_coverage_days = followerSnapshots.length;
+    const follower_earliest_snapshot_date = followerSnapshots.length > 0 ? followerSnapshots[0].day : null;
 
     const tweetsInWindow = tweets.filter((t) => {
       const d = (t.tweeted_at ?? "").slice(0, 10);
@@ -363,6 +355,7 @@ export async function GET(request: NextRequest) {
       window_start: windowStart,
       window_end: window_end,
       follower_data_coverage_days,
+      follower_earliest_snapshot_date,
       chart_points,
       kpis,
       freshness: {

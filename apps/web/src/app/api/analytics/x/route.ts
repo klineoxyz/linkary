@@ -7,6 +7,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { isPlanGatingEnabled } from "@/lib/planGating";
+import { profileHasCompScope } from "@/lib/opsEntitlementsMerge";
+import { effectiveDeepAnalytics } from "@/lib/planCompGate";
+import { planKeyFromSubscriptionRow, type PlanKey } from "@/lib/planKey";
+import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
+import { shouldGrantDeepAnalyticsBeyondPlan } from "@/lib/analyticsDeepEntitlement";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -104,6 +110,9 @@ export async function GET(request: NextRequest) {
     if (!userId) {
       return fail("UNAUTHORIZED", "Unauthorized", 401);
     }
+
+    const { data: authUserData } = await supabase.auth.getUser();
+    const userEmail = authUserData?.user?.email ?? null;
 
     const utcDayStr = (d: Date) => d.toISOString().slice(0, 10);
     const now = new Date();
@@ -362,9 +371,60 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Owner-only route: data above is always for auth.uid(). Every profile gets full charts + KPIs here;
-    // paid tiers / comp grants still apply elsewhere (e.g. cross-profile analytics, discovery, ingest caps).
-    payload.analytics_entitlement = "full";
+    // Owner analytics: depth follows effective plan + ops comp (analytics_full) + superadmin/trial overrides.
+    // Same rules for everyone at a given entitlement — free/unpaid stays basic when plan gating is on.
+    if (isPlanGatingEnabled()) {
+      const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
+      let planKey: PlanKey = "free";
+      let compDeep = false;
+      let serviceClient: ReturnType<typeof createClient> | null = null;
+      if (svcKey) {
+        serviceClient = createClient(supabaseUrl, svcKey);
+        planKey = await resolveEffectivePlanKeyForProfile(serviceClient, userId);
+        compDeep = await profileHasCompScope(serviceClient, userId, "analytics_full");
+      } else {
+        const { data: sub } = await supabase
+          .from("subscriptions")
+          .select("plan_key, tier, status, current_period_end")
+          .eq("owner_type", "profile")
+          .eq("owner_id", userId)
+          .maybeSingle();
+        planKey = planKeyFromSubscriptionRow(
+          sub as Parameters<typeof planKeyFromSubscriptionRow>[0]
+        );
+      }
+      let allowDeep = effectiveDeepAnalytics(planKey, compDeep ? new Set(["analytics_full"] as const) : undefined);
+      if (!allowDeep) {
+        const granted = await shouldGrantDeepAnalyticsBeyondPlan({
+          userId,
+          userEmail,
+          service: serviceClient,
+          userSupabase: supabase,
+        });
+        if (granted) {
+          allowDeep = true;
+        }
+      }
+      if (!allowDeep) {
+        const k = kpis as Record<string, unknown>;
+        payload.analytics_entitlement = "basic";
+        payload.chart_points = {
+          engagement_rate: [],
+          posting_cadence: [],
+          follower_growth: [],
+        };
+        payload.kpis = {
+          posts_total: k.posts_total,
+          impressions_total: k.impressions_total,
+          engagements_total: k.engagements_total,
+          followers_latest: k.followers_latest,
+          avg_likes_per_post: k.avg_likes_per_post,
+          potential_reach: k.potential_reach,
+        };
+      } else {
+        payload.analytics_entitlement = "full";
+      }
+    }
 
     return ok(payload);
   } catch (err) {

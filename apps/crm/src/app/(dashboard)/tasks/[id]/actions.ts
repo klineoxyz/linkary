@@ -165,8 +165,16 @@ export async function submitProofAction(
       return { error: result.error };
     }
   }
+  if (task.campaign_id) {
+    const st = await updateTask(supabase, taskId, { status: "submitted" });
+    if (st.error) return { error: st.error };
+  }
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
+  if (task.campaign_id) {
+    revalidatePath(`/campaigns/${task.campaign_id}`);
+    revalidatePath(`/campaigns/${task.campaign_id}/report`);
+  }
   return {};
 }
 

@@ -136,12 +136,18 @@ export function computeEfficiencyMetrics(args: {
   };
 }
 
-export type SubmissionRowWithSnapshot = {
+/** Fields needed for rollups + snapshot leaderboards. */
+export type SubmissionRowForRollup = {
   participant_profile_id: string;
   status: string;
   created_at: string;
+  reviewed_at?: string | null;
+  url: string;
   metrics_snapshot?: unknown;
 };
+
+/** @deprecated use SubmissionRowForRollup */
+export type SubmissionRowWithSnapshot = SubmissionRowForRollup;
 
 function numFromUnknown(v: unknown): number | null {
   if (v == null) return null;
@@ -183,51 +189,84 @@ export function parseMetricsSnapshot(snapshot: unknown): {
 
 export type ParticipantSubmissionRollupRow = {
   participant_profile_id: string;
+  /** From crm_campaign_participants.status when enrolled; null if only proof rows exist. */
+  participant_invitation_status: string | null;
   submissions_total: number;
   approved: number;
   pending: number;
   rejected: number;
   needs_revision: number;
   latest_submission_at: string | null;
-  contribution_percent: number | null;
+  latest_approved_at: string | null;
+  /** Summed weighted task completion (approved + done tasks across all bundles for this person). */
+  task_contribution_percent: number | null;
+  /** Share of approved proof rows: this participant’s approved count ÷ campaign approved proof count. */
+  proof_contribution_percent: number | null;
   /** Prefer impressions, else views, summed from snapshots when present. */
   snapshot_impressions_or_views_sum: number;
   snapshot_engagements_sum: number;
   has_snapshot_metrics: boolean;
+  /** URL of the most recently created submission (any status). */
+  latest_proof_url: string | null;
+  /** URL of the most recently approved proof (by reviewed_at, else created_at). */
+  latest_approved_proof_url: string | null;
 };
 
-export function buildParticipantSubmissionRollups(
-  submissions: SubmissionRowWithSnapshot[],
-  contributionPercentByProfile: Map<string, number>
-): ParticipantSubmissionRollupRow[] {
-  type Agg = {
-    submissions_total: number;
-    approved: number;
-    pending: number;
-    rejected: number;
-    needs_revision: number;
-    latest: string | null;
-    snapViews: number;
-    snapEng: number;
-    snapAny: boolean;
+type Agg = {
+  submissions_total: number;
+  approved: number;
+  pending: number;
+  rejected: number;
+  needs_revision: number;
+  latest: string | null;
+  latestUrl: string | null;
+  latestApprovedAt: string | null;
+  latestApprovedUrl: string | null;
+  snapViews: number;
+  snapEng: number;
+  snapAny: boolean;
+};
+
+function emptyAgg(): Agg {
+  return {
+    submissions_total: 0,
+    approved: 0,
+    pending: 0,
+    rejected: 0,
+    needs_revision: 0,
+    latest: null,
+    latestUrl: null,
+    latestApprovedAt: null,
+    latestApprovedUrl: null,
+    snapViews: 0,
+    snapEng: 0,
+    snapAny: false,
   };
+}
+
+function roundPct(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/**
+ * Per-participant proof rollup + task share + proof share of all approved URLs in the campaign.
+ * Merges in every enrolled participant (zeros when no submissions).
+ */
+export function buildParticipantSubmissionRollups(
+  submissions: SubmissionRowForRollup[],
+  enrolledParticipants: { participant_profile_id: string; status: string }[],
+  taskContributionByProfile: Map<string, number>
+): ParticipantSubmissionRollupRow[] {
+  const totalApprovedProofs = submissions.filter((s) => (s.status ?? "").toLowerCase() === "approved").length;
+
   const by = new Map<string, Agg>();
+  const invitationByPid = new Map(enrolledParticipants.map((p) => [p.participant_profile_id, p.status]));
 
   for (const s of submissions) {
     const pid = s.participant_profile_id;
     let a = by.get(pid);
     if (!a) {
-      a = {
-        submissions_total: 0,
-        approved: 0,
-        pending: 0,
-        rejected: 0,
-        needs_revision: 0,
-        latest: null,
-        snapViews: 0,
-        snapEng: 0,
-        snapAny: false,
-      };
+      a = emptyAgg();
       by.set(pid, a);
     }
     a.submissions_total += 1;
@@ -237,9 +276,22 @@ export function buildParticipantSubmissionRollups(
     else if (st === "rejected") a.rejected += 1;
     else if (st === "needs_revision") a.needs_revision += 1;
 
-    const t = new Date(s.created_at).getTime();
-    if (Number.isFinite(t) && (!a.latest || t > new Date(a.latest).getTime())) {
+    const createdTs = new Date(s.created_at).getTime();
+    if (Number.isFinite(createdTs) && (!a.latest || createdTs > new Date(a.latest).getTime())) {
       a.latest = s.created_at;
+      a.latestUrl = s.url || null;
+    }
+
+    if (st === "approved") {
+      const at = s.reviewed_at || s.created_at;
+      const apprTs = new Date(at).getTime();
+      if (
+        Number.isFinite(apprTs) &&
+        (!a.latestApprovedAt || apprTs > new Date(a.latestApprovedAt).getTime())
+      ) {
+        a.latestApprovedAt = at;
+        a.latestApprovedUrl = s.url || null;
+      }
     }
 
     const p = parseMetricsSnapshot(s.metrics_snapshot);
@@ -254,26 +306,49 @@ export function buildParticipantSubmissionRollups(
     }
   }
 
+  const profileIds = new Set<string>();
+  for (const p of enrolledParticipants) profileIds.add(p.participant_profile_id);
+  for (const pid of by.keys()) profileIds.add(pid);
+
   const rows: ParticipantSubmissionRollupRow[] = [];
-  for (const [participant_profile_id, a] of by) {
+  for (const participant_profile_id of profileIds) {
+    const a = by.get(participant_profile_id) ?? emptyAgg();
+    const proofPct =
+      totalApprovedProofs > 0
+        ? roundPct((100 * a.approved) / totalApprovedProofs)
+        : null;
+
     rows.push({
       participant_profile_id,
+      participant_invitation_status: invitationByPid.get(participant_profile_id) ?? null,
       submissions_total: a.submissions_total,
       approved: a.approved,
       pending: a.pending,
       rejected: a.rejected,
       needs_revision: a.needs_revision,
       latest_submission_at: a.latest,
-      contribution_percent: contributionPercentByProfile.get(participant_profile_id) ?? null,
+      latest_approved_at: a.latestApprovedAt,
+      task_contribution_percent: taskContributionByProfile.get(participant_profile_id) ?? null,
+      proof_contribution_percent: proofPct,
       snapshot_impressions_or_views_sum: a.snapViews,
       snapshot_engagements_sum: a.snapEng,
       has_snapshot_metrics: a.snapAny,
+      latest_proof_url: a.latestUrl,
+      latest_approved_proof_url: a.latestApprovedUrl,
     });
   }
 
   rows.sort((x, y) => {
-    if (y.approved !== x.approved) return y.approved - x.approved;
-    return y.submissions_total - x.submissions_total;
+    const ax = x.participant_invitation_status === "accepted" ? 0 : 1;
+    const ay = y.participant_invitation_status === "accepted" ? 0 : 1;
+    if (ax !== ay) return ax - ay;
+    const tx = x.task_contribution_percent ?? -1;
+    const ty = y.task_contribution_percent ?? -1;
+    if (ty !== tx) return ty - tx;
+    const px = x.proof_contribution_percent ?? -1;
+    const py = y.proof_contribution_percent ?? -1;
+    if (py !== px) return py - px;
+    return y.approved - x.approved;
   });
   return rows;
 }
@@ -283,8 +358,56 @@ export type SnapshotViewsLeaderRow = {
   approved_with_snapshot_sum: number;
 };
 
+export type ProofContributionLeaderRow = {
+  participant_profile_id: string;
+  proof_contribution_percent: number;
+  approved_proofs: number;
+};
+
+export function topParticipantsByProofContributionPercent(
+  rollups: ParticipantSubmissionRollupRow[],
+  limit = 10
+): ProofContributionLeaderRow[] {
+  return [...rollups]
+    .filter((r) => r.approved > 0 && r.proof_contribution_percent != null)
+    .sort((a, b) => (b.proof_contribution_percent ?? 0) - (a.proof_contribution_percent ?? 0))
+    .slice(0, limit)
+    .map((r) => ({
+      participant_profile_id: r.participant_profile_id,
+      proof_contribution_percent: r.proof_contribution_percent ?? 0,
+      approved_proofs: r.approved,
+    }));
+}
+
+export type SnapshotEngagementsLeaderRow = {
+  participant_profile_id: string;
+  approved_with_snapshot_engagements_sum: number;
+};
+
+export function topParticipantsBySnapshotEngagements(
+  submissions: SubmissionRowForRollup[],
+  limit = 10
+): SnapshotEngagementsLeaderRow[] {
+  const by = new Map<string, number>();
+  for (const s of submissions) {
+    if ((s.status ?? "").toLowerCase() !== "approved") continue;
+    const p = parseMetricsSnapshot(s.metrics_snapshot);
+    const eng = p.engagements;
+    if (eng == null || eng <= 0) continue;
+    const pid = s.participant_profile_id;
+    by.set(pid, (by.get(pid) ?? 0) + eng);
+  }
+  return Array.from(by.entries())
+    .map(([participant_profile_id, approved_with_snapshot_engagements_sum]) => ({
+      participant_profile_id,
+      approved_with_snapshot_engagements_sum,
+    }))
+    .sort((a, b) => b.approved_with_snapshot_engagements_sum - a.approved_with_snapshot_engagements_sum)
+    .slice(0, limit);
+}
+
 export function topParticipantsBySnapshotImpressions(
-  submissions: SubmissionRowWithSnapshot[],
+  submissions: SubmissionRowForRollup[],
   limit = 10
 ): SnapshotViewsLeaderRow[] {
   const by = new Map<string, number>();

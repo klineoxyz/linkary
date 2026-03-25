@@ -298,12 +298,19 @@ export async function reviewSubmissionAction(
   // - needs_revision => in_progress (work needs changes, not approved)
   const taskStatus =
     status === "approved" ? "approved" : status === "rejected" ? "rejected" : "in_progress";
-  await supabase
+  const { error: taskUpdErr } = await supabase
     .from("crm_tasks")
     .update({ status: taskStatus, updated_at: new Date().toISOString() })
     .eq("id", submission.task_id);
 
+  if (taskUpdErr) return { error: `Could not sync linked task: ${taskUpdErr.message}` };
+
+  if (!campaign.finalized_at) {
+    await writeContribution(supabase, submission.campaign_id!, { weighted: true });
+  }
+
   revalidatePath(`/campaigns/${submission.campaign_id}`);
+  revalidatePath(`/campaigns/${submission.campaign_id}/report`);
   revalidatePath("/campaigns");
   return {};
 }

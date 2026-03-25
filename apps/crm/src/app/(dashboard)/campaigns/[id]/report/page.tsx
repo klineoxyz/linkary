@@ -143,6 +143,8 @@ export default async function CampaignReportPage({
     efficiency,
     participant_submission_rollups,
     top_by_submission_snapshot_views,
+    top_by_proof_contribution_percent,
+    top_by_submission_snapshot_engagements,
     account_growth,
     has_metrics,
     finalized_at,
@@ -164,6 +166,8 @@ export default async function CampaignReportPage({
       ...top_by_contribution_percent.map((t) => t.participant_profile_id),
       ...participant_submission_rollups.map((r) => r.participant_profile_id),
       ...top_by_submission_snapshot_views.map((t) => t.participant_profile_id),
+      ...top_by_proof_contribution_percent.map((t) => t.participant_profile_id),
+      ...top_by_submission_snapshot_engagements.map((t) => t.participant_profile_id),
     ])
   );
 
@@ -176,6 +180,9 @@ export default async function CampaignReportPage({
       ? await supabase.from("profiles").select("id, username, display_name, twitter_username, avatar_url").in("id", topContributorIds)
       : { data: [] as LeaderboardProfile[] };
   const topContributorById = new Map((topContributorProfiles ?? []).map((p) => [p.id, p as LeaderboardProfile]));
+
+  const approvedProofRowCount = submissions.filter((s) => (s.status ?? "").toLowerCase() === "approved").length;
+  const participantsWithAnyProof = new Set(submissions.map((s) => s.participant_profile_id)).size;
 
   return (
     <div className="space-y-8">
@@ -478,42 +485,63 @@ export default async function CampaignReportPage({
         </div>
       </ReportSection>
 
-      <ReportSection title="B — Participant-attributed contribution (CRM proof & tasks)">
-        <p className="text-sm text-[var(--crm-muted)] mb-3">
-          Counts below come from <strong className="text-[var(--crm-foreground)]">crm_campaign_participants</strong>, tasks, and proof submissions only — not from X-wide attribution.
+      <ReportSection title="B — Participant contribution summary">
+        <p className="text-sm text-[var(--crm-muted)] mb-4">
+          <strong className="text-[var(--crm-foreground)]">Task contribution %</strong> splits weighted completed work across{" "}
+          <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">crm_tasks</code> (approved + done).{" "}
+          <strong className="text-[var(--crm-foreground)]">Proof share %</strong> is only how many <em>approved</em> proof rows belong to this person vs all approved proofs in the campaign — not dollars or X reach.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-2">
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Participants enrolled (CRM)</p>
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Enrolled (CRM)</p>
             <p className="text-xl font-semibold text-[var(--crm-primary)]">{participant_enrolled_count}</p>
-            <p className="text-[10px] text-[var(--crm-muted)] mt-1">All invitation statuses; see campaign detail for accepted vs invited</p>
+            <p className="text-[10px] text-[var(--crm-muted)] mt-1">All invitation statuses</p>
+          </div>
+          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Proof rows (all statuses)</p>
+            <p className="text-xl font-semibold text-[var(--crm-primary)]">{submissions.length}</p>
+            <p className="text-[10px] text-[var(--crm-muted)] mt-1">crm_submissions</p>
+          </div>
+          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Approved proofs</p>
+            <p className="text-xl font-semibold text-[var(--crm-primary)]">{approvedProofRowCount}</p>
+            <p className="text-[10px] text-[var(--crm-muted)] mt-1">Used for proof share %</p>
+          </div>
+          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Participants w/ proof</p>
+            <p className="text-xl font-semibold text-[var(--crm-primary)]">{participantsWithAnyProof}</p>
+            <p className="text-[10px] text-[var(--crm-muted)] mt-1">Distinct submitters</p>
           </div>
         </div>
+      </ReportSection>
 
-        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden mb-2">
-          <p className="text-xs font-medium text-[var(--crm-foreground)] px-4 pt-3 pb-2 border-b border-[var(--crm-border)]">
-            Per-participant proof submissions (crm_submissions)
-          </p>
-          <p className="text-xs text-[var(--crm-muted)] px-4 py-2">
-            Contribution % is from weighted approved/done tasks. Snapshot columns sum optional <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">metrics_snapshot</code> on each row when operators or automation store views/engagements — otherwise proof is link-based only.
+      <ReportSection title="C — Detailed participant contribution">
+        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
+          <p className="text-xs text-[var(--crm-muted)] px-4 py-2 border-b border-[var(--crm-border)]">
+            One row per enrolled participant (plus anyone with proof rows but not enrolled). Snapshot sums are optional{" "}
+            <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">metrics_snapshot</code> on each submission — omit if not stored.
           </p>
           {participant_submission_rollups.length === 0 ? (
-            <p className="p-6 text-center text-sm text-[var(--crm-muted)]">No submissions yet.</p>
+            <p className="p-6 text-center text-sm text-[var(--crm-muted)]">No enrolled participants and no submissions.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[720px]">
+              <table className="w-full text-sm min-w-[1100px]">
                 <thead>
                   <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
                     <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
+                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Invite</th>
                     <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Total</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Approved</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Pending</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Rejected</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Revision</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Appr</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Pend</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Rej</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Rev</th>
                     <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Latest proof</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Contrib %</th>
+                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Latest appr.</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Task %</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Proof share %</th>
                     <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ snap views</th>
                     <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ snap eng.</th>
+                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Links</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -525,6 +553,9 @@ export default async function CampaignReportPage({
                           label={toParticipantLabel(topContributorById.get(r.participant_profile_id), r.participant_profile_id)}
                         />
                       </td>
+                      <td className="p-3 text-[var(--crm-muted)] text-xs capitalize">
+                        {r.participant_invitation_status ?? "—"}
+                      </td>
                       <td className="p-3 text-right tabular-nums">{r.submissions_total}</td>
                       <td className="p-3 text-right tabular-nums">{r.approved}</td>
                       <td className="p-3 text-right tabular-nums">{r.pending}</td>
@@ -533,8 +564,14 @@ export default async function CampaignReportPage({
                       <td className="p-3 text-[var(--crm-muted)] text-xs whitespace-nowrap">
                         {r.latest_submission_at ? new Date(r.latest_submission_at).toLocaleDateString() : "—"}
                       </td>
-                      <td className="p-3 text-right font-medium text-[var(--crm-primary)]">
-                        {r.contribution_percent != null ? `${r.contribution_percent}%` : "—"}
+                      <td className="p-3 text-[var(--crm-muted)] text-xs whitespace-nowrap">
+                        {r.latest_approved_at ? new Date(r.latest_approved_at).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="p-3 text-right font-medium tabular-nums text-[var(--crm-primary)]">
+                        {r.task_contribution_percent != null ? `${r.task_contribution_percent}%` : "—"}
+                      </td>
+                      <td className="p-3 text-right tabular-nums">
+                        {r.proof_contribution_percent != null ? `${r.proof_contribution_percent}%` : "—"}
                       </td>
                       <td className="p-3 text-right tabular-nums text-xs">
                         {r.has_snapshot_metrics ? r.snapshot_impressions_or_views_sum.toLocaleString() : "—"}
@@ -543,6 +580,34 @@ export default async function CampaignReportPage({
                         {r.has_snapshot_metrics && r.snapshot_engagements_sum > 0
                           ? r.snapshot_engagements_sum.toLocaleString()
                           : "—"}
+                      </td>
+                      <td className="p-3 text-xs space-y-1">
+                        {r.latest_proof_url ? (
+                          <a
+                            href={r.latest_proof_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block text-[var(--crm-primary)] underline"
+                          >
+                            Latest URL
+                          </a>
+                        ) : null}
+                        {r.latest_approved_proof_url && r.latest_approved_proof_url !== r.latest_proof_url ? (
+                          <a
+                            href={r.latest_approved_proof_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block text-[var(--crm-primary)] underline"
+                          >
+                            Latest approved
+                          </a>
+                        ) : null}
+                        <Link
+                          href={`/campaigns/${id}`}
+                          className="block text-[var(--crm-muted)] hover:text-[var(--crm-primary)]"
+                        >
+                          Campaign
+                        </Link>
                       </td>
                     </tr>
                   ))}
@@ -553,10 +618,9 @@ export default async function CampaignReportPage({
         </div>
       </ReportSection>
 
-      <ReportSection title="Leaderboards (participant-only)">
+      <ReportSection title="D — Leaderboards (CRM-attributed only)">
         <p className="text-xs text-[var(--crm-muted)] mb-4">
-          Multiple views of the same enrolled cohort. Snapshot rankings only include approved submissions that stored impressions/views in{" "}
-          <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">metrics_snapshot</code> — partial by design.
+          Rankings use enrolled + proof data in this workspace only. Snapshot leaderboards omit anyone without stored metrics — not full social attribution.
         </p>
         <div className="space-y-6">
           <div>
@@ -565,7 +629,7 @@ export default async function CampaignReportPage({
               rows={top_contributors_all_submissions}
               valueHeader="Submissions"
               valueFn={(t) => t.submission_count}
-              extraHeader="Task contribution %"
+              extraHeader="Task %"
               extraFn={(t) => (t.contribution_percent != null ? `${t.contribution_percent}%` : "—")}
               profileById={topContributorById}
               empty="No submissions yet."
@@ -577,22 +641,22 @@ export default async function CampaignReportPage({
               rows={top_contributors_approved_submissions}
               valueHeader="Approved"
               valueFn={(t) => t.submission_count}
-              extraHeader="Task contribution %"
+              extraHeader="Task %"
               extraFn={(t) => (t.contribution_percent != null ? `${t.contribution_percent}%` : "—")}
               profileById={topContributorById}
               empty="No approved submissions yet."
             />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">Top by task contribution % (approved + done tasks)</h3>
-            <p className="text-xs text-[var(--crm-muted)] mb-2">Weighted by deliverable type; not social engagement.</p>
+            <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">Top by task contribution % (bundles summed)</h3>
+            <p className="text-xs text-[var(--crm-muted)] mb-2">Weighted approved + done tasks across all bundles per participant.</p>
             <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
                     <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">#</th>
                     <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Contribution %</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Task %</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -611,20 +675,16 @@ export default async function CampaignReportPage({
                 </tbody>
               </table>
               {top_by_contribution_percent.length === 0 && (
-                <p className="p-6 text-center text-sm text-[var(--crm-muted)]">No task bundles or completed tasks yet.</p>
+                <p className="p-6 text-center text-sm text-[var(--crm-muted)]">No completed tasks yet.</p>
               )}
             </div>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">
-              Top by summed snapshot views (approved submissions only)
-            </h3>
-            <p className="text-xs text-[var(--crm-muted)] mb-2">
-              Sums <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">metrics_snapshot</code> impressions/views per participant on approved rows. Participants without stored views are omitted — not a full social leaderboard.
-            </p>
-            {top_by_submission_snapshot_views.length === 0 ? (
+            <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">Top by proof share % (approved rows)</h3>
+            <p className="text-xs text-[var(--crm-muted)] mb-2">Each person’s approved proof count ÷ total approved proofs in this campaign.</p>
+            {top_by_proof_contribution_percent.length === 0 ? (
               <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
-                No approved submissions with snapshot views/impressions yet.
+                No approved proofs yet.
               </div>
             ) : (
               <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
@@ -633,7 +693,53 @@ export default async function CampaignReportPage({
                     <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
                       <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">#</th>
                       <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
-                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ snap views / impressions</th>
+                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Proof share %</th>
+                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Approved rows</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {top_by_proof_contribution_percent.map((row, i) => (
+                      <tr key={row.participant_profile_id} className="border-b border-[var(--crm-border)] last:border-0">
+                        <td className="p-3 text-[var(--crm-muted)]">{i + 1}</td>
+                        <td className="p-3 text-sm text-[var(--crm-foreground)]">
+                          <ParticipantCell
+                            avatarUrl={topContributorById.get(row.participant_profile_id)?.avatar_url}
+                            label={toParticipantLabel(
+                              topContributorById.get(row.participant_profile_id),
+                              row.participant_profile_id
+                            )}
+                          />
+                        </td>
+                        <td className="p-3 text-right font-medium text-[var(--crm-primary)]">
+                          {row.proof_contribution_percent}%
+                        </td>
+                        <td className="p-3 text-right tabular-nums">{row.approved_proofs}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">
+              Top by summed snapshot views (approved only)
+            </h3>
+            <p className="text-xs text-[var(--crm-muted)] mb-2">
+              Partial — requires <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">metrics_snapshot</code> on approved rows.
+            </p>
+            {top_by_submission_snapshot_views.length === 0 ? (
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
+                No snapshot views on approved proofs yet.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+                      <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">#</th>
+                      <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
+                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ snap views</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -659,10 +765,52 @@ export default async function CampaignReportPage({
               </div>
             )}
           </div>
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">
+              Top by summed snapshot engagements (approved only)
+            </h3>
+            <p className="text-xs text-[var(--crm-muted)] mb-2">Partial — same caveats as views.</p>
+            {top_by_submission_snapshot_engagements.length === 0 ? (
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
+                No snapshot engagements on approved proofs yet.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+                      <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">#</th>
+                      <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
+                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ snap engagements</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {top_by_submission_snapshot_engagements.map((row, i) => (
+                      <tr key={row.participant_profile_id} className="border-b border-[var(--crm-border)] last:border-0">
+                        <td className="p-3 text-[var(--crm-muted)]">{i + 1}</td>
+                        <td className="p-3 text-sm text-[var(--crm-foreground)]">
+                          <ParticipantCell
+                            avatarUrl={topContributorById.get(row.participant_profile_id)?.avatar_url}
+                            label={toParticipantLabel(
+                              topContributorById.get(row.participant_profile_id),
+                              row.participant_profile_id
+                            )}
+                          />
+                        </td>
+                        <td className="p-3 text-right font-medium tabular-nums text-[var(--crm-primary)]">
+                          {row.approved_with_snapshot_engagements_sum.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </ReportSection>
 
-      <ReportSection title="Proof submissions (crm_submissions)">
+      <ReportSection title="E — Proof submissions (crm_submissions)">
         <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -703,7 +851,7 @@ export default async function CampaignReportPage({
         </div>
       </ReportSection>
 
-      <ReportSection title="C — Efficiency metrics (recorded spend only)">
+      <ReportSection title="F — Efficiency metrics (recorded spend only)">
         {efficiency.can_show_efficiency ? (
           <div className="space-y-3">
             <p className="text-sm text-[var(--crm-muted)]">
@@ -738,7 +886,7 @@ export default async function CampaignReportPage({
         )}
       </ReportSection>
 
-      <ReportSection title="D — Attribution & limitations">
+      <ReportSection title="G — Attribution & limitations">
         <CampaignAttributionNote />
       </ReportSection>
     </div>

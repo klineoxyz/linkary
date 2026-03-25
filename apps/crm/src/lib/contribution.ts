@@ -101,6 +101,23 @@ export async function computeContribution(
 }
 
 /**
+ * Sum bundle-level campaign shares per participant (one person may have multiple bundles).
+ * Each row.contributionPercent is already a share of total campaign weighted task completion.
+ */
+export function aggregateTaskContributionByParticipant(rows: ContributionRow[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of rows) {
+    const prev = m.get(r.participant_profile_id) ?? 0;
+    m.set(r.participant_profile_id, prev + r.contributionPercent);
+  }
+  const rounded = new Map<string, number>();
+  for (const [pid, v] of m) {
+    rounded.set(pid, Math.round(v * 10) / 10);
+  }
+  return rounded;
+}
+
+/**
  * Compute contribution for a campaign and write to crm_task_bundles and crm_campaign_participants.
  * Safe and idempotent. Returns the computed rows (e.g. for display).
  * When campaign is finalized: skips DB updates for progress (approved+done); only writes when
@@ -123,16 +140,20 @@ export async function writeContribution(
     return rows;
   }
 
+  const byParticipant = aggregateTaskContributionByParticipant(rows);
+
   for (const row of rows) {
     await supabase
       .from("crm_task_bundles")
       .update({ contribution_percent: row.contributionPercent })
       .eq("id", row.bundleId);
+  }
+  for (const [participant_profile_id, contributionPercent] of byParticipant) {
     await supabase
       .from("crm_campaign_participants")
-      .update({ contribution_percent: row.contributionPercent })
+      .update({ contribution_percent: contributionPercent })
       .eq("campaign_id", campaignId)
-      .eq("participant_profile_id", row.participant_profile_id);
+      .eq("participant_profile_id", participant_profile_id);
   }
   return rows;
 }

@@ -14,9 +14,9 @@ export function CampaignAttributionNote({ className = "" }: { className?: string
           <strong className="text-[var(--crm-foreground)]">not</strong> limited to participants and does not split organic vs campaign-driven reach.
         </li>
         <li>
-          <strong className="text-[var(--crm-foreground)]">Participant contribution</strong> is only{" "}
-          <strong className="text-[var(--crm-foreground)]">enrolled CRM members</strong> (tasks, proof submissions, approved work). We do not attribute every X user or
-          private actions (e.g. bookmarks).
+          <strong className="text-[var(--crm-foreground)]">Participant contribution</strong> splits into{" "}
+          <strong className="text-[var(--crm-foreground)]">task %</strong> (weighted completed <code className="text-[10px] bg-[var(--crm-card)] px-1 rounded">crm_tasks</code>, bundles summed per person) and{" "}
+          <strong className="text-[var(--crm-foreground)]">proof share %</strong> (that person’s approved proof rows vs all approved proofs in the campaign). Neither is X-wide attribution; we do not attribute every X user or private actions (e.g. bookmarks).
         </li>
         <li>
           <strong className="text-[var(--crm-foreground)]">CPM / CPV / CPE</strong> use recorded spend from <code className="text-[10px] bg-[var(--crm-card)] px-1 rounded">crm_campaign_metrics_daily.spend_used</code> and target-account impressions/views/engagements for the same window. The block stays hidden until spend is recorded <em>and</em> at least one denominator (views or engagements) is non-zero; individual metrics show — if their denominator is zero.{" "}

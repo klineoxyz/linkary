@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getCampaign,
+  getCampaignContributors,
   getCampaignKpis,
   getCampaignSubmissions,
   getCampaignTopContributors,
@@ -15,14 +16,18 @@ import {
 } from "@/lib/campaigns";
 import { getAccountGrowth, getEndSnapshotStatus, type AccountGrowth, type EndSnapshotStatus } from "@/lib/snapshots";
 import type { ContributionRow } from "@/lib/contribution";
-import { computeContribution } from "@/lib/contribution";
+import { aggregateTaskContributionByParticipant, computeContribution } from "@/lib/contribution";
 import {
   buildParticipantSubmissionRollups,
   computeEfficiencyMetrics,
   summarizeTargetDailySeries,
+  topParticipantsByProofContributionPercent,
+  topParticipantsBySnapshotEngagements,
   topParticipantsBySnapshotImpressions,
   type EfficiencyMetricsResult,
   type ParticipantSubmissionRollupRow,
+  type ProofContributionLeaderRow,
+  type SnapshotEngagementsLeaderRow,
   type SnapshotViewsLeaderRow,
   type TargetDailyWindowSummary,
 } from "@/lib/reportAggregates";
@@ -75,6 +80,10 @@ export type CampaignReportData = {
   participant_submission_rollups: ParticipantSubmissionRollupRow[];
   /** Approved submissions only, ranked by summed snapshot impressions/views when present. */
   top_by_submission_snapshot_views: SnapshotViewsLeaderRow[];
+  /** Approved proof count share of campaign (crm_submissions only). */
+  top_by_proof_contribution_percent: ProofContributionLeaderRow[];
+  /** Approved rows with metrics_snapshot engagements only; partial. */
+  top_by_submission_snapshot_engagements: SnapshotEngagementsLeaderRow[];
   account_growth: AccountGrowth[];
   has_metrics: boolean;
   finalized_at: string | null;
@@ -93,9 +102,8 @@ export async function getCampaignReportData(
   const campaign = await getCampaign(supabase, campaignId);
   if (!campaign) return null;
 
-  const useFinalShare = !!campaign.finalized_at;
   const promotedHandles = campaign.promoted_social_handles ?? [];
-  const [kpis, submissions, topAllSubs, topApprovedSubs, dailyRows, contributionRows, accountGrowth, endSnapshotStatus] =
+  const [kpis, submissions, topAllSubs, topApprovedSubs, dailyRows, contributionRows, contributors, accountGrowth, endSnapshotStatus] =
     await Promise.all([
       getCampaignKpis(supabase, campaignId, {
         budget: campaign.budget,
@@ -109,17 +117,18 @@ export async function getCampaignReportData(
         .select("day, total_views, total_engagements, total_posts")
         .eq("campaign_id", campaignId)
         .order("day", { ascending: true }),
+      /** Operator report always includes done + approved tasks so finalized campaigns still show real progress. */
       computeContribution(supabase, campaignId, {
         weighted: true,
-        ...(useFinalShare ? { statuses: ["approved"] as const } : {}),
+        statuses: ["approved", "done"],
       }),
+      getCampaignContributors(supabase, campaignId),
       getAccountGrowth(supabase, campaignId),
       getEndSnapshotStatus(supabase, campaignId, promotedHandles),
     ]);
 
-  const contributionByProfile = new Map(
-    contributionRows.map((r) => [r.participant_profile_id, r.contributionPercent])
-  );
+  const taskContributionByProfile = aggregateTaskContributionByParticipant(contributionRows);
+  const contributionByProfile = taskContributionByProfile;
   const mergeContribution = (list: TopContributor[]): TopContributorWithContribution[] =>
     list.map((t) => ({
       ...t,
@@ -129,13 +138,13 @@ export async function getCampaignReportData(
   const top_contributors_all_submissions = mergeContribution(topAllSubs);
   const top_contributors_approved_submissions = mergeContribution(topApprovedSubs);
 
-  const top_by_contribution_percent: ContributionRankRow[] = [...contributionRows]
-    .sort((a, b) => b.contributionPercent - a.contributionPercent)
-    .slice(0, 10)
-    .map((r) => ({
-      participant_profile_id: r.participant_profile_id,
-      contribution_percent: r.contributionPercent,
-    }));
+  const top_by_contribution_percent: ContributionRankRow[] = [...taskContributionByProfile.entries()]
+    .map(([participant_profile_id, contribution_percent]) => ({
+      participant_profile_id,
+      contribution_percent,
+    }))
+    .sort((a, b) => b.contribution_percent - a.contribution_percent)
+    .slice(0, 10);
 
   const daily = (dailyRows?.data ?? []) as {
     day: string;
@@ -159,27 +168,25 @@ export async function getCampaignReportData(
     currency: kpis.currency,
   });
 
-  const contributionPctMap = new Map(
-    contributionRows.map((r) => [r.participant_profile_id, r.contributionPercent])
-  );
+  const submissionRollupInput = submissions.map((s) => ({
+    participant_profile_id: s.participant_profile_id,
+    status: s.status,
+    created_at: s.created_at,
+    reviewed_at: s.reviewed_at,
+    url: s.url,
+    metrics_snapshot: s.metrics_snapshot,
+  }));
   const participant_submission_rollups = buildParticipantSubmissionRollups(
-    submissions.map((s) => ({
-      participant_profile_id: s.participant_profile_id,
-      status: s.status,
-      created_at: s.created_at,
-      metrics_snapshot: s.metrics_snapshot,
-    })),
-    contributionPctMap
+    submissionRollupInput,
+    contributors.map((c) => ({ participant_profile_id: c.participant_profile_id, status: c.status })),
+    taskContributionByProfile
   );
-  const top_by_submission_snapshot_views = topParticipantsBySnapshotImpressions(
-    submissions.map((s) => ({
-      participant_profile_id: s.participant_profile_id,
-      status: s.status,
-      created_at: s.created_at,
-      metrics_snapshot: s.metrics_snapshot,
-    })),
+  const top_by_submission_snapshot_views = topParticipantsBySnapshotImpressions(submissionRollupInput, 10);
+  const top_by_proof_contribution_percent = topParticipantsByProofContributionPercent(
+    participant_submission_rollups,
     10
   );
+  const top_by_submission_snapshot_engagements = topParticipantsBySnapshotEngagements(submissionRollupInput, 10);
 
   const totalPosts = daily.reduce((s, d) => s + (Number(d.total_posts) || 0), 0);
 
@@ -226,6 +233,8 @@ export async function getCampaignReportData(
     efficiency,
     participant_submission_rollups,
     top_by_submission_snapshot_views,
+    top_by_proof_contribution_percent,
+    top_by_submission_snapshot_engagements,
     account_growth: accountGrowth,
     has_metrics: kpis.has_metrics,
     finalized_at: campaign.finalized_at ?? null,
@@ -340,6 +349,20 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
       value: t.approved_with_snapshot_sum,
     });
   }
+  for (const t of data.top_by_proof_contribution_percent) {
+    rows.push({
+      section: "leaderboard_proof_contribution_pct",
+      label: `${t.participant_profile_id} share of approved proof rows (%)`,
+      value: t.proof_contribution_percent,
+    });
+  }
+  for (const t of data.top_by_submission_snapshot_engagements) {
+    rows.push({
+      section: "leaderboard_snapshot_engagements_approved",
+      label: `${t.participant_profile_id} summed snapshot engagements (approved only)`,
+      value: t.approved_with_snapshot_engagements_sum,
+    });
+  }
 
   if (data.target_daily_summary.has_daily) {
     rows.push({
@@ -385,6 +408,16 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
       section: "participant_submission_rollup",
       label: `${r.participant_profile_id} submissions / approved / rejected / revision / pending`,
       value: `${r.submissions_total} / ${r.approved} / ${r.rejected} / ${r.needs_revision} / ${r.pending}`,
+    });
+    rows.push({
+      section: "participant_submission_rollup",
+      label: `${r.participant_profile_id} task contribution % (summed bundles)`,
+      value: r.task_contribution_percent ?? "",
+    });
+    rows.push({
+      section: "participant_submission_rollup",
+      label: `${r.participant_profile_id} proof share % (approved rows / campaign approved proofs)`,
+      value: r.proof_contribution_percent ?? "",
     });
   }
 

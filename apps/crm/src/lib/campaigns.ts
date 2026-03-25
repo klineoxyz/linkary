@@ -199,8 +199,12 @@ export async function getCampaignKpis(
 
   type Meta = {
     source?: string;
+    version?: number;
     handles_normalized?: string[];
+    handles_linked_to_profiles?: string[];
+    handles_external_tracked?: string[];
     handles_unresolved?: string[];
+    handles_unmatched_promoted_raw?: string[];
     note?: string;
     partial_impressions?: string | null;
   };
@@ -208,11 +212,21 @@ export async function getCampaignKpis(
   let partial_impressions_hint = false;
   for (const row of dailyRows ?? []) {
     const m = (row as { metadata?: unknown }).metadata as Meta | null | undefined;
-    if (m && typeof m === "object" && (m.source || (m.handles_normalized?.length ?? 0) > 0)) {
+    if (!m || typeof m !== "object") continue;
+    const linked = Array.isArray(m.handles_linked_to_profiles) ? m.handles_linked_to_profiles : [];
+    const legacyNorm = Array.isArray(m.handles_normalized) ? m.handles_normalized : [];
+    const external = Array.isArray(m.handles_external_tracked) ? m.handles_external_tracked : [];
+    const mergedHandles = [...new Set([...linked, ...legacyNorm, ...external])];
+    const unresolvedRaw = Array.isArray(m.handles_unmatched_promoted_raw)
+      ? m.handles_unmatched_promoted_raw
+      : Array.isArray(m.handles_unresolved)
+        ? m.handles_unresolved
+        : [];
+    if (m.source || mergedHandles.length > 0 || unresolvedRaw.length > 0) {
       performance_meta = {
         source: m.source ?? null,
-        handles_normalized: Array.isArray(m.handles_normalized) ? m.handles_normalized : [],
-        handles_unresolved: Array.isArray(m.handles_unresolved) ? m.handles_unresolved : [],
+        handles_normalized: mergedHandles,
+        handles_unresolved: unresolvedRaw,
         note: m.note ?? null,
         partial_impressions_hint: false,
       };

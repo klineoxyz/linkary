@@ -16,7 +16,10 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createServiceSupabase();
-  const result = await runCrmCampaignMetricsDailyIngest(supabase);
+  const twitterApiKey =
+    (process.env.TWITTERAPI_API_KEY || process.env.TWITTERAPI_IO_KEY || process.env.TWITTERAPI_KEY || "")
+      .trim() || null;
+  const result = await runCrmCampaignMetricsDailyIngest(supabase, { twitterApiKey });
   if (result.errors.length) {
     console.error("[cron crm-campaign-metrics-daily]", result.errors);
     return NextResponse.json(

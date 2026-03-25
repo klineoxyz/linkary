@@ -545,21 +545,20 @@ export default async function CampaignDetailPage({
         {noMetrics && (promotedHandles.length > 0 ? (
           <p className="text-sm text-[var(--crm-muted)] mb-4">
             No <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code> rows yet for this campaign.
-            Promoted X handles must match a Linkary <strong className="text-[var(--crm-foreground)]">profile</strong> (by{" "}
-            <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">twitter_username</code> or connected X account) with{" "}
-            <strong className="text-[var(--crm-foreground)]">ingested tweets</strong> in the campaign window; then run the scheduled job or{" "}
-            <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">pnpm sync:crm:campaign-metrics</code> from the repo. Submission counts below are live either way.
+            Run <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">pnpm sync:crm:campaign-metrics</code> (or the CRM metrics cron) with{" "}
+            <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">TWITTERAPI_API_KEY</code> set: external promoted accounts are fetched via twitterapi.io even when they are not Linkary profiles.
+            If a handle matches a Linkary profile, metrics can also use stored <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">x_tweets</code>.
+            Submission KPIs below stay live regardless.
           </p>
         ) : (
           <p className="text-sm text-[var(--crm-muted)] mb-4">
-            Add promoted X accounts under campaign definition to aggregate tweet-level impressions and engagements from Linkary ingestion. Contributor and submission KPIs below are already live.
+            Add promoted X accounts under campaign definition, then run metrics sync (with twitterapi key for external handles). Contributor and submission KPIs below are already live.
           </p>
         ))}
         {kpis.has_metrics && perf?.handles_unresolved?.length ? (
           <p className="text-sm text-amber-900/90 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2 mb-4">
-            Some promoted handles did not match a Linkary profile (no matching{" "}
-            <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">twitter_username</code>):{" "}
-            <span className="font-mono text-xs">{perf.handles_unresolved.join("; ")}</span>. Metrics below include only matched accounts.
+            Some promoted handles could not be ingested (no Linkary profile match and no successful external fetch):{" "}
+            <span className="font-mono text-xs">{perf.handles_unresolved.join("; ")}</span>. Totals below exclude those handles.
           </p>
         ) : null}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -570,8 +569,8 @@ export default async function CampaignDetailPage({
             sub={
               kpis.has_metrics
                 ? kpis.performance_meta?.partial_impressions_hint
-                  ? "Sum of impression_count on ingested tweets; some tweets had no impression field (API)."
-                  : `From ${kpis.metrics_posts_total.toLocaleString()} tracked-account tweet(s) in window`
+                  ? "Sum of impression_count / API viewCount when present; some tweets had no impression field."
+                  : `${perf?.source?.includes("twitterapi") ? "Includes twitterapi.io data for external handles. " : ""}From ${kpis.metrics_posts_total.toLocaleString()} tweet(s) in window (see daily metadata for MODE A vs B).`
                 : undefined
             }
           />

@@ -29,7 +29,13 @@ if (!url || !key) {
 
 async function main() {
   const supabase = createClient(url, key);
-  const result = await runCrmCampaignMetricsDailyIngest(supabase);
+  const twitterApiKey =
+    (process.env.TWITTERAPI_API_KEY ||
+      process.env.TWITTERAPI_IO_KEY ||
+      process.env.TWITTERAPI_KEY ||
+      "")
+      .trim() || null;
+  const result = await runCrmCampaignMetricsDailyIngest(supabase, { twitterApiKey });
   console.log(
     "[crm_campaign_metrics_daily] done processed=%d with_daily_rows=%d errors=%d",
     result.campaignsProcessed,

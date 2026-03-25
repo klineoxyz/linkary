@@ -5,8 +5,12 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { debugSync } from "@/lib/server-error";
 import { xApiFetchSafe, type XApiFailureCode } from "@/lib/x-api-client";
+import { type XTweetRaw, fetchXUserTweets, parseTweetCreatedAt } from "./twitterapiLastTweets";
 
 const TWITTERAPI_BASE = "https://api.twitterapi.io";
+
+export type { XTweetRaw } from "./twitterapiLastTweets";
+export { fetchXUserTweets, parseTweetCreatedAt } from "./twitterapiLastTweets";
 
 export type ProfileRow = {
   id: string;
@@ -46,56 +50,6 @@ export async function fetchXUserInfo(
   const data = json?.data;
   if (!data || json?.status === "error") return null;
   return data;
-}
-
-/** Tweet shape from twitterapi.io GET /twitter/user/last_tweets */
-export type XTweetRaw = {
-  id: string;
-  text?: string;
-  likeCount?: number;
-  replyCount?: number;
-  retweetCount?: number;
-  quoteCount?: number;
-  viewCount?: number;
-  createdAt?: string;
-};
-
-/** Fetch up to `maxTweets` most recent tweets for a user. Paginates (20 per page). */
-export async function fetchXUserTweets(
-  userName: string,
-  apiKey: string,
-  maxTweets: number = 50
-): Promise<XTweetRaw[]> {
-  const u = userName.trim().replace(/^@/, "");
-  if (!u) return [];
-  const out: XTweetRaw[] = [];
-  let cursor: string = "";
-  while (out.length < maxTweets) {
-    const params = new URLSearchParams({ userName: u });
-    if (cursor) params.set("cursor", cursor);
-    const res = await fetch(`${TWITTERAPI_BASE}/twitter/user/last_tweets?${params.toString()}`, {
-      headers: { "X-API-Key": apiKey },
-      next: { revalidate: 0 },
-    });
-    if (!res.ok) break;
-    const json = await res.json();
-    const tweets: XTweetRaw[] = json?.tweets ?? [];
-    if (tweets.length === 0) break;
-    for (const t of tweets) {
-      if (out.length >= maxTweets) break;
-      out.push(t);
-    }
-    if (!json?.has_next_page || !json?.next_cursor) break;
-    cursor = json.next_cursor;
-  }
-  return out.slice(0, maxTweets);
-}
-
-/** Parse twitterapi.io createdAt (e.g. "Tue Dec 10 07:00:30 +0000 2024") to ISO. */
-export function parseTweetCreatedAt(createdAt: string | undefined): string | null {
-  if (!createdAt || typeof createdAt !== "string") return null;
-  const d = new Date(createdAt);
-  return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 /** Insert tweets into x_tweets; skip existing tweet_id. */

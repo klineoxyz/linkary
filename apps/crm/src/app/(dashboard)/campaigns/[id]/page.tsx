@@ -120,6 +120,7 @@ export default async function CampaignDetailPage({
   complianceWithContribution.sort((a, b) => (b.contributionPercent ?? 0) - (a.contributionPercent ?? 0));
 
   const noMetrics = !kpis.has_metrics;
+  const perf = kpis.performance_meta;
   const workspaceLabel =
     (workspaceRow?.data as { name?: string } | null)?.name ??
     (workspaceRow?.data as { slug?: string } | null)?.slug ??
@@ -541,23 +542,48 @@ export default async function CampaignDetailPage({
         <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
           KPIs
         </h2>
-        {noMetrics && (
+        {noMetrics && (promotedHandles.length > 0 ? (
           <p className="text-sm text-[var(--crm-muted)] mb-4">
-            Stored metrics not yet available. Values below are from participant
-            and submission counts only; views/engagements/CPV/CPE need daily
-            metrics snapshots.
+            No <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code> rows yet for this campaign.
+            Promoted X handles must match a Linkary <strong className="text-[var(--crm-foreground)]">profile</strong> (by{" "}
+            <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">twitter_username</code> or connected X account) with{" "}
+            <strong className="text-[var(--crm-foreground)]">ingested tweets</strong> in the campaign window; then run the scheduled job or{" "}
+            <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">pnpm sync:crm:campaign-metrics</code> from the repo. Submission counts below are live either way.
           </p>
-        )}
+        ) : (
+          <p className="text-sm text-[var(--crm-muted)] mb-4">
+            Add promoted X accounts under campaign definition to aggregate tweet-level impressions and engagements from Linkary ingestion. Contributor and submission KPIs below are already live.
+          </p>
+        ))}
+        {kpis.has_metrics && perf?.handles_unresolved?.length ? (
+          <p className="text-sm text-amber-900/90 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2 mb-4">
+            Some promoted handles did not match a Linkary profile (no matching{" "}
+            <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">twitter_username</code>):{" "}
+            <span className="font-mono text-xs">{perf.handles_unresolved.join("; ")}</span>. Metrics below include only matched accounts.
+          </p>
+        ) : null}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           <KpiCard
-            label="Total views / reach"
+            label="Tweet impressions (tracked)"
             value={kpis.total_views.toLocaleString()}
             insufficient={noMetrics}
+            sub={
+              kpis.has_metrics
+                ? kpis.performance_meta?.partial_impressions_hint
+                  ? "Sum of impression_count on ingested tweets; some tweets had no impression field (API)."
+                  : `From ${kpis.metrics_posts_total.toLocaleString()} tracked-account tweet(s) in window`
+                : undefined
+            }
           />
           <KpiCard
-            label="Total engagements"
+            label="Tweet engagements (tracked)"
             value={kpis.total_engagements.toLocaleString()}
             insufficient={noMetrics}
+            sub={
+              kpis.has_metrics
+                ? "Likes + replies + reposts + quotes on tracked-account tweets"
+                : undefined
+            }
           />
           <KpiCard label="Contributors" value={kpis.accepted_contributors} sub={`accepted · ${kpis.total_contributors} total`} />
           <KpiCard
@@ -575,8 +601,8 @@ export default async function CampaignDetailPage({
             value={`${kpis.currency} ${kpis.budget_used.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
             sub={
               kpis.budget_total != null
-                ? `of ${kpis.currency} ${kpis.budget_total.toLocaleString()}`
-                : undefined
+                ? `of ${kpis.currency} ${kpis.budget_total.toLocaleString()} (planned; ingest does not set spend_used)`
+                : "Ingest does not populate spend_used; CPV/CPE need real spend in daily rows"
             }
           />
           <KpiCard

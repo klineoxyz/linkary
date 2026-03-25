@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { canBootstrapCreatorWorkspace } from "@/lib/access";
 import { getOrCreateCreatorWorkspaceAndBoard } from "@/lib/workspace";
+import { normalizePromotedSocialHandlesForStorage } from "@/lib/trackedXHandle";
 
 export type LinkarySyncTask = {
   linkary_task_id: string;
@@ -271,7 +272,8 @@ export async function runLinkarySync(
     if (Array.isArray(def.links) && def.links.length > 0) campaignUpsert.guidance_links = def.links.slice(0, 5);
     if (def.promoted_org_id) campaignUpsert.promoted_org_id = def.promoted_org_id;
     if (Array.isArray(def.required_platforms) && def.required_platforms.length > 0) campaignUpsert.required_platforms = def.required_platforms;
-    if (Array.isArray(def.promoted_social_handles) && def.promoted_social_handles.length > 0) campaignUpsert.promoted_social_handles = def.promoted_social_handles;
+    if (Array.isArray(def.promoted_social_handles) && def.promoted_social_handles.length > 0)
+      campaignUpsert.promoted_social_handles = normalizePromotedSocialHandlesForStorage(def.promoted_social_handles);
     if (typeof def.weekly_required_posts === "number" && def.weekly_required_posts >= 0) campaignUpsert.weekly_required_posts = def.weekly_required_posts;
     if (def.daily_engagement_required != null && String(def.daily_engagement_required).trim() !== "") campaignUpsert.daily_engagement_required = String(def.daily_engagement_required).trim();
   }

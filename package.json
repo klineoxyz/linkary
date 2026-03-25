@@ -24,6 +24,7 @@
     "build:api": "pnpm --filter linkary-api build",
     "sync:x:tweets:daily": "pnpm --filter worker run sync:x:tweets:daily",
     "sync:x:profiles:daily": "pnpm --filter worker run sync:x:profiles:daily",
+    "sync:crm:campaign-metrics": "pnpm exec tsx apps/web/src/scripts/runCrmCampaignMetricsDaily.ts",
     "run:jobs": "pnpm --filter worker run run:jobs",
     "x:provider:selftest": "pnpm --filter worker run x:provider:selftest",
     "x:ingest:healthcheck": "pnpm --filter worker run x:ingest:healthcheck",

@@ -3,6 +3,7 @@
  * Campaign definition: workspace_id = operator; promoted_org_id = who is promoted; promoted_social_handles = accounts to track.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizePromotedSocialHandlesForStorage } from "@/lib/trackedXHandle";
 
 /** One social account to track for growth/reporting (e.g. { platform: "x", handle: "@acme" }). */
 export type PromotedSocialHandle = { platform: string; handle: string };
@@ -59,8 +60,18 @@ export type CampaignKpis = {
   currency: string;
   cpv: number | null;
   cpe: number | null;
-  /** True when metrics are from stored snapshots; false when no data. */
+  /** True when crm_campaign_metrics_daily has rows for this campaign. */
   has_metrics: boolean;
+  /** Sum of total_posts from daily metric rows (tracked-account tweets in window). */
+  metrics_posts_total: number;
+  /** Latest ingest metadata (handle resolution, source), when present. */
+  performance_meta: {
+    source: string | null;
+    handles_normalized: string[];
+    handles_unresolved: string[];
+    note: string | null;
+    partial_impressions_hint?: boolean;
+  } | null;
 };
 
 export type CampaignParticipantRow = {
@@ -171,18 +182,59 @@ export async function getCampaignKpis(
 ): Promise<CampaignKpis> {
   const { data: dailyRows } = await supabase
     .from("crm_campaign_metrics_daily")
-    .select("total_views, total_engagements, total_contributors, spend_used")
-    .eq("campaign_id", campaignId);
+    .select("day, total_views, total_engagements, total_posts, total_contributors, spend_used, metadata")
+    .eq("campaign_id", campaignId)
+    .order("day", { ascending: false });
 
   const totals = (dailyRows ?? []).reduce(
     (acc, row) => {
       acc.views += Number((row as { total_views?: number }).total_views) || 0;
       acc.engagements += Number((row as { total_engagements?: number }).total_engagements) || 0;
       acc.spend += Number((row as { spend_used?: number }).spend_used) || 0;
+      acc.posts += Number((row as { total_posts?: number }).total_posts) || 0;
       return acc;
     },
-    { views: 0, engagements: 0, spend: 0 }
+    { views: 0, engagements: 0, spend: 0, posts: 0 }
   );
+
+  type Meta = {
+    source?: string;
+    handles_normalized?: string[];
+    handles_unresolved?: string[];
+    note?: string;
+    partial_impressions?: string | null;
+  };
+  let performance_meta: CampaignKpis["performance_meta"] = null;
+  let partial_impressions_hint = false;
+  for (const row of dailyRows ?? []) {
+    const m = (row as { metadata?: unknown }).metadata as Meta | null | undefined;
+    if (m && typeof m === "object" && (m.source || (m.handles_normalized?.length ?? 0) > 0)) {
+      performance_meta = {
+        source: m.source ?? null,
+        handles_normalized: Array.isArray(m.handles_normalized) ? m.handles_normalized : [],
+        handles_unresolved: Array.isArray(m.handles_unresolved) ? m.handles_unresolved : [],
+        note: m.note ?? null,
+        partial_impressions_hint: false,
+      };
+      break;
+    }
+  }
+  for (const row of dailyRows ?? []) {
+    const m = (row as { metadata?: unknown; total_views?: number; total_posts?: number }).metadata as Meta | null | undefined;
+    const tv = Number((row as { total_views?: number }).total_views) || 0;
+    const tp = Number((row as { total_posts?: number }).total_posts) || 0;
+    if (tp > 0 && tv === 0) {
+      partial_impressions_hint = true;
+      break;
+    }
+    if (m?.partial_impressions) {
+      partial_impressions_hint = true;
+      break;
+    }
+  }
+  if (performance_meta && partial_impressions_hint) {
+    performance_meta = { ...performance_meta, partial_impressions_hint: true };
+  }
 
   const submissionStatuses = ["pending", "approved", "rejected", "needs_revision"] as const;
   const taskStatuses = ["backlog", "to_do", "in_progress", "submitted", "approved", "rejected", "done"] as const;
@@ -241,6 +293,8 @@ export async function getCampaignKpis(
     cpv,
     cpe,
     has_metrics: hasMetrics,
+    metrics_posts_total: totals.posts,
+    performance_meta,
   };
 }
 
@@ -402,7 +456,7 @@ export async function updateCampaignDefinition(
   if (payload.promoted_org_id !== undefined) update.promoted_org_id = payload.promoted_org_id?.trim() || null;
   if (payload.promoted_social_handles !== undefined)
     update.promoted_social_handles = Array.isArray(payload.promoted_social_handles)
-      ? payload.promoted_social_handles
+      ? normalizePromotedSocialHandlesForStorage(payload.promoted_social_handles as PromotedSocialHandle[])
       : [];
   if (payload.campaign_objective !== undefined)
     update.campaign_objective = payload.campaign_objective?.trim() || null;

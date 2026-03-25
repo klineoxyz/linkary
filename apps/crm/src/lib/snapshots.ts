@@ -4,6 +4,7 @@
  * Stored data only; no fake metrics.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizeTrackedXHandle } from "@/lib/trackedXHandle";
 
 export type SnapshotType = "baseline" | "daily" | "end";
 
@@ -38,6 +39,13 @@ export type AccountGrowth = {
   engagement_growth: number | null;
 };
 
+function snapshotHandleMatchKey(platform: string, handle: string): string {
+  const p = platform.trim().toLowerCase();
+  const h =
+    p === "x" || p === "twitter" ? normalizeTrackedXHandle(handle) : handle.trim().toLowerCase();
+  return `${p}:${h}`;
+}
+
 /**
  * Insert or replace a snapshot for (campaign_id, platform, handle, snapshot_type).
  * For baseline/end we use one row per type; for daily we use snapshot_at as date.
@@ -51,10 +59,14 @@ export async function upsertAccountSnapshot(
   snapshotAt: string,
   metrics: SnapshotMetrics
 ): Promise<{ error?: string }> {
+  const plat = platform.trim().toLowerCase();
+  const hTrim = handle.trim();
+  const norm = plat === "x" || plat === "twitter" ? normalizeTrackedXHandle(hTrim) : "";
+  const handleStored = norm ? `@${norm}` : hTrim;
   const { error } = await supabase.from("crm_campaign_account_snapshots").insert({
     campaign_id: campaignId,
-    platform: platform.trim(),
-    handle: handle.trim(),
+    platform: plat,
+    handle: handleStored,
     snapshot_type: snapshotType,
     snapshot_at: snapshotAt,
     metrics: metrics ?? {},
@@ -96,7 +108,7 @@ export async function getAccountGrowth(
   const baseline = await getAccountSnapshots(supabase, campaignId, { snapshotType: "baseline" });
   const end = await getAccountSnapshots(supabase, campaignId, { snapshotType: "end" });
 
-  const byKey = (r: AccountSnapshotRow) => `${r.platform}:${r.handle}`;
+  const byKey = (r: AccountSnapshotRow) => snapshotHandleMatchKey(r.platform, r.handle);
   const baselineByKey = new Map(baseline.map((r) => [byKey(r), r]));
   const endByKey = new Map(end.map((r) => [byKey(r), r]));
 
@@ -155,8 +167,8 @@ export async function getEndSnapshotStatus(
   const endSnapshots = await getAccountSnapshots(supabase, campaignId, {
     snapshotType: "end",
   });
-  const endKeys = new Set(endSnapshots.map((r) => `${r.platform}:${r.handle}`));
-  const keys = new Set(promotedHandles.map((h) => `${h.platform}:${h.handle}`));
+  const endKeys = new Set(endSnapshots.map((r) => snapshotHandleMatchKey(r.platform, r.handle)));
+  const keys = new Set(promotedHandles.map((h) => snapshotHandleMatchKey(h.platform, h.handle)));
   let endSnapshotCount = 0;
   for (const key of keys) {
     if (endKeys.has(key)) endSnapshotCount++;

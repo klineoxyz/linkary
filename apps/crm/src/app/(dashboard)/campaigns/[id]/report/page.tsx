@@ -181,11 +181,15 @@ export default async function CampaignReportPage({
       <ReportSection title="Metrics (stored data only)">
         {!has_metrics && (
           <p className="text-sm text-[var(--crm-muted)] mb-4">
-            No daily metrics yet. Populate crm_campaign_metrics_daily and account snapshots for full report.
+            No daily metrics yet. With promoted X handles set, run <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">pnpm sync:crm:campaign-metrics</code> or the{" "}
+            <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">POST /api/cron/crm-campaign-metrics-daily</code> cron (handles must match Linkary profiles with ingested{" "}
+            <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">x_tweets</code> in the campaign window). Manual account snapshots still fill likes/replies below when recorded.
           </p>
         )}
         <p className="text-xs text-[var(--crm-muted)] mb-3">
-          Campaign-period metrics come from crm_campaign_metrics_daily. Likes/replies/quotes/reposts are from promoted-account end snapshots (totals across tracked accounts, not campaign-attributed).
+          Campaign-period posts/views/engagements come from <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code> (tweet aggregates when ingestion has run).
+          Impressions are summed only when <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">impression_count</code> exists on stored tweets.
+          Likes/replies/quotes/reposts below are from promoted-account end snapshots (not campaign-attributed).
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
@@ -193,13 +197,13 @@ export default async function CampaignReportPage({
             <p className="text-xl font-semibold text-[var(--crm-primary)]">{total_posts}</p>
           </div>
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Total views (campaign period)</p>
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Tweet impressions (campaign period)</p>
             <p className="text-xl font-semibold text-[var(--crm-primary)]">
               {total_views.toLocaleString()}
             </p>
           </div>
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Total engagements (campaign period)</p>
+            <p className="text-xs text-[var(--crm-muted)] uppercase">Tweet engagements (campaign period)</p>
             <p className="text-xl font-semibold text-[var(--crm-primary)]">
               {total_engagements.toLocaleString()}
             </p>

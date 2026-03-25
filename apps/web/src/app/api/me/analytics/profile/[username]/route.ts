@@ -2,7 +2,7 @@
  * GET /api/me/analytics/profile/[username]
  *
  * Cross-user analytics viewer: returns allowlisted analytics for the given profile
- * when the caller is eligible (same entitlement as discovery). Auth required.
+ * when the caller is eligible (KOL+ personal entitlement). Auth required.
  * Rate limited (same policy as discovery). No email, location, pricing, auth ids, or private metadata.
  */
 
@@ -10,11 +10,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServiceSupabase } from "@/lib/x-analytics-server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { isEligibleForDiscovery } from "@/lib/entitlementDiscovery";
 import { rateLimit } from "@/lib/rate-limit";
 import { DISCOVERY_RATE_LIMIT, DISCOVERY_RATE_WINDOW_SEC } from "@/lib/discoveryConstants";
 import { ok, fail } from "@/lib/api-response";
 import { shapeCrossUserAnalyticsResponse } from "@/lib/crossUserAnalyticsAllowlist";
+import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
+import { planAllowsCrossUserAnalytics } from "@/lib/planKey";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -36,7 +37,6 @@ export async function GET(
     const authHeader = request.headers.get("authorization");
     const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     let userId: string | null = null;
-    let viewerEmail: string | null = null;
 
     if (token) {
       const bearerClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -45,7 +45,6 @@ export async function GET(
       const { data: { user }, error } = await bearerClient.auth.getUser(token);
       if (!error && user?.id) {
         userId = user.id;
-        viewerEmail = user.email ?? null;
       }
     }
     if (!userId) {
@@ -53,15 +52,16 @@ export async function GET(
       const { data: { session } } = await serverSupabase.auth.getSession();
       if (session?.user?.id) {
         userId = session.user.id;
-        viewerEmail = session.user.email ?? null;
       }
     }
     if (!userId) return fail("UNAUTHORIZED", "Unauthorized", 401);
 
     const serviceSupabase = createServiceSupabase();
 
-    const eligible = await isEligibleForDiscovery(userId, viewerEmail, serviceSupabase);
-    if (!eligible) return fail("ANALYTICS_VIEW_NOT_ELIGIBLE", "Analytics view not available on your plan", 403);
+    const viewerPlan = await resolveEffectivePlanKeyForProfile(serviceSupabase, userId);
+    if (!planAllowsCrossUserAnalytics(viewerPlan)) {
+      return fail("ANALYTICS_VIEW_NOT_ELIGIBLE", "Analytics view not available on your plan", 403);
+    }
 
     const rlKey = `analytics-profile:u:${userId}`;
     const rl = await rateLimit({

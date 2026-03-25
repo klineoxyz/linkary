@@ -41,7 +41,11 @@ function deriveStatus(opts: {
 
 export async function GET(_request: NextRequest) {
   if (!supabaseUrl || !supabaseServiceKey) {
-    return NextResponse.json({ campaigns: [] });
+    console.error("[marketplace_campaigns] missing Supabase env for service read");
+    return NextResponse.json(
+      { error: "SERVICE_CONFIG_MISSING", campaigns: [] },
+      { status: 500 }
+    );
   }
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 

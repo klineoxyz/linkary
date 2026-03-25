@@ -4,28 +4,33 @@ import { ok } from "@/lib/api-response";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
+const OPS_ROLES = new Set(["ops_super", "ops_finance", "ops_support", "ops_readonly"]);
 
 /**
  * GET /api/ops/check
- * Returns { allowed: true } if OPS_ENABLED is set (any value) OR request has valid Bearer session.
- * Never leaks OPS_ENABLED value; only boolean allowed.
+ * Returns { allowed: true } only when request has valid Bearer session and active internal_ops_members role.
  */
 export async function GET(request: NextRequest) {
-  const opsEnabled = typeof process.env.OPS_ENABLED === "string" && process.env.OPS_ENABLED.length > 0;
-  if (opsEnabled) {
-    return ok({ allowed: true });
-  }
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token || !supabaseUrl || !supabaseAnonKey) {
+  if (!token || !supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
     return ok({ allowed: false });
   }
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  const authClient = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
-  const { data: { user }, error } = await supabase.auth.getUser(token);
+  const { data: { user }, error } = await authClient.auth.getUser(token);
   if (error || !user?.id) {
     return ok({ allowed: false });
   }
-  return ok({ allowed: true });
+  const service = createClient(supabaseUrl, supabaseServiceKey);
+  const { data: member } = await service
+    .from("internal_ops_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .is("revoked_at", null)
+    .maybeSingle();
+  const role = typeof member?.role === "string" ? member.role : null;
+  return ok({ allowed: role != null && OPS_ROLES.has(role) });
 }

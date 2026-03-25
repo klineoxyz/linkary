@@ -2614,11 +2614,6 @@ function MarketplacePage({ setRoute, route }) {
                     <Button size="sm" variant="outline" onClick={() => setBrowseCampaign(c)}>
                       View details
                     </Button>
-                    {c.accepts_new_users && c.visibility_mode === "public" ? (
-                      <Button size="sm" onClick={() => setBrowseCampaign(c)}>
-                        Join
-                      </Button>
-                    ) : null}
                   </div>
                 </div>
               ))}

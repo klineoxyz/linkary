@@ -134,7 +134,7 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
     { label: "Personal discovery on Linkary", cells: [null, true, true, true, true, true] },
     {
       label: "Peer profile analytics access",
-      cells: ["Limited", "Limited", "More depth", "More depth", "More depth", "Custom"],
+      cells: [null, null, true, true, true, "Custom"],
     },
     { label: "Manual insights refresh", cells: [null, "Limited", "More", "More", "Higher", "Custom"] },
     {

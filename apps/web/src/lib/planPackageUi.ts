@@ -29,7 +29,7 @@ export function upgradeCtaLine(context: "analytics" | "discovery" | "cross_user_
     case "discovery":
       return "Discovery search is included from NaNo Pack upward on your personal subscription.";
     case "cross_user_analytics":
-      return "Viewing other creators’ analytics requires an eligible personal plan (typically KOL Pack or higher). See pricing for details.";
+      return "Viewing other creators’ analytics requires a KOL Pack or higher personal plan. See pricing for details.";
     default:
       return "See pricing for eligible packs.";
   }

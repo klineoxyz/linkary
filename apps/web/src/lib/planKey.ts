@@ -10,6 +10,7 @@ export {
   mergePlanKeys,
   normalizePlanKey,
   planAllowsBackgroundXIngest,
+  planAllowsCrossUserAnalytics,
   planAllowsDeepAnalyticsPayload,
   planAllowsPaidDiscovery,
   planAllowsSelfServe90dBackfill,

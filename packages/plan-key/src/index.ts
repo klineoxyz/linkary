@@ -113,6 +113,11 @@ export function planAllowsDeepAnalyticsPayload(key: PlanKey): boolean {
   return key !== "free";
 }
 
+/** Cross-user creator analytics viewer (/api/me/analytics/profile/[username]). */
+export function planAllowsCrossUserAnalytics(key: PlanKey): boolean {
+  return key === "kol" || key === "startup" || key === "unicorn" || key === "custom";
+}
+
 /**
  * CRM: external X profile lookup by handle (non-connected profiles), org subscription only.
  * StartUP / UniCorn / Custom — not free / nano / kol.

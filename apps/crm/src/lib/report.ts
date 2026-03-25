@@ -16,6 +16,16 @@ import {
 import { getAccountGrowth, getEndSnapshotStatus, type AccountGrowth, type EndSnapshotStatus } from "@/lib/snapshots";
 import type { ContributionRow } from "@/lib/contribution";
 import { computeContribution } from "@/lib/contribution";
+import {
+  buildParticipantSubmissionRollups,
+  computeEfficiencyMetrics,
+  summarizeTargetDailySeries,
+  topParticipantsBySnapshotImpressions,
+  type EfficiencyMetricsResult,
+  type ParticipantSubmissionRollupRow,
+  type SnapshotViewsLeaderRow,
+  type TargetDailyWindowSummary,
+} from "@/lib/reportAggregates";
 
 export type ReportChartPoint = {
   day: string;
@@ -57,6 +67,14 @@ export type CampaignReportData = {
   contribution_rows: ContributionRow[];
   submissions: CampaignSubmissionRow[];
   chart_series: ReportChartPoint[];
+  /** First vs last day in daily series + window sums (target account tweet aggregates). */
+  target_daily_summary: TargetDailyWindowSummary;
+  /** Truthful CPM/CPV/CPE only when spend_used sum &gt; 0; CPC never. */
+  efficiency: EfficiencyMetricsResult;
+  /** Per-participant proof submission breakdown + optional metrics_snapshot sums. */
+  participant_submission_rollups: ParticipantSubmissionRollupRow[];
+  /** Approved submissions only, ranked by summed snapshot impressions/views when present. */
+  top_by_submission_snapshot_views: SnapshotViewsLeaderRow[];
   account_growth: AccountGrowth[];
   has_metrics: boolean;
   finalized_at: string | null;
@@ -132,6 +150,37 @@ export async function getCampaignReportData(
     posts: Number(d.total_posts) || 0,
   }));
 
+  const target_daily_summary = summarizeTargetDailySeries(chart_series);
+
+  const efficiency = computeEfficiencyMetrics({
+    spendSumFromDaily: kpis.budget_used,
+    totalViews: kpis.total_views,
+    totalEngagements: kpis.total_engagements,
+    currency: kpis.currency,
+  });
+
+  const contributionPctMap = new Map(
+    contributionRows.map((r) => [r.participant_profile_id, r.contributionPercent])
+  );
+  const participant_submission_rollups = buildParticipantSubmissionRollups(
+    submissions.map((s) => ({
+      participant_profile_id: s.participant_profile_id,
+      status: s.status,
+      created_at: s.created_at,
+      metrics_snapshot: s.metrics_snapshot,
+    })),
+    contributionPctMap
+  );
+  const top_by_submission_snapshot_views = topParticipantsBySnapshotImpressions(
+    submissions.map((s) => ({
+      participant_profile_id: s.participant_profile_id,
+      status: s.status,
+      created_at: s.created_at,
+      metrics_snapshot: s.metrics_snapshot,
+    })),
+    10
+  );
+
   const totalPosts = daily.reduce((s, d) => s + (Number(d.total_posts) || 0), 0);
 
   let likes: number | null = null;
@@ -173,6 +222,10 @@ export async function getCampaignReportData(
     contribution_rows: contributionRows,
     submissions,
     chart_series,
+    target_daily_summary,
+    efficiency,
+    participant_submission_rollups,
+    top_by_submission_snapshot_views,
     account_growth: accountGrowth,
     has_metrics: kpis.has_metrics,
     finalized_at: campaign.finalized_at ?? null,
@@ -277,6 +330,61 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
       section: "leaderboard_task_contribution_pct",
       label: `${t.participant_profile_id} task contribution %`,
       value: t.contribution_percent,
+    });
+  }
+
+  for (const t of data.top_by_submission_snapshot_views) {
+    rows.push({
+      section: "leaderboard_snapshot_views_approved",
+      label: `${t.participant_profile_id} summed snapshot views/impressions (approved only)`,
+      value: t.approved_with_snapshot_sum,
+    });
+  }
+
+  if (data.target_daily_summary.has_daily) {
+    rows.push({
+      section: "target_daily_window",
+      label: "First day (daily series)",
+      value: data.target_daily_summary.first_day ?? "",
+    });
+    rows.push({
+      section: "target_daily_window",
+      label: "Last day (daily series)",
+      value: data.target_daily_summary.last_day ?? "",
+    });
+    rows.push({
+      section: "target_daily_window",
+      label: "Window sum posts (target tweets)",
+      value: data.target_daily_summary.window_totals.posts,
+    });
+    rows.push({
+      section: "target_daily_window",
+      label: "Window sum views/impressions",
+      value: data.target_daily_summary.window_totals.views,
+    });
+    rows.push({
+      section: "target_daily_window",
+      label: "Window sum engagements",
+      value: data.target_daily_summary.window_totals.engagements,
+    });
+  }
+
+  if (data.efficiency.can_show_efficiency) {
+    rows.push({
+      section: "efficiency",
+      label: "Recorded spend (sum spend_used)",
+      value: data.efficiency.spend_recorded ?? "",
+    });
+    rows.push({ section: "efficiency", label: "CPM", value: data.efficiency.cpm ?? "" });
+    rows.push({ section: "efficiency", label: "CPV", value: data.efficiency.cpv ?? "" });
+    rows.push({ section: "efficiency", label: "CPE", value: data.efficiency.cpe ?? "" });
+  }
+
+  for (const r of data.participant_submission_rollups) {
+    rows.push({
+      section: "participant_submission_rollup",
+      label: `${r.participant_profile_id} submissions / approved / rejected / revision / pending`,
+      value: `${r.submissions_total} / ${r.approved} / ${r.rejected} / ${r.needs_revision} / ${r.pending}`,
     });
   }
 

@@ -58,6 +58,8 @@ export type CampaignKpis = {
   budget_used: number;
   budget_total: number | null;
   currency: string;
+  /** Cost per 1k impressions (tweet views); only when spend_used sum &gt; 0. */
+  cpm: number | null;
   cpv: number | null;
   cpe: number | null;
   /** True when crm_campaign_metrics_daily has rows for this campaign. */
@@ -99,6 +101,8 @@ export type CampaignSubmissionRow = {
   reviewed_at: string | null;
   rejection_reason: string | null;
   created_at: string;
+  /** Optional per-link metrics (manual or future automation); keys vary. */
+  metrics_snapshot?: Record<string, unknown> | null;
 };
 
 /** Top contributor: profile id + submission count (or engagement proxy). */
@@ -289,8 +293,10 @@ export async function getCampaignKpis(
   const budgetUsed = totals.spend;
   const views = totals.views;
   const engagements = totals.engagements;
-  const cpv = views > 0 && budgetUsed != null ? budgetUsed / views : null;
-  const cpe = engagements > 0 && budgetUsed != null ? budgetUsed / engagements : null;
+  const spendPositive = budgetUsed > 0;
+  const cpm = views > 0 && spendPositive ? (budgetUsed / views) * 1000 : null;
+  const cpv = views > 0 && spendPositive ? budgetUsed / views : null;
+  const cpe = engagements > 0 && spendPositive ? budgetUsed / engagements : null;
   const hasMetrics = dailyRows != null && dailyRows.length > 0;
 
   return {
@@ -304,6 +310,7 @@ export async function getCampaignKpis(
     budget_used: budgetUsed,
     budget_total: budgetTotal,
     currency: campaign.currency ?? "USD",
+    cpm,
     cpv,
     cpe,
     has_metrics: hasMetrics,
@@ -400,7 +407,9 @@ export async function getCampaignSubmissions(
 ): Promise<CampaignSubmissionRow[]> {
   const { data } = await supabase
     .from("crm_submissions")
-    .select("id, task_id, campaign_id, participant_profile_id, platform, url, title, notes, status, reviewed_at, rejection_reason, created_at")
+    .select(
+      "id, task_id, campaign_id, participant_profile_id, platform, url, title, notes, status, reviewed_at, rejection_reason, created_at, metrics_snapshot"
+    )
     .eq("campaign_id", campaignId)
     .order("created_at", { ascending: false });
 

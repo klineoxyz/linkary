@@ -1,0 +1,306 @@
+/**
+ * Pure helpers for campaign report: target daily window, efficiency (truthful denominators), submission rollups.
+ */
+
+export type ReportChartPointInput = {
+  day: string;
+  views: number;
+  engagements: number;
+  posts: number;
+};
+
+export type TargetDailyWindowSummary = {
+  has_daily: boolean;
+  first_day: string | null;
+  last_day: string | null;
+  /** Activity on the first day in the daily series (not cumulative). */
+  at_period_start: { posts: number; views: number; engagements: number };
+  /** Activity on the last day in the daily series. */
+  at_latest_day: { posts: number; views: number; engagements: number };
+  /** Sum of per-day values over the whole series (matches headline totals). */
+  window_totals: { posts: number; views: number; engagements: number };
+  /** Latest day minus first day (day-level change, not cumulative campaign total). */
+  delta_last_minus_first_day: { posts: number; views: number; engagements: number };
+};
+
+export function summarizeTargetDailySeries(series: ReportChartPointInput[]): TargetDailyWindowSummary {
+  if (!series.length) {
+    return {
+      has_daily: false,
+      first_day: null,
+      last_day: null,
+      at_period_start: { posts: 0, views: 0, engagements: 0 },
+      at_latest_day: { posts: 0, views: 0, engagements: 0 },
+      window_totals: { posts: 0, views: 0, engagements: 0 },
+      delta_last_minus_first_day: { posts: 0, views: 0, engagements: 0 },
+    };
+  }
+  const first = series[0];
+  const last = series[series.length - 1];
+  const window_totals = series.reduce(
+    (acc, d) => ({
+      posts: acc.posts + d.posts,
+      views: acc.views + d.views,
+      engagements: acc.engagements + d.engagements,
+    }),
+    { posts: 0, views: 0, engagements: 0 }
+  );
+  return {
+    has_daily: true,
+    first_day: first.day,
+    last_day: last.day,
+    at_period_start: { posts: first.posts, views: first.views, engagements: first.engagements },
+    at_latest_day: { posts: last.posts, views: last.views, engagements: last.engagements },
+    window_totals,
+    delta_last_minus_first_day: {
+      posts: last.posts - first.posts,
+      views: last.views - first.views,
+      engagements: last.engagements - first.engagements,
+    },
+  };
+}
+
+export type EfficiencyMetricsResult = {
+  /** Sum of crm_campaign_metrics_daily.spend_used when &gt; 0 */
+  spend_recorded: number | null;
+  currency: string;
+  /** CPM = spend / impressions × 1000 (impressions === tweet views in this pipeline). */
+  cpm: number | null;
+  /** CPV = spend / view (one impression). Same denominator as CPM. */
+  cpv: number | null;
+  /** CPE = spend / engagements on target tweets (summed window). */
+  cpe: number | null;
+  /** Never computed — clicks not ingested. */
+  cpc: null;
+  can_show_efficiency: boolean;
+  unavailable_reason: string | null;
+};
+
+/**
+ * Truthful efficiency only when recorded spend &gt; 0 and denominators &gt; 0.
+ * Impressions are represented by `total_views` (tweet impression/view counts).
+ */
+export function computeEfficiencyMetrics(args: {
+  spendSumFromDaily: number;
+  totalViews: number;
+  totalEngagements: number;
+  currency: string;
+}): EfficiencyMetricsResult {
+  const currency = args.currency || "USD";
+  const spend = args.spendSumFromDaily;
+  const views = args.totalViews;
+  const eng = args.totalEngagements;
+
+  if (!Number.isFinite(spend) || spend <= 0) {
+    return {
+      spend_recorded: spend > 0 ? spend : null,
+      currency,
+      cpm: null,
+      cpv: null,
+      cpe: null,
+      cpc: null,
+      can_show_efficiency: false,
+      unavailable_reason:
+        "No recorded spend: set `spend_used` on `crm_campaign_metrics_daily` rows (ingest does not populate it by default). Efficiency metrics stay hidden to avoid misleading CPV/CPM/CPE.",
+    };
+  }
+
+  const cpv = views > 0 ? spend / views : null;
+  const cpm = views > 0 ? (spend / views) * 1000 : null;
+  const cpe = eng > 0 ? spend / eng : null;
+
+  const hasAnyDenominator = views > 0 || eng > 0;
+  if (!hasAnyDenominator) {
+    return {
+      spend_recorded: spend,
+      currency,
+      cpm: null,
+      cpv: null,
+      cpe: null,
+      cpc: null,
+      can_show_efficiency: false,
+      unavailable_reason:
+        "Recorded spend exists but target-account impressions/views and engagements are both zero for this window — CPM, CPV, and CPE need a non-zero denominator. Sync daily metrics or widen the campaign window.",
+    };
+  }
+
+  return {
+    spend_recorded: spend,
+    currency,
+    cpm,
+    cpv,
+    cpe,
+    cpc: null,
+    can_show_efficiency: true,
+    unavailable_reason: null,
+  };
+}
+
+export type SubmissionRowWithSnapshot = {
+  participant_profile_id: string;
+  status: string;
+  created_at: string;
+  metrics_snapshot?: unknown;
+};
+
+function numFromUnknown(v: unknown): number | null {
+  if (v == null) return null;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/** Best-effort extract from crm_submissions.metrics_snapshot jsonb (no standard schema yet). */
+export function parseMetricsSnapshot(snapshot: unknown): {
+  views: number | null;
+  impressions: number | null;
+  engagements: number | null;
+} {
+  if (snapshot == null || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+    return { views: null, impressions: null, engagements: null };
+  }
+  const o = snapshot as Record<string, unknown>;
+  const views =
+    numFromUnknown(o.views) ??
+    numFromUnknown(o.view_count) ??
+    numFromUnknown(o.viewCount) ??
+    null;
+  const impressions =
+    numFromUnknown(o.impressions) ??
+    numFromUnknown(o.impression_count) ??
+    numFromUnknown(o.impressionCount) ??
+    null;
+  const engagements =
+    numFromUnknown(o.engagements) ??
+    numFromUnknown(o.engagement_count) ??
+    numFromUnknown(o.engagement_total) ??
+    null;
+  return { views, impressions, engagements };
+}
+
+export type ParticipantSubmissionRollupRow = {
+  participant_profile_id: string;
+  submissions_total: number;
+  approved: number;
+  pending: number;
+  rejected: number;
+  needs_revision: number;
+  latest_submission_at: string | null;
+  contribution_percent: number | null;
+  /** Prefer impressions, else views, summed from snapshots when present. */
+  snapshot_impressions_or_views_sum: number;
+  snapshot_engagements_sum: number;
+  has_snapshot_metrics: boolean;
+};
+
+export function buildParticipantSubmissionRollups(
+  submissions: SubmissionRowWithSnapshot[],
+  contributionPercentByProfile: Map<string, number>
+): ParticipantSubmissionRollupRow[] {
+  type Agg = {
+    submissions_total: number;
+    approved: number;
+    pending: number;
+    rejected: number;
+    needs_revision: number;
+    latest: string | null;
+    snapViews: number;
+    snapEng: number;
+    snapAny: boolean;
+  };
+  const by = new Map<string, Agg>();
+
+  for (const s of submissions) {
+    const pid = s.participant_profile_id;
+    let a = by.get(pid);
+    if (!a) {
+      a = {
+        submissions_total: 0,
+        approved: 0,
+        pending: 0,
+        rejected: 0,
+        needs_revision: 0,
+        latest: null,
+        snapViews: 0,
+        snapEng: 0,
+        snapAny: false,
+      };
+      by.set(pid, a);
+    }
+    a.submissions_total += 1;
+    const st = (s.status ?? "").toLowerCase();
+    if (st === "approved") a.approved += 1;
+    else if (st === "pending") a.pending += 1;
+    else if (st === "rejected") a.rejected += 1;
+    else if (st === "needs_revision") a.needs_revision += 1;
+
+    const t = new Date(s.created_at).getTime();
+    if (Number.isFinite(t) && (!a.latest || t > new Date(a.latest).getTime())) {
+      a.latest = s.created_at;
+    }
+
+    const p = parseMetricsSnapshot(s.metrics_snapshot);
+    const imp = p.impressions ?? p.views;
+    if (imp != null && imp > 0) {
+      a.snapViews += imp;
+      a.snapAny = true;
+    }
+    if (p.engagements != null && p.engagements > 0) {
+      a.snapEng += p.engagements;
+      a.snapAny = true;
+    }
+  }
+
+  const rows: ParticipantSubmissionRollupRow[] = [];
+  for (const [participant_profile_id, a] of by) {
+    rows.push({
+      participant_profile_id,
+      submissions_total: a.submissions_total,
+      approved: a.approved,
+      pending: a.pending,
+      rejected: a.rejected,
+      needs_revision: a.needs_revision,
+      latest_submission_at: a.latest,
+      contribution_percent: contributionPercentByProfile.get(participant_profile_id) ?? null,
+      snapshot_impressions_or_views_sum: a.snapViews,
+      snapshot_engagements_sum: a.snapEng,
+      has_snapshot_metrics: a.snapAny,
+    });
+  }
+
+  rows.sort((x, y) => {
+    if (y.approved !== x.approved) return y.approved - x.approved;
+    return y.submissions_total - x.submissions_total;
+  });
+  return rows;
+}
+
+export type SnapshotViewsLeaderRow = {
+  participant_profile_id: string;
+  approved_with_snapshot_sum: number;
+};
+
+export function topParticipantsBySnapshotImpressions(
+  submissions: SubmissionRowWithSnapshot[],
+  limit = 10
+): SnapshotViewsLeaderRow[] {
+  const by = new Map<string, number>();
+  for (const s of submissions) {
+    if ((s.status ?? "").toLowerCase() !== "approved") continue;
+    const p = parseMetricsSnapshot(s.metrics_snapshot);
+    const imp = p.impressions ?? p.views;
+    if (imp == null || imp <= 0) continue;
+    const pid = s.participant_profile_id;
+    by.set(pid, (by.get(pid) ?? 0) + imp);
+  }
+  return Array.from(by.entries())
+    .map(([participant_profile_id, approved_with_snapshot_sum]) => ({
+      participant_profile_id,
+      approved_with_snapshot_sum,
+    }))
+    .sort((a, b) => b.approved_with_snapshot_sum - a.approved_with_snapshot_sum)
+    .slice(0, limit);
+}

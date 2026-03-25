@@ -139,6 +139,10 @@ export default async function CampaignReportPage({
     top_by_contribution_percent,
     submissions,
     chart_series,
+    target_daily_summary,
+    efficiency,
+    participant_submission_rollups,
+    top_by_submission_snapshot_views,
     account_growth,
     has_metrics,
     finalized_at,
@@ -148,9 +152,9 @@ export default async function CampaignReportPage({
   const { promotedCount, endSnapshotCount, hasAllEndSnapshots } = end_snapshot_status;
   const growthPartial = finalized_at && promotedCount > 0 && !hasAllEndSnapshots;
 
-  const maxChart = Math.max(
+  const maxChartTri = Math.max(
     1,
-    ...chart_series.map((d) => Math.max(d.views, d.engagements))
+    ...chart_series.map((d) => Math.max(d.views, d.engagements, d.posts))
   );
 
   const topContributorIds = Array.from(
@@ -158,8 +162,15 @@ export default async function CampaignReportPage({
       ...top_contributors_all_submissions.map((t) => t.participant_profile_id),
       ...top_contributors_approved_submissions.map((t) => t.participant_profile_id),
       ...top_by_contribution_percent.map((t) => t.participant_profile_id),
+      ...participant_submission_rollups.map((r) => r.participant_profile_id),
+      ...top_by_submission_snapshot_views.map((t) => t.participant_profile_id),
     ])
   );
+
+  function fmtMoney(n: number | null | undefined, cur: string) {
+    if (n == null || !Number.isFinite(n)) return "—";
+    return `${cur} ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+  }
   const { data: topContributorProfiles } =
     topContributorIds.length > 0
       ? await supabase.from("profiles").select("id, username, display_name, twitter_username, avatar_url").in("id", topContributorIds)
@@ -203,8 +214,6 @@ export default async function CampaignReportPage({
         )}
       </div>
 
-      <CampaignAttributionNote />
-
       <ReportSection title="Campaign overview">
         <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 space-y-2">
           <MetricRow label="Campaign name" value={campaign.title} />
@@ -246,7 +255,7 @@ export default async function CampaignReportPage({
         </div>
       </ReportSection>
 
-      <ReportSection title="Promoted account performance (Layer 1)">
+      <ReportSection title="A — Promoted account growth & performance (target account)">
         <p className="text-sm text-[var(--crm-muted)] mb-3">
           Metrics here describe the <strong className="text-[var(--crm-foreground)]">target / promoted account&apos;s own posts</strong> in the campaign window — not participant submissions.
           Daily rows come from <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code> (aggregated from{" "}
@@ -308,9 +317,166 @@ export default async function CampaignReportPage({
             <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">From operator end snapshot(s)</p>
           </div>
         </div>
+
+        {target_daily_summary.has_daily && (
+          <div className="mt-6 rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
+            <p className="text-xs font-medium text-[var(--crm-foreground)] px-4 pt-3 pb-2 border-b border-[var(--crm-border)]">
+              Target account — daily ingest timeline (<code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code>)
+            </p>
+            <p className="text-xs text-[var(--crm-muted)] px-4 py-2">
+              Per-day values are activity on that calendar day (not cumulative). <strong className="text-[var(--crm-foreground)]">Window totals</strong> sum all days and match the headline cards above.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Metric</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">First day ({target_daily_summary.first_day})</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Latest day ({target_daily_summary.last_day})</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Δ latest − first</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Window sum</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-[var(--crm-border)]">
+                    <td className="p-3 text-[var(--crm-muted)]">Posts (target tweets)</td>
+                    <td className="p-3 text-right tabular-nums">{target_daily_summary.at_period_start.posts}</td>
+                    <td className="p-3 text-right tabular-nums">{target_daily_summary.at_latest_day.posts}</td>
+                    <td className="p-3 text-right tabular-nums">{target_daily_summary.delta_last_minus_first_day.posts}</td>
+                    <td className="p-3 text-right font-medium tabular-nums">{target_daily_summary.window_totals.posts}</td>
+                  </tr>
+                  <tr className="border-b border-[var(--crm-border)]">
+                    <td className="p-3 text-[var(--crm-muted)]">Impressions / views</td>
+                    <td className="p-3 text-right tabular-nums">{target_daily_summary.at_period_start.views.toLocaleString()}</td>
+                    <td className="p-3 text-right tabular-nums">{target_daily_summary.at_latest_day.views.toLocaleString()}</td>
+                    <td className="p-3 text-right tabular-nums">{target_daily_summary.delta_last_minus_first_day.views.toLocaleString()}</td>
+                    <td className="p-3 text-right font-medium tabular-nums">{target_daily_summary.window_totals.views.toLocaleString()}</td>
+                  </tr>
+                  <tr className="border-b border-[var(--crm-border)] last:border-0">
+                    <td className="p-3 text-[var(--crm-muted)]">Engagements</td>
+                    <td className="p-3 text-right tabular-nums">{target_daily_summary.at_period_start.engagements.toLocaleString()}</td>
+                    <td className="p-3 text-right tabular-nums">{target_daily_summary.at_latest_day.engagements.toLocaleString()}</td>
+                    <td className="p-3 text-right tabular-nums">{target_daily_summary.delta_last_minus_first_day.engagements.toLocaleString()}</td>
+                    <td className="p-3 text-right font-medium tabular-nums">{target_daily_summary.window_totals.engagements.toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        {chart_series.length === 0 ? (
+          <div className="mt-6 rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
+            No daily metrics chart yet. Add <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code> rows for a per-day views / engagements / posts timeline.
+          </div>
+        ) : (
+          <div className="mt-6 rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 overflow-x-auto">
+            <p className="text-xs font-medium text-[var(--crm-foreground)] mb-2">Daily timeline (same window as table above)</p>
+            <div className="flex gap-3 items-center text-[10px] text-[var(--crm-muted)] mb-2">
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-sm bg-sky-500" /> Views
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-sm bg-emerald-500" /> Engagements
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-sm bg-amber-500" /> Posts
+              </span>
+            </div>
+            <div className="flex gap-2 items-end min-h-[128px]">
+              {chart_series.map((d) => (
+                <div
+                  key={d.day}
+                  className="flex flex-col items-center gap-1 shrink-0"
+                  title={`${d.day}: views ${d.views}, engagements ${d.engagements}, posts ${d.posts}`}
+                >
+                  <div className="flex items-end gap-0.5 h-[120px]">
+                    <div
+                      className="w-2 bg-sky-500 rounded-t min-h-[2px]"
+                      style={{
+                        height: `${Math.max(2, (d.views / maxChartTri) * 120)}px`,
+                      }}
+                    />
+                    <div
+                      className="w-2 bg-emerald-500 rounded-t min-h-[2px]"
+                      style={{
+                        height: `${Math.max(2, (d.engagements / maxChartTri) * 120)}px`,
+                      }}
+                    />
+                    <div
+                      className="w-2 bg-amber-500 rounded-t min-h-[2px]"
+                      style={{
+                        height: `${Math.max(2, (d.posts / maxChartTri) * 120)}px`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-[var(--crm-muted)]">
+                    {new Date(d.day).toLocaleDateString("en", { month: "short", day: "numeric" })}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-[var(--crm-muted)] mt-2">
+              Bars scale to the largest single-day views, engagements, or posts in this window. Data is from{" "}
+              <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code> (target account tweets, not participant submissions).
+            </p>
+          </div>
+        )}
+
+        <div className="mt-8">
+          <p className="text-sm text-[var(--crm-muted)] mb-3">
+            <strong className="text-[var(--crm-foreground)]">Baseline</strong>: capture once near campaign start (follower counts, optional account totals).{" "}
+            <strong className="text-[var(--crm-foreground)]">Daily</strong>: optional manual checkpoints.{" "}
+            <strong className="text-[var(--crm-foreground)]">End</strong>: capture at wrap-up — follower/view deltas in the table below compare baseline vs end only.
+            The target account does not need to be a Linkary user; you can paste numbers from X or your analytics tool.
+          </p>
+          <RecordSnapshotForm
+            campaignId={id}
+            hasHandles={promoted_social_handles.length > 0}
+          />
+          {account_growth.length === 0 ? (
+            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
+              No snapshots yet. Record a <strong className="text-[var(--crm-foreground)]">baseline</strong> and an{" "}
+              <strong className="text-[var(--crm-foreground)]">end</strong> snapshot for each promoted handle to see follower/view growth here.
+            </div>
+          ) : (
+            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
+              <p className="text-xs font-medium text-[var(--crm-foreground)] px-4 pt-3 pb-2 border-b border-[var(--crm-border)]">
+                Baseline → end snapshot growth (per promoted handle)
+              </p>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Account</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Follower growth</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Views growth</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Engagement growth</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {account_growth.map((g) => (
+                    <tr key={`${g.platform}:${g.handle}`} className="border-b border-[var(--crm-border)] last:border-0">
+                      <td className="p-3 font-medium text-[var(--crm-foreground)]">
+                        {g.platform}: {g.handle}
+                      </td>
+                      <td className="p-3 text-right">
+                        {g.follower_growth != null ? g.follower_growth.toLocaleString() : "—"}
+                      </td>
+                      <td className="p-3 text-right">
+                        {g.views_growth != null ? g.views_growth.toLocaleString() : "—"}
+                      </td>
+                      <td className="p-3 text-right">
+                        {g.engagement_growth != null ? g.engagement_growth.toLocaleString() : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </ReportSection>
 
-      <ReportSection title="Participant contribution & execution (Layer 2)">
+      <ReportSection title="B — Participant-attributed contribution (CRM proof & tasks)">
         <p className="text-sm text-[var(--crm-muted)] mb-3">
           Counts below come from <strong className="text-[var(--crm-foreground)]">crm_campaign_participants</strong>, tasks, and proof submissions only — not from X-wide attribution.
         </p>
@@ -321,11 +487,74 @@ export default async function CampaignReportPage({
             <p className="text-[10px] text-[var(--crm-muted)] mt-1">All invitation statuses; see campaign detail for accepted vs invited</p>
           </div>
         </div>
+
+        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden mb-2">
+          <p className="text-xs font-medium text-[var(--crm-foreground)] px-4 pt-3 pb-2 border-b border-[var(--crm-border)]">
+            Per-participant proof submissions (crm_submissions)
+          </p>
+          <p className="text-xs text-[var(--crm-muted)] px-4 py-2">
+            Contribution % is from weighted approved/done tasks. Snapshot columns sum optional <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">metrics_snapshot</code> on each row when operators or automation store views/engagements — otherwise proof is link-based only.
+          </p>
+          {participant_submission_rollups.length === 0 ? (
+            <p className="p-6 text-center text-sm text-[var(--crm-muted)]">No submissions yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[720px]">
+                <thead>
+                  <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Total</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Approved</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Pending</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Rejected</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Revision</th>
+                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Latest proof</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Contrib %</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ snap views</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ snap eng.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {participant_submission_rollups.map((r) => (
+                    <tr key={r.participant_profile_id} className="border-b border-[var(--crm-border)] last:border-0">
+                      <td className="p-3">
+                        <ParticipantCell
+                          avatarUrl={topContributorById.get(r.participant_profile_id)?.avatar_url}
+                          label={toParticipantLabel(topContributorById.get(r.participant_profile_id), r.participant_profile_id)}
+                        />
+                      </td>
+                      <td className="p-3 text-right tabular-nums">{r.submissions_total}</td>
+                      <td className="p-3 text-right tabular-nums">{r.approved}</td>
+                      <td className="p-3 text-right tabular-nums">{r.pending}</td>
+                      <td className="p-3 text-right tabular-nums">{r.rejected}</td>
+                      <td className="p-3 text-right tabular-nums">{r.needs_revision}</td>
+                      <td className="p-3 text-[var(--crm-muted)] text-xs whitespace-nowrap">
+                        {r.latest_submission_at ? new Date(r.latest_submission_at).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="p-3 text-right font-medium text-[var(--crm-primary)]">
+                        {r.contribution_percent != null ? `${r.contribution_percent}%` : "—"}
+                      </td>
+                      <td className="p-3 text-right tabular-nums text-xs">
+                        {r.has_snapshot_metrics ? r.snapshot_impressions_or_views_sum.toLocaleString() : "—"}
+                      </td>
+                      <td className="p-3 text-right tabular-nums text-xs">
+                        {r.has_snapshot_metrics && r.snapshot_engagements_sum > 0
+                          ? r.snapshot_engagements_sum.toLocaleString()
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </ReportSection>
 
       <ReportSection title="Leaderboards (participant-only)">
         <p className="text-xs text-[var(--crm-muted)] mb-4">
-          Three views of the same enrolled cohort — none use X engagement on the target account (that is not tracked per participant in Phase 1).
+          Multiple views of the same enrolled cohort. Snapshot rankings only include approved submissions that stored impressions/views in{" "}
+          <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">metrics_snapshot</code> — partial by design.
         </p>
         <div className="space-y-6">
           <div>
@@ -384,92 +613,54 @@ export default async function CampaignReportPage({
               )}
             </div>
           </div>
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">
+              Top by summed snapshot views (approved submissions only)
+            </h3>
+            <p className="text-xs text-[var(--crm-muted)] mb-2">
+              Sums <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">metrics_snapshot</code> impressions/views per participant on approved rows. Participants without stored views are omitted — not a full social leaderboard.
+            </p>
+            {top_by_submission_snapshot_views.length === 0 ? (
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
+                No approved submissions with snapshot views/impressions yet.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+                      <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">#</th>
+                      <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
+                      <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ snap views / impressions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {top_by_submission_snapshot_views.map((row, i) => (
+                      <tr key={row.participant_profile_id} className="border-b border-[var(--crm-border)] last:border-0">
+                        <td className="p-3 text-[var(--crm-muted)]">{i + 1}</td>
+                        <td className="p-3 text-sm text-[var(--crm-foreground)]">
+                          <ParticipantCell
+                            avatarUrl={topContributorById.get(row.participant_profile_id)?.avatar_url}
+                            label={toParticipantLabel(
+                              topContributorById.get(row.participant_profile_id),
+                              row.participant_profile_id
+                            )}
+                          />
+                        </td>
+                        <td className="p-3 text-right font-medium tabular-nums text-[var(--crm-primary)]">
+                          {row.approved_with_snapshot_sum.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </ReportSection>
 
-      <ReportSection title="Promoted account: daily tweet aggregates (chart)">
-        {chart_series.length === 0 ? (
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
-            No daily metrics. Add crm_campaign_metrics_daily rows for chart data.
-          </div>
-        ) : (
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 overflow-x-auto">
-            <div className="flex gap-2 items-end min-h-[120px]">
-              {chart_series.map((d) => (
-                <div
-                  key={d.day}
-                  className="flex flex-col items-center gap-1 shrink-0"
-                  title={`${d.day}: views ${d.views}, engagements ${d.engagements}`}
-                >
-                  <div
-                    className="w-6 bg-[var(--crm-primary)] rounded-t"
-                    style={{
-                      height: `${Math.max(4, (d.views + d.engagements) / maxChart * 100)}px`,
-                    }}
-                  />
-                  <span className="text-[10px] text-[var(--crm-muted)]">
-                    {new Date(d.day).toLocaleDateString("en", { month: "short", day: "numeric" })}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-[var(--crm-muted)] mt-2">
-              Each bar = target account tweet views + engagements for that day (<code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code>). Not participant activity.
-            </p>
-          </div>
-        )}
-      </ReportSection>
-
-      <ReportSection title="Promoted-account snapshots (baseline → end)">
-        <p className="text-sm text-[var(--crm-muted)] mb-3">
-          <strong className="text-[var(--crm-foreground)]">Baseline</strong>: capture once near campaign start (follower counts, optional account totals).{" "}
-          <strong className="text-[var(--crm-foreground)]">Daily</strong>: optional manual checkpoints.{" "}
-          <strong className="text-[var(--crm-foreground)]">End</strong>: capture at wrap-up — follower/view deltas in the table below compare baseline vs end only.
-          The target account does not need to be a Linkary user; you can paste numbers from X or your analytics tool.
-        </p>
-        <RecordSnapshotForm
-          campaignId={id}
-          hasHandles={promoted_social_handles.length > 0}
-        />
-        {account_growth.length === 0 ? (
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
-            No snapshots yet. Record a <strong className="text-[var(--crm-foreground)]">baseline</strong> and an <strong className="text-[var(--crm-foreground)]">end</strong> snapshot for each promoted handle to see follower/view growth here.
-          </div>
-        ) : (
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
-                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Account</th>
-                  <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Follower growth</th>
-                  <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Views growth</th>
-                  <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Engagement growth</th>
-                </tr>
-              </thead>
-              <tbody>
-                {account_growth.map((g) => (
-                  <tr key={`${g.platform}:${g.handle}`} className="border-b border-[var(--crm-border)] last:border-0">
-                    <td className="p-3 font-medium text-[var(--crm-foreground)]">
-                      {g.platform}: {g.handle}
-                    </td>
-                    <td className="p-3 text-right">
-                      {g.follower_growth != null ? g.follower_growth.toLocaleString() : "—"}
-                    </td>
-                    <td className="p-3 text-right">
-                      {g.views_growth != null ? g.views_growth.toLocaleString() : "—"}
-                    </td>
-                    <td className="p-3 text-right">
-                      {g.engagement_growth != null ? g.engagement_growth.toLocaleString() : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </ReportSection>
-
-      <ReportSection title="Submissions">
+      <ReportSection title="Proof submissions (crm_submissions)">
         <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -508,6 +699,45 @@ export default async function CampaignReportPage({
             <p className="p-6 text-center text-sm text-[var(--crm-muted)]">No submissions yet.</p>
           )}
         </div>
+      </ReportSection>
+
+      <ReportSection title="C — Efficiency metrics (recorded spend only)">
+        {efficiency.can_show_efficiency ? (
+          <div className="space-y-3">
+            <p className="text-sm text-[var(--crm-muted)]">
+              Spend = sum of <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">spend_used</code> on daily metric rows. Denominators are target-account tweet totals for the same window (impressions = views in this pipeline). Any metric shown as — has a zero denominator.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+                <p className="text-xs text-[var(--crm-muted)] uppercase">Recorded spend</p>
+                <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">
+                  {fmtMoney(efficiency.spend_recorded, efficiency.currency)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+                <p className="text-xs text-[var(--crm-muted)] uppercase">CPM (per 1k impressions)</p>
+                <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">{fmtMoney(efficiency.cpm, efficiency.currency)}</p>
+              </div>
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+                <p className="text-xs text-[var(--crm-muted)] uppercase">CPV (per view)</p>
+                <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">{fmtMoney(efficiency.cpv, efficiency.currency)}</p>
+              </div>
+              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+                <p className="text-xs text-[var(--crm-muted)] uppercase">CPE (per engagement)</p>
+                <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">{fmtMoney(efficiency.cpe, efficiency.currency)}</p>
+              </div>
+            </div>
+            <p className="text-xs text-[var(--crm-muted)]">CPC is not shown — link clicks are not tracked in this pipeline.</p>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--crm-muted)] rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-3">
+            {efficiency.unavailable_reason}
+          </p>
+        )}
+      </ReportSection>
+
+      <ReportSection title="D — Attribution & limitations">
+        <CampaignAttributionNote />
       </ReportSection>
     </div>
   );

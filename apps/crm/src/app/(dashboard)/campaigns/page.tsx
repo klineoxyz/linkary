@@ -7,7 +7,13 @@ import { ensureOrgWorkspacesForUser } from "@/lib/orgWorkspaceBootstrap";
 import { fetchCampaignsForUser } from "@/lib/campaigns";
 import { ListTodo } from "lucide-react";
 
-export default async function CampaignsPage() {
+type StatusFilter = "all" | "draft" | "active" | "paused" | "completed" | "cancelled";
+
+export default async function CampaignsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const supabase = await createServerSupabase();
   if (!supabase) return <SetupRequired />;
 
@@ -51,20 +57,51 @@ export default async function CampaignsPage() {
     );
   }
 
-  const campaigns = await fetchCampaignsForUser(supabase);
+  const campaignsAll = await fetchCampaignsForUser(supabase);
+  const sp = (await searchParams) ?? {};
+  const raw = typeof sp.status === "string" ? sp.status : Array.isArray(sp.status) ? sp.status[0] : undefined;
+  const status = (raw ?? "all").toLowerCase() as StatusFilter;
+  const allowed: StatusFilter[] = ["all", "draft", "active", "paused", "completed", "cancelled"];
+  const filter: StatusFilter = allowed.includes(status) ? status : "all";
+  const campaigns = filter === "all" ? campaignsAll : campaignsAll.filter((c) => c.status === filter);
 
   return (
     <div className="space-y-6">
       <header className="crm-page-header">
-        <h1 className="crm-page-title">Campaigns</h1>
-        <p className="crm-page-subtitle">
-          Open a campaign to review submissions, compliance, and reports.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="crm-page-title">Campaigns</h1>
+            <p className="crm-page-subtitle">
+              Open a campaign to review submissions, compliance, and reports.
+            </p>
+          </div>
+          <Link href="/campaigns/new" className="crm-btn-primary no-underline">
+            New campaign
+          </Link>
+        </div>
       </header>
+
+      <div className="flex flex-wrap gap-2">
+        {(["all", "draft", "active", "paused", "completed", "cancelled"] as const).map((s) => (
+          <Link
+            key={s}
+            href={s === "all" ? "/campaigns" : `/campaigns?status=${s}`}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-medium no-underline ${
+              filter === s
+                ? "border-[var(--crm-primary)] bg-[var(--crm-card)] text-[var(--crm-foreground)]"
+                : "border-[var(--crm-border)] bg-[var(--crm-card)] text-[var(--crm-muted)] hover:text-[var(--crm-foreground)]"
+            }`}
+          >
+            {s}
+          </Link>
+        ))}
+      </div>
 
       {campaigns.length === 0 ? (
         <div className="crm-surface-card p-8 text-center text-[var(--crm-muted)] text-sm leading-relaxed max-w-lg">
-          No campaigns yet. Create a campaign from your org workspace to get started.
+          {filter === "all"
+            ? "No campaigns yet. Create one here to get started."
+            : `No ${filter} campaigns yet.`}
         </div>
       ) : (
         <div className="crm-surface-card overflow-hidden">

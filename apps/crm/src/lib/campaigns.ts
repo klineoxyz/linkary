@@ -47,8 +47,13 @@ export type CampaignListItem = CampaignRow & {
 export type CampaignKpis = {
   total_views: number;
   total_engagements: number;
+  /** All participant rows (invited + accepted + declined + removed). */
   total_contributors: number;
+  /** Accepted participants only (more meaningful “live contributors”). */
+  accepted_contributors: number;
   total_submissions: number;
+  submissions_by_status: Record<"pending" | "approved" | "rejected" | "needs_revision", number>;
+  tasks_by_status: Partial<Record<"backlog" | "to_do" | "in_progress" | "submitted" | "approved" | "rejected" | "done", number>>;
   budget_used: number;
   budget_total: number | null;
   currency: string;
@@ -179,10 +184,40 @@ export async function getCampaignKpis(
     { views: 0, engagements: 0, spend: 0 }
   );
 
-  const [{ count: contributorCount }, { count: submissionCount }] = await Promise.all([
+  const submissionStatuses = ["pending", "approved", "rejected", "needs_revision"] as const;
+  const taskStatuses = ["backlog", "to_do", "in_progress", "submitted", "approved", "rejected", "done"] as const;
+
+  const [
+    { count: contributorCount },
+    { count: acceptedContributorCount },
+    { count: submissionCount },
+    ...submissionCountsByStatus
+  ] = await Promise.all([
     supabase.from("crm_campaign_participants").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId),
+    supabase.from("crm_campaign_participants").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId).eq("status", "accepted"),
     supabase.from("crm_submissions").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId),
+    ...submissionStatuses.map((s) =>
+      supabase.from("crm_submissions").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId).eq("status", s)
+    ),
   ]);
+
+  const submissions_by_status = submissionStatuses.reduce(
+    (acc, s, i) => {
+      acc[s] = submissionCountsByStatus[i]?.count ?? 0;
+      return acc;
+    },
+    { pending: 0, approved: 0, rejected: 0, needs_revision: 0 } as Record<(typeof submissionStatuses)[number], number>
+  );
+
+  const taskCounts = await Promise.all(
+    taskStatuses.map((s) =>
+      supabase.from("crm_tasks").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId).eq("status", s)
+    )
+  );
+  const tasks_by_status: Partial<Record<(typeof taskStatuses)[number], number>> = {};
+  taskStatuses.forEach((s, i) => {
+    tasks_by_status[s] = taskCounts[i]?.count ?? 0;
+  });
 
   const budgetTotal = campaign.budget != null ? Number(campaign.budget) : null;
   const budgetUsed = totals.spend;
@@ -196,7 +231,10 @@ export async function getCampaignKpis(
     total_views: views,
     total_engagements: engagements,
     total_contributors: contributorCount ?? 0,
+    accepted_contributors: acceptedContributorCount ?? 0,
     total_submissions: submissionCount ?? 0,
+    submissions_by_status,
+    tasks_by_status,
     budget_used: budgetUsed,
     budget_total: budgetTotal,
     currency: campaign.currency ?? "USD",
@@ -204,6 +242,75 @@ export async function getCampaignKpis(
     cpe,
     has_metrics: hasMetrics,
   };
+}
+
+export type CampaignStatus = "draft" | "active" | "paused" | "completed" | "cancelled";
+
+export async function setCampaignStatus(
+  supabase: SupabaseClient,
+  campaignId: string,
+  status: CampaignStatus
+): Promise<{ error?: string }> {
+  const { error } = await supabase
+    .from("crm_campaigns")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", campaignId);
+  if (error) return { error: error.message };
+  return {};
+}
+
+export async function createCampaignDraft(
+  supabase: SupabaseClient,
+  payload: {
+    workspace_id: string;
+    title: string;
+    description?: string | null;
+    starts_at?: string | null;
+    ends_at?: string | null;
+    budget?: number | null;
+    currency?: string | null;
+  }
+): Promise<{ id: string } | { error: string }> {
+  const title = payload.title.trim();
+  if (!title) return { error: "Title is required" };
+  const { data, error } = await supabase
+    .from("crm_campaigns")
+    .insert({
+      workspace_id: payload.workspace_id,
+      title,
+      description: payload.description?.trim() || null,
+      starts_at: payload.starts_at ?? null,
+      ends_at: payload.ends_at ?? null,
+      budget: payload.budget ?? null,
+      currency: payload.currency?.trim() || "USD",
+      status: "draft",
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (error) return { error: error.message };
+  if (!data?.id) return { error: "Insert failed" };
+  return { id: data.id };
+}
+
+export async function deleteDraftCampaignIfSafe(
+  supabase: SupabaseClient,
+  campaignId: string
+): Promise<{ error?: string }> {
+  const camp = await getCampaign(supabase, campaignId);
+  if (!camp) return { error: "Campaign not found or access denied" };
+  if (camp.status !== "draft") return { error: "Only draft campaigns can be deleted" };
+  const [{ count: participants }, { count: subs }, { count: tasks }] = await Promise.all([
+    supabase.from("crm_campaign_participants").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId),
+    supabase.from("crm_submissions").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId),
+    supabase.from("crm_tasks").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId),
+  ]);
+  if ((participants ?? 0) > 0 || (subs ?? 0) > 0 || (tasks ?? 0) > 0) {
+    return { error: "Draft has activity; cancel instead of delete" };
+  }
+  const { error } = await supabase.from("crm_campaigns").delete().eq("id", campaignId);
+  if (error) return { error: error.message };
+  return {};
 }
 
 export async function getCampaignContributors(

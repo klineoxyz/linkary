@@ -4,6 +4,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import {
   getCampaign,
   setCampaignFinalized,
+  setCampaignStatus,
   updateCampaignDefinition,
 } from "@/lib/campaigns";
 import type { PromotedSocialHandle } from "@/lib/campaigns";
@@ -289,6 +290,19 @@ export async function reviewSubmissionAction(
   );
 
   if (result.error) return result;
+
+  // Keep crm_tasks.status in sync with proof review so contribution/KPIs reflect reality.
+  // Map submission review to closest task status:
+  // - approved => approved
+  // - rejected => rejected
+  // - needs_revision => in_progress (work needs changes, not approved)
+  const taskStatus =
+    status === "approved" ? "approved" : status === "rejected" ? "rejected" : "in_progress";
+  await supabase
+    .from("crm_tasks")
+    .update({ status: taskStatus, updated_at: new Date().toISOString() })
+    .eq("id", submission.task_id);
+
   revalidatePath(`/campaigns/${submission.campaign_id}`);
   revalidatePath("/campaigns");
   return {};
@@ -610,6 +624,9 @@ export async function finalizeCampaignAction(campaignId: string): Promise<{ erro
   const err = await setCampaignFinalized(supabase, campaignId);
   if (err.error) return err;
 
+  // Finalization implies lifecycle completion for operators.
+  await setCampaignStatus(supabase, campaignId, "completed");
+
   await writeContribution(supabase, campaignId, {
     weighted: true,
     statuses: ["approved"],
@@ -617,6 +634,37 @@ export async function finalizeCampaignAction(campaignId: string): Promise<{ erro
 
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath(`/campaigns/${campaignId}/report`);
+  revalidatePath("/campaigns");
+  return {};
+}
+
+const CAMPAIGN_STATUSES = ["draft", "active", "paused", "completed", "cancelled"] as const;
+
+export async function updateCampaignStatusAction(
+  campaignId: string,
+  nextStatus: (typeof CAMPAIGN_STATUSES)[number]
+): Promise<{ error?: string }> {
+  const supabase = await createServerSupabase();
+  if (!supabase) return { error: "Not configured" };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Unauthorized" };
+
+  if (!CAMPAIGN_STATUSES.includes(nextStatus)) return { error: "Invalid status" };
+
+  const campaign = await getCampaign(supabase, campaignId);
+  if (!campaign) return { error: "Campaign not found or access denied" };
+
+  // Guardrails: do not allow moving out of completed once finalized; use cancel/pause only pre-finalize.
+  if (campaign.finalized_at && campaign.status === "completed" && nextStatus !== "completed") {
+    return { error: "Finalized campaigns cannot change status" };
+  }
+
+  const out = await setCampaignStatus(supabase, campaignId, nextStatus);
+  if (out.error) return out;
+  revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath("/campaigns");
   return {};
 }

@@ -18,6 +18,7 @@ import { ParticipantCell } from "@/components/ParticipantCell";
 import { toParticipantLabel } from "@/lib/profileDisplay";
 import { GenerateRecurringTasksButton } from "./GenerateRecurringTasksButton";
 import { FinalizeCampaignButton } from "./FinalizeCampaignButton";
+import { updateCampaignStatusAction, deleteDraftCampaignAction } from "./statusActions";
 import { ParticipantFollowReviewCell } from "./ParticipantFollowReviewCell";
 import { parseFollowRules } from "@/lib/followRules";
 import { ArrowLeft } from "lucide-react";
@@ -171,6 +172,42 @@ export default async function CampaignDetailPage({
           >
             View report
           </Link>
+          {/* Lifecycle controls (minimal, status-based; no redesign). */}
+          {campaign.status === "draft" && (
+            <form action={async () => { "use server"; await updateCampaignStatusAction(id, "active"); }}>
+              <button type="submit" className="crm-btn-primary">
+                Launch
+              </button>
+            </form>
+          )}
+          {campaign.status === "active" && (
+            <form action={async () => { "use server"; await updateCampaignStatusAction(id, "paused"); }}>
+              <button type="submit" className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-2 text-sm font-medium hover:bg-[var(--crm-bg)]">
+                Pause
+              </button>
+            </form>
+          )}
+          {campaign.status === "paused" && (
+            <form action={async () => { "use server"; await updateCampaignStatusAction(id, "active"); }}>
+              <button type="submit" className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-2 text-sm font-medium hover:bg-[var(--crm-bg)]">
+                Resume
+              </button>
+            </form>
+          )}
+          {campaign.status !== "cancelled" && campaign.status !== "completed" && (
+            <form action={async () => { "use server"; await updateCampaignStatusAction(id, "cancelled"); }}>
+              <button type="submit" className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-500/15">
+                Cancel
+              </button>
+            </form>
+          )}
+          {campaign.status === "draft" && (
+            <form action={async () => { "use server"; await deleteDraftCampaignAction(id); }}>
+              <button type="submit" className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-2 text-sm font-medium hover:bg-[var(--crm-bg)]">
+                Delete draft
+              </button>
+            </form>
+          )}
           {!campaign.finalized_at && (
             <FinalizeCampaignButton
               campaignId={id}
@@ -522,14 +559,17 @@ export default async function CampaignDetailPage({
             value={kpis.total_engagements.toLocaleString()}
             insufficient={noMetrics}
           />
-          <KpiCard
-            label="Contributors"
-            value={kpis.total_contributors}
-          />
+          <KpiCard label="Contributors" value={kpis.accepted_contributors} sub={`accepted · ${kpis.total_contributors} total`} />
           <KpiCard
             label="Submissions"
             value={kpis.total_submissions}
           />
+          <KpiCard label="Approved submissions" value={kpis.submissions_by_status.approved} />
+          <KpiCard label="Pending submissions" value={kpis.submissions_by_status.pending} />
+          <KpiCard label="Needs revision" value={kpis.submissions_by_status.needs_revision} />
+          <KpiCard label="Rejected submissions" value={kpis.submissions_by_status.rejected} />
+          <KpiCard label="Tasks approved" value={kpis.tasks_by_status.approved ?? 0} />
+          <KpiCard label="Tasks done" value={kpis.tasks_by_status.done ?? 0} />
           <KpiCard
             label="Budget used"
             value={`${kpis.currency} ${kpis.budget_used.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}

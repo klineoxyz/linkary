@@ -3,7 +3,7 @@
  * Stored data only; omit impressions when API did not provide impression_count.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isXPlatform, normalizeTrackedXHandle } from "@/lib/trackedXHandle";
+import { isXPlatform, normalizeTrackedXHandle } from "./trackedXHandle";
 
 const TWEET_PAGE = 1000;
 const MAX_TWEET_ROWS = 25000;

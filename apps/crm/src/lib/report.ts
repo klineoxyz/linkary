@@ -174,7 +174,12 @@ export async function getCampaignReportData(
 
   const efficiency = computeEfficiencyMetrics({
     spendSumFromDaily: kpis.budget_used,
-    allocatedBudget: kpis.budget_total,
+    allocatedBudget:
+      kpis.budget_total != null && Number.isFinite(kpis.budget_total)
+        ? kpis.budget_total
+        : campaign.campaign_value_usd != null && Number.isFinite(Number(campaign.campaign_value_usd))
+          ? Number(campaign.campaign_value_usd)
+          : null,
     totalViews: kpis.total_views,
     totalEngagements: kpis.total_engagements,
     currency: kpis.currency,

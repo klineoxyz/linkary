@@ -8,6 +8,7 @@ import {
   isValidProofUrl,
   normalizePlatform,
 } from "@/lib/submissions";
+import { enrichSubmissionMetricsById } from "@/lib/submissionMetricsEnrichment";
 import { getCampaign } from "@/lib/campaigns";
 import {
   evaluateFollowRequirementForFirstSubmission,
@@ -163,6 +164,12 @@ export async function submitProofAction(
     });
     if ("error" in result) {
       return { error: result.error };
+    }
+    if ("id" in result) {
+      const enrich = await enrichSubmissionMetricsById(supabase, result.id);
+      if (!enrich.ok && enrich.error) {
+        console.warn("[crm] submit proof metrics:", enrich.error);
+      }
     }
   }
   if (task.campaign_id) {

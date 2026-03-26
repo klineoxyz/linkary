@@ -13,8 +13,12 @@ import {
   updateSubmissionStatus,
 } from "@/lib/submissions";
 import { generateRecurringTasksForCampaignWeek } from "@/lib/recurring";
-import { reconcileCampaignContributionFromSubmissions } from "@/lib/campaignContributionReconcile";
+import {
+  alignTaskFromApprovedProof,
+  reconcileCampaignContributionFromSubmissions,
+} from "@/lib/campaignContributionReconcile";
 import { writeContribution } from "@/lib/contribution";
+import { enrichCampaignSubmissionMetrics, enrichSubmissionMetricsById } from "@/lib/submissionMetricsEnrichment";
 import { upsertAccountSnapshot } from "@/lib/snapshots";
 import type { SnapshotMetrics, SnapshotType } from "@/lib/snapshots";
 import { revalidatePath } from "next/cache";
@@ -617,7 +621,14 @@ export async function recordSnapshotFromPayloadAction(
  */
 export async function recomputeCampaignContributionAction(
   campaignId: string
-): Promise<{ error?: string; tasksSynced?: number }> {
+): Promise<{
+  error?: string;
+  tasksSynced?: number;
+  metricsEnriched?: number;
+  metricsSkipped?: number;
+  metricsFailed?: number;
+  metricsHint?: string;
+}> {
   const supabase = await createServerSupabase();
   if (!supabase) return { error: "Not configured" };
 
@@ -631,11 +642,18 @@ export async function recomputeCampaignContributionAction(
 
   const out = await reconcileCampaignContributionFromSubmissions(supabase, campaignId);
   if (out.error) return { error: out.error };
+  const enrich = await enrichCampaignSubmissionMetrics(supabase, campaignId);
 
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath(`/campaigns/${campaignId}/report`);
   revalidatePath("/campaigns");
-  return { tasksSynced: out.tasks_synced_to_approved };
+  return {
+    tasksSynced: out.tasks_synced_to_approved,
+    metricsEnriched: enrich.enriched,
+    metricsSkipped: enrich.skipped,
+    metricsFailed: enrich.failed,
+    metricsHint: enrich.error,
+  };
 }
 
 /**

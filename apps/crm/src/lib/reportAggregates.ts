@@ -183,8 +183,54 @@ export function parseMetricsSnapshot(snapshot: unknown): {
     numFromUnknown(o.engagements) ??
     numFromUnknown(o.engagement_count) ??
     numFromUnknown(o.engagement_total) ??
+    numFromUnknown(o.total_engagements) ??
     null;
   return { views, impressions, engagements };
+}
+
+export type SubmissionMetricsExtended = {
+  views: number | null;
+  impressions: number | null;
+  engagements: number | null;
+  likes: number | null;
+  replies: number | null;
+  reposts: number | null;
+  quotes: number | null;
+  tweet_id: string | null;
+  author_handle: string | null;
+};
+
+export function parseSubmissionMetricsExtended(snapshot: unknown): SubmissionMetricsExtended {
+  const base = parseMetricsSnapshot(snapshot);
+  if (snapshot == null || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+    return {
+      ...base,
+      likes: null,
+      replies: null,
+      reposts: null,
+      quotes: null,
+      tweet_id: null,
+      author_handle: null,
+    };
+  }
+  const o = snapshot as Record<string, unknown>;
+  return {
+    ...base,
+    likes: numFromUnknown(o.likes) ?? numFromUnknown(o.like_count) ?? numFromUnknown(o.likeCount) ?? null,
+    replies: numFromUnknown(o.replies) ?? numFromUnknown(o.reply_count) ?? numFromUnknown(o.replyCount) ?? null,
+    reposts:
+      numFromUnknown(o.reposts) ??
+      numFromUnknown(o.repost_count) ??
+      numFromUnknown(o.retweet_count) ??
+      numFromUnknown(o.retweetCount) ??
+      null,
+    quotes: numFromUnknown(o.quotes) ?? numFromUnknown(o.quote_count) ?? numFromUnknown(o.quoteCount) ?? null,
+    tweet_id: o.tweet_id != null ? String(o.tweet_id) : null,
+    author_handle:
+      typeof o.author_handle === "string" && o.author_handle.trim()
+        ? o.author_handle.trim()
+        : null,
+  };
 }
 
 export type ParticipantSubmissionRollupRow = {
@@ -205,6 +251,10 @@ export type ParticipantSubmissionRollupRow = {
   /** Prefer impressions, else views, summed from snapshots when present. */
   snapshot_impressions_or_views_sum: number;
   snapshot_engagements_sum: number;
+  snapshot_likes_sum: number;
+  snapshot_replies_sum: number;
+  snapshot_reposts_sum: number;
+  snapshot_quotes_sum: number;
   has_snapshot_metrics: boolean;
   /** URL of the most recently created submission (any status). */
   latest_proof_url: string | null;
@@ -224,6 +274,10 @@ type Agg = {
   latestApprovedUrl: string | null;
   snapViews: number;
   snapEng: number;
+  snapLikes: number;
+  snapReplies: number;
+  snapReposts: number;
+  snapQuotes: number;
   snapAny: boolean;
 };
 
@@ -240,6 +294,10 @@ function emptyAgg(): Agg {
     latestApprovedUrl: null,
     snapViews: 0,
     snapEng: 0,
+    snapLikes: 0,
+    snapReplies: 0,
+    snapReposts: 0,
+    snapQuotes: 0,
     snapAny: false,
   };
 }
@@ -294,14 +352,30 @@ export function buildParticipantSubmissionRollups(
       }
     }
 
-    const p = parseMetricsSnapshot(s.metrics_snapshot);
+    const p = parseSubmissionMetricsExtended(s.metrics_snapshot);
     const imp = p.impressions ?? p.views;
-    if (imp != null && imp > 0) {
-      a.snapViews += imp;
+    if (imp != null) {
+      a.snapViews += Math.max(0, imp);
       a.snapAny = true;
     }
-    if (p.engagements != null && p.engagements > 0) {
-      a.snapEng += p.engagements;
+    if (p.engagements != null) {
+      a.snapEng += Math.max(0, p.engagements);
+      a.snapAny = true;
+    }
+    if (p.likes != null) {
+      a.snapLikes += Math.max(0, p.likes);
+      a.snapAny = true;
+    }
+    if (p.replies != null) {
+      a.snapReplies += Math.max(0, p.replies);
+      a.snapAny = true;
+    }
+    if (p.reposts != null) {
+      a.snapReposts += Math.max(0, p.reposts);
+      a.snapAny = true;
+    }
+    if (p.quotes != null) {
+      a.snapQuotes += Math.max(0, p.quotes);
       a.snapAny = true;
     }
   }
@@ -332,6 +406,10 @@ export function buildParticipantSubmissionRollups(
       proof_contribution_percent: proofPct,
       snapshot_impressions_or_views_sum: a.snapViews,
       snapshot_engagements_sum: a.snapEng,
+      snapshot_likes_sum: a.snapLikes,
+      snapshot_replies_sum: a.snapReplies,
+      snapshot_reposts_sum: a.snapReposts,
+      snapshot_quotes_sum: a.snapQuotes,
       has_snapshot_metrics: a.snapAny,
       latest_proof_url: a.latestUrl,
       latest_approved_proof_url: a.latestApprovedUrl,
@@ -393,9 +471,9 @@ export function topParticipantsBySnapshotEngagements(
     if ((s.status ?? "").toLowerCase() !== "approved") continue;
     const p = parseMetricsSnapshot(s.metrics_snapshot);
     const eng = p.engagements;
-    if (eng == null || eng <= 0) continue;
+    if (eng == null) continue;
     const pid = s.participant_profile_id;
-    by.set(pid, (by.get(pid) ?? 0) + eng);
+    by.set(pid, (by.get(pid) ?? 0) + Math.max(0, eng));
   }
   return Array.from(by.entries())
     .map(([participant_profile_id, approved_with_snapshot_engagements_sum]) => ({
@@ -415,9 +493,9 @@ export function topParticipantsBySnapshotImpressions(
     if ((s.status ?? "").toLowerCase() !== "approved") continue;
     const p = parseMetricsSnapshot(s.metrics_snapshot);
     const imp = p.impressions ?? p.views;
-    if (imp == null || imp <= 0) continue;
+    if (imp == null) continue;
     const pid = s.participant_profile_id;
-    by.set(pid, (by.get(pid) ?? 0) + imp);
+    by.set(pid, (by.get(pid) ?? 0) + Math.max(0, imp));
   }
   return Array.from(by.entries())
     .map(([participant_profile_id, approved_with_snapshot_sum]) => ({

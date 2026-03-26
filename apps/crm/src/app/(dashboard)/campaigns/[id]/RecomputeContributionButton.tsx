@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { recomputeCampaignContributionAction } from "./actions";
 
-/** Operator-only: backfill task status from approved proofs + refresh stored contribution %. */
+/** Operator-only: backfill proof->task truth + contribution + X proof metrics snapshots. */
 export function RecomputeContributionButton({ campaignId }: { campaignId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +15,7 @@ export function RecomputeContributionButton({ campaignId }: { campaignId: string
     if (busy) return;
     if (
       !confirm(
-        "Recompute contribution from proofs? This sets linked tasks to approved when a proof is approved (if not already approved/done), then refreshes bundle and participant contribution % for this campaign. Safe to repeat."
+        "Recompute from proofs + refresh X metrics? This aligns linked tasks with approved proofs (including campaign_id / weekly_post metadata when needed), refreshes contribution %, and backfills metrics_snapshot for X proof URLs via twitterapi.io (requires API key in env). Safe to repeat."
       )
     ) {
       return;
@@ -29,11 +29,23 @@ export function RecomputeContributionButton({ campaignId }: { campaignId: string
       setError(result.error);
       return;
     }
-    setDoneMsg(
-      result.tasksSynced != null && result.tasksSynced > 0
-        ? `Synced ${result.tasksSynced} task(s); contribution refreshed.`
-        : "Contribution refreshed (no task status changes needed)."
-    );
+    const parts: string[] = [];
+    if (result.tasksSynced != null && result.tasksSynced > 0) {
+      parts.push(`Synced ${result.tasksSynced} task(s)`);
+    } else {
+      parts.push("Tasks aligned (no status-only changes needed)");
+    }
+    parts.push("contribution refreshed");
+    if (result.metricsEnriched != null && result.metricsEnriched > 0) {
+      parts.push(`X metrics on ${result.metricsEnriched} proof row(s)`);
+    }
+    if (result.metricsFailed != null && result.metricsFailed > 0) {
+      parts.push(`${result.metricsFailed} proof row(s) could not fetch metrics`);
+    }
+    if (result.metricsHint) {
+      parts.push(`Note: ${result.metricsHint}`);
+    }
+    setDoneMsg(parts.join(" · "));
     router.refresh();
   }
 
@@ -45,7 +57,7 @@ export function RecomputeContributionButton({ campaignId }: { campaignId: string
         disabled={busy}
         className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-3 py-1.5 text-sm font-medium text-[var(--crm-foreground)] hover:bg-[var(--crm-bg)] disabled:opacity-50"
       >
-        {busy ? "Recomputing…" : "Recompute from proofs"}
+        {busy ? "Recomputing…" : "Recompute proofs + X metrics"}
       </button>
       {doneMsg && <span className="text-xs text-[var(--crm-muted)]">{doneMsg}</span>}
       {error && <span className="text-sm text-red-600 dark:text-red-400">{error}</span>}

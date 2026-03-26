@@ -11,6 +11,7 @@ import { ParticipantCell } from "@/components/ParticipantCell";
 import { toParticipantLabel } from "@/lib/profileDisplay";
 import { CampaignAttributionNote } from "@/components/CampaignAttributionNote";
 import type { TopContributorWithContribution } from "@/lib/report";
+import { parseSubmissionMetricsExtended } from "@/lib/reportAggregates";
 import { RecomputeContributionButton } from "../RecomputeContributionButton";
 
 function ReportSection({
@@ -557,7 +558,7 @@ export default async function CampaignReportPage({
             <p className="p-6 text-center text-sm text-[var(--crm-muted)]">No enrolled participants and no submissions.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[1100px]">
+              <table className="w-full text-sm min-w-[1400px]">
                 <thead>
                   <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
                     <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
@@ -573,6 +574,10 @@ export default async function CampaignReportPage({
                     <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Proof share %</th>
                     <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ snap views</th>
                     <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ snap eng.</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ likes</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ replies</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ reposts</th>
+                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ quotes</th>
                     <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Links</th>
                   </tr>
                 </thead>
@@ -609,9 +614,19 @@ export default async function CampaignReportPage({
                         {r.has_snapshot_metrics ? r.snapshot_impressions_or_views_sum.toLocaleString() : "—"}
                       </td>
                       <td className="p-3 text-right tabular-nums text-xs">
-                        {r.has_snapshot_metrics && r.snapshot_engagements_sum > 0
-                          ? r.snapshot_engagements_sum.toLocaleString()
-                          : "—"}
+                        {r.has_snapshot_metrics ? r.snapshot_engagements_sum.toLocaleString() : "—"}
+                      </td>
+                      <td className="p-3 text-right tabular-nums text-xs">
+                        {r.has_snapshot_metrics ? r.snapshot_likes_sum.toLocaleString() : "—"}
+                      </td>
+                      <td className="p-3 text-right tabular-nums text-xs">
+                        {r.has_snapshot_metrics ? r.snapshot_replies_sum.toLocaleString() : "—"}
+                      </td>
+                      <td className="p-3 text-right tabular-nums text-xs">
+                        {r.has_snapshot_metrics ? r.snapshot_reposts_sum.toLocaleString() : "—"}
+                      </td>
+                      <td className="p-3 text-right tabular-nums text-xs">
+                        {r.has_snapshot_metrics ? r.snapshot_quotes_sum.toLocaleString() : "—"}
                       </td>
                       <td className="p-3 text-xs space-y-1">
                         {r.latest_proof_url ? (
@@ -648,6 +663,68 @@ export default async function CampaignReportPage({
             </div>
           )}
         </div>
+      </ReportSection>
+
+      <ReportSection title="C.1 — Per-submission proof metrics">
+        <p className="text-xs text-[var(--crm-muted)] mb-4">
+          URL-level metrics are read from{" "}
+          <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">crm_submissions.metrics_snapshot</code>.
+          Use <strong className="text-[var(--crm-foreground)]">Recompute proofs + X metrics</strong> to backfill existing X URLs.
+        </p>
+        {submissions.length === 0 ? (
+          <p className="text-sm text-[var(--crm-muted)]">No submissions yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)]">
+            <table className="w-full text-sm min-w-[1280px]">
+              <thead>
+                <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Proof URL</th>
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Status</th>
+                  <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Views</th>
+                  <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Engagements</th>
+                  <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Likes</th>
+                  <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Replies</th>
+                  <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Reposts</th>
+                  <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Quotes</th>
+                  <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {submissions.map((s) => {
+                  const m = parseSubmissionMetricsExtended(s.metrics_snapshot);
+                  const fmt = (n: number | null | undefined) =>
+                    n != null && Number.isFinite(n) ? n.toLocaleString() : "—";
+                  return (
+                    <tr key={s.id} className="border-b border-[var(--crm-border)] last:border-0">
+                      <td className="p-3">
+                        <ParticipantCell
+                          avatarUrl={topContributorById.get(s.participant_profile_id)?.avatar_url}
+                          label={toParticipantLabel(topContributorById.get(s.participant_profile_id), s.participant_profile_id)}
+                        />
+                      </td>
+                      <td className="p-3 text-xs max-w-[260px]">
+                        <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[var(--crm-primary)] underline break-all">
+                          {s.url}
+                        </a>
+                      </td>
+                      <td className="p-3 text-xs capitalize">{s.status}</td>
+                      <td className="p-3 text-right tabular-nums text-xs">{fmt(m.impressions ?? m.views)}</td>
+                      <td className="p-3 text-right tabular-nums text-xs">{fmt(m.engagements)}</td>
+                      <td className="p-3 text-right tabular-nums text-xs">{fmt(m.likes)}</td>
+                      <td className="p-3 text-right tabular-nums text-xs">{fmt(m.replies)}</td>
+                      <td className="p-3 text-right tabular-nums text-xs">{fmt(m.reposts)}</td>
+                      <td className="p-3 text-right tabular-nums text-xs">{fmt(m.quotes)}</td>
+                      <td className="p-3 text-xs text-[var(--crm-muted)] whitespace-nowrap">
+                        {new Date(s.created_at).toLocaleString()}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </ReportSection>
 
       <ReportSection title="D — Leaderboards (CRM-attributed only)">

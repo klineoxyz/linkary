@@ -25,6 +25,7 @@ import {
   topParticipantsBySnapshotEngagements,
   topParticipantsBySnapshotImpressions,
   buildParticipantContributionReconciliation,
+  parseSubmissionMetricsExtended,
   type EfficiencyMetricsResult,
   type ParticipantContributionReconciliation,
   type ParticipantSubmissionRollupRow,
@@ -33,6 +34,7 @@ import {
   type SnapshotViewsLeaderRow,
   type TargetDailyWindowSummary,
 } from "@/lib/reportAggregates";
+import { toParticipantLabel, type ProfileIdentityRow } from "@/lib/profileDisplay";
 
 export type ReportChartPoint = {
   day: string;
@@ -93,6 +95,8 @@ export type CampaignReportData = {
   end_snapshot_status: EndSnapshotStatus;
   /** Proof/task totals vs table sums; rounding gaps for operator trust. */
   participant_contribution_reconciliation: ParticipantContributionReconciliation;
+  /** Label map for CSV/export display. */
+  profile_labels: Record<string, string>;
 };
 
 /**
@@ -219,6 +223,25 @@ export async function getCampaignReportData(
     reposts = null;
   }
 
+  const profileIdSet = new Set<string>();
+  for (const s of submissions) profileIdSet.add(s.participant_profile_id);
+  for (const c of contributors) profileIdSet.add(c.participant_profile_id);
+  const profile_ids = [...profileIdSet];
+  const profile_labels: Record<string, string> = {};
+  if (profile_ids.length > 0) {
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, twitter_username")
+      .in("id", profile_ids);
+    for (const p of profs ?? []) {
+      const row = p as ProfileIdentityRow;
+      profile_labels[row.id] = toParticipantLabel(row, row.id);
+    }
+    for (const id of profile_ids) {
+      if (!profile_labels[id]) profile_labels[id] = `${id.slice(0, 8)}…`;
+    }
+  }
+
   return {
     campaign,
     promoted_org_id: campaign.promoted_org_id ?? null,
@@ -252,6 +275,7 @@ export async function getCampaignReportData(
     finalized_at: campaign.finalized_at ?? null,
     end_snapshot_status: endSnapshotStatus,
     participant_contribution_reconciliation,
+    profile_labels,
   };
 }
 
@@ -262,6 +286,7 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
   const rows: ReportExportRow[] = [];
   const fmt = (v: string | number | null | undefined) =>
     v == null ? "" : String(v);
+  const pl = (profileId: string) => data.profile_labels[profileId] ?? profileId;
 
   rows.push({ section: "overview", label: "Campaign name", value: data.campaign.title });
   rows.push({ section: "overview", label: "Start date", value: fmt(data.start_date) });
@@ -373,21 +398,21 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
   for (const t of data.top_contributors_all_submissions) {
     rows.push({
       section: "leaderboard_all_submissions",
-      label: `${t.participant_profile_id} proof submissions (all statuses)`,
+      label: `${pl(t.participant_profile_id)} proof submissions (all statuses)`,
       value: t.submission_count,
     });
   }
   for (const t of data.top_contributors_approved_submissions) {
     rows.push({
       section: "leaderboard_approved_submissions",
-      label: `${t.participant_profile_id} approved proof submissions`,
+      label: `${pl(t.participant_profile_id)} approved proof submissions`,
       value: t.submission_count,
     });
   }
   for (const t of data.top_by_contribution_percent) {
     rows.push({
       section: "leaderboard_task_contribution_pct",
-      label: `${t.participant_profile_id} task contribution %`,
+      label: `${pl(t.participant_profile_id)} task contribution %`,
       value: t.contribution_percent,
     });
   }
@@ -395,21 +420,21 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
   for (const t of data.top_by_submission_snapshot_views) {
     rows.push({
       section: "leaderboard_snapshot_views_approved",
-      label: `${t.participant_profile_id} summed snapshot views/impressions (approved only)`,
+      label: `${pl(t.participant_profile_id)} summed snapshot views/impressions (approved only)`,
       value: t.approved_with_snapshot_sum,
     });
   }
   for (const t of data.top_by_proof_contribution_percent) {
     rows.push({
       section: "leaderboard_proof_contribution_pct",
-      label: `${t.participant_profile_id} share of approved proof rows (%)`,
+      label: `${pl(t.participant_profile_id)} share of approved proof rows (%)`,
       value: t.proof_contribution_percent,
     });
   }
   for (const t of data.top_by_submission_snapshot_engagements) {
     rows.push({
       section: "leaderboard_snapshot_engagements_approved",
-      label: `${t.participant_profile_id} summed snapshot engagements (approved only)`,
+      label: `${pl(t.participant_profile_id)} summed snapshot engagements (approved only)`,
       value: t.approved_with_snapshot_engagements_sum,
     });
   }
@@ -454,20 +479,50 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
   }
 
   for (const r of data.participant_submission_rollups) {
+    const who = pl(r.participant_profile_id);
     rows.push({
       section: "participant_submission_rollup",
-      label: `${r.participant_profile_id} submissions / approved / rejected / revision / pending`,
+      label: `${who} submissions / approved / rejected / revision / pending`,
       value: `${r.submissions_total} / ${r.approved} / ${r.rejected} / ${r.needs_revision} / ${r.pending}`,
     });
     rows.push({
       section: "participant_submission_rollup",
-      label: `${r.participant_profile_id} task contribution % (summed bundles)`,
+      label: `${who} task contribution % (summed bundles)`,
       value: r.task_contribution_percent ?? "",
     });
     rows.push({
       section: "participant_submission_rollup",
-      label: `${r.participant_profile_id} proof share % (approved rows / campaign approved proofs)`,
+      label: `${who} proof share % (approved rows / campaign approved proofs)`,
       value: r.proof_contribution_percent ?? "",
+    });
+    rows.push({
+      section: "participant_submission_rollup",
+      label: `${who} Σ views / Σ engagements`,
+      value: `${r.snapshot_impressions_or_views_sum} / ${r.snapshot_engagements_sum}`,
+    });
+    rows.push({
+      section: "participant_submission_rollup",
+      label: `${who} Σ likes / replies / reposts / quotes`,
+      value: `${r.snapshot_likes_sum} / ${r.snapshot_replies_sum} / ${r.snapshot_reposts_sum} / ${r.snapshot_quotes_sum}`,
+    });
+  }
+
+  for (const s of data.submissions) {
+    const m = parseSubmissionMetricsExtended(s.metrics_snapshot);
+    rows.push({
+      section: "submission_metrics",
+      label: `${pl(s.participant_profile_id)} | ${s.url}`,
+      value: [
+        `status=${s.status}`,
+        `tweet_id=${m.tweet_id ?? ""}`,
+        `views=${m.impressions ?? m.views ?? ""}`,
+        `engagements=${m.engagements ?? ""}`,
+        `likes=${m.likes ?? ""}`,
+        `replies=${m.replies ?? ""}`,
+        `reposts=${m.reposts ?? ""}`,
+        `quotes=${m.quotes ?? ""}`,
+        `created=${s.created_at}`,
+      ].join("; "),
     });
   }
 

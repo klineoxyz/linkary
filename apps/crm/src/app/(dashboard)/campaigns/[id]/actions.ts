@@ -13,6 +13,7 @@ import {
   updateSubmissionStatus,
 } from "@/lib/submissions";
 import { generateRecurringTasksForCampaignWeek } from "@/lib/recurring";
+import { reconcileCampaignContributionFromSubmissions } from "@/lib/campaignContributionReconcile";
 import { writeContribution } from "@/lib/contribution";
 import { upsertAccountSnapshot } from "@/lib/snapshots";
 import type { SnapshotMetrics, SnapshotType } from "@/lib/snapshots";
@@ -608,6 +609,33 @@ export async function recordSnapshotFromPayloadAction(
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath(`/campaigns/${campaignId}/report`);
   return {};
+}
+
+/**
+ * Operator repair: for tasks with approved proof rows, set task to approved if still not approved/done,
+ * then refresh crm_task_bundles / crm_campaign_participants contribution % (approved-only if finalized).
+ */
+export async function recomputeCampaignContributionAction(
+  campaignId: string
+): Promise<{ error?: string; tasksSynced?: number }> {
+  const supabase = await createServerSupabase();
+  if (!supabase) return { error: "Not configured" };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Unauthorized" };
+
+  const campaign = await getCampaign(supabase, campaignId);
+  if (!campaign) return { error: "Campaign not found or access denied" };
+
+  const out = await reconcileCampaignContributionFromSubmissions(supabase, campaignId);
+  if (out.error) return { error: out.error };
+
+  revalidatePath(`/campaigns/${campaignId}`);
+  revalidatePath(`/campaigns/${campaignId}/report`);
+  revalidatePath("/campaigns");
+  return { tasksSynced: out.tasks_synced_to_approved };
 }
 
 /**

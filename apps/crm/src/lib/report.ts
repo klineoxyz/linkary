@@ -24,7 +24,9 @@ import {
   topParticipantsByProofContributionPercent,
   topParticipantsBySnapshotEngagements,
   topParticipantsBySnapshotImpressions,
+  buildParticipantContributionReconciliation,
   type EfficiencyMetricsResult,
+  type ParticipantContributionReconciliation,
   type ParticipantSubmissionRollupRow,
   type ProofContributionLeaderRow,
   type SnapshotEngagementsLeaderRow,
@@ -89,6 +91,8 @@ export type CampaignReportData = {
   finalized_at: string | null;
   /** End snapshot coverage for promoted_social_handles; used for finalize safety and report completeness. */
   end_snapshot_status: EndSnapshotStatus;
+  /** Proof/task totals vs table sums; rounding gaps for operator trust. */
+  participant_contribution_reconciliation: ParticipantContributionReconciliation;
 };
 
 /**
@@ -188,6 +192,14 @@ export async function getCampaignReportData(
   );
   const top_by_submission_snapshot_engagements = topParticipantsBySnapshotEngagements(submissionRollupInput, 10);
 
+  const campaignApprovedProofRowCount = submissions.filter(
+    (s) => (s.status ?? "").toLowerCase() === "approved"
+  ).length;
+  const participant_contribution_reconciliation = buildParticipantContributionReconciliation(
+    participant_submission_rollups,
+    campaignApprovedProofRowCount
+  );
+
   const totalPosts = daily.reduce((s, d) => s + (Number(d.total_posts) || 0), 0);
 
   let likes: number | null = null;
@@ -239,6 +251,7 @@ export async function getCampaignReportData(
     has_metrics: kpis.has_metrics,
     finalized_at: campaign.finalized_at ?? null,
     end_snapshot_status: endSnapshotStatus,
+    participant_contribution_reconciliation,
   };
 }
 
@@ -319,6 +332,43 @@ export function reportRowsForExport(data: CampaignReportData): ReportExportRow[]
       value: g.engagement_growth ?? "",
     });
   }
+
+  const rec = data.participant_contribution_reconciliation;
+  rows.push({
+    section: "reconciliation",
+    label: "Approved proof rows (crm_submissions)",
+    value: rec.campaign_approved_proof_row_count,
+  });
+  rows.push({
+    section: "reconciliation",
+    label: "Sum of approved counts in participant table",
+    value: rec.table_sum_approved_proofs,
+  });
+  rows.push({
+    section: "reconciliation",
+    label: "Approved counts reconcile",
+    value: rec.approved_counts_reconcile ? "yes" : "no",
+  });
+  rows.push({
+    section: "reconciliation",
+    label: "Sum proof share % (rounded cells)",
+    value: rec.sum_rounded_proof_share_percent,
+  });
+  rows.push({
+    section: "reconciliation",
+    label: "Gap vs 100% (proof share rounding)",
+    value: rec.proof_share_rounding_gap_from_100,
+  });
+  rows.push({
+    section: "reconciliation",
+    label: "Sum task % (participants with tasks only)",
+    value: rec.sum_task_contribution_percent_participants_with_tasks,
+  });
+  rows.push({
+    section: "reconciliation",
+    label: "Gap vs 100% (task share rounding)",
+    value: rec.task_share_rounding_gap_from_100,
+  });
 
   for (const t of data.top_contributors_all_submissions) {
     rows.push({

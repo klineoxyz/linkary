@@ -11,6 +11,7 @@ import { ParticipantCell } from "@/components/ParticipantCell";
 import { toParticipantLabel } from "@/lib/profileDisplay";
 import { CampaignAttributionNote } from "@/components/CampaignAttributionNote";
 import type { TopContributorWithContribution } from "@/lib/report";
+import { RecomputeContributionButton } from "../RecomputeContributionButton";
 
 function ReportSection({
   title,
@@ -149,6 +150,7 @@ export default async function CampaignReportPage({
     has_metrics,
     finalized_at,
     end_snapshot_status,
+    participant_contribution_reconciliation: rec,
   } = data;
 
   const { promotedCount, endSnapshotCount, hasAllEndSnapshots } = end_snapshot_status;
@@ -181,7 +183,6 @@ export default async function CampaignReportPage({
       : { data: [] as LeaderboardProfile[] };
   const topContributorById = new Map((topContributorProfiles ?? []).map((p) => [p.id, p as LeaderboardProfile]));
 
-  const approvedProofRowCount = submissions.filter((s) => (s.status ?? "").toLowerCase() === "approved").length;
   const participantsWithAnyProof = new Set(submissions.map((s) => s.participant_profile_id)).size;
 
   return (
@@ -195,6 +196,7 @@ export default async function CampaignReportPage({
           Back to campaign
         </Link>
         <DownloadReportCsvButton campaignId={id} />
+        <RecomputeContributionButton campaignId={id} />
         {finalized_at && (
           <span className="rounded px-2 py-1 text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
             Finalized {new Date(finalized_at).toLocaleDateString()}
@@ -504,7 +506,7 @@ export default async function CampaignReportPage({
           </div>
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
             <p className="text-xs text-[var(--crm-muted)] uppercase">Approved proofs</p>
-            <p className="text-xl font-semibold text-[var(--crm-primary)]">{approvedProofRowCount}</p>
+            <p className="text-xl font-semibold text-[var(--crm-primary)]">{rec.campaign_approved_proof_row_count}</p>
             <p className="text-[10px] text-[var(--crm-muted)] mt-1">Used for proof share %</p>
           </div>
           <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
@@ -512,6 +514,36 @@ export default async function CampaignReportPage({
             <p className="text-xl font-semibold text-[var(--crm-primary)]">{participantsWithAnyProof}</p>
             <p className="text-[10px] text-[var(--crm-muted)] mt-1">Distinct submitters</p>
           </div>
+        </div>
+        <div className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-bg)] px-3 py-2.5 text-xs text-[var(--crm-muted)] space-y-1.5">
+          <p className="font-medium text-[var(--crm-foreground)]">Reconciliation (multi-participant)</p>
+          <ul className="list-disc pl-4 space-y-1">
+            <li>
+              Participant table rows: <strong className="text-[var(--crm-foreground)]">{rec.participant_table_row_count}</strong> — sum of
+              approved counts <strong className="text-[var(--crm-foreground)]">{rec.table_sum_approved_proofs}</strong> vs campaign approved
+              proof rows <strong className="text-[var(--crm-foreground)]">{rec.campaign_approved_proof_row_count}</strong>
+              {rec.approved_counts_reconcile ? (
+                <span className="text-emerald-600 dark:text-emerald-400"> (match)</span>
+              ) : (
+                <span className="text-amber-600 dark:text-amber-400"> (mismatch — report bug)</span>
+              )}
+            </li>
+            <li>
+              Proof share % columns sum to <strong className="text-[var(--crm-foreground)]">{rec.sum_rounded_proof_share_percent}%</strong>{" "}
+              (gap vs 100%: <strong className="text-[var(--crm-foreground)]">{rec.proof_share_rounding_gap_from_100}</strong> from 0.1 rounding per
+              row).
+            </li>
+            <li>
+              Task % sum over participants with tasks:{" "}
+              <strong className="text-[var(--crm-foreground)]">{rec.sum_task_contribution_percent_participants_with_tasks}%</strong> (gap vs 100%:{" "}
+              <strong className="text-[var(--crm-foreground)]">{rec.task_share_rounding_gap_from_100}</strong>;{" "}
+              {rec.participants_with_task_contribution_row} participant(s) with a task score).
+            </li>
+            <li>
+              Task % leaderboard (section D) shows top <strong className="text-[var(--crm-foreground)]">{rec.task_contribution_leaderboard_top_n}</strong>{" "}
+              only; section C lists everyone.
+            </li>
+          </ul>
         </div>
       </ReportSection>
 

@@ -427,3 +427,55 @@ export function topParticipantsBySnapshotImpressions(
     .sort((a, b) => b.approved_with_snapshot_sum - a.approved_with_snapshot_sum)
     .slice(0, limit);
 }
+
+/** Operator sanity-check: proof counts and rounded % columns vs totals. */
+export type ParticipantContributionReconciliation = {
+  campaign_approved_proof_row_count: number;
+  table_sum_approved_proofs: number;
+  approved_counts_reconcile: boolean;
+  /** Sum of proof-share % cells (0.1 rounded); expect ~100 when any approved proofs exist. */
+  sum_rounded_proof_share_percent: number;
+  proof_share_rounding_gap_from_100: number;
+  /** Task % summed only where participant has a bundle-backed score (non-null). */
+  sum_task_contribution_percent_participants_with_tasks: number;
+  task_share_rounding_gap_from_100: number;
+  participants_with_task_contribution_row: number;
+  participant_table_row_count: number;
+  /** Task % leaderboard shows top N only; full ranking is in section C. */
+  task_contribution_leaderboard_top_n: number;
+};
+
+export function buildParticipantContributionReconciliation(
+  rollups: ParticipantSubmissionRollupRow[],
+  campaignApprovedProofRowCount: number
+): ParticipantContributionReconciliation {
+  const table_sum_approved_proofs = rollups.reduce((s, r) => s + r.approved, 0);
+  const approved_counts_reconcile = table_sum_approved_proofs === campaignApprovedProofRowCount;
+
+  const sum_rounded_proof_share_percent = rollups.reduce(
+    (s, r) => s + (r.proof_contribution_percent ?? 0),
+    0
+  );
+  const proof_share_rounding_gap_from_100 =
+    campaignApprovedProofRowCount > 0
+      ? Math.round((100 - sum_rounded_proof_share_percent) * 10) / 10
+      : 0;
+
+  const withTask = rollups.filter((r) => r.task_contribution_percent != null);
+  const sum_task = withTask.reduce((s, r) => s + (r.task_contribution_percent ?? 0), 0);
+  const task_share_rounding_gap_from_100 =
+    withTask.length > 0 ? Math.round((100 - sum_task) * 10) / 10 : 0;
+
+  return {
+    campaign_approved_proof_row_count: campaignApprovedProofRowCount,
+    table_sum_approved_proofs,
+    approved_counts_reconcile,
+    sum_rounded_proof_share_percent,
+    proof_share_rounding_gap_from_100,
+    sum_task_contribution_percent_participants_with_tasks: sum_task,
+    task_share_rounding_gap_from_100,
+    participants_with_task_contribution_row: withTask.length,
+    participant_table_row_count: rollups.length,
+    task_contribution_leaderboard_top_n: 10,
+  };
+}

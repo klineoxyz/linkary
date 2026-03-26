@@ -19,6 +19,7 @@ import { ParticipantCell } from "@/components/ParticipantCell";
 import { toParticipantLabel } from "@/lib/profileDisplay";
 import { GenerateRecurringTasksButton } from "./GenerateRecurringTasksButton";
 import { FinalizeCampaignButton } from "./FinalizeCampaignButton";
+import { RecomputeContributionButton } from "./RecomputeContributionButton";
 import { updateCampaignStatusAction, deleteDraftCampaignAction } from "./statusActions";
 import { ParticipantFollowReviewCell } from "./ParticipantFollowReviewCell";
 import { parseFollowRules } from "@/lib/followRules";
@@ -222,6 +223,7 @@ export default async function CampaignDetailPage({
               endSnapshotStatus={endSnapshotStatus}
             />
           )}
+          <RecomputeContributionButton campaignId={id} />
         </div>
       </div>
 

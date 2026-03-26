@@ -652,7 +652,7 @@ export async function recomputeCampaignContributionAction(
     metricsEnriched: enrich.enriched,
     metricsSkipped: enrich.skipped,
     metricsFailed: enrich.failed,
-    metricsHint: enrich.error,
+    metricsHint: enrich.error ? "External API metrics refresh is unavailable in this environment." : undefined,
   };
 }
 

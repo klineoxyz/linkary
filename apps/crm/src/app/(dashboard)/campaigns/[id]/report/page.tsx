@@ -275,7 +275,7 @@ export default async function CampaignReportPage({
         <p className="text-sm text-[var(--crm-muted)] mb-3">
           Metrics here describe the <strong className="text-[var(--crm-foreground)]">target / promoted account&apos;s own posts</strong> in the campaign window — not participant submissions.
           Daily rows come from <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code> (aggregated from{" "}
-          <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">x_tweets</code> when the handle matches a Linkary profile, or from twitterapi.io when{" "}
+          <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">x_tweets</code> when the handle matches a Linkary profile, or from external API sync when{" "}
           <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">TWITTERAPI_API_KEY</code> is set). Impressions sum only when per-tweet counts exist.
         </p>
         {!has_metrics && (

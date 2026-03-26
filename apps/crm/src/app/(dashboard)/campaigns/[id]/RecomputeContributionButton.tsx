@@ -15,7 +15,7 @@ export function RecomputeContributionButton({ campaignId }: { campaignId: string
     if (busy) return;
     if (
       !confirm(
-        "Recompute from proofs + refresh X metrics? This aligns linked tasks with approved proofs (including campaign_id / weekly_post metadata when needed), refreshes contribution %, and backfills metrics_snapshot for X proof URLs via twitterapi.io (requires API key in env). Safe to repeat."
+        "Recompute from proofs + refresh X metrics? This aligns linked tasks with approved proofs (including campaign_id / weekly_post metadata when needed), refreshes contribution %, and backfills metrics_snapshot for X proof URLs via external API data (requires API key in env). Safe to repeat."
       )
     ) {
       return;

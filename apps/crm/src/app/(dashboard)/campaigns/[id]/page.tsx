@@ -12,6 +12,7 @@ import {
 } from "@/lib/campaigns";
 import { getCampaignCompliance } from "@/lib/compliance";
 import { writeContribution } from "@/lib/contribution";
+import { reconcileCampaignContributionFromSubmissions } from "@/lib/campaignContributionReconcile";
 import { getEndSnapshotStatus } from "@/lib/snapshots";
 import { SubmissionReviewRow } from "./SubmissionReviewRow";
 import { CampaignDefinitionForm } from "./CampaignDefinitionForm";
@@ -76,6 +77,7 @@ export default async function CampaignDetailPage({
   const campaignRequiresFollow = campaignFollowRules.requiresFollow;
 
   const promotedHandles = campaign.promoted_social_handles ?? [];
+  await reconcileCampaignContributionFromSubmissions(supabase, id);
   const [kpis, contributors, submissions, topContributors, topApprovedContributors, workspaceRow, complianceResult, contributionRows, endSnapshotStatus] =
     await Promise.all([
       getCampaignKpis(supabase, id, {
@@ -580,7 +582,7 @@ export default async function CampaignDetailPage({
               kpis.has_metrics
                 ? kpis.performance_meta?.partial_impressions_hint
                   ? "Sum of impression_count / API viewCount when present; some tweets had no impression field."
-                  : `${perf?.source?.includes("twitterapi") ? "Includes twitterapi.io for external handles. " : ""}${kpis.metrics_posts_total.toLocaleString()} target tweet(s) in window.`
+                  : `${perf?.source?.includes("twitterapi") ? "Includes external API data for external handles. " : ""}${kpis.metrics_posts_total.toLocaleString()} target tweet(s) in window.`
                 : undefined
             }
           />

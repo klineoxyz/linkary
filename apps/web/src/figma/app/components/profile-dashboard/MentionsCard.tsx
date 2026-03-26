@@ -29,7 +29,7 @@ export interface MentionsCardProps {
 
 export function MentionsCard({
   mentions,
-  emptyMessage = "Coming soon (twitterapi.io mentions)",
+  emptyMessage = "Coming soon (X mentions)",
   cacheStatus,
   updatedAt,
 }: MentionsCardProps) {

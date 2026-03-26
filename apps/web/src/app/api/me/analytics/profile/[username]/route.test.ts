@@ -74,8 +74,11 @@ vi.mock("@/lib/x-analytics-server", () => ({
   }),
 }));
 
-vi.mock("@/lib/entitlementDiscovery", () => ({
-  isEligibleForDiscovery: vi.fn().mockImplementation(() => Promise.resolve(mockState.eligible)),
+/** Route gates cross-user analytics on effective plan key (KOL+), not discovery eligibility. */
+vi.mock("@/lib/subscriptionPlan", () => ({
+  resolveEffectivePlanKeyForProfile: vi.fn().mockImplementation(async () =>
+    mockState.eligible ? "kol" : "free"
+  ),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({

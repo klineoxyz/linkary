@@ -35,7 +35,7 @@ export function AccountFeedCard({
   onTabChange,
   actions,
   newFollowers,
-  emptyMessage = "Coming soon (twitterapi.io feed)",
+  emptyMessage = "Coming soon (X activity feed)",
   cacheStatus,
   updatedAt,
   variant = "dark",

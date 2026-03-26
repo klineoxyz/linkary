@@ -42,6 +42,17 @@ export type ReportChartPoint = {
   views: number;
   engagements: number;
   posts: number;
+  /** Optional daily mindshare index from `crm_campaign_metrics_daily.mindshare_score` when ingested. */
+  mindshare_score: number | null;
+};
+
+/** Cumulative Layer 1 series for growth trajectory chart (same window as daily ingest). */
+export type GrowthTrajectoryPoint = {
+  day: string;
+  cumulative_views: number;
+  cumulative_engagements: number;
+  cumulative_posts: number;
+  mindshare_score: number | null;
 };
 
 export type TopContributorWithContribution = TopContributor & {
@@ -77,6 +88,8 @@ export type CampaignReportData = {
   contribution_rows: ContributionRow[];
   submissions: CampaignSubmissionRow[];
   chart_series: ReportChartPoint[];
+  /** Cumulative daily metrics for promoted-account growth chart. */
+  growth_trajectory: GrowthTrajectoryPoint[];
   /** First vs last day in daily series + window sums (target account tweet aggregates). */
   target_daily_summary: TargetDailyWindowSummary;
   /** Truthful CPM/CPV/CPE only when spend_used sum &gt; 0; CPC never. */
@@ -125,7 +138,7 @@ export async function getCampaignReportData(
       getCampaignTopContributorsByApprovedSubmissions(supabase, campaignId),
       supabase
         .from("crm_campaign_metrics_daily")
-        .select("day, total_views, total_engagements, total_posts")
+        .select("day, total_views, total_engagements, total_posts, mindshare_score")
         .eq("campaign_id", campaignId)
         .order("day", { ascending: true }),
       /** Operator report always includes done + approved tasks so finalized campaigns still show real progress. */
@@ -162,13 +175,39 @@ export async function getCampaignReportData(
     total_views?: number;
     total_engagements?: number;
     total_posts?: number;
+    mindshare_score?: number | null;
   }[];
-  const chart_series: ReportChartPoint[] = daily.map((d) => ({
-    day: d.day,
-    views: Number(d.total_views) || 0,
-    engagements: Number(d.total_engagements) || 0,
-    posts: Number(d.total_posts) || 0,
-  }));
+  const chart_series: ReportChartPoint[] = daily.map((d) => {
+    const msRaw = d.mindshare_score;
+    const ms =
+      msRaw != null && Number.isFinite(Number(msRaw)) ? Number(msRaw) : null;
+    return {
+      day: d.day,
+      views: Number(d.total_views) || 0,
+      engagements: Number(d.total_engagements) || 0,
+      posts: Number(d.total_posts) || 0,
+      mindshare_score: ms,
+    };
+  });
+
+  let cumV = 0;
+  let cumE = 0;
+  let cumP = 0;
+  const growth_trajectory: GrowthTrajectoryPoint[] = daily.map((d) => {
+    cumV += Number(d.total_views) || 0;
+    cumE += Number(d.total_engagements) || 0;
+    cumP += Number(d.total_posts) || 0;
+    const msRaw = d.mindshare_score;
+    const ms =
+      msRaw != null && Number.isFinite(Number(msRaw)) ? Number(msRaw) : null;
+    return {
+      day: d.day,
+      cumulative_views: cumV,
+      cumulative_engagements: cumE,
+      cumulative_posts: cumP,
+      mindshare_score: ms,
+    };
+  });
 
   const target_daily_summary = summarizeTargetDailySeries(chart_series);
 
@@ -273,6 +312,7 @@ export async function getCampaignReportData(
     contribution_rows: contributionRows,
     submissions,
     chart_series,
+    growth_trajectory,
     target_daily_summary,
     efficiency,
     participant_submission_rollups,

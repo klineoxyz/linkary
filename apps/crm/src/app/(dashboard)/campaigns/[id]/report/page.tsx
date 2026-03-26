@@ -13,6 +13,7 @@ import { CampaignAttributionNote } from "@/components/CampaignAttributionNote";
 import type { TopContributorWithContribution } from "@/lib/report";
 import { parseSubmissionMetricsExtended } from "@/lib/reportAggregates";
 import { RecomputeContributionButton } from "../RecomputeContributionButton";
+import { GrowthTrajectoryChart } from "./GrowthTrajectoryChart";
 
 function fmtNum(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
@@ -336,6 +337,7 @@ export default async function CampaignReportPage({
     top_by_contribution_percent,
     submissions,
     chart_series,
+    growth_trajectory,
     target_daily_summary,
     efficiency,
     participant_submission_rollups,
@@ -637,6 +639,9 @@ export default async function CampaignReportPage({
             </div>
           </div>
         )}
+        <div className="mt-6">
+          <GrowthTrajectoryChart series={growth_trajectory} />
+        </div>
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
           <MiniBars
             title="Views / impressions over time"

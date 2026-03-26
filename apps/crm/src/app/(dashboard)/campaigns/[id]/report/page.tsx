@@ -197,6 +197,12 @@ export default async function CampaignReportPage({
           Back to campaign
         </Link>
         <DownloadReportCsvButton campaignId={id} />
+        <Link
+          href={`/campaigns/${id}/case-study`}
+          className="inline-flex items-center gap-2 rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-3 py-2 text-sm font-medium text-[var(--crm-foreground)] hover:bg-[var(--crm-bg)]"
+        >
+          Case-study view
+        </Link>
         <RecomputeContributionButton campaignId={id} />
         {finalized_at && (
           <span className="rounded px-2 py-1 text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">

@@ -2,14 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { SetupRequired } from "@/components/SetupRequired";
-import {
-  getCampaign,
-  getCampaignKpis,
-  getCampaignContributors,
-  getCampaignSubmissions,
-  getCampaignTopContributors,
-  getCampaignTopContributorsByApprovedSubmissions,
-} from "@/lib/campaigns";
+import { getCampaign, getCampaignKpis, getCampaignContributors, getCampaignSubmissions } from "@/lib/campaigns";
 import { getCampaignCompliance } from "@/lib/compliance";
 import { writeContribution } from "@/lib/contribution";
 import { reconcileCampaignContributionFromSubmissions } from "@/lib/campaignContributionReconcile";
@@ -78,7 +71,7 @@ export default async function CampaignDetailPage({
 
   const promotedHandles = campaign.promoted_social_handles ?? [];
   await reconcileCampaignContributionFromSubmissions(supabase, id);
-  const [kpis, contributors, submissions, topContributors, topApprovedContributors, workspaceRow, complianceResult, contributionRows, endSnapshotStatus] =
+  const [kpis, contributors, submissions, workspaceRow, complianceResult, contributionRows, endSnapshotStatus] =
     await Promise.all([
       getCampaignKpis(supabase, id, {
         budget: campaign.budget,
@@ -86,8 +79,6 @@ export default async function CampaignDetailPage({
       }),
       getCampaignContributors(supabase, id),
       getCampaignSubmissions(supabase, id),
-      getCampaignTopContributors(supabase, id),
-      getCampaignTopContributorsByApprovedSubmissions(supabase, id),
       supabase.from("crm_workspaces").select("slug, name").eq("id", campaign.workspace_id).maybeSingle(),
       getCampaignCompliance(supabase, id),
       writeContribution(supabase, id, { weighted: true }),
@@ -97,8 +88,6 @@ export default async function CampaignDetailPage({
   const participantIds = Array.from(
     new Set([
       ...contributors.map((p) => p.participant_profile_id),
-      ...topContributors.map((p) => p.participant_profile_id),
-      ...topApprovedContributors.map((p) => p.participant_profile_id),
       ...(contributionRows ?? []).map((r) => r.participant_profile_id),
       ...(complianceResult?.compliance ?? []).map((r) => r.participant_profile_id),
       ...submissions.map((s) => s.participant_profile_id),
@@ -124,10 +113,7 @@ export default async function CampaignDetailPage({
     ...row,
     contributionPercent: contributionByBundle.get(row.bundleId) ?? null,
   }));
-  complianceWithContribution.sort((a, b) => (b.contributionPercent ?? 0) - (a.contributionPercent ?? 0));
 
-  const noMetrics = !kpis.has_metrics;
-  const perf = kpis.performance_meta;
   const workspaceLabel =
     (workspaceRow?.data as { name?: string } | null)?.name ??
     (workspaceRow?.data as { slug?: string } | null)?.slug ??
@@ -259,13 +245,11 @@ export default async function CampaignDetailPage({
             label="Target tweet views"
             value={kpis.total_views.toLocaleString()}
             sub="Promoted account tweets (Layer 1)"
-            insufficient={noMetrics}
           />
           <KpiCard
             label="Target tweet engagements"
             value={kpis.total_engagements.toLocaleString()}
             sub="Likes + replies + reposts + quotes"
-            insufficient={noMetrics}
           />
         </div>
       </section>
@@ -543,50 +527,6 @@ export default async function CampaignDetailPage({
               </div>
             </div>
           )}
-        </section>
-      )}
-
-      {!(campaign.weekly_required_posts != null || campaign.daily_engagement_required) &&
-        contributionRows &&
-        contributionRows.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">
-            Task contribution % (participant execution)
-          </h2>
-          <p className="text-sm text-[var(--crm-muted)] mb-4">
-            Share of approved/done tasks per enrolled participant (weighted by deliverable type). This is not X engagement on the target account.
-          </p>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
-                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">#</th>
-                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Contribution</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contributionRows
-                    .sort((a, b) => b.contributionPercent - a.contributionPercent)
-                    .map((r, i) => (
-                      <tr key={r.bundleId} className="border-b border-[var(--crm-border)] last:border-0">
-                        <td className="p-3 text-[var(--crm-muted)]">{i + 1}</td>
-                        <td className="p-3 text-sm text-[var(--crm-foreground)]">
-                          <ParticipantCell
-                            avatarUrl={participantById.get(r.participant_profile_id)?.avatar_url}
-                            label={toParticipantLabel(participantById.get(r.participant_profile_id), r.participant_profile_id)}
-                          />
-                        </td>
-                        <td className="p-3 text-right font-medium text-[var(--crm-primary)]">
-                          {r.contributionPercent}%
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </section>
       )}
 

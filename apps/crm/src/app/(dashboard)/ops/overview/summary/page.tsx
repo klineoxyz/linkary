@@ -22,7 +22,14 @@ export default async function OpsOverviewSummaryPage() {
           <Link href="/ops/actions" className="text-[var(--crm-primary)] font-medium underline-offset-2 hover:underline">
             Actions
           </Link>{" "}
-          for audited writes.
+          for audited writes. Launch-day ingestion:{" "}
+          <Link
+            href="/ops/overview/launch-diagnostics"
+            className="text-[var(--crm-primary)] font-medium underline-offset-2 hover:underline"
+          >
+            Launch diagnostics
+          </Link>
+          .
         </p>
       </header>
 

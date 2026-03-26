@@ -14,6 +14,13 @@ export default async function OpsOverviewHealthPage() {
           Lightweight read-only signals. This is not application uptime monitoring — only Supabase row counts available to the CRM
           service role.
         </p>
+        <p className="mt-3 text-sm text-[var(--crm-muted)]">
+          For ingestion freshness, queue depth, and env flags:{" "}
+          <Link href="/ops/overview/launch-diagnostics" className="text-[var(--crm-primary)] font-medium underline-offset-2 hover:underline">
+            Launch diagnostics
+          </Link>
+          .
+        </p>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

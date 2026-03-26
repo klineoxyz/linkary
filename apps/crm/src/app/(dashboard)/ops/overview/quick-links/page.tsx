@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 const links = [
+  { href: "/ops/overview/launch-diagnostics", label: "Launch diagnostics", hint: "Ingestion freshness, jobs, env flags" },
   { href: "/ops/reports/snapshot", label: "Platform snapshot", hint: "Counts, subs, proxy ratios" },
   { href: "/ops/reports/growth", label: "Platform growth", hint: "New entities, status breakdowns" },
   { href: "/ops/reports/monetization", label: "Subscription & monetization", hint: "Plan mix + budget proxy" },

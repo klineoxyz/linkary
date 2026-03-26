@@ -14,6 +14,65 @@ import type { TopContributorWithContribution } from "@/lib/report";
 import { parseSubmissionMetricsExtended } from "@/lib/reportAggregates";
 import { RecomputeContributionButton } from "../RecomputeContributionButton";
 
+function fmtNum(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return n.toLocaleString();
+}
+
+function SectionShell({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))] p-5 sm:p-6 shadow-sm">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-[var(--crm-foreground)]">{title}</h2>
+          {subtitle ? (
+            <div className="mt-1 text-sm text-[var(--crm-muted)] leading-relaxed">{subtitle}</div>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  note,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  note?: string;
+  tone?: "neutral" | "accent";
+}) {
+  const border =
+    tone === "accent"
+      ? "border-[color-mix(in_srgb,var(--crm-primary)_35%,var(--crm-border))]"
+      : "border-[var(--crm-border)]";
+  const bg =
+    tone === "accent"
+      ? "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_10%,var(--crm-card))_0%,color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))_100%)]"
+      : "bg-[color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))]";
+  return (
+    <div className={`rounded-2xl border ${border} ${bg} p-4 shadow-sm`}>
+      <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--crm-muted)]">{label}</p>
+      <p className="mt-2 text-2xl font-semibold tracking-tight text-[var(--crm-foreground)] tabular-nums">
+        {value}
+      </p>
+      {note ? <p className="mt-1 text-xs text-[var(--crm-muted)]">{note}</p> : null}
+    </div>
+  );
+}
+
 function ReportSection({
   title,
   children,
@@ -47,6 +106,122 @@ type LeaderboardProfile = {
   twitter_username: string | null;
   avatar_url: string | null;
 };
+
+type ChartPoint = { day: string; views: number; engagements: number; posts: number };
+
+function isoWeekKey(d: Date): string {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+}
+
+function groupByWeek(series: ChartPoint[]): { week: string; views: number; engagements: number; posts: number }[] {
+  const m = new Map<string, { week: string; views: number; engagements: number; posts: number }>();
+  for (const p of series) {
+    const wk = isoWeekKey(new Date(p.day));
+    const cur = m.get(wk) ?? { week: wk, views: 0, engagements: 0, posts: 0 };
+    cur.views += p.views;
+    cur.engagements += p.engagements;
+    cur.posts += p.posts;
+    m.set(wk, cur);
+  }
+  return [...m.values()].sort((a, b) => (a.week < b.week ? -1 : 1));
+}
+
+function MiniBars({
+  title,
+  subtitle,
+  points,
+  valueKey,
+  color,
+}: {
+  title: string;
+  subtitle?: string;
+  points: { key: string; views: number; engagements: number; posts: number }[];
+  valueKey: "views" | "engagements" | "posts";
+  color: string;
+}) {
+  const data = points.slice(-16);
+  const max = Math.max(1, ...data.map((d) => d[valueKey]));
+  const w = 720;
+  const h = 160;
+  const padX = 16;
+  const padY = 14;
+  const innerW = w - padX * 2;
+  const innerH = h - padY * 2;
+  const step = innerW / Math.max(1, data.length);
+  const bw = Math.max(6, Math.floor(step) - 6);
+  return (
+    <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-semibold text-[var(--crm-foreground)]">{title}</p>
+        {subtitle ? <p className="text-xs text-[var(--crm-muted)]">{subtitle}</p> : null}
+      </div>
+      <div className="mt-4 rounded-xl bg-[var(--crm-bg)] p-3">
+        <svg viewBox={`0 0 ${w} ${h}`} className="h-36 w-full">
+          <rect x="0" y="0" width={w} height={h} fill="transparent" />
+          {data.map((d, i) => {
+            const v = d[valueKey];
+            const bh = Math.max(2, Math.round((v / max) * innerH));
+            const x = padX + i * step + (step - bw) / 2;
+            const y = h - padY - bh;
+            return (
+              <rect key={`${d.key}-${valueKey}`} x={x} y={y} width={bw} height={bh} rx={3} fill={color}>
+                <title>{`${d.key}: ${v.toLocaleString()}`}</title>
+              </rect>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function CompositionBar({
+  title,
+  parts,
+}: {
+  title: string;
+  parts: { key: string; label: string; value: number; color: string }[];
+}) {
+  const total = parts.reduce((s, p) => s + p.value, 0);
+  if (total <= 0) {
+    return (
+      <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
+        <p className="text-sm font-semibold text-[var(--crm-foreground)]">{title}</p>
+        <p className="mt-2 text-sm text-[var(--crm-muted)]">No supported engagement breakdown available.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
+      <p className="text-sm font-semibold text-[var(--crm-foreground)]">{title}</p>
+      <div className="mt-4 overflow-hidden rounded-full bg-[var(--crm-bg)] h-4 flex">
+        {parts.map((p) => (
+          <div
+            key={p.key}
+            style={{ width: `${(p.value / total) * 100}%`, backgroundColor: p.color }}
+            title={`${p.label}: ${p.value.toLocaleString()}`}
+          />
+        ))}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--crm-muted)] sm:grid-cols-4">
+        {parts.map((p) => (
+          <div key={`${p.key}-legend`} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--crm-bg)] px-2 py-1.5">
+            <span className="inline-flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: p.color }} />
+              <span className="text-[var(--crm-foreground)]">{p.label}</span>
+            </span>
+            <span className="tabular-nums">{((p.value / total) * 100).toFixed(0)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function LeaderboardTable({
   rows,
@@ -157,11 +332,6 @@ export default async function CampaignReportPage({
   const { promotedCount, endSnapshotCount, hasAllEndSnapshots } = end_snapshot_status;
   const growthPartial = finalized_at && promotedCount > 0 && !hasAllEndSnapshots;
 
-  const maxChartTri = Math.max(
-    1,
-    ...chart_series.map((d) => Math.max(d.views, d.engagements, d.posts))
-  );
-
   const topContributorIds = Array.from(
     new Set([
       ...top_contributors_all_submissions.map((t) => t.participant_profile_id),
@@ -185,6 +355,55 @@ export default async function CampaignReportPage({
   const topContributorById = new Map((topContributorProfiles ?? []).map((p) => [p.id, p as LeaderboardProfile]));
 
   const participantsWithAnyProof = new Set(submissions.map((s) => s.participant_profile_id)).size;
+  const weekly = groupByWeek(chart_series as ChartPoint[]);
+  const weeklyBars = weekly.map((w) => ({ key: w.week, views: w.views, engagements: w.engagements, posts: w.posts }));
+
+  const perParticipantEng = participant_submission_rollups
+    .map((r) => ({
+      participant_profile_id: r.participant_profile_id,
+      label: toParticipantLabel(topContributorById.get(r.participant_profile_id), r.participant_profile_id),
+      value: r.snapshot_engagements_sum ?? 0,
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 12);
+
+  const perParticipantBars = perParticipantEng.map((p) => ({
+    key: p.label,
+    views: 0,
+    engagements: p.value,
+    posts: 0,
+  }));
+
+  const approvedSubs = submissions.filter((s) => (s.status ?? "").toLowerCase() === "approved");
+  const subBreakdown = approvedSubs
+    .map((s) => parseSubmissionMetricsExtended(s.metrics_snapshot))
+    .reduce(
+      (acc, m) => ({
+        likes: acc.likes + (m.likes ?? 0),
+        replies: acc.replies + (m.replies ?? 0),
+        reposts: acc.reposts + (m.reposts ?? 0),
+        quotes: acc.quotes + (m.quotes ?? 0),
+      }),
+      { likes: 0, replies: 0, reposts: 0, quotes: 0 }
+    );
+  const layer1Parts = [
+    { key: "likes", label: "Likes", value: likes ?? 0, color: "#fb923c" },
+    { key: "replies", label: "Replies", value: replies ?? 0, color: "#60a5fa" },
+    { key: "reposts", label: "Reposts", value: reposts ?? 0, color: "#34d399" },
+    { key: "quotes", label: "Quotes", value: quotes ?? 0, color: "#a78bfa" },
+  ];
+  const layer2Parts = [
+    { key: "likes", label: "Likes", value: subBreakdown.likes, color: "#fb923c" },
+    { key: "replies", label: "Replies", value: subBreakdown.replies, color: "#60a5fa" },
+    { key: "reposts", label: "Reposts", value: subBreakdown.reposts, color: "#34d399" },
+    { key: "quotes", label: "Quotes", value: subBreakdown.quotes, color: "#a78bfa" },
+  ];
+  const compositionParts =
+    layer1Parts.reduce((s, p) => s + p.value, 0) > 0 ? layer1Parts : layer2Parts;
+  const compositionLabel =
+    layer1Parts.reduce((s, p) => s + p.value, 0) > 0
+      ? "Engagement composition (Layer 1, target account)"
+      : "Engagement composition (Layer 2, approved proofs)";
 
   return (
     <div className="space-y-8">
@@ -211,72 +430,72 @@ export default async function CampaignReportPage({
         )}
       </div>
 
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--crm-foreground)]">
-          Campaign report: {campaign.title}
+      <div className="rounded-3xl border border-[var(--crm-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--crm-primary)_10%,var(--crm-card))_0%,color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))_60%,color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))_100%)] p-6 sm:p-8 shadow-sm">
+        <p className="text-xs uppercase tracking-[0.2em] text-[var(--crm-muted)]">Analytics dashboard</p>
+        <h1 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight text-[var(--crm-foreground)]">
+          {campaign.title}
         </h1>
-        <p className="mt-1 text-sm text-[var(--crm-muted)]">
-          Stored data only. Separates promoted-account performance from CRM participant execution.
+        <p className="mt-2 text-sm text-[var(--crm-muted)] max-w-3xl">
+          Stored data only. Layer 1 shows promoted-account performance; Layer 2 shows CRM participant execution.
         </p>
-        {promotedCount > 0 && (
-          <p className="mt-2 text-sm text-[var(--crm-muted)]">
-            End snapshots: {endSnapshotCount}/{promotedCount} promoted accounts
-            {growthPartial && (
-              <span className="ml-1 text-amber-600 dark:text-amber-400">
-                — Growth data is partial (not all promoted accounts have end snapshots).
-              </span>
-            )}
+        <div className="mt-5 grid gap-3 text-sm text-[var(--crm-muted)] sm:grid-cols-2 lg:grid-cols-4">
+          <p>
+            <strong className="text-[var(--crm-foreground)]">Status:</strong> {campaign.status}
           </p>
-        )}
+          <p>
+            <strong className="text-[var(--crm-foreground)]">Period:</strong>{" "}
+            {start_date ? new Date(start_date).toLocaleDateString() : "—"} –{" "}
+            {end_date ? new Date(end_date).toLocaleDateString() : "—"}
+          </p>
+          <p>
+            <strong className="text-[var(--crm-foreground)]">Value (USD):</strong>{" "}
+            {campaign_value_usd != null ? campaign_value_usd.toLocaleString() : "—"}
+          </p>
+          <p>
+            <strong className="text-[var(--crm-foreground)]">Promoted account(s):</strong>{" "}
+            {promoted_social_handles.length > 0
+              ? promoted_social_handles.map((h) => `${h.platform}:${h.handle}`).join(", ")
+              : promoted_org_id
+                ? `${promoted_org_id.slice(0, 8)}…`
+                : "—"}
+          </p>
+        </div>
+        {promotedCount > 0 ? (
+          <p className="mt-4 text-xs text-[var(--crm-muted)]">
+            End snapshots: {endSnapshotCount}/{promotedCount}
+            {growthPartial ? (
+              <span className="ml-1 text-amber-700">— Growth is partial (missing end snapshots).</span>
+            ) : null}
+          </p>
+        ) : null}
       </div>
 
-      <ReportSection title="Campaign overview">
-        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 space-y-2">
-          <MetricRow label="Campaign name" value={campaign.title} />
-          <MetricRow
-            label="Promoted project"
-            value={promoted_org_id ? `${promoted_org_id.slice(0, 8)}…` : null}
-          />
-          {promoted_social_handles.length > 0 && (
-            <div className="py-2 border-b border-[var(--crm-border)]">
-              <span className="text-[var(--crm-muted)]">Promoted accounts to track (Layer 1)</span>
-              <ul className="mt-1 flex flex-wrap gap-2">
-                {promoted_social_handles.map((h, i) => (
-                  <li
-                    key={i}
-                    className="rounded px-2 py-0.5 bg-[var(--crm-bg)] text-sm text-[var(--crm-foreground)]"
-                  >
-                    {h.platform}: {h.handle}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <MetricRow
-            label="Start date"
-            value={start_date ? new Date(start_date).toLocaleDateString() : null}
-          />
-          <MetricRow
-            label="End date"
-            value={end_date ? new Date(end_date).toLocaleDateString() : null}
-          />
-          <MetricRow
-            label="Reward date"
-            value={reward_date ? new Date(reward_date).toLocaleDateString() : null}
-          />
-          <MetricRow
-            label="Campaign value (USD)"
-            value={campaign_value_usd != null ? campaign_value_usd.toLocaleString() : null}
-          />
+      <SectionShell
+        title="KPI overview"
+        subtitle="A quick scan of promoted-account performance (Layer 1) and participant execution (Layer 2)."
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard tone="accent" label="Target posts" value={fmtNum(total_posts)} note="Promoted-account tweets in window" />
+          <KpiCard tone="accent" label="Views / impressions" value={fmtNum(total_views)} note="Target tweets (Layer 1)" />
+          <KpiCard tone="accent" label="Engagements" value={fmtNum(total_engagements)} note="Likes + replies + reposts + quotes" />
+          <KpiCard label="Participants enrolled" value={fmtNum(participant_enrolled_count)} note="CRM participants (all statuses)" />
+          <KpiCard label="Approved proofs" value={fmtNum(rec.campaign_approved_proof_row_count)} note="crm_submissions (approved)" />
+          <KpiCard label="Proof rows" value={fmtNum(submissions.length)} note="All submission statuses" />
+          <KpiCard label="CPM" value={efficiency.cpm != null ? fmtMoney(efficiency.cpm, efficiency.currency) : "—"} note={efficiency.cpm != null ? "Cost per 1k views" : "Shown when spend + denominator exist"} />
+          <KpiCard label="CPV" value={efficiency.cpv != null ? fmtMoney(efficiency.cpv, efficiency.currency) : "—"} note={efficiency.cpv != null ? "Cost per view" : "Shown when spend + denominator exist"} />
+          <KpiCard label="CPE" value={efficiency.cpe != null ? fmtMoney(efficiency.cpe, efficiency.currency) : "—"} note={efficiency.cpe != null ? "Cost per engagement" : "Shown when spend + denominator exist"} />
+          <KpiCard label="CPC" value="Coming soon" note="Click tracking is not ingested yet" />
         </div>
-      </ReportSection>
+      </SectionShell>
+
+      {/* Campaign overview is now represented in the dashboard hero above. */}
 
       <ReportSection title="A — Promoted account growth & performance (target account)">
         <p className="text-sm text-[var(--crm-muted)] mb-3">
           Metrics here describe the <strong className="text-[var(--crm-foreground)]">target / promoted account&apos;s own posts</strong> in the campaign window — not participant submissions.
           Daily rows come from <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code> (aggregated from{" "}
           <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">x_tweets</code> when the handle matches a Linkary profile, or from external API sync when{" "}
-          <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">TWITTERAPI_API_KEY</code> is set). Impressions sum only when per-tweet counts exist.
+          an API key is set). Impressions sum only when per-tweet counts exist.
         </p>
         {!has_metrics && (
           <p className="text-sm text-[var(--crm-muted)] mb-4">
@@ -382,63 +601,39 @@ export default async function CampaignReportPage({
             </div>
           </div>
         )}
-        {chart_series.length === 0 ? (
-          <div className="mt-6 rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">
-            No daily metrics chart yet. Add <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code> rows for a per-day views / engagements / posts timeline.
-          </div>
-        ) : (
-          <div className="mt-6 rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 overflow-x-auto">
-            <p className="text-xs font-medium text-[var(--crm-foreground)] mb-2">Daily timeline (same ingested series as table above)</p>
-            <div className="flex gap-3 items-center text-[10px] text-[var(--crm-muted)] mb-2">
-              <span className="inline-flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-sm bg-sky-500" /> Views
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-sm bg-emerald-500" /> Engagements
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-sm bg-amber-500" /> Posts
-              </span>
-            </div>
-            <div className="flex gap-2 items-end min-h-[128px]">
-              {chart_series.map((d) => (
-                <div
-                  key={d.day}
-                  className="flex flex-col items-center gap-1 shrink-0"
-                  title={`${d.day}: views ${d.views}, engagements ${d.engagements}, posts ${d.posts}`}
-                >
-                  <div className="flex items-end gap-0.5 h-[120px]">
-                    <div
-                      className="w-2 bg-sky-500 rounded-t min-h-[2px]"
-                      style={{
-                        height: `${Math.max(2, (d.views / maxChartTri) * 120)}px`,
-                      }}
-                    />
-                    <div
-                      className="w-2 bg-emerald-500 rounded-t min-h-[2px]"
-                      style={{
-                        height: `${Math.max(2, (d.engagements / maxChartTri) * 120)}px`,
-                      }}
-                    />
-                    <div
-                      className="w-2 bg-amber-500 rounded-t min-h-[2px]"
-                      style={{
-                        height: `${Math.max(2, (d.posts / maxChartTri) * 120)}px`,
-                      }}
-                    />
-                  </div>
-                  <span className="text-[10px] text-[var(--crm-muted)]">
-                    {new Date(d.day).toLocaleDateString("en", { month: "short", day: "numeric" })}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-[var(--crm-muted)] mt-2">
-              Bars scale to the largest single-day views, engagements, or posts in this window. Data is from{" "}
-              <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code> (target account tweets, not participant submissions).
-            </p>
-          </div>
-        )}
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          <MiniBars
+            title="Views / impressions over time"
+            subtitle={chart_series.length ? "Daily (last 16 points)" : "No daily rows yet"}
+            points={(chart_series as ChartPoint[]).map((d) => ({ key: d.day, views: d.views, engagements: d.engagements, posts: d.posts }))}
+            valueKey="views"
+            color="#fb923c"
+          />
+          <MiniBars
+            title="Engagements over time"
+            subtitle={chart_series.length ? "Daily (last 16 points)" : "No daily rows yet"}
+            points={(chart_series as ChartPoint[]).map((d) => ({ key: d.day, views: d.views, engagements: d.engagements, posts: d.posts }))}
+            valueKey="engagements"
+            color="#60a5fa"
+          />
+          <MiniBars
+            title="Posts over time"
+            subtitle={chart_series.length ? "Daily (last 16 points)" : "No daily rows yet"}
+            points={(chart_series as ChartPoint[]).map((d) => ({ key: d.day, views: d.views, engagements: d.engagements, posts: d.posts }))}
+            valueKey="posts"
+            color="#34d399"
+          />
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <MiniBars
+            title="Engagement per week"
+            subtitle={weeklyBars.length ? "Weekly totals" : "No daily rows yet"}
+            points={weeklyBars.map((w) => ({ key: w.key, views: w.views, engagements: w.engagements, posts: w.posts }))}
+            valueKey="engagements"
+            color="#fb923c"
+          />
+          <CompositionBar title={compositionLabel} parts={compositionParts} />
+        </div>
 
         <div className="mt-8">
           <p className="text-sm text-[var(--crm-muted)] mb-3">
@@ -967,38 +1162,48 @@ export default async function CampaignReportPage({
       </ReportSection>
 
       <ReportSection title="F — Efficiency metrics (recorded spend only)">
-        {efficiency.can_show_efficiency ? (
-          <div className="space-y-3">
+        <div className="space-y-3">
+          {efficiency.can_show_efficiency ? (
             <p className="text-sm text-[var(--crm-muted)]">
               Spend = sum of <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">spend_used</code> on daily metric rows. Denominators are target-account tweet totals for the same window (impressions = views in this pipeline). Any metric shown as — has a zero denominator.
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-                <p className="text-xs text-[var(--crm-muted)] uppercase">Recorded spend</p>
-                <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">
-                  {fmtMoney(efficiency.spend_recorded, efficiency.currency)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-                <p className="text-xs text-[var(--crm-muted)] uppercase">CPM (per 1k impressions)</p>
-                <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">{fmtMoney(efficiency.cpm, efficiency.currency)}</p>
-              </div>
-              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-                <p className="text-xs text-[var(--crm-muted)] uppercase">CPV (per view)</p>
-                <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">{fmtMoney(efficiency.cpv, efficiency.currency)}</p>
-              </div>
-              <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-                <p className="text-xs text-[var(--crm-muted)] uppercase">CPE (per engagement)</p>
-                <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">{fmtMoney(efficiency.cpe, efficiency.currency)}</p>
-              </div>
+          ) : (
+            <p className="text-sm text-[var(--crm-muted)] rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-3">
+              {efficiency.unavailable_reason}
+            </p>
+          )}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+              <p className="text-xs text-[var(--crm-muted)] uppercase">Recorded spend</p>
+              <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">
+                {fmtMoney(efficiency.spend_recorded, efficiency.currency)}
+              </p>
             </div>
-            <p className="text-xs text-[var(--crm-muted)]">CPC is not shown — link clicks are not tracked in this pipeline.</p>
+            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+              <p className="text-xs text-[var(--crm-muted)] uppercase">CPM</p>
+              <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">
+                {efficiency.cpm != null ? fmtMoney(efficiency.cpm, efficiency.currency) : "—"}
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+              <p className="text-xs text-[var(--crm-muted)] uppercase">CPV</p>
+              <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">
+                {efficiency.cpv != null ? fmtMoney(efficiency.cpv, efficiency.currency) : "—"}
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+              <p className="text-xs text-[var(--crm-muted)] uppercase">CPE</p>
+              <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">
+                {efficiency.cpe != null ? fmtMoney(efficiency.cpe, efficiency.currency) : "—"}
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
+              <p className="text-xs text-[var(--crm-muted)] uppercase">CPC</p>
+              <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">Coming soon</p>
+              <p className="mt-0.5 text-[10px] text-[var(--crm-muted)]">Click tracking is not ingested</p>
+            </div>
           </div>
-        ) : (
-          <p className="text-sm text-[var(--crm-muted)] rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-3">
-            {efficiency.unavailable_reason}
-          </p>
-        )}
+        </div>
       </ReportSection>
 
       <ReportSection title="G — Attribution & limitations">

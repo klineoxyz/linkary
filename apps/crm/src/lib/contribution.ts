@@ -78,8 +78,11 @@ export async function computeContribution(
   for (const t of completed) {
     const bid = t.task_bundle_id;
     const current = bundleScores.get(bid) ?? 0;
+    const dtype = t.deliverable_type;
     const add = weighted
-      ? DELIVERABLE_WEIGHTS[t.deliverable_type ?? ""] ?? DEFAULT_WEIGHT
+      ? dtype != null && dtype !== ""
+        ? DELIVERABLE_WEIGHTS[dtype] ?? DEFAULT_WEIGHT
+        : 1
       : 1;
     bundleScores.set(bid, current + add);
   }

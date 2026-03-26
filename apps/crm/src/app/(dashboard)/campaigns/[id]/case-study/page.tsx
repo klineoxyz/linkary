@@ -240,6 +240,14 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
           th, td { padding: 10px 8px !important; }
           section { box-shadow: none !important; margin-bottom: 14px !important; }
           aside, nav, header, [role="navigation"] { display: none !important; }
+          #crm-app-shell { display: block !important; }
+          #crm-app-shell > main {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+          }
           main { max-width: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
           body { background: #fff !important; }
           .proof-url { word-break: break-all !important; white-space: normal !important; }

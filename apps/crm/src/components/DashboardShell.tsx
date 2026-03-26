@@ -48,7 +48,10 @@ export function DashboardShell({
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[var(--crm-page-bg)]">
+    <div
+      id="crm-app-shell"
+      className="min-h-screen flex flex-col lg:flex-row bg-[var(--crm-page-bg)]"
+    >
       <aside className="w-full lg:w-[15.5rem] shrink-0 border-b lg:border-b-0 lg:border-r border-[var(--crm-border)] bg-[var(--crm-sidebar-bg)] p-4 lg:min-h-screen lg:flex lg:flex-col shadow-[var(--crm-shadow-sm)] lg:shadow-none">
         <div className="mb-6">
           <span className="font-semibold text-[var(--crm-foreground)] tracking-tight block">

@@ -23,6 +23,7 @@ export async function alignTaskFromApprovedProof(
     campaignId: string;
     reviewedAt: string | null;
     weeklyRequiredPosts: number;
+    participantProfileId?: string | null;
   }
 ): Promise<{ error?: string; statusChanged: boolean }> {
   const { weekEnd } = getWeekRangeUtc(args.reviewedAt ? new Date(args.reviewedAt) : new Date());
@@ -73,6 +74,17 @@ export async function alignTaskFromApprovedProof(
   const patch: Record<string, unknown> = { updated_at: now };
   if (statusChanged) patch.status = "approved";
   if (row.campaign_id == null) patch.campaign_id = args.campaignId;
+  if (!row.task_bundle_id && args.participantProfileId) {
+    const { data: bundle } = await supabase
+      .from("crm_task_bundles")
+      .select("id")
+      .eq("campaign_id", args.campaignId)
+      .eq("participant_profile_id", args.participantProfileId)
+      .limit(1)
+      .maybeSingle();
+    const bundleId = (bundle as { id?: string } | null)?.id ?? null;
+    if (bundleId) patch.task_bundle_id = bundleId;
+  }
   if ((args.weeklyRequiredPosts ?? 0) > 0) {
     if (!row.deliverable_type) patch.deliverable_type = "weekly_post";
     if (!row.due_at) patch.due_at = weekEnd;
@@ -81,6 +93,7 @@ export async function alignTaskFromApprovedProof(
   const needsWrite =
     statusChanged ||
     row.campaign_id == null ||
+    (!row.task_bundle_id && !!(patch.task_bundle_id as string | undefined)) ||
     ((args.weeklyRequiredPosts ?? 0) > 0 && (!row.deliverable_type || !row.due_at));
 
   if (!needsWrite) return { error: undefined, statusChanged: false };
@@ -106,7 +119,7 @@ export async function reconcileCampaignContributionFromSubmissions(
 
   const { data: approvedRows, error: subErr } = await supabase
     .from("crm_submissions")
-    .select("task_id, reviewed_at")
+    .select("task_id, reviewed_at, participant_profile_id")
     .eq("campaign_id", campaignId)
     .eq("status", "approved");
 
@@ -114,24 +127,29 @@ export async function reconcileCampaignContributionFromSubmissions(
     return { tasks_synced_to_approved: 0, error: subErr.message };
   }
 
-  const reviewedByTask = new Map<string, string | null>();
+  const approvedMetaByTask = new Map<string, { reviewedAt: string | null; participantProfileId: string | null }>();
   for (const r of approvedRows ?? []) {
     const tid = (r as { task_id: string }).task_id;
     if (!tid) continue;
     const rv = (r as { reviewed_at: string | null }).reviewed_at;
-    const prev = reviewedByTask.get(tid);
-    if (!prev || (rv && rv > prev)) reviewedByTask.set(tid, rv ?? null);
+    const participantProfileId = (r as { participant_profile_id?: string | null }).participant_profile_id ?? null;
+    const prev = approvedMetaByTask.get(tid);
+    if (!prev || (rv && (!prev.reviewedAt || rv > prev.reviewedAt))) {
+      approvedMetaByTask.set(tid, { reviewedAt: rv ?? null, participantProfileId });
+    }
   }
 
-  const taskIds = [...reviewedByTask.keys()];
+  const taskIds = [...approvedMetaByTask.keys()];
   let tasks_synced_to_approved = 0;
 
   for (const taskId of taskIds) {
+    const meta = approvedMetaByTask.get(taskId) ?? { reviewedAt: null, participantProfileId: null };
     const out = await alignTaskFromApprovedProof(supabase, {
       taskId,
       campaignId,
-      reviewedAt: reviewedByTask.get(taskId) ?? null,
+      reviewedAt: meta.reviewedAt,
       weeklyRequiredPosts: weeklyReq,
+      participantProfileId: meta.participantProfileId,
     });
     if (out.error) continue;
     if (out.statusChanged) tasks_synced_to_approved += 1;

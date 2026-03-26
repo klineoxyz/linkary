@@ -8,6 +8,7 @@ import {
   updateCampaignDefinition,
 } from "@/lib/campaigns";
 import type { PromotedSocialHandle } from "@/lib/campaigns";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getSubmissionWithCampaignWorkspace,
   updateSubmissionStatus,
@@ -31,6 +32,57 @@ import {
 const REVIEW_STATUSES = ["approved", "rejected", "needs_revision"] as const;
 const FOLLOW_VERIFICATION_STATUSES = ["pending", "verified", "waived"] as const;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function seedBaselineSnapshotsOnLaunch(
+  supabase: SupabaseClient,
+  campaign: { id: string; promoted_social_handles?: PromotedSocialHandle[] | null }
+): Promise<void> {
+  const handles = campaign.promoted_social_handles ?? [];
+  if (handles.length === 0) return;
+  const apiKey = getTwitterApiKeyFromEnv();
+  if (!apiKey) return;
+
+  for (const h of handles) {
+    const platform = (h.platform ?? "").trim().toLowerCase();
+    if (platform !== "x" && platform !== "twitter") continue;
+    const handleRaw = (h.handle ?? "").trim();
+    const norm = parseXHandleInput(handleRaw);
+    if (!norm) continue;
+
+    const { data: exists } = await supabase
+      .from("crm_campaign_account_snapshots")
+      .select("id")
+      .eq("campaign_id", campaign.id)
+      .eq("platform", "x")
+      .eq("handle", `@${norm}`)
+      .eq("snapshot_type", "baseline")
+      .limit(1)
+      .maybeSingle();
+    if (exists?.id) continue;
+
+    const preview = await fetchXAccountPreview(norm, apiKey);
+    if (!preview) continue;
+
+    const metrics: SnapshotMetrics = {
+      followers: preview.followers,
+      views: null,
+      likes: null,
+      replies: null,
+      quotes: null,
+      reposts: null,
+      engagement_total: null,
+    };
+    await upsertAccountSnapshot(
+      supabase,
+      campaign.id,
+      "x",
+      `@${norm}`,
+      "baseline",
+      new Date().toISOString(),
+      metrics
+    );
+  }
+}
 
 export type PromotedAccountPreview =
   | {
@@ -717,6 +769,10 @@ export async function updateCampaignStatusAction(
 
   const out = await setCampaignStatus(supabase, campaignId, nextStatus);
   if (out.error) return out;
+  if (nextStatus === "active" && campaign.status !== "active") {
+    // Best-effort baseline for promoted handles at launch time.
+    await seedBaselineSnapshotsOnLaunch(supabase, campaign);
+  }
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath("/campaigns");
   return {};

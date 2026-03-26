@@ -9,6 +9,7 @@ import { toParticipantLabel } from "@/lib/profileDisplay";
 import { parseSubmissionMetricsExtended } from "@/lib/reportAggregates";
 import { CampaignAttributionNote } from "@/components/CampaignAttributionNote";
 import { PrintCaseStudyButton } from "./PrintCaseStudyButton";
+import { GrowthTrajectoryChart } from "../report/GrowthTrajectoryChart";
 
 type ProfileRow = {
   id: string;
@@ -167,6 +168,7 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
     participant_enrolled_count,
     submissions,
     chart_series,
+    growth_trajectory,
     efficiency,
     participant_submission_rollups,
     top_contributors_approved_submissions,
@@ -331,6 +333,9 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
 
       <section className="print-break rounded-3xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))] p-6 shadow-sm avoid-break">
         <h2 className="print-h2 mb-4 text-2xl font-semibold tracking-tight text-[var(--crm-foreground)]">Performance charts</h2>
+        <div className="mb-5">
+          <GrowthTrajectoryChart series={growth_trajectory} />
+        </div>
         <div className="grid gap-4 lg:grid-cols-3">
           <TinyBarChart title="Daily views / impressions" series={chart_series} color="#fb923c" valueKey="views" />
           <TinyBarChart title="Daily engagements" series={chart_series} color="#60a5fa" valueKey="engagements" />

@@ -1,5 +1,23 @@
 import type { GrowthTrajectoryPoint } from "@/lib/report";
 
+/** Short date for axis ticks (date-only ISO safe). */
+function shortDayLabel(isoDay: string): string {
+  const s = isoDay.trim();
+  const d = /\d{4}-\d{2}-\d{2}/.test(s) ? new Date(`${s}T12:00:00.000Z`) : new Date(s);
+  if (Number.isNaN(d.getTime())) return s.slice(0, 10);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function xTickIndices(n: number): number[] {
+  if (n <= 1) return [0];
+  const maxTicks = Math.min(6, n);
+  const out: number[] = [];
+  for (let k = 0; k < maxTicks; k++) {
+    out.push(Math.round((k / (maxTicks - 1)) * (n - 1)));
+  }
+  return [...new Set(out)].sort((a, b) => a - b);
+}
+
 function normalizeSeries(values: number[]): number[] {
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -106,6 +124,16 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
         ? `Cumulative engagements: ${lastE.toLocaleString()} by ${lastDay} (was 0 on first ingested day)`
         : null;
 
+  const xTicks = xTickIndices(n);
+  const axisStroke = "var(--crm-border)";
+  const tickStroke = "var(--crm-border)";
+  const labelFill = "var(--crm-muted)";
+  const yPctLabels: { t: number; text: string }[] = [
+    { t: 1, text: "100%" },
+    { t: 0.5, text: "50%" },
+    { t: 0, text: "0%" },
+  ];
+
   return (
     <div className="rounded-2xl border-2 border-[color-mix(in_srgb,var(--crm-primary)_28%,var(--crm-border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_8%,var(--crm-card))_0%,color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))_100%)] p-5 shadow-md">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
@@ -121,14 +149,20 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
           </span>
         ) : null}
       </div>
-      <div className="mt-4 rounded-xl bg-[var(--crm-bg)] p-3">
-        <svg viewBox={`0 0 ${w} ${h}`} className="h-56 w-full" role="img" aria-label="Normalized cumulative trajectory chart">
+      <div className="mt-4 rounded-xl border border-[color-mix(in_srgb,var(--crm-border)_70%,transparent)] bg-[var(--crm-bg)] p-3">
+        <svg
+          viewBox={`0 0 ${w} ${h}`}
+          className="h-[min(20rem,52vw)] w-full min-h-[220px]"
+          role="img"
+          aria-label="Normalized cumulative trajectory chart with day and percent axes"
+        >
           <defs>
             <linearGradient id="growthTrajEngFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.35" />
               <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.03" />
             </linearGradient>
           </defs>
+          <rect x="0" y="0" width={w} height={h} fill="transparent" />
           {[0, 0.5, 1].map((t) => {
             const y = yAt(t);
             return (
@@ -138,9 +172,8 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
                 x2={w - padR}
                 y1={y}
                 y2={y}
-                stroke="currentColor"
-                className="text-[var(--crm-border)]"
-                strokeOpacity={0.45}
+                stroke={axisStroke}
+                strokeOpacity={0.38}
                 strokeWidth={1}
               />
             );
@@ -177,6 +210,84 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
               strokeLinecap="round"
             />
           ) : null}
+          {/* Y axis spine + ticks + labels (normalized scale) */}
+          <line
+            x1={padL}
+            y1={padT}
+            x2={padL}
+            y2={baseY}
+            stroke={axisStroke}
+            strokeWidth={1.35}
+          />
+          {yPctLabels.map(({ t, text }) => {
+            const y = yAt(t);
+            return (
+              <g key={text}>
+                <line x1={padL - 5} y1={y} x2={padL} y2={y} stroke={tickStroke} strokeWidth={1.1} />
+                <text
+                  x={padL - 8}
+                  y={y}
+                  textAnchor="end"
+                  dominantBaseline="middle"
+                  fontSize={10}
+                  fill={labelFill}
+                  style={{ fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif" }}
+                >
+                  {text}
+                </text>
+              </g>
+            );
+          })}
+          <text
+            x={10}
+            y={padT + innerH / 2}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize={9}
+            fill={labelFill}
+            transform={`rotate(-90, 10, ${padT + innerH / 2})`}
+            style={{ fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif" }}
+          >
+            Normalized
+          </text>
+          {/* X axis spine + ticks + labels (ingested days) */}
+          <line
+            x1={padL}
+            y1={baseY}
+            x2={w - padR}
+            y2={baseY}
+            stroke={axisStroke}
+            strokeWidth={1.35}
+          />
+          {xTicks.map((i) => {
+            const x = xAt(i);
+            const lbl = shortDayLabel(series[i].day);
+            return (
+              <g key={`xt-${i}-${series[i].day}`}>
+                <line x1={x} y1={baseY} x2={x} y2={baseY + 5} stroke={tickStroke} strokeWidth={1.1} />
+                <text
+                  x={x}
+                  y={baseY + 18}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill={labelFill}
+                  style={{ fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif" }}
+                >
+                  {lbl}
+                </text>
+              </g>
+            );
+          })}
+          <text
+            x={padL + innerW / 2}
+            y={h - 8}
+            textAnchor="middle"
+            fontSize={9}
+            fill={labelFill}
+            style={{ fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif" }}
+          >
+            Ingested calendar day
+          </text>
         </svg>
       </div>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-[var(--crm-muted)]">
@@ -194,7 +305,8 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
         </span>
       </div>
       <p className="mt-2 text-[10px] leading-relaxed text-[var(--crm-muted)]">
-        Axis is <strong className="text-[var(--crm-foreground)]">min–max normalized per series</strong> so shapes are comparable; use KPI cards and tables above for absolute totals.{" "}
+        <strong className="text-[var(--crm-foreground)]">Y-axis</strong> shows 0–100% of each series&apos;s own min–max range (shape comparison);{" "}
+        <strong className="text-[var(--crm-foreground)]">X-axis</strong> is ingested calendar day. Use KPI cards and tables for absolute totals.{" "}
         {!hasMindshare ? (
           <>
             <strong className="text-[var(--crm-foreground)]">Mindshare</strong> appears as the third line when{" "}

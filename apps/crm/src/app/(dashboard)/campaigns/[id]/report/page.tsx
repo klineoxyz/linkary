@@ -6,7 +6,7 @@ import { SetupRequired } from "@/components/SetupRequired";
 import { getCampaignReportData } from "@/lib/report";
 import { RecordSnapshotForm } from "./RecordSnapshotForm";
 import { DownloadReportCsvButton } from "./DownloadReportCsvButton";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileText, LayoutDashboard } from "lucide-react";
 import { ParticipantCell } from "@/components/ParticipantCell";
 import { toParticipantLabel } from "@/lib/profileDisplay";
 import { CampaignAttributionNote } from "@/components/CampaignAttributionNote";
@@ -23,22 +23,25 @@ function SectionShell({
   title,
   subtitle,
   children,
+  stamp,
 }: {
   title: string;
   subtitle?: ReactNode;
   children: ReactNode;
+  stamp?: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))] p-5 sm:p-6 shadow-sm">
+    <section className="rounded-3xl border border-[color-mix(in_srgb,var(--crm-border)_92%,var(--crm-primary))] bg-[color-mix(in_srgb,var(--crm-card)_88%,var(--crm-bg))] p-5 sm:p-6 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.08)]">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          {stamp}
           <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-[var(--crm-foreground)]">{title}</h2>
           {subtitle ? (
             <div className="mt-1 text-sm text-[var(--crm-muted)] leading-relaxed">{subtitle}</div>
           ) : null}
         </div>
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="mt-5">{children}</div>
     </section>
   );
 }
@@ -60,15 +63,15 @@ function KpiCard({
       : "border-[var(--crm-border)]";
   const bg =
     tone === "accent"
-      ? "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_10%,var(--crm-card))_0%,color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))_100%)]"
-      : "bg-[color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))]";
+      ? "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_14%,var(--crm-card))_0%,color-mix(in_srgb,var(--crm-card)_90%,var(--crm-bg))_100%)]"
+      : "bg-[color-mix(in_srgb,var(--crm-card)_93%,var(--crm-bg))]";
   return (
-    <div className={`rounded-2xl border ${border} ${bg} p-4 shadow-sm`}>
-      <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--crm-muted)]">{label}</p>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-[var(--crm-foreground)] tabular-nums">
+    <div className={`rounded-2xl border ${border} ${bg} p-4 sm:p-5 shadow-md`}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--crm-muted)]">{label}</p>
+      <p className="mt-2.5 text-2xl sm:text-[1.65rem] font-bold tracking-tight text-[var(--crm-foreground)] tabular-nums">
         {value}
       </p>
-      {note ? <p className="mt-1 text-xs text-[var(--crm-muted)]">{note}</p> : null}
+      {note ? <p className="mt-1.5 text-xs leading-snug text-[var(--crm-muted)]">{note}</p> : null}
     </div>
   );
 }
@@ -76,14 +79,26 @@ function KpiCard({
 function ReportSection({
   title,
   children,
+  band,
 }: {
   title: string;
   children: ReactNode;
+  band?: "layer1" | "layer2" | "neutral";
 }) {
+  const stripe =
+    band === "layer1"
+      ? "border-l-[6px] border-l-[color-mix(in_srgb,var(--crm-primary)_85%,orange)]"
+      : band === "layer2"
+        ? "border-l-[6px] border-l-[#0ea5e9]"
+        : "border-l-[6px] border-l-transparent";
   return (
-    <section>
-      <h2 className="text-lg font-semibold text-[var(--crm-foreground)] mb-4">{title}</h2>
-      {children}
+    <section
+      className={`rounded-3xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_88%,var(--crm-bg))] p-5 sm:p-6 shadow-sm ${stripe}`}
+    >
+      <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--crm-foreground)]">
+        {title}
+      </h2>
+      <div className="mt-5">{children}</div>
     </section>
   );
 }
@@ -137,31 +152,36 @@ function MiniBars({
   points,
   valueKey,
   color,
+  emphasize = false,
 }: {
   title: string;
   subtitle?: string;
   points: { key: string; views: number; engagements: number; posts: number }[];
   valueKey: "views" | "engagements" | "posts";
   color: string;
+  emphasize?: boolean;
 }) {
   const data = points.slice(-16);
   const max = Math.max(1, ...data.map((d) => d[valueKey]));
   const w = 720;
-  const h = 160;
+  const h = emphasize ? 190 : 160;
   const padX = 16;
-  const padY = 14;
+  const padY = emphasize ? 16 : 14;
   const innerW = w - padX * 2;
   const innerH = h - padY * 2;
   const step = innerW / Math.max(1, data.length);
   const bw = Math.max(6, Math.floor(step) - 6);
+  const wrap = emphasize
+    ? "rounded-3xl border-2 border-[color-mix(in_srgb,var(--crm-primary)_32%,var(--crm-border))] bg-[color-mix(in_srgb,var(--crm-primary)_7%,var(--crm-card))] p-5 shadow-md ring-1 ring-[color-mix(in_srgb,var(--crm-primary)_12%,transparent)]"
+    : "rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))] p-5 shadow-sm";
   return (
-    <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-sm font-semibold text-[var(--crm-foreground)]">{title}</p>
+    <div className={wrap}>
+      <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between">
+        <p className={`font-semibold text-[var(--crm-foreground)] ${emphasize ? "text-base" : "text-sm"}`}>{title}</p>
         {subtitle ? <p className="text-xs text-[var(--crm-muted)]">{subtitle}</p> : null}
       </div>
       <div className="mt-4 rounded-xl bg-[var(--crm-bg)] p-3">
-        <svg viewBox={`0 0 ${w} ${h}`} className="h-36 w-full">
+        <svg viewBox={`0 0 ${w} ${h}`} className={emphasize ? "h-44 w-full" : "h-36 w-full"}>
           <rect x="0" y="0" width={w} height={h} fill="transparent" />
           {data.map((d, i) => {
             const v = d[valueKey];
@@ -406,37 +426,48 @@ export default async function CampaignReportPage({
       : "Engagement composition (Layer 2, approved proofs)";
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-center gap-4">
+    <div className="space-y-9">
+      <div className="no-print flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_93%,var(--crm-bg))] p-3 shadow-sm sm:gap-3">
         <Link
           href={`/campaigns/${id}`}
-          className="inline-flex items-center gap-2 text-sm font-medium text-[var(--crm-muted)] hover:text-[var(--crm-primary)]"
+          className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--crm-muted)] hover:bg-[var(--crm-bg)] hover:text-[var(--crm-primary)]"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to campaign
+          Campaign
         </Link>
+        <span className="hidden h-6 w-px bg-[var(--crm-border)] sm:block" aria-hidden />
         <DownloadReportCsvButton campaignId={id} />
         <Link
           href={`/campaigns/${id}/case-study`}
-          className="inline-flex items-center gap-2 rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-3 py-2 text-sm font-medium text-[var(--crm-foreground)] hover:bg-[var(--crm-bg)]"
+          className="inline-flex items-center gap-2 rounded-xl border-2 border-[color-mix(in_srgb,var(--crm-primary)_38%,var(--crm-border))] bg-[var(--crm-card)] px-4 py-2 text-sm font-semibold text-[var(--crm-foreground)] shadow-sm hover:bg-[color-mix(in_srgb,var(--crm-primary)_8%,var(--crm-card))]"
         >
-          Case-study view
+          <FileText className="h-4 w-4 text-[var(--crm-primary)]" aria-hidden />
+          Case-study report
         </Link>
         <RecomputeContributionButton campaignId={id} />
         {finalized_at && (
-          <span className="rounded px-2 py-1 text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+          <span className="rounded-full px-3 py-1 text-xs font-medium bg-emerald-500/15 text-emerald-800 dark:text-emerald-400">
             Finalized {new Date(finalized_at).toLocaleDateString()}
           </span>
         )}
       </div>
 
-      <div className="rounded-3xl border border-[var(--crm-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--crm-primary)_10%,var(--crm-card))_0%,color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))_60%,color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))_100%)] p-6 sm:p-8 shadow-sm">
-        <p className="text-xs uppercase tracking-[0.2em] text-[var(--crm-muted)]">Analytics dashboard</p>
-        <h1 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight text-[var(--crm-foreground)]">
+      <div className="rounded-[1.35rem] border border-[color-mix(in_srgb,var(--crm-primary)_26%,var(--crm-border))] bg-[linear-gradient(140deg,color-mix(in_srgb,var(--crm-primary)_14%,var(--crm-card))_0%,var(--crm-card)_42%,color-mix(in_srgb,var(--crm-card)_90%,var(--crm-bg))_100%)] p-7 sm:p-9 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.12)]">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[color-mix(in_srgb,var(--crm-primary)_16%,var(--crm-card))] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--crm-foreground)]">
+            <LayoutDashboard className="h-3.5 w-3.5 text-[var(--crm-primary)]" aria-hidden />
+            Analytics dashboard
+          </span>
+          <span className="rounded-full bg-[var(--crm-bg)] px-2.5 py-0.5 text-xs font-medium text-[var(--crm-muted)]">
+            {campaign.status}
+          </span>
+        </div>
+        <h1 className="mt-4 text-3xl sm:text-[2.15rem] font-bold tracking-tight text-[var(--crm-foreground)]">
           {campaign.title}
         </h1>
-        <p className="mt-2 text-sm text-[var(--crm-muted)] max-w-3xl">
-          Stored data only. Layer 1 shows promoted-account performance; Layer 2 shows CRM participant execution.
+        <p className="mt-3 text-sm text-[var(--crm-muted)] max-w-3xl leading-relaxed">
+          Stored data only. <strong className="text-[var(--crm-foreground)]">Layer 1</strong> is promoted-account performance;{" "}
+          <strong className="text-[var(--crm-foreground)]">Layer 2</strong> is CRM participant execution — both stay separated below.
         </p>
         <div className="mt-5 grid gap-3 text-sm text-[var(--crm-muted)] sm:grid-cols-2 lg:grid-cols-4">
           <p>
@@ -473,6 +504,11 @@ export default async function CampaignReportPage({
       <SectionShell
         title="KPI overview"
         subtitle="A quick scan of promoted-account performance (Layer 1) and participant execution (Layer 2)."
+        stamp={
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--crm-primary)]">
+            Campaign performance
+          </p>
+        }
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard tone="accent" label="Target posts" value={fmtNum(total_posts)} note="Promoted-account tweets in window" />
@@ -490,7 +526,7 @@ export default async function CampaignReportPage({
 
       {/* Campaign overview is now represented in the dashboard hero above. */}
 
-      <ReportSection title="A — Promoted account growth & performance (target account)">
+      <ReportSection title="A — Promoted account growth & performance (target account)" band="layer1">
         <p className="text-sm text-[var(--crm-muted)] mb-3">
           Metrics here describe the <strong className="text-[var(--crm-foreground)]">target / promoted account&apos;s own posts</strong> in the campaign window — not participant submissions.
           Daily rows come from <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">crm_campaign_metrics_daily</code> (aggregated from{" "}
@@ -504,49 +540,49 @@ export default async function CampaignReportPage({
             <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">POST /api/cron/crm-campaign-metrics-daily</code>. External handles do not need a Linkary profile if the API key is configured.
           </p>
         )}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Target account tweets (window)</p>
-            <p className="text-xl font-semibold text-[var(--crm-primary)]">{total_posts}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="rounded-2xl border border-[color-mix(in_srgb,var(--crm-primary)_30%,var(--crm-border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_12%,var(--crm-card))_0%,var(--crm-card)_100%)] p-4 shadow-sm">
+            <p className="text-[11px] font-semibold text-[var(--crm-muted)] uppercase tracking-wide">Target account tweets (window)</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--crm-primary)]">{total_posts}</p>
             <p className="text-[10px] text-[var(--crm-muted)] mt-1">Posts by promoted handle(s), not creators</p>
           </div>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Impressions / views (target tweets)</p>
-            <p className="text-xl font-semibold text-[var(--crm-primary)]">
+          <div className="rounded-2xl border border-[color-mix(in_srgb,var(--crm-primary)_30%,var(--crm-border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_12%,var(--crm-card))_0%,var(--crm-card)_100%)] p-4 shadow-sm">
+            <p className="text-[11px] font-semibold text-[var(--crm-muted)] uppercase tracking-wide">Impressions / views (target tweets)</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--crm-primary)]">
               {total_views.toLocaleString()}
             </p>
           </div>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Engagements (target tweets)</p>
-            <p className="text-xl font-semibold text-[var(--crm-primary)]">
+          <div className="rounded-2xl border border-[color-mix(in_srgb,var(--crm-primary)_30%,var(--crm-border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_12%,var(--crm-card))_0%,var(--crm-card)_100%)] p-4 shadow-sm">
+            <p className="text-[11px] font-semibold text-[var(--crm-muted)] uppercase tracking-wide">Engagements (target tweets)</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--crm-primary)]">
               {total_engagements.toLocaleString()}
             </p>
             <p className="text-[10px] text-[var(--crm-muted)] mt-1">Likes + replies + reposts + quotes on target posts</p>
           </div>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Likes (end snapshots)</p>
-            <p className="text-xl font-semibold text-[var(--crm-primary)]">
+          <div className="rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))] p-4 shadow-sm">
+            <p className="text-[11px] font-semibold text-[var(--crm-muted)] uppercase tracking-wide">Likes (end snapshots)</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-[var(--crm-foreground)]">
               {likes != null ? likes.toLocaleString() : "—"}
             </p>
             <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">From operator end snapshot(s)</p>
           </div>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Replies (end snapshots)</p>
-            <p className="text-xl font-semibold text-[var(--crm-primary)]">
+          <div className="rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))] p-4 shadow-sm">
+            <p className="text-[11px] font-semibold text-[var(--crm-muted)] uppercase tracking-wide">Replies (end snapshots)</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-[var(--crm-foreground)]">
               {replies != null ? replies.toLocaleString() : "—"}
             </p>
             <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">From operator end snapshot(s)</p>
           </div>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Quotes (end snapshots)</p>
-            <p className="text-xl font-semibold text-[var(--crm-primary)]">
+          <div className="rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))] p-4 shadow-sm">
+            <p className="text-[11px] font-semibold text-[var(--crm-muted)] uppercase tracking-wide">Quotes (end snapshots)</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-[var(--crm-foreground)]">
               {quotes != null ? quotes.toLocaleString() : "—"}
             </p>
             <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">From operator end snapshot(s)</p>
           </div>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <p className="text-xs text-[var(--crm-muted)] uppercase">Reposts (end snapshots)</p>
-            <p className="text-xl font-semibold text-[var(--crm-primary)]">
+          <div className="rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))] p-4 shadow-sm">
+            <p className="text-[11px] font-semibold text-[var(--crm-muted)] uppercase tracking-wide">Reposts (end snapshots)</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-[var(--crm-foreground)]">
               {reposts != null ? reposts.toLocaleString() : "—"}
             </p>
             <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">From operator end snapshot(s)</p>
@@ -624,15 +660,33 @@ export default async function CampaignReportPage({
             color="#34d399"
           />
         </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <MiniBars
-            title="Engagement per week"
-            subtitle={weeklyBars.length ? "Weekly totals" : "No daily rows yet"}
-            points={weeklyBars.map((w) => ({ key: w.key, views: w.views, engagements: w.engagements, posts: w.posts }))}
-            valueKey="engagements"
-            color="#fb923c"
-          />
-          <CompositionBar title={compositionLabel} parts={compositionParts} />
+        <div className="mt-7 space-y-5">
+          <div className="grid gap-5 xl:grid-cols-2">
+            <MiniBars
+              emphasize
+              title="Engagement per week"
+              subtitle={weeklyBars.length ? "Weekly totals (Layer 1 timeline)" : "No daily rows yet"}
+              points={weeklyBars.map((w) => ({ key: w.key, views: w.views, engagements: w.engagements, posts: w.posts }))}
+              valueKey="engagements"
+              color="#fb923c"
+            />
+            <MiniBars
+              emphasize
+              title="Engagement per participant"
+              subtitle={
+                perParticipantBars.length
+                  ? "Σ snapshot engagements from proofs (top 12, Layer 2)"
+                  : "No participant rollup data yet"
+              }
+              points={perParticipantBars}
+              valueKey="engagements"
+              color="#ea580c"
+            />
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--crm-muted)]">Engagement mix</p>
+            <CompositionBar title={compositionLabel} parts={compositionParts} />
+          </div>
         </div>
 
         <div className="mt-8">
@@ -749,9 +803,9 @@ export default async function CampaignReportPage({
         </div>
       </ReportSection>
 
-      <ReportSection title="C — Detailed participant contribution">
-        <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
-          <p className="text-xs text-[var(--crm-muted)] px-4 py-2 border-b border-[var(--crm-border)]">
+      <ReportSection title="C — Detailed participant contribution" band="layer2">
+        <div className="rounded-2xl border border-[color-mix(in_srgb,var(--crm-primary)_22%,var(--crm-border))] bg-[var(--crm-card)] overflow-hidden shadow-sm">
+          <p className="text-xs text-[var(--crm-muted)] px-4 py-3 border-b border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-bg)_88%,var(--crm-card))]">
             One row per enrolled participant (plus anyone with proof rows but not enrolled). Snapshot sums are optional{" "}
             <code className="text-[10px] bg-[var(--crm-bg)] px-1 rounded">metrics_snapshot</code> on each submission — omit if not stored.
           </p>
@@ -761,18 +815,19 @@ export default async function CampaignReportPage({
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[1400px]">
                 <thead>
-                  <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
-                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Participant</th>
-                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Invite</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Total</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Appr</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Pend</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Rej</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Rev</th>
-                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Latest proof</th>
-                    <th className="text-left p-3 font-medium text-[var(--crm-foreground)]">Latest appr.</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Task %</th>
-                    <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Proof share %</th>
+                  <tr className="border-b-2 border-[color-mix(in_srgb,var(--crm-primary)_25%,var(--crm-border))] bg-[color-mix(in_srgb,var(--crm-primary)_8%,var(--crm-bg))]">
+                    <th className="text-left p-3 font-semibold text-[var(--crm-foreground)] w-10">#</th>
+                    <th className="text-left p-3 font-semibold text-[var(--crm-foreground)]">Participant</th>
+                    <th className="text-left p-3 font-semibold text-[var(--crm-foreground)]">Invite</th>
+                    <th className="text-right p-3 font-semibold text-[var(--crm-foreground)]">Total</th>
+                    <th className="text-right p-3 font-semibold text-[var(--crm-foreground)]">Appr</th>
+                    <th className="text-right p-3 font-semibold text-[var(--crm-foreground)]">Pend</th>
+                    <th className="text-right p-3 font-semibold text-[var(--crm-foreground)]">Rej</th>
+                    <th className="text-right p-3 font-semibold text-[var(--crm-foreground)]">Rev</th>
+                    <th className="text-left p-3 font-semibold text-[var(--crm-foreground)]">Latest proof</th>
+                    <th className="text-left p-3 font-semibold text-[var(--crm-foreground)]">Latest appr.</th>
+                    <th className="text-right p-3 font-semibold text-[var(--crm-foreground)] bg-[color-mix(in_srgb,var(--crm-primary)_10%,var(--crm-bg))]">Task %</th>
+                    <th className="text-right p-3 font-semibold text-[var(--crm-foreground)] bg-[color-mix(in_srgb,var(--crm-primary)_10%,var(--crm-bg))]">Proof share %</th>
                     <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ snap views</th>
                     <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ snap eng.</th>
                     <th className="text-right p-3 font-medium text-[var(--crm-foreground)]">Σ likes</th>
@@ -805,10 +860,10 @@ export default async function CampaignReportPage({
                       <td className="p-3 text-[var(--crm-muted)] text-xs whitespace-nowrap">
                         {r.latest_approved_at ? new Date(r.latest_approved_at).toLocaleDateString() : "—"}
                       </td>
-                      <td className="p-3 text-right font-medium tabular-nums text-[var(--crm-primary)]">
+                      <td className="p-3 text-right font-bold tabular-nums text-[var(--crm-primary)] bg-[color-mix(in_srgb,var(--crm-primary)_6%,var(--crm-card))]">
                         {r.task_contribution_percent != null ? `${r.task_contribution_percent}%` : "—"}
                       </td>
-                      <td className="p-3 text-right tabular-nums">
+                      <td className="p-3 text-right font-bold tabular-nums text-[var(--crm-primary)] bg-[color-mix(in_srgb,var(--crm-primary)_6%,var(--crm-card))]">
                         {r.proof_contribution_percent != null ? `${r.proof_contribution_percent}%` : "—"}
                       </td>
                       <td className="p-3 text-right tabular-nums text-xs">
@@ -928,7 +983,7 @@ export default async function CampaignReportPage({
         )}
       </ReportSection>
 
-      <ReportSection title="D — Leaderboards (CRM-attributed only)">
+      <ReportSection title="D — Leaderboards (CRM-attributed only)" band="layer2">
         <p className="text-xs text-[var(--crm-muted)] mb-4">
           Rankings use enrolled + proof data in this workspace only. Snapshot leaderboards omit anyone without stored metrics — not full social attribution.
         </p>
@@ -1161,46 +1216,59 @@ export default async function CampaignReportPage({
         </div>
       </ReportSection>
 
-      <ReportSection title="F — Efficiency metrics (recorded spend only)">
-        <div className="space-y-3">
+      <ReportSection title="F — Efficiency (spend basis labeled)" band="neutral">
+        <div className="space-y-5">
           {efficiency.can_show_efficiency ? (
-            <p className="text-sm text-[var(--crm-muted)]">
-              Spend = sum of <code className="text-xs bg-[var(--crm-bg)] px-1 rounded">spend_used</code> on daily metric rows. Denominators are target-account tweet totals for the same window (impressions = views in this pipeline). Any metric shown as — has a zero denominator.
+            <p className="rounded-xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-bg)_75%,var(--crm-card))] px-4 py-3 text-sm leading-relaxed text-[var(--crm-muted)]">
+              Spend uses <code className="text-xs bg-[var(--crm-card)] px-1 rounded">spend_used</code> on daily rows when present; otherwise an{" "}
+              <strong className="text-[var(--crm-foreground)]">allocated budget</strong> fallback may apply (see notes on each card). Denominators are
+              target-account totals for the window.
             </p>
           ) : (
-            <p className="text-sm text-[var(--crm-muted)] rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-3">
+            <p className="text-sm text-[var(--crm-muted)] rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3">
               {efficiency.unavailable_reason}
             </p>
           )}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-              <p className="text-xs text-[var(--crm-muted)] uppercase">Recorded spend</p>
-              <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">
-                {fmtMoney(efficiency.spend_recorded, efficiency.currency)}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div className="rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))] p-4 sm:p-5 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--crm-muted)]">Spend (basis)</p>
+              <p className="mt-2 text-lg font-bold tabular-nums text-[var(--crm-foreground)]">
+                {efficiency.can_show_efficiency && efficiency.spend_for_calc != null
+                  ? fmtMoney(efficiency.spend_for_calc, efficiency.currency)
+                  : efficiency.spend_recorded != null
+                    ? fmtMoney(efficiency.spend_recorded, efficiency.currency)
+                    : "—"}
+              </p>
+              <p className="mt-1 text-[10px] text-[var(--crm-muted)]">
+                {efficiency.spend_basis === "recorded_spend"
+                  ? "Recorded in daily metrics"
+                  : efficiency.spend_basis === "allocated_budget"
+                    ? "Allocated / campaign budget estimate"
+                    : "—"}
               </p>
             </div>
-            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-              <p className="text-xs text-[var(--crm-muted)] uppercase">CPM</p>
-              <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">
+            <div className="rounded-2xl border border-[color-mix(in_srgb,var(--crm-primary)_28%,var(--crm-border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_11%,var(--crm-card))_0%,var(--crm-card)_100%)] p-4 sm:p-5 shadow-md">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--crm-muted)]">CPM</p>
+              <p className="mt-2 text-xl font-bold tabular-nums text-[var(--crm-primary)]">
                 {efficiency.cpm != null ? fmtMoney(efficiency.cpm, efficiency.currency) : "—"}
               </p>
             </div>
-            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-              <p className="text-xs text-[var(--crm-muted)] uppercase">CPV</p>
-              <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">
+            <div className="rounded-2xl border border-[color-mix(in_srgb,var(--crm-primary)_28%,var(--crm-border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_11%,var(--crm-card))_0%,var(--crm-card)_100%)] p-4 sm:p-5 shadow-md">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--crm-muted)]">CPV</p>
+              <p className="mt-2 text-xl font-bold tabular-nums text-[var(--crm-primary)]">
                 {efficiency.cpv != null ? fmtMoney(efficiency.cpv, efficiency.currency) : "—"}
               </p>
             </div>
-            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-              <p className="text-xs text-[var(--crm-muted)] uppercase">CPE</p>
-              <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">
+            <div className="rounded-2xl border border-[color-mix(in_srgb,var(--crm-primary)_28%,var(--crm-border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_11%,var(--crm-card))_0%,var(--crm-card)_100%)] p-4 sm:p-5 shadow-md">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--crm-muted)]">CPE</p>
+              <p className="mt-2 text-xl font-bold tabular-nums text-[var(--crm-primary)]">
                 {efficiency.cpe != null ? fmtMoney(efficiency.cpe, efficiency.currency) : "—"}
               </p>
             </div>
-            <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-              <p className="text-xs text-[var(--crm-muted)] uppercase">CPC</p>
-              <p className="text-lg font-semibold text-[var(--crm-primary)] tabular-nums">Coming soon</p>
-              <p className="mt-0.5 text-[10px] text-[var(--crm-muted)]">Click tracking is not ingested</p>
+            <div className="rounded-2xl border border-dashed border-[var(--crm-border)] bg-[var(--crm-bg)] p-4 sm:p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--crm-muted)]">CPC</p>
+              <p className="mt-2 text-xl font-bold tabular-nums text-[var(--crm-foreground)]">Coming soon</p>
+              <p className="mt-1 text-[10px] text-[var(--crm-muted)]">Click tracking is not ingested</p>
             </div>
           </div>
         </div>

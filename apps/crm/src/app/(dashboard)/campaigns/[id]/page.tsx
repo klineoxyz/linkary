@@ -17,7 +17,7 @@ import { RecomputeContributionButton } from "./RecomputeContributionButton";
 import { updateCampaignStatusAction, deleteDraftCampaignAction } from "./statusActions";
 import { ParticipantFollowReviewCell } from "./ParticipantFollowReviewCell";
 import { parseFollowRules } from "@/lib/followRules";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BarChart3, FileText } from "lucide-react";
 import { CampaignAttributionNote } from "@/components/CampaignAttributionNote";
 
 function KpiCard({
@@ -25,25 +25,31 @@ function KpiCard({
   value,
   sub,
   insufficient,
+  tone = "neutral",
 }: {
   label: string;
   value: string | number;
   sub?: string;
   insufficient?: boolean;
+  tone?: "neutral" | "accent";
 }) {
+  const shell =
+    tone === "accent"
+      ? "rounded-2xl border border-[color-mix(in_srgb,var(--crm-primary)_38%,var(--crm-border))] bg-[linear-gradient(165deg,color-mix(in_srgb,var(--crm-primary)_14%,var(--crm-card))_0%,color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))_100%)] p-4 shadow-sm"
+      : "rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))] p-4 shadow-sm";
   return (
-    <div className="crm-surface-card p-4">
-      <p className="text-xs font-medium text-[var(--crm-muted)] uppercase tracking-wide">
+    <div className={shell}>
+      <p className="text-[11px] font-semibold text-[var(--crm-muted)] uppercase tracking-[0.14em]">
         {label}
         {insufficient && (
-          <span className="ml-1 normal-case text-[var(--crm-muted)]">(no data yet)</span>
+          <span className="ml-1 normal-case font-normal text-[var(--crm-muted)]">(no data yet)</span>
         )}
       </p>
-      <p className="mt-1 text-xl font-bold tracking-tight text-[var(--crm-foreground)] tabular-nums">
+      <p className="mt-1.5 text-2xl font-bold tracking-tight text-[var(--crm-foreground)] tabular-nums">
         {value}
       </p>
       {sub != null && sub !== "" && (
-        <p className="mt-0.5 text-xs text-[var(--crm-muted)]">{sub}</p>
+        <p className="mt-1 text-xs text-[var(--crm-muted)] leading-snug">{sub}</p>
       )}
     </div>
   );
@@ -129,47 +135,51 @@ export default async function CampaignDetailPage({
         Back to campaigns
       </Link>
 
-      <div className="crm-surface-muted px-4 py-3.5 text-sm text-[var(--crm-muted)] leading-relaxed">
-        <strong className="text-[var(--crm-foreground)]">For your team:</strong> Approve proof links, review{" "}
-        <strong className="text-[var(--crm-foreground)]">promoted-account</strong> tweet metrics separately from{" "}
-        <strong className="text-[var(--crm-foreground)]">participant</strong> execution, and open the full report (including baseline/end snapshots).{" "}
-        Discovery stays on <strong className="text-[var(--crm-foreground)]">linkary.xyz</strong>.
-      </div>
-
-      <CampaignAttributionNote />
-
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="crm-page-title text-2xl sm:text-[1.65rem] break-words">
-            {campaign.title}
-          </h1>
-          <div className="mt-2 flex flex-wrap gap-2 text-sm text-[var(--crm-muted)]">
-          <span className="rounded px-2 py-0.5 bg-[var(--crm-bg)]">
-            {campaign.status}
-          </span>
-          {campaign.starts_at && (
-            <span>
-              {new Date(campaign.starts_at).toLocaleDateString()}
-              {campaign.ends_at
-                ? ` – ${new Date(campaign.ends_at).toLocaleDateString()}`
-                : ""}
-            </span>
-          )}
+      <section className="rounded-3xl border border-[color-mix(in_srgb,var(--crm-primary)_28%,var(--crm-border))] bg-[linear-gradient(128deg,color-mix(in_srgb,var(--crm-primary)_12%,var(--crm-card))_0%,var(--crm-card)_38%,color-mix(in_srgb,var(--crm-card)_93%,var(--crm-bg))_100%)] p-6 sm:p-8 shadow-md">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--crm-muted)]">
+              Campaign control
+            </p>
+            <h1 className="crm-page-title mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-[var(--crm-foreground)] break-words">
+              {campaign.title}
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-[var(--crm-muted)]">
+              <span className="rounded-full border border-[color-mix(in_srgb,var(--crm-primary)_35%,var(--crm-border))] bg-[color-mix(in_srgb,var(--crm-primary)_10%,var(--crm-card))] px-3 py-0.5 text-xs font-medium text-[var(--crm-foreground)]">
+                {campaign.status}
+              </span>
+              {campaign.starts_at && (
+                <span className="rounded-lg bg-[var(--crm-bg)] px-2.5 py-0.5">
+                  {new Date(campaign.starts_at).toLocaleDateString()}
+                  {campaign.ends_at
+                    ? ` – ${new Date(campaign.ends_at).toLocaleDateString()}`
+                    : ""}
+                </span>
+              )}
+            </div>
+            {campaign.description ? (
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--crm-muted)]">{campaign.description}</p>
+            ) : null}
+          </div>
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row xl:flex-col xl:flex-wrap xl:items-end">
+            <Link
+              href={`/campaigns/${id}/report`}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--crm-primary)] px-5 py-3 text-sm font-semibold text-[var(--crm-primary-foreground)] shadow-sm transition hover:opacity-[0.96]"
+            >
+              <BarChart3 className="h-4 w-4 shrink-0 opacity-95" aria-hidden />
+              Analytics dashboard
+            </Link>
+            <Link
+              href={`/campaigns/${id}/case-study`}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-[color-mix(in_srgb,var(--crm-primary)_42%,var(--crm-border))] bg-[color-mix(in_srgb,var(--crm-card)_96%,var(--crm-bg))] px-5 py-3 text-sm font-semibold text-[var(--crm-foreground)] shadow-sm transition hover:bg-[color-mix(in_srgb,var(--crm-primary)_8%,var(--crm-card))]"
+            >
+              <FileText className="h-4 w-4 shrink-0 text-[var(--crm-primary)]" aria-hidden />
+              Case-study report
+            </Link>
+          </div>
         </div>
-        {campaign.description && (
-          <p className="mt-2 text-sm text-[var(--crm-muted)]">
-            {campaign.description}
-          </p>
-        )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Link
-            href={`/campaigns/${id}/report`}
-            className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-2 text-sm font-medium text-[var(--crm-foreground)] hover:bg-[var(--crm-bg)]"
-          >
-            View report
-          </Link>
-          {/* Lifecycle controls (minimal, status-based; no redesign). */}
+        <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[color-mix(in_srgb,var(--crm-border)_80%,transparent)] pt-5">
+          {/* Lifecycle controls */}
           {campaign.status === "draft" && (
             <form action={async () => { "use server"; await updateCampaignStatusAction(id, "active"); }}>
               <button type="submit" className="crm-btn-primary">
@@ -213,40 +223,51 @@ export default async function CampaignDetailPage({
           )}
           <RecomputeContributionButton campaignId={id} />
         </div>
+      </section>
+
+      <div className="rounded-2xl border-l-4 border-[var(--crm-primary)] bg-[color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))] px-4 py-3.5 text-sm text-[var(--crm-muted)] leading-relaxed shadow-sm">
+        <strong className="text-[var(--crm-foreground)]">For your team:</strong> Approve proof links, review{" "}
+        <strong className="text-[var(--crm-foreground)]">promoted-account</strong> tweet metrics separately from{" "}
+        <strong className="text-[var(--crm-foreground)]">participant</strong> execution. Charts and KPIs live in{" "}
+        <Link href={`/campaigns/${id}/report`} className="font-medium text-[var(--crm-primary)] underline-offset-2 hover:underline">
+          Analytics dashboard
+        </Link>
+        . Client-ready narrative:{" "}
+        <Link href={`/campaigns/${id}/case-study`} className="font-medium text-[var(--crm-primary)] underline-offset-2 hover:underline">
+          Case-study report
+        </Link>
+        . Discovery stays on <strong className="text-[var(--crm-foreground)]">linkary.xyz</strong>.
       </div>
 
+      <CampaignAttributionNote />
+
       {/* Compact operator snapshot: high-level KPIs only. Detailed analytics live on the report and case-study routes. */}
-      <section className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 sm:p-5 space-y-4">
-        <h2 className="text-base font-semibold text-[var(--crm-foreground)] flex items-center justify-between gap-2">
-          Campaign snapshot
-          <span className="hidden sm:inline text-xs font-normal text-[var(--crm-muted)]">
-            For full analytics, open{" "}
-            <Link href={`/campaigns/${id}/report`} className="text-[var(--crm-primary)] underline">
-              analytics dashboard
-            </Link>
-            {" "}or{" "}
-            <Link href={`/campaigns/${id}/case-study`} className="text-[var(--crm-primary)] underline">
-              case-study report
-            </Link>.
-          </span>
-        </h2>
+      <section className="rounded-3xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))] p-5 sm:p-6 space-y-5 shadow-sm">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <h2 className="text-lg font-semibold tracking-tight text-[var(--crm-foreground)]">Campaign snapshot</h2>
+          <p className="text-xs text-[var(--crm-muted)]">Layer 1 headline metrics only — open dashboard for depth.</p>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <KpiCard
+            tone="accent"
             label="Participants (enrolled)"
             value={kpis.accepted_contributors}
             sub={`${kpis.total_contributors} total rows`}
           />
           <KpiCard
+            tone="accent"
             label="Proof submissions"
             value={kpis.total_submissions}
             sub={`${kpis.submissions_by_status.approved} approved · ${kpis.submissions_by_status.pending} pending`}
           />
           <KpiCard
+            tone="accent"
             label="Target tweet views"
             value={kpis.total_views.toLocaleString()}
             sub="Promoted account tweets (Layer 1)"
           />
           <KpiCard
+            tone="accent"
             label="Target tweet engagements"
             value={kpis.total_engagements.toLocaleString()}
             sub="Likes + replies + reposts + quotes"
@@ -254,8 +275,8 @@ export default async function CampaignDetailPage({
         </div>
       </section>
 
-      <section className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 sm:p-5 space-y-4">
-        <h2 className="text-base font-semibold text-[var(--crm-foreground)]">Brief for creators</h2>
+      <section className="rounded-3xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_93%,var(--crm-bg))] p-5 sm:p-6 space-y-5 shadow-sm">
+        <h2 className="text-lg font-semibold tracking-tight text-[var(--crm-foreground)]">Brief for creators</h2>
         <div>
           <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--crm-muted)] mb-1.5">
             Objective

@@ -43,6 +43,14 @@ function KpiCard({ label, value, note }: { label: string; value: string; note?: 
   );
 }
 
+function efficiencyNote(eff: { spend_basis: "recorded_spend" | "allocated_budget" | "unavailable" }, kind: "cpv" | "cpm" | "cpe"): string | undefined {
+  if (eff.spend_basis === "recorded_spend") return undefined;
+  if (eff.spend_basis === "allocated_budget") {
+    return `Estimated from allocated budget (no recorded spend in daily ${kind.toUpperCase()} source yet).`;
+  }
+  return "Hidden when spend/denominator unavailable";
+}
+
 function TinyBarChart({
   title,
   series,
@@ -242,9 +250,9 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
           <KpiCard label="Total engagements" value={fmtNum(total_engagements)} />
           <KpiCard label="Likes / Replies" value={`${fmtNum(likes)} / ${fmtNum(replies)}`} />
           <KpiCard label="Reposts / Quotes" value={`${fmtNum(reposts)} / ${fmtNum(quotes)}`} />
-          <KpiCard label="CPV" value={efficiency.cpv != null ? fmtMoney(efficiency.cpv, efficiency.currency) : "—"} note={efficiency.cpv == null ? "Hidden when spend/denominator unavailable" : undefined} />
-          <KpiCard label="CPM" value={efficiency.cpm != null ? fmtMoney(efficiency.cpm, efficiency.currency) : "—"} note={efficiency.cpm == null ? "Hidden when spend/denominator unavailable" : undefined} />
-          <KpiCard label="CPE" value={efficiency.cpe != null ? fmtMoney(efficiency.cpe, efficiency.currency) : "—"} note={efficiency.cpe == null ? "Hidden when spend/denominator unavailable" : undefined} />
+          <KpiCard label="CPV" value={efficiency.cpv != null ? fmtMoney(efficiency.cpv, efficiency.currency) : "—"} note={efficiency.cpv == null ? efficiencyNote(efficiency, "cpv") : efficiencyNote(efficiency, "cpv")} />
+          <KpiCard label="CPM" value={efficiency.cpm != null ? fmtMoney(efficiency.cpm, efficiency.currency) : "—"} note={efficiency.cpm == null ? efficiencyNote(efficiency, "cpm") : efficiencyNote(efficiency, "cpm")} />
+          <KpiCard label="CPE" value={efficiency.cpe != null ? fmtMoney(efficiency.cpe, efficiency.currency) : "—"} note={efficiency.cpe == null ? efficiencyNote(efficiency, "cpe") : efficiencyNote(efficiency, "cpe")} />
           <KpiCard label="CPC" value="Coming soon" note="Click tracking is not yet ingested in the current CRM model." />
         </div>
       </section>

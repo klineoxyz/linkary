@@ -63,6 +63,9 @@ export function summarizeTargetDailySeries(series: ReportChartPointInput[]): Tar
 export type EfficiencyMetricsResult = {
   /** Sum of crm_campaign_metrics_daily.spend_used when &gt; 0 */
   spend_recorded: number | null;
+  /** Budget used for calculation when spend_recorded is unavailable. */
+  spend_basis: "recorded_spend" | "allocated_budget" | "unavailable";
+  spend_for_calc: number | null;
   currency: string;
   /** CPM = spend / impressions × 1000 (impressions === tweet views in this pipeline). */
   cpm: number | null;
@@ -82,18 +85,36 @@ export type EfficiencyMetricsResult = {
  */
 export function computeEfficiencyMetrics(args: {
   spendSumFromDaily: number;
+  allocatedBudget: number | null;
   totalViews: number;
   totalEngagements: number;
   currency: string;
 }): EfficiencyMetricsResult {
   const currency = args.currency || "USD";
-  const spend = args.spendSumFromDaily;
+  const spendRecorded = args.spendSumFromDaily;
+  const allocatedBudget = args.allocatedBudget != null && Number.isFinite(args.allocatedBudget)
+    ? args.allocatedBudget
+    : null;
+  const spend =
+    Number.isFinite(spendRecorded) && spendRecorded > 0
+      ? spendRecorded
+      : allocatedBudget != null && allocatedBudget > 0
+        ? allocatedBudget
+        : 0;
+  const spendBasis: EfficiencyMetricsResult["spend_basis"] =
+    Number.isFinite(spendRecorded) && spendRecorded > 0
+      ? "recorded_spend"
+      : allocatedBudget != null && allocatedBudget > 0
+        ? "allocated_budget"
+        : "unavailable";
   const views = args.totalViews;
   const eng = args.totalEngagements;
 
   if (!Number.isFinite(spend) || spend <= 0) {
     return {
-      spend_recorded: spend > 0 ? spend : null,
+      spend_recorded: spendRecorded > 0 ? spendRecorded : null,
+      spend_basis: "unavailable",
+      spend_for_calc: null,
       currency,
       cpm: null,
       cpv: null,
@@ -112,7 +133,9 @@ export function computeEfficiencyMetrics(args: {
   const hasAnyDenominator = views > 0 || eng > 0;
   if (!hasAnyDenominator) {
     return {
-      spend_recorded: spend,
+      spend_recorded: spendRecorded > 0 ? spendRecorded : null,
+      spend_basis: spendBasis,
+      spend_for_calc: spend,
       currency,
       cpm: null,
       cpv: null,
@@ -125,7 +148,9 @@ export function computeEfficiencyMetrics(args: {
   }
 
   return {
-    spend_recorded: spend,
+    spend_recorded: spendRecorded > 0 ? spendRecorded : null,
+    spend_basis: spendBasis,
+    spend_for_calc: spend,
     currency,
     cpm,
     cpv,

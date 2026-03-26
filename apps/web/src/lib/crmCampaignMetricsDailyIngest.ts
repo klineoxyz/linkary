@@ -12,7 +12,9 @@ import { isXPlatform, normalizeTrackedXHandle } from "./trackedXHandle";
 const TWEET_PAGE = 1000;
 const MAX_TWEET_ROWS = 25000;
 const MAX_DAYS = 450;
-const MAX_EXTERNAL_TWEETS = 500;
+// External handles rely on reverse-chronological API pagination (no since/until filter).
+// Use a higher cap so older campaign windows are still reachable for high-volume accounts.
+const MAX_EXTERNAL_TWEETS = 3000;
 const EXTERNAL_API_DELAY_MS = 400;
 const STATUSES = ["draft", "active", "paused", "completed"] as const;
 
@@ -283,7 +285,17 @@ export async function runCrmCampaignMetricsDailyIngest(
             );
             postsFromExternalApi += 1;
           }
-          if (inWindow === 0) externalNoTweetsInWindow.push(norm);
+          if (inWindow === 0) {
+            externalNoTweetsInWindow.push(norm);
+            console.warn(
+              "[crm_campaign_metrics_daily] campaign=%s external @%s fetched=%d but none in window %s..%s",
+              c.id,
+              norm,
+              tweets.length,
+              startIso,
+              endIso
+            );
+          }
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           errors.push(`campaign ${c.id} external @${norm}: ${msg.slice(0, 200)}`);

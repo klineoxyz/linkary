@@ -35,9 +35,9 @@ function fmtMoney(n: number | null | undefined, cur: string) {
 
 function KpiCard({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-      <p className="text-[11px] uppercase tracking-wide text-[var(--crm-muted)]">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-[var(--crm-foreground)]">{value}</p>
+    <div className="rounded-2xl border border-[var(--crm-border)] bg-gradient-to-b from-[var(--crm-card)] to-[var(--crm-bg)] p-5 shadow-sm">
+      <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--crm-muted)]">{label}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-tight text-[var(--crm-foreground)]">{value}</p>
       {note ? <p className="mt-1 text-xs text-[var(--crm-muted)]">{note}</p> : null}
     </div>
   );
@@ -56,22 +56,22 @@ function TinyBarChart({
 }) {
   const max = Math.max(1, ...series.map((s) => s[valueKey]));
   return (
-    <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-      <p className="text-sm font-medium text-[var(--crm-foreground)]">{title}</p>
-      <div className="mt-3 flex h-28 items-end gap-1">
+    <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
+      <p className="text-sm font-semibold text-[var(--crm-foreground)]">{title}</p>
+      <div className="mt-4 flex h-36 items-end gap-1.5 rounded-xl bg-[var(--crm-bg)] p-3">
         {series.slice(-31).map((s) => {
           const h = Math.max(2, Math.round((s[valueKey] / max) * 100));
           return (
             <div
               key={`${valueKey}-${s.day}`}
-              className="w-2 rounded-sm"
+              className="w-2.5 rounded-md"
               style={{ height: `${h}%`, backgroundColor: color }}
               title={`${s.day}: ${s[valueKey]}`}
             />
           );
         })}
       </div>
-      <p className="mt-2 text-xs text-[var(--crm-muted)]">Daily values in campaign window (last 31 points shown)</p>
+      <p className="mt-3 text-xs text-[var(--crm-muted)]">Daily values in campaign window (last 31 points shown)</p>
     </div>
   );
 }
@@ -140,11 +140,14 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
   const engagementTotal = engagementParts.reduce((s, x) => s + x.value, 0);
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="mx-auto max-w-[1400px] space-y-10 pb-16">
       <style>{`
         @media print {
           .no-print { display: none !important; }
           .print-break { break-before: page; page-break-before: always; }
+          .print-tight { margin-top: 0 !important; padding-top: 0 !important; }
+          table { font-size: 11px !important; }
+          section { box-shadow: none !important; }
           a { text-decoration: none !important; color: inherit !important; }
         }
       `}</style>
@@ -166,23 +169,23 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
         <PrintCaseStudyButton />
       </div>
 
-      <section className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6">
+      <section className="rounded-3xl border border-[var(--crm-border)] bg-gradient-to-br from-[var(--crm-card)] via-[var(--crm-card)] to-[var(--crm-bg)] p-8 shadow-sm print-tight">
         <p className="text-xs uppercase tracking-[0.2em] text-[var(--crm-muted)]">Campaign Case Study</p>
-        <h1 className="mt-2 text-3xl font-bold text-[var(--crm-foreground)]">{campaign.title}</h1>
-        <div className="mt-4 grid gap-3 text-sm text-[var(--crm-muted)] sm:grid-cols-2 lg:grid-cols-4">
+        <h1 className="mt-3 text-4xl font-bold tracking-tight text-[var(--crm-foreground)]">{campaign.title}</h1>
+        <div className="mt-6 grid gap-3 text-sm text-[var(--crm-muted)] sm:grid-cols-2 lg:grid-cols-4">
           <p><strong className="text-[var(--crm-foreground)]">Period:</strong> {start_date ? new Date(start_date).toLocaleDateString() : "—"} - {end_date ? new Date(end_date).toLocaleDateString() : "—"}</p>
           <p><strong className="text-[var(--crm-foreground)]">Status:</strong> {campaign.status}</p>
           <p><strong className="text-[var(--crm-foreground)]">Campaign value:</strong> {fmtMoney(campaign.campaign_value_usd, campaign.currency ?? "USD")}</p>
           <p><strong className="text-[var(--crm-foreground)]">Promoted account(s):</strong> {promoted_social_handles.length > 0 ? promoted_social_handles.map((h) => `${h.platform}:${h.handle}`).join(", ") : promoted_org_id ? `org ${promoted_org_id}` : "—"}</p>
         </div>
         {campaign.campaign_objective ? (
-          <p className="mt-4 text-sm text-[var(--crm-foreground)]">{campaign.campaign_objective}</p>
+          <p className="mt-5 max-w-[980px] text-sm leading-6 text-[var(--crm-foreground)]">{campaign.campaign_objective}</p>
         ) : null}
       </section>
 
       <section>
-        <h2 className="mb-3 text-xl font-semibold text-[var(--crm-foreground)]">Campaign totals</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <h2 className="mb-4 text-2xl font-semibold tracking-tight text-[var(--crm-foreground)]">Campaign totals</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard label="Participants enrolled" value={fmtNum(participant_enrolled_count)} />
           <KpiCard label="Proof submissions" value={fmtNum(submissions.length)} />
           <KpiCard label="Approved submissions" value={fmtNum(approvedSubmissions)} />
@@ -199,7 +202,7 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
       </section>
 
       <section className="print-break">
-        <h2 className="mb-3 text-xl font-semibold text-[var(--crm-foreground)]">Performance charts</h2>
+        <h2 className="mb-4 text-2xl font-semibold tracking-tight text-[var(--crm-foreground)]">Performance charts</h2>
         <div className="grid gap-4 lg:grid-cols-3">
           <TinyBarChart title="Daily views / impressions" series={chart_series} color="#60a5fa" valueKey="views" />
           <TinyBarChart title="Daily engagements" series={chart_series} color="#34d399" valueKey="engagements" />
@@ -208,20 +211,20 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
       </section>
 
       <section>
-        <h2 className="mb-3 text-xl font-semibold text-[var(--crm-foreground)]">Engagement breakdown</h2>
+        <h2 className="mb-4 text-2xl font-semibold tracking-tight text-[var(--crm-foreground)]">Engagement breakdown</h2>
         {engagementParts.length === 0 ? (
           <p className="text-sm text-[var(--crm-muted)]">No supported engagement-part totals available.</p>
         ) : (
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <div className="space-y-2">
+          <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
+            <div className="space-y-3">
               {engagementParts.map((p) => (
                 <div key={p.key}>
-                  <div className="mb-1 flex items-center justify-between text-xs">
+                  <div className="mb-1.5 flex items-center justify-between text-xs">
                     <span className="text-[var(--crm-foreground)]">{p.label}</span>
                     <span className="text-[var(--crm-muted)]">{fmtNum(p.value)} ({((p.value / engagementTotal) * 100).toFixed(1)}%)</span>
                   </div>
-                  <div className="h-3 rounded-full bg-[var(--crm-bg)]">
-                    <div className="h-3 rounded-full" style={{ width: `${(p.value / engagementTotal) * 100}%`, backgroundColor: p.color }} />
+                  <div className="h-3.5 rounded-full bg-[var(--crm-bg)]">
+                    <div className="h-3.5 rounded-full" style={{ width: `${(p.value / engagementTotal) * 100}%`, backgroundColor: p.color }} />
                   </div>
                 </div>
               ))}
@@ -231,11 +234,11 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
       </section>
 
       <section className="print-break">
-        <h2 className="mb-3 text-xl font-semibold text-[var(--crm-foreground)]">Individual participant contribution</h2>
-        <div className="overflow-x-auto rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)]">
+        <h2 className="mb-4 text-2xl font-semibold tracking-tight text-[var(--crm-foreground)]">Individual participant contribution</h2>
+        <div className="overflow-x-auto rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] shadow-sm">
           <table className="w-full min-w-[1200px] text-sm">
             <thead>
-              <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+              <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)] text-xs uppercase tracking-wide text-[var(--crm-muted)]">
                 <th className="p-3 text-left">Participant</th>
                 <th className="p-3 text-right">Submissions</th>
                 <th className="p-3 text-right">Approved</th>
@@ -252,10 +255,10 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
             </thead>
             <tbody>
               {participant_submission_rollups.map((r, idx) => (
-                <tr key={r.participant_profile_id} className="border-b border-[var(--crm-border)] last:border-0">
+                <tr key={r.participant_profile_id} className="border-b border-[var(--crm-border)] last:border-0 hover:bg-[var(--crm-bg)]/70">
                   <td className="p-3">
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--crm-bg)] text-xs">{idx + 1}</span>
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--crm-bg)] text-xs font-semibold">{idx + 1}</span>
                       <ParticipantCell
                         avatarUrl={profileById.get(r.participant_profile_id)?.avatar_url}
                         label={toParticipantLabel(profileById.get(r.participant_profile_id), r.participant_profile_id)}
@@ -293,10 +296,10 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
       </section>
 
       <section>
-        <h2 className="mb-3 text-xl font-semibold text-[var(--crm-foreground)]">Top performers</h2>
+        <h2 className="mb-4 text-2xl font-semibold tracking-tight text-[var(--crm-foreground)]">Top performers</h2>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <h3 className="font-medium">Top by approved submissions</h3>
+          <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
+            <h3 className="font-semibold">Top by approved submissions</h3>
             <ul className="mt-2 space-y-1 text-sm">
               {top_contributors_approved_submissions.slice(0, 5).map((t, i) => (
                 <li key={`a-${t.participant_profile_id}`} className="flex justify-between">
@@ -306,8 +309,8 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
               ))}
             </ul>
           </div>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <h3 className="font-medium">Top by proof share %</h3>
+          <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
+            <h3 className="font-semibold">Top by proof share %</h3>
             <ul className="mt-2 space-y-1 text-sm">
               {top_by_proof_contribution_percent.slice(0, 5).map((t, i) => (
                 <li key={`p-${t.participant_profile_id}`} className="flex justify-between">
@@ -317,8 +320,8 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
               ))}
             </ul>
           </div>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <h3 className="font-medium">Top by task contribution %</h3>
+          <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
+            <h3 className="font-semibold">Top by task contribution %</h3>
             <ul className="mt-2 space-y-1 text-sm">
               {top_by_contribution_percent.slice(0, 5).map((t, i) => (
                 <li key={`t-${t.participant_profile_id}`} className="flex justify-between">
@@ -328,8 +331,8 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
               ))}
             </ul>
           </div>
-          <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4">
-            <h3 className="font-medium">Top by submitted-post views / engagements</h3>
+          <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
+            <h3 className="font-semibold">Top by submitted-post views / engagements</h3>
             <ul className="mt-2 space-y-1 text-sm">
               {top_by_submission_snapshot_views.slice(0, 5).map((t, i) => {
                 const eng = top_by_submission_snapshot_engagements.find((e) => e.participant_profile_id === t.participant_profile_id);
@@ -346,11 +349,11 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
       </section>
 
       <section className="print-break">
-        <h2 className="mb-3 text-xl font-semibold text-[var(--crm-foreground)]">Proof / content</h2>
-        <div className="overflow-x-auto rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)]">
+        <h2 className="mb-4 text-2xl font-semibold tracking-tight text-[var(--crm-foreground)]">Proof / content</h2>
+        <div className="overflow-x-auto rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] shadow-sm">
           <table className="w-full min-w-[1100px] text-sm">
             <thead>
-              <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)]">
+              <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)] text-xs uppercase tracking-wide text-[var(--crm-muted)]">
                 <th className="p-3 text-left">Participant</th>
                 <th className="p-3 text-left">Proof URL</th>
                 <th className="p-3 text-left">Status</th>
@@ -367,7 +370,7 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
               {submissions.map((s) => {
                 const m = parseSubmissionMetricsExtended(s.metrics_snapshot);
                 return (
-                  <tr key={s.id} className="border-b border-[var(--crm-border)] last:border-0">
+                  <tr key={s.id} className="border-b border-[var(--crm-border)] last:border-0 hover:bg-[var(--crm-bg)]/70">
                     <td className="p-3">{toParticipantLabel(profileById.get(s.participant_profile_id), s.participant_profile_id)}</td>
                     <td className="p-3">
                       <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[var(--crm-primary)] underline break-all">
@@ -390,8 +393,8 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
         </div>
       </section>
 
-      <section className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 text-xs text-[var(--crm-muted)]">
-        <h2 className="mb-2 text-base font-semibold text-[var(--crm-foreground)]">Attribution & limitations</h2>
+      <section className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 text-xs text-[var(--crm-muted)] shadow-sm">
+        <h2 className="mb-2 text-base font-semibold tracking-tight text-[var(--crm-foreground)]">Attribution & limitations</h2>
         <ul className="space-y-1">
           <li>Promoted-account totals (Layer 1) are separate from participant CRM contribution (Layer 2).</li>
           <li>Participant contribution uses CRM proof/tasks data (`crm_submissions`, `crm_tasks`, `crm_campaign_participants`).</li>

@@ -33,6 +33,7 @@
     "test:xspaces-dates": "pnpm --filter web run test:xspaces-dates",
     "smoke:xspaces": "pnpm --filter web run smoke:xspaces",
     "smoke:xspaces:full": "pnpm --filter web run smoke:xspaces:full",
+    "qa:crm:multi-user-contribution": "pnpm --filter crm run seed:qa:multi-user-contribution",
     "start": "node apps/api/dist/index.js"
   },
   "devDependencies": {

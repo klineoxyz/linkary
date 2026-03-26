@@ -229,6 +229,47 @@ export default async function CampaignDetailPage({
         </div>
       </div>
 
+      {/* Compact operator snapshot: high-level KPIs only. Detailed analytics live on the report and case-study routes. */}
+      <section className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 sm:p-5 space-y-4">
+        <h2 className="text-base font-semibold text-[var(--crm-foreground)] flex items-center justify-between gap-2">
+          Campaign snapshot
+          <span className="hidden sm:inline text-xs font-normal text-[var(--crm-muted)]">
+            For full analytics, open{" "}
+            <Link href={`/campaigns/${id}/report`} className="text-[var(--crm-primary)] underline">
+              analytics dashboard
+            </Link>
+            {" "}or{" "}
+            <Link href={`/campaigns/${id}/case-study`} className="text-[var(--crm-primary)] underline">
+              case-study report
+            </Link>.
+          </span>
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <KpiCard
+            label="Participants (enrolled)"
+            value={kpis.accepted_contributors}
+            sub={`${kpis.total_contributors} total rows`}
+          />
+          <KpiCard
+            label="Proof submissions"
+            value={kpis.total_submissions}
+            sub={`${kpis.submissions_by_status.approved} approved · ${kpis.submissions_by_status.pending} pending`}
+          />
+          <KpiCard
+            label="Target tweet views"
+            value={kpis.total_views.toLocaleString()}
+            sub="Promoted account tweets (Layer 1)"
+            insufficient={noMetrics}
+          />
+          <KpiCard
+            label="Target tweet engagements"
+            value={kpis.total_engagements.toLocaleString()}
+            sub="Likes + replies + reposts + quotes"
+            insufficient={noMetrics}
+          />
+        </div>
+      </section>
+
       <section className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-4 sm:p-5 space-y-4">
         <h2 className="text-base font-semibold text-[var(--crm-foreground)]">Brief for creators</h2>
         <div>

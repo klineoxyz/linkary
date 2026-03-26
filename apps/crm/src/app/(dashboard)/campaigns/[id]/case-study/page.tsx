@@ -54,22 +54,40 @@ function TinyBarChart({
   color: string;
   valueKey: "views" | "engagements" | "posts";
 }) {
-  const max = Math.max(1, ...series.map((s) => s[valueKey]));
+  const data = series.slice(-31);
+  const max = Math.max(1, ...data.map((s) => s[valueKey]));
+  const w = 640;
+  const h = 180;
+  const pad = 16;
+  const innerW = w - pad * 2;
+  const innerH = h - pad * 2;
+  const bw = Math.max(3, Math.floor(innerW / Math.max(1, data.length)) - 2);
   return (
     <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
       <p className="text-sm font-semibold text-[var(--crm-foreground)]">{title}</p>
-      <div className="mt-4 flex h-36 items-end gap-1.5 rounded-xl bg-[var(--crm-bg)] p-3">
-        {series.slice(-31).map((s) => {
-          const h = Math.max(2, Math.round((s[valueKey] / max) * 100));
-          return (
-            <div
-              key={`${valueKey}-${s.day}`}
-              className="w-2.5 rounded-md"
-              style={{ height: `${h}%`, backgroundColor: color }}
-              title={`${s.day}: ${s[valueKey]}`}
-            />
-          );
-        })}
+      <div className="mt-4 rounded-xl bg-[var(--crm-bg)] p-3">
+        <svg viewBox={`0 0 ${w} ${h}`} className="h-36 w-full">
+          <rect x="0" y="0" width={w} height={h} fill="transparent" />
+          {data.map((s, i) => {
+            const v = s[valueKey];
+            const bh = Math.max(2, Math.round((v / max) * innerH));
+            const x = pad + i * Math.floor(innerW / Math.max(1, data.length));
+            const y = h - pad - bh;
+            return (
+              <rect
+                key={`${valueKey}-${s.day}`}
+                x={x}
+                y={y}
+                width={bw}
+                height={bh}
+                rx={2}
+                fill={color}
+              >
+                <title>{`${s.day}: ${v}`}</title>
+              </rect>
+            );
+          })}
+        </svg>
       </div>
       <p className="mt-3 text-xs text-[var(--crm-muted)]">Daily values in campaign window (last 31 points shown)</p>
     </div>
@@ -131,13 +149,38 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
   const profileById = new Map((profiles ?? []).map((p) => [p.id, p as ProfileRow]));
 
   const approvedSubmissions = submissions.filter((s) => (s.status ?? "").toLowerCase() === "approved").length;
-  const engagementParts = [
+  const layer1EngagementParts = [
     { key: "likes", label: "Likes", value: likes ?? 0, color: "#60a5fa" },
     { key: "replies", label: "Replies", value: replies ?? 0, color: "#34d399" },
     { key: "reposts", label: "Reposts", value: reposts ?? 0, color: "#f59e0b" },
     { key: "quotes", label: "Quotes", value: quotes ?? 0, color: "#a78bfa" },
   ].filter((x) => x.value > 0);
+  const proofBreakdown = submissions
+    .filter((s) => (s.status ?? "").toLowerCase() === "approved")
+    .map((s) => parseSubmissionMetricsExtended(s.metrics_snapshot))
+    .reduce(
+      (acc, m) => ({
+        likes: acc.likes + (m.likes ?? 0),
+        replies: acc.replies + (m.replies ?? 0),
+        reposts: acc.reposts + (m.reposts ?? 0),
+        quotes: acc.quotes + (m.quotes ?? 0),
+      }),
+      { likes: 0, replies: 0, reposts: 0, quotes: 0 }
+    );
+  const layer2EngagementParts = [
+    { key: "likes", label: "Likes", value: proofBreakdown.likes, color: "#60a5fa" },
+    { key: "replies", label: "Replies", value: proofBreakdown.replies, color: "#34d399" },
+    { key: "reposts", label: "Reposts", value: proofBreakdown.reposts, color: "#f59e0b" },
+    { key: "quotes", label: "Quotes", value: proofBreakdown.quotes, color: "#a78bfa" },
+  ].filter((x) => x.value > 0);
+  const engagementParts = layer1EngagementParts.length > 0 ? layer1EngagementParts : layer2EngagementParts;
   const engagementTotal = engagementParts.reduce((s, x) => s + x.value, 0);
+  const engagementLabel =
+    layer1EngagementParts.length > 0
+      ? "Target-account engagement breakdown (Layer 1)"
+      : layer2EngagementParts.length > 0
+        ? "Participant-proof engagement breakdown (Layer 2, approved proofs)"
+        : null;
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-10 pb-16">
@@ -148,6 +191,11 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
           .print-tight { margin-top: 0 !important; padding-top: 0 !important; }
           table { font-size: 11px !important; }
           section { box-shadow: none !important; }
+          aside, nav, header, [role="navigation"] { display: none !important; }
+          main { max-width: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+          body { background: #fff !important; }
+          .proof-url { word-break: break-all !important; white-space: normal !important; }
+          .proof-table { table-layout: fixed !important; width: 100% !important; min-width: 0 !important; }
           a { text-decoration: none !important; color: inherit !important; }
         }
       `}</style>
@@ -197,7 +245,7 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
           <KpiCard label="CPV" value={efficiency.cpv != null ? fmtMoney(efficiency.cpv, efficiency.currency) : "—"} note={efficiency.cpv == null ? "Hidden when spend/denominator unavailable" : undefined} />
           <KpiCard label="CPM" value={efficiency.cpm != null ? fmtMoney(efficiency.cpm, efficiency.currency) : "—"} note={efficiency.cpm == null ? "Hidden when spend/denominator unavailable" : undefined} />
           <KpiCard label="CPE" value={efficiency.cpe != null ? fmtMoney(efficiency.cpe, efficiency.currency) : "—"} note={efficiency.cpe == null ? "Hidden when spend/denominator unavailable" : undefined} />
-          <KpiCard label="CPC" value="Unsupported" note="No click-ingest truth in current CRM model" />
+          <KpiCard label="CPC" value="Coming soon" note="Click tracking is not yet ingested in the current CRM model." />
         </div>
       </section>
 
@@ -216,6 +264,9 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
           <p className="text-sm text-[var(--crm-muted)]">No supported engagement-part totals available.</p>
         ) : (
           <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
+            {engagementLabel ? (
+              <p className="mb-3 text-xs font-medium text-[var(--crm-muted)]">{engagementLabel}</p>
+            ) : null}
             <div className="space-y-3">
               {engagementParts.map((p) => (
                 <div key={p.key}>
@@ -250,6 +301,7 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
                 <th className="p-3 text-right">Σ replies</th>
                 <th className="p-3 text-right">Σ reposts</th>
                 <th className="p-3 text-right">Σ quotes</th>
+                <th className="p-3 text-left">Latest approved date</th>
                 <th className="p-3 text-left">Latest proof</th>
               </tr>
             </thead>
@@ -275,6 +327,7 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
                   <td className="p-3 text-right">{fmtNum(r.snapshot_replies_sum)}</td>
                   <td className="p-3 text-right">{fmtNum(r.snapshot_reposts_sum)}</td>
                   <td className="p-3 text-right">{fmtNum(r.snapshot_quotes_sum)}</td>
+                  <td className="p-3">{r.latest_approved_at ? new Date(r.latest_approved_at).toLocaleDateString() : "—"}</td>
                   <td className="p-3">
                     {r.latest_approved_proof_url ? (
                       <a href={r.latest_approved_proof_url} target="_blank" rel="noopener noreferrer" className="text-[var(--crm-primary)] underline">
@@ -351,7 +404,7 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
       <section className="print-break">
         <h2 className="mb-4 text-2xl font-semibold tracking-tight text-[var(--crm-foreground)]">Proof / content</h2>
         <div className="overflow-x-auto rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] shadow-sm">
-          <table className="w-full min-w-[1100px] text-sm">
+          <table className="proof-table w-full min-w-[900px] text-sm">
             <thead>
               <tr className="border-b border-[var(--crm-border)] bg-[var(--crm-bg)] text-xs uppercase tracking-wide text-[var(--crm-muted)]">
                 <th className="p-3 text-left">Participant</th>
@@ -373,7 +426,7 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
                   <tr key={s.id} className="border-b border-[var(--crm-border)] last:border-0 hover:bg-[var(--crm-bg)]/70">
                     <td className="p-3">{toParticipantLabel(profileById.get(s.participant_profile_id), s.participant_profile_id)}</td>
                     <td className="p-3">
-                      <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[var(--crm-primary)] underline break-all">
+                      <a href={s.url} target="_blank" rel="noopener noreferrer" className="proof-url text-[var(--crm-primary)] underline break-all">
                         {s.url}
                       </a>
                     </td>

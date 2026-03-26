@@ -35,6 +35,7 @@ import {
   type TargetDailyWindowSummary,
 } from "@/lib/reportAggregates";
 import { toParticipantLabel, type ProfileIdentityRow } from "@/lib/profileDisplay";
+import { reconcileCampaignContributionFromSubmissions } from "@/lib/campaignContributionReconcile";
 
 export type ReportChartPoint = {
   day: string;
@@ -109,6 +110,8 @@ export async function getCampaignReportData(
 ): Promise<CampaignReportData | null> {
   const campaign = await getCampaign(supabase, campaignId);
   if (!campaign) return null;
+  // Live self-heal: align approved proofs -> task/compliance/contribution before reading report aggregates.
+  await reconcileCampaignContributionFromSubmissions(supabase, campaignId);
 
   const promotedHandles = campaign.promoted_social_handles ?? [];
   const [kpis, submissions, topAllSubs, topApprovedSubs, dailyRows, contributionRows, contributors, accountGrowth, endSnapshotStatus] =

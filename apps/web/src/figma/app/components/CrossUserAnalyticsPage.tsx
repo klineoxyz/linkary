@@ -1,29 +1,76 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { BarChart2, ExternalLink, Lock, AlertCircle, Users } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { PRICING_PATH, upgradeCtaLine } from "@/lib/planPackageUi";
 import {
   CROSS_USER_ANALYTICS_EMPTY_BODY,
   CROSS_USER_ANALYTICS_EMPTY_TITLE,
+  getOwnerFreshnessLine,
 } from "@/lib/analytics-owner-state-presentation";
 import { formatTryAgainAfter } from "@/lib/rateLimitUx";
+import { PRICING_PATH, upgradeCtaLine } from "@/lib/planPackageUi";
+import {
+  FollowerGrowthChart,
+  EngagementChart,
+  PostingCadenceChart,
+  ChartSkeleton,
+} from "@/figma/app/components/analytics";
 
 type Profile = { username: string; display_name: string | null; avatar_url: string | null };
-type Analytics = {
-  posts_7d?: number | null;
-  posts_30d: number | null;
-  posts_90d?: number | null;
-  avg_likes_30d: number | null;
-  avg_replies_30d: number | null;
-  engagement_rate_30d: number | null;
-  reach_proxy_30d: number | null;
+
+type WindowAnalyticsPayload = {
+  window_days: number;
+  window_start: string;
+  window_end: string;
+  follower_data_coverage_days: number;
+  follower_earliest_snapshot_date?: string | null;
+  chart_points: {
+    engagement_rate: Array<{
+      date: string;
+      engagement_pct: number;
+      posts: number;
+      is_estimated?: boolean;
+      is_capped?: boolean;
+    }>;
+    posting_cadence: Array<{ date: string; posts: number }>;
+    follower_growth: Array<{ date: string; follower_delta: number | null }>;
+  };
+  kpis: {
+    posts_total: number;
+    impressions_total: number;
+    engagements_total: number;
+    engagement_pct_avg: number;
+    followers_latest: number | null;
+    avg_likes_per_post: number;
+    avg_replies_per_post: number;
+    potential_reach: number;
+    prior_potential_reach?: number;
+    prior_engagements_total?: number;
+    prior_posts_total?: number;
+    prior_avg_likes_per_post?: number;
+    prior_avg_replies_per_post?: number;
+  };
+  freshness?: {
+    has_x_handle: boolean;
+    last_sync_at: string | null;
+    data_state: "none" | "partial" | "full";
+  };
 };
 
+function extractWindowAnalyticsPayload(w: unknown): WindowAnalyticsPayload | null {
+  if (!w || typeof w !== "object") return null;
+  const d = w as Record<string, unknown>;
+  if (!d.kpis || typeof d.kpis !== "object") return null;
+  if (!d.chart_points || typeof d.chart_points !== "object") return null;
+  return d as WindowAnalyticsPayload;
+}
+
 type Status = "idle" | "loading" | "success" | "locked" | "unauthorized" | "rate_limited" | "not_found" | "error";
+
+type WindowParam = "7d" | "30d" | "90d";
 
 export default function CrossUserAnalyticsPage({
   username: usernameProp,
@@ -36,9 +83,10 @@ export default function CrossUserAnalyticsPage({
   const username = (usernameProp ?? "").trim().replace(/^@/, "");
   const [status, setStatus] = useState<Status>("loading");
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [windowPayloadRaw, setWindowPayloadRaw] = useState<unknown>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [rateLimitResetAt, setRateLimitResetAt] = useState<string | null>(null);
+  const [windowParam, setWindowParam] = useState<WindowParam>("30d");
 
   const fetchData = useCallback(async () => {
     if (!username) {
@@ -55,9 +103,11 @@ export default function CrossUserAnalyticsPage({
     const base = typeof window !== "undefined" ? window.location.origin : "";
     setStatus("loading");
     setErrorMessage(null);
-    const res = await fetch(`${base}/api/me/analytics/profile/${encodeURIComponent(username)}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const q = new URLSearchParams({ window: windowParam });
+    const res = await fetch(
+      `${base}/api/me/analytics/profile/${encodeURIComponent(username)}?${q.toString()}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
     const json = await res.json().catch(() => ({}));
 
     if (res.status === 401) {
@@ -84,12 +134,42 @@ export default function CrossUserAnalyticsPage({
     }
     setStatus("success");
     setProfile(json?.profile ?? null);
-    setAnalytics(json?.analytics ?? null);
-  }, [username]);
+    setWindowPayloadRaw(json?.window_analytics ?? null);
+  }, [username, windowParam]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
+
+  const payload = useMemo(() => extractWindowAnalyticsPayload(windowPayloadRaw), [windowPayloadRaw]);
+
+  const engagementPoints = payload?.chart_points?.engagement_rate ?? [];
+  const cadencePoints = payload?.chart_points?.posting_cadence ?? [];
+  const followerPoints = payload?.chart_points?.follower_growth ?? [];
+  const windowDays = payload?.window_days ?? 30;
+  const followerCoverageDays = payload?.follower_data_coverage_days ?? 0;
+  const followerEarliestDate = payload?.follower_earliest_snapshot_date ?? null;
+  const activeDaysEngagement = engagementPoints.filter((p) => (p.posts ?? 0) > 0).length;
+  const activeDaysCadence = cadencePoints.filter((p) => (p.posts ?? 0) > 0).length;
+  const noPostsEngagement = activeDaysEngagement === 0;
+  const noPostsCadence = activeDaysCadence === 0;
+  const insufficientEngagement = false;
+  const insufficientCadence = false;
+  const followerInsufficient = false;
+
+  const freshness = payload?.freshness;
+  const hasXHandle = freshness?.has_x_handle ?? true;
+  const lastSyncAt = freshness?.last_sync_at ?? null;
+  const dataState = freshness?.data_state ?? "none";
+  const freshnessLine = useMemo(
+    () =>
+      getOwnerFreshnessLine(
+        { has_x_handle: hasXHandle, last_sync_at: lastSyncAt, data_state: dataState },
+        "never_synced",
+        { posts_total_in_window: payload?.kpis.posts_total ?? 0 }
+      ),
+    [hasXHandle, lastSyncAt, dataState, payload?.kpis.posts_total]
+  );
 
   const goToPublicProfile = () => {
     if (!username) return;
@@ -209,7 +289,7 @@ export default function CrossUserAnalyticsPage({
           <p className="text-sm text-muted-foreground mt-2">{errorMessage ?? "Please try again."}</p>
           <button
             type="button"
-            onClick={fetchData}
+            onClick={() => void fetchData()}
             className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             Retry
@@ -221,22 +301,46 @@ export default function CrossUserAnalyticsPage({
 
   if (status === "loading") {
     return (
-      <div className="max-w-2xl mx-auto p-6 space-y-6" data-page="cross-user-analytics">
-        <div className="rounded-xl border border-border bg-card p-6 animate-pulse">
-          <div className="flex gap-3">
-            <div className="h-12 w-12 rounded-full bg-muted" />
-            <div className="flex-1 space-y-2">
-              <div className="h-5 w-32 bg-muted rounded" />
-              <div className="h-4 w-24 bg-muted rounded" />
+      <div className="min-h-screen bg-background overflow-x-hidden" data-page="cross-user-analytics">
+        <div className="max-w-7xl mx-auto px-3 min-[390px]:px-4 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-4 sm:space-y-6">
+          <div className="rounded-xl border border-border bg-card p-6 animate-pulse">
+            <div className="flex gap-3">
+              <div className="h-12 w-12 rounded-full bg-muted" />
+              <div className="flex-1 space-y-2">
+                <div className="h-5 w-32 bg-muted rounded" />
+                <div className="h-4 w-24 bg-muted rounded" />
+              </div>
             </div>
           </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ChartSkeleton title="Engagement Rate" />
+            <ChartSkeleton title="Posting Cadence" />
+          </div>
+          <ChartSkeleton title="Follower Growth" />
         </div>
-        <div className="rounded-xl border border-border bg-card p-6 animate-pulse space-y-4">
-          <div className="h-4 w-48 bg-muted rounded" />
-          <div className="grid grid-cols-2 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-16 bg-muted rounded" />
-            ))}
+      </div>
+    );
+  }
+
+  const chartsMalformed = status === "success" && windowPayloadRaw != null && payload == null;
+
+  if (chartsMalformed) {
+    return (
+      <div className="min-h-screen bg-background overflow-x-hidden" data-page="cross-user-analytics">
+        <div className="max-w-7xl mx-auto px-3 min-[390px]:px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+          <div className="rounded-xl border border-border bg-card p-6 text-center space-y-2">
+            <p className="text-sm font-medium text-foreground">Analytics data incomplete</p>
+            <p className="text-sm text-muted-foreground">
+              The server returned an unexpected shape. Try reloading; if it persists, check the Network tab for{" "}
+              <code className="text-xs bg-muted px-1 rounded">/api/me/analytics/profile/…</code>.
+            </p>
+            <button
+              type="button"
+              onClick={() => void fetchData()}
+              className="mt-2 inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
+            >
+              Retry
+            </button>
           </div>
         </div>
       </div>
@@ -244,110 +348,122 @@ export default function CrossUserAnalyticsPage({
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6" data-page="cross-user-analytics">
-      <header className="rounded-xl border border-border bg-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="" className="h-12 w-12 rounded-full object-cover shrink-0" />
-            ) : (
-              <div className="h-12 w-12 rounded-full bg-muted shrink-0 flex items-center justify-center">
-                <BarChart2 className="h-6 w-6 text-muted-foreground" />
+    <div className="min-h-screen bg-background overflow-x-hidden" data-page="cross-user-analytics">
+      <div className="max-w-7xl mx-auto px-3 min-[390px]:px-4 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-4 sm:space-y-6">
+        <header className="rounded-xl border border-border bg-card/80 backdrop-blur-sm shadow-sm">
+          <div className="px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="h-10 w-10 rounded-full bg-muted shrink-0 flex items-center justify-center">
+                    <BarChart2 className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h1 className="text-base font-semibold text-foreground truncate">
+                    {profile?.display_name || profile?.username || `@${username}`}
+                  </h1>
+                  <p className="text-sm text-muted-foreground truncate">@{profile?.username ?? username}</p>
+                </div>
               </div>
-            )}
-            <div className="min-w-0">
-              <h1 className="text-lg font-semibold text-foreground truncate">
-                {profile?.display_name || profile?.username || `@${username}`}
-              </h1>
-              <p className="text-sm text-muted-foreground truncate">@{profile?.username ?? username}</p>
+              {payload && freshnessLine ? (
+                <span className="text-xs text-muted-foreground block sm:inline w-full sm:w-auto" aria-live="polite">
+                  · {freshnessLine}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={goToPublicProfile}
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
+              >
+                <ExternalLink className="h-4 w-4" /> Public profile
+              </button>
+              {setRoute && (
+                <button
+                  type="button"
+                  onClick={() => setRoute({ name: "analytics" })}
+                  className="text-sm text-muted-foreground hover:text-foreground px-2"
+                >
+                  My analytics
+                </button>
+              )}
+              <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5" role="group" aria-label="Time window">
+                {(["7d", "30d", "90d"] as const).map((w) => (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => setWindowParam(w)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
+                      windowParam === w ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {w}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+        </header>
+
+        {!payload ? (
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
+            <BarChart2 className="h-10 w-10 mx-auto text-muted-foreground/60 mb-3" />
+            <p className="text-sm font-medium text-foreground">{CROSS_USER_ANALYTICS_EMPTY_TITLE}</p>
+            <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">{CROSS_USER_ANALYTICS_EMPTY_BODY}</p>
             <button
               type="button"
               onClick={goToPublicProfile}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
             >
               <ExternalLink className="h-4 w-4" /> View public profile
             </button>
-            {setRoute && (
-              <button
-                type="button"
-                onClick={() => setRoute({ name: "analytics" })}
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                Back to my Analytics
-              </button>
-            )}
           </div>
-        </div>
-      </header>
-
-      {analytics ? (
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h2 className="text-base font-semibold text-foreground mb-4">X analytics snapshot</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {analytics.posts_7d != null && (
-              <div className="rounded-lg bg-muted/50 p-3">
-                <p className="text-xs font-medium text-muted-foreground">Posts (7d)</p>
-                <p className="text-lg font-semibold text-foreground tabular-nums">{Number(analytics.posts_7d)}</p>
-              </div>
-            )}
-            {analytics.posts_30d != null && (
-              <div className="rounded-lg bg-muted/50 p-3">
-                <p className="text-xs font-medium text-muted-foreground">Posts (30d)</p>
-                <p className="text-lg font-semibold text-foreground tabular-nums">{Number(analytics.posts_30d)}</p>
-              </div>
-            )}
-            {analytics.posts_90d != null && (
-              <div className="rounded-lg bg-muted/50 p-3">
-                <p className="text-xs font-medium text-muted-foreground">Posts (90d)</p>
-                <p className="text-lg font-semibold text-foreground tabular-nums">{Number(analytics.posts_90d)}</p>
-              </div>
-            )}
-            {analytics.engagement_rate_30d != null && (
-              <div className="rounded-lg bg-muted/50 p-3">
-                <p className="text-xs font-medium text-muted-foreground">Engagement rate (30d)</p>
-                <p className="text-lg font-semibold text-foreground tabular-nums">
-                  {Number(analytics.engagement_rate_30d).toFixed(2)}%
-                </p>
-              </div>
-            )}
-            {analytics.avg_likes_30d != null && (
-              <div className="rounded-lg bg-muted/50 p-3">
-                <p className="text-xs font-medium text-muted-foreground">Avg likes (30d)</p>
-                <p className="text-lg font-semibold text-foreground tabular-nums">
-                  {Number(analytics.avg_likes_30d).toLocaleString(undefined, { maximumFractionDigits: 1 })}
-                </p>
-              </div>
-            )}
-            {analytics.reach_proxy_30d != null && (
-              <div className="rounded-lg bg-muted/50 p-3">
-                <p className="text-xs font-medium text-muted-foreground">Reach proxy (30d)</p>
-                <p className="text-lg font-semibold text-foreground tabular-nums">
-                  {Number(analytics.reach_proxy_30d).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </p>
-              </div>
-            )}
+        ) : (
+          <div data-page="analytics" className="space-y-4 sm:space-y-6">
+            <p className="text-xs text-muted-foreground -mt-1 mb-2 max-w-3xl">
+              The <span className="tabular-nums">7d</span> / <span className="tabular-nums">30d</span> /{" "}
+              <span className="tabular-nums">90d</span> control applies to every chart below. Each day is one bucket; series are built from{" "}
+              <code className="text-[10px] bg-muted px-1 rounded">x_tweets</code> (engagement &amp; cadence) and{" "}
+              <code className="text-[10px] bg-muted px-1 rounded">x_daily_snapshots</code> (followers), written by sync and backfill jobs.
+            </p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <EngagementChart
+                points={engagementPoints}
+                coverageDays={activeDaysEngagement}
+                windowDays={windowDays}
+                tweetCountWindow={payload.kpis.posts_total}
+                noPostsInPeriod={noPostsEngagement}
+                insufficientForTrend={insufficientEngagement}
+                bucketLabel="Daily"
+              />
+              <PostingCadenceChart
+                points={cadencePoints}
+                activePostingDays={activeDaysCadence}
+                tweetCountWindow={payload.kpis.posts_total}
+                windowDays={windowDays}
+                noPostsInPeriod={noPostsCadence}
+                insufficientForTrend={insufficientCadence}
+                bucketLabel="Daily"
+              />
+            </div>
+            <FollowerGrowthChart
+              points={followerPoints}
+              coverageDays={followerCoverageDays}
+              windowDays={windowDays}
+              earliestDate={followerEarliestDate}
+              insufficientData={followerInsufficient}
+              bucketLabel="Daily"
+            />
+            <p className="text-xs text-muted-foreground">
+              Only approved analytics are shown. No private data, pricing, or contact info.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-4">
-            Only approved analytics are shown. No private data, pricing, or contact info.
-          </p>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
-          <BarChart2 className="h-10 w-10 mx-auto text-muted-foreground/60 mb-3" />
-          <p className="text-sm font-medium text-foreground">{CROSS_USER_ANALYTICS_EMPTY_TITLE}</p>
-          <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">{CROSS_USER_ANALYTICS_EMPTY_BODY}</p>
-          <button
-            type="button"
-            onClick={goToPublicProfile}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
-          >
-            <ExternalLink className="h-4 w-4" /> View public profile
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

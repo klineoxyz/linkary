@@ -8,9 +8,11 @@ import {
   CROSS_USER_ANALYTICS_PROFILE_KEYS,
   CROSS_USER_ANALYTICS_ANALYTICS_KEYS,
   CROSS_USER_ANALYTICS_FORBIDDEN,
+  CROSS_USER_WINDOW_ANALYTICS_TOP_KEYS,
   shapeCrossUserAnalyticsResponse,
   isSafeProfileObject,
   isSafeAnalyticsObject,
+  isSafeWindowAnalyticsTopLevel,
 } from "./crossUserAnalyticsAllowlist";
 
 function assert(cond: boolean, msg: string) {
@@ -111,6 +113,26 @@ assert(!isSafeProfileObject({ username: "x", user_id: "y" }), "profile with user
 assert(isSafeAnalyticsObject({ posts_30d: 1, engagement_rate_30d: 1 }), "safe analytics passes");
 assert(!isSafeAnalyticsObject({ posts_30d: 1, email: "x" }), "analytics with email fails");
 assert(isSafeAnalyticsObject(null), "null analytics is safe");
+
+assert(
+  CROSS_USER_WINDOW_ANALYTICS_TOP_KEYS.length === 8,
+  "window_analytics top-level allowlist has 8 keys"
+);
+assert(
+  isSafeWindowAnalyticsTopLevel({
+    window_days: 30,
+    window_start: "2026-01-01",
+    window_end: "2026-01-30",
+    follower_data_coverage_days: 5,
+    follower_earliest_snapshot_date: "2026-01-02",
+    chart_points: {},
+    kpis: {},
+    freshness: {},
+  }),
+  "minimal window_analytics passes"
+);
+assert(!isSafeWindowAnalyticsTopLevel({ window_days: 1, email: "x" }), "window with email fails");
+assert(!isSafeWindowAnalyticsTopLevel({ window_days: 1, user_id: "u" }), "window with user_id fails");
 
 console.log("crossUserAnalyticsAllowlist.test.ts: all assertions passed");
 export {};

@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState, type CSSProperties } 
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
-import { Users, BarChart2, Eye, TrendingUp, Heart, ThumbsUp, MessageCircle, Lock } from "lucide-react";
+import { Users, BarChart2, Eye, TrendingUp, Heart, ThumbsUp, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
   getOwnerStateBanner,
@@ -30,7 +30,7 @@ import {
   effectiveAnalyticsEntitlement,
   type AnalyticsXContractData,
 } from "@/lib/analyticsContractUi";
-import { PRICING_PATH, upgradeCtaLine } from "@/lib/planPackageUi";
+import { PRICING_PATH } from "@/lib/planPackageUi";
 import { trackProductEventClient } from "@/lib/productTelemetry";
 
 function formatIslandValue(n: number | null | undefined): string {
@@ -460,12 +460,12 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-950"
             role="status"
           >
-            <strong>Basic analytics (Free).</strong> Summary KPIs below respect your selected window (7d / 30d / 90d). Interactive charts and
-            period-over-period deltas unlock on{" "}
+            <strong>Free plan.</strong> Engagement, posting cadence, and follower growth below use the same windowed rules as paid accounts.
+            Upgrade on{" "}
             <Link href={PRICING_PATH} className="font-medium underline underline-offset-2">
               NaNo Pack+
-            </Link>
-            .
+            </Link>{" "}
+            for additional entitlements when billing is live.
           </div>
         )}
         {/* Platform tabs â€” X active; YouTube / TikTok / Facebook coming soon */}
@@ -805,60 +805,42 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             <ChartSkeleton title="Follower Growth" />
           </>
         ) : payload ? (
-          chartsLockedBasic ? (
-            <Link
-              href={PRICING_PATH}
-              className="block rounded-xl border border-border bg-muted/25 p-8 text-center space-y-4 no-underline text-inherit hover:bg-muted/35 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              aria-label="View pricing and upgrade for full analytics charts"
-            >
-              <Lock className="h-10 w-10 mx-auto text-muted-foreground" aria-hidden />
-              <h3 className="text-sm font-semibold text-foreground">Charts locked on Free</h3>
-              <p className="text-sm text-muted-foreground max-w-lg mx-auto">{upgradeCtaLine("analytics")}</p>
-              <span className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-                View packs
-              </span>
-              <p className="text-xs text-muted-foreground">
-                Tap anywhere on this card to open plans. Summary tiles above still update when you change 7d / 30d / 90d.
-              </p>
-            </Link>
-          ) : (
-            <>
-              <p className="text-xs text-muted-foreground -mt-1 mb-2 max-w-3xl">
-                The <span className="tabular-nums">7d</span> / <span className="tabular-nums">30d</span> /{" "}
-                <span className="tabular-nums">90d</span> control applies to every chart below. Each day is one bucket; series are built from{" "}
-                <code className="text-[10px] bg-muted px-1 rounded">x_tweets</code> (engagement &amp; cadence) and{" "}
-                <code className="text-[10px] bg-muted px-1 rounded">x_daily_snapshots</code> (followers), written by sync and backfill jobs.
-              </p>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <EngagementChart
-                  points={engagementPoints}
-                  coverageDays={activeDaysEngagement}
-                  windowDays={windowDays}
-                  tweetCountWindow={payload.kpis.posts_total}
-                  noPostsInPeriod={noPostsEngagement}
-                  insufficientForTrend={insufficientEngagement}
-                  bucketLabel="Daily"
-                />
-                <PostingCadenceChart
-                  points={cadencePoints}
-                  activePostingDays={activeDaysCadence}
-                  tweetCountWindow={payload.kpis.posts_total}
-                  windowDays={windowDays}
-                  noPostsInPeriod={noPostsCadence}
-                  insufficientForTrend={insufficientCadence}
-                  bucketLabel="Daily"
-                />
-              </div>
-              <FollowerGrowthChart
-                points={followerPoints}
-                coverageDays={followerCoverageDays}
+          <>
+            <p className="text-xs text-muted-foreground -mt-1 mb-2 max-w-3xl">
+              The <span className="tabular-nums">7d</span> / <span className="tabular-nums">30d</span> /{" "}
+              <span className="tabular-nums">90d</span> control applies to every chart below. Each day is one bucket; series are built from{" "}
+              <code className="text-[10px] bg-muted px-1 rounded">x_tweets</code> (engagement &amp; cadence) and{" "}
+              <code className="text-[10px] bg-muted px-1 rounded">x_daily_snapshots</code> (followers), written by sync and backfill jobs.
+            </p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <EngagementChart
+                points={engagementPoints}
+                coverageDays={activeDaysEngagement}
                 windowDays={windowDays}
-                earliestDate={followerEarliestDate}
-                insufficientData={followerInsufficient}
+                tweetCountWindow={payload.kpis.posts_total}
+                noPostsInPeriod={noPostsEngagement}
+                insufficientForTrend={insufficientEngagement}
                 bucketLabel="Daily"
               />
-            </>
-          )
+              <PostingCadenceChart
+                points={cadencePoints}
+                activePostingDays={activeDaysCadence}
+                tweetCountWindow={payload.kpis.posts_total}
+                windowDays={windowDays}
+                noPostsInPeriod={noPostsCadence}
+                insufficientForTrend={insufficientCadence}
+                bucketLabel="Daily"
+              />
+            </div>
+            <FollowerGrowthChart
+              points={followerPoints}
+              coverageDays={followerCoverageDays}
+              windowDays={windowDays}
+              earliestDate={followerEarliestDate}
+              insufficientData={followerInsufficient}
+              bucketLabel="Daily"
+            />
+          </>
         ) : null}
 
         {showDebug && payload && platform === "x" && (

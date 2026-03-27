@@ -1,9 +1,9 @@
 /**
- * GET /api/me/analytics/profile/[username]
+ * GET /api/me/analytics/profile/[username]?window=7d|30d|90d
  *
- * Cross-user analytics viewer: returns allowlisted analytics for the given profile
- * when the caller is eligible (KOL+ personal entitlement). Auth required.
- * Rate limited (same policy as discovery). No email, location, pricing, auth ids, or private metadata.
+ * Cross-user analytics viewer: allowlisted rollup snapshot plus `window_analytics` (same chart
+ * contract as GET /api/analytics/x) for the target profile when the caller is eligible (KOL+).
+ * Auth required. Rate limited (same policy as discovery). No email, location, pricing, auth ids, or private metadata.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -17,6 +17,7 @@ import { shapeCrossUserAnalyticsResponse } from "@/lib/crossUserAnalyticsAllowli
 import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 import { planAllowsCrossUserAnalytics } from "@/lib/planKey";
 import { profileHasCompScope } from "@/lib/opsEntitlementsMerge";
+import { buildXAnalyticsWindowPayloadForProfile } from "@/lib/xAnalyticsPayloadBuild";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -139,7 +140,14 @@ export async function GET(
       rollup
     );
 
-    return ok({ profile, analytics });
+    const { searchParams } = new URL(request.url ?? "", "http://localhost");
+    const windowParam = (searchParams.get("window") ?? "30d").toLowerCase();
+    const built = await buildXAnalyticsWindowPayloadForProfile(serviceSupabase, profileId, windowParam);
+    if (built.ok === false) {
+      return fail("SERVER_ERROR", built.message, 500);
+    }
+
+    return ok({ profile, analytics, window_analytics: built.payload });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
     return NextResponse.json({ ok: false as const, code: "SERVER_ERROR", message }, { status: 500 });

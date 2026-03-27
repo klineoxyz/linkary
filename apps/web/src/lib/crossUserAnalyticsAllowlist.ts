@@ -22,6 +22,18 @@ export const CROSS_USER_ANALYTICS_ANALYTICS_KEYS = [
   "reach_proxy_30d",
 ] as const;
 
+/** Top-level keys allowed on `window_analytics` (same contract as owner /api/analytics/x minus entitlement). */
+export const CROSS_USER_WINDOW_ANALYTICS_TOP_KEYS = [
+  "window_days",
+  "window_start",
+  "window_end",
+  "follower_data_coverage_days",
+  "follower_earliest_snapshot_date",
+  "chart_points",
+  "kpis",
+  "freshness",
+] as const;
+
 /** Keys that must NEVER appear in cross-user analytics response (profile or analytics). */
 export const CROSS_USER_ANALYTICS_FORBIDDEN = [
   "email",
@@ -42,6 +54,7 @@ export const CROSS_USER_ANALYTICS_FORBIDDEN = [
 
 const PROFILE_SET = new Set<string>(CROSS_USER_ANALYTICS_PROFILE_KEYS as unknown as string[]);
 const ANALYTICS_SET = new Set<string>(CROSS_USER_ANALYTICS_ANALYTICS_KEYS as unknown as string[]);
+const WINDOW_TOP_SET = new Set<string>(CROSS_USER_WINDOW_ANALYTICS_TOP_KEYS as unknown as string[]);
 const FORBIDDEN_SET = new Set<string>(CROSS_USER_ANALYTICS_FORBIDDEN as unknown as string[]);
 
 export type ShapedProfile = { username: string; display_name: string | null; avatar_url: string | null };
@@ -100,6 +113,16 @@ export function isSafeAnalyticsObject(obj: Record<string, unknown> | null): bool
   for (const key of Object.keys(obj)) {
     if (FORBIDDEN_SET.has(key)) return false;
     if (!ANALYTICS_SET.has(key)) return false;
+  }
+  return true;
+}
+
+/** True if `window_analytics` has only allowlisted top-level keys (nested shapes are server-built). */
+export function isSafeWindowAnalyticsTopLevel(obj: Record<string, unknown> | null): boolean {
+  if (obj === null) return true;
+  for (const key of Object.keys(obj)) {
+    if (FORBIDDEN_SET.has(key)) return false;
+    if (!WINDOW_TOP_SET.has(key)) return false;
   }
   return true;
 }

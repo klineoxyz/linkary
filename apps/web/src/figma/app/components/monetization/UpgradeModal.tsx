@@ -77,7 +77,7 @@ const modalContent: Record<
       "Higher CRM quotas",
       "Custom caps via sales",
     ],
-    price: "$99+",
+    price: "From $199",
     period: "/month",
     discount: null,
     cta: "View UniCorn / Custom",

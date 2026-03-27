@@ -120,17 +120,17 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
     { key: "free", title: "Free", priceLine: "$0" },
     { key: "nano", title: "NaNo Pack", priceLine: "$9" },
     { key: "kol", title: "KOL Pack", priceLine: "$29" },
-    { key: "startup", title: "StartUP Pack", priceLine: "$99" },
+    { key: "startup", title: "StartUP Pack", priceLine: "$39" },
     { key: "unicorn", title: "UniCorn Pack", priceLine: "$199" },
     { key: "custom", title: "Custom", priceLine: "Contact sales" },
   ];
   const compareRows: { label: string; cells: CompareCell[] }[] = [
     { label: "Public profile", cells: [true, true, true, true, true, true] },
     { label: "ETHOS + XScore + Reputation Index", cells: [true, true, true, true, true, true] },
-    { label: "7D / 30D / 90D analytics tabs", cells: [true, true, true, true, true, true] },
+    { label: "7D / 30D / 90D analytics tabs", cells: ["Limited", true, true, true, true, true] },
     { label: "Basic self analytics", cells: [true, true, true, true, true, true] },
     { label: "Full X analytics dashboard", cells: [null, true, true, true, true, true] },
-    { label: "Advanced performance insights", cells: [null, null, true, true, true, true] },
+    { label: "Advanced performance insights", cells: [null, true, true, true, true, true] },
     { label: "Personal discovery on Linkary", cells: [null, true, true, true, true, true] },
     {
       label: "Peer profile analytics access",
@@ -191,6 +191,7 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
   }
 
   const compareNotes = [
+    "Billing is not active yet — prices and limits below are launch-intent for when paid plans go live.",
     "Free creators can still participate in campaigns when eligible.",
     "External X search is available only for paid org plans and is quota-limited.",
     "90D backfill is controlled to keep performance and cost sustainable.",

@@ -31,7 +31,7 @@ export default function LockedFeatureModal({
     },
     kol: {
       name: "KOL Pack",
-      price: "from $99/mo (illustrative)",
+      price: "from $29/mo (illustrative)",
       color: "purple",
       icon: Star,
       features: ["Everything in NaNo", "90d self-serve backfill where enabled", "Other-profile analytics eligibility"],
@@ -45,7 +45,7 @@ export default function LockedFeatureModal({
     },
     unicorn: {
       name: "UniCorn Pack",
-      price: "$99/mo org (illustrative)",
+      price: "$199/mo org (illustrative)",
       color: "red",
       icon: Star,
       features: ["Higher CRM quotas", "Same StartUP capabilities", "Sales-led Custom options"],

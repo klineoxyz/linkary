@@ -37,7 +37,7 @@ export default async function NewCampaignPage({
         href="/campaigns"
         className="inline-flex items-center gap-2 text-sm font-medium text-[var(--crm-muted)] hover:text-[var(--crm-primary)]"
       >
-        ← Back to campaigns
+        â† Back to campaigns
       </Link>
 
       <header className="crm-page-header">
@@ -54,8 +54,17 @@ export default async function NewCampaignPage({
       ) : null}
 
       {list.length === 0 ? (
-        <div className="crm-surface-card p-6 text-sm text-[var(--crm-muted)]">
-          No org/project workspaces available in CRM for this user. Link an org workspace first.
+        <div className="crm-surface-card p-6 text-sm text-[var(--crm-muted)] space-y-3">
+          <p>No org/project workspaces are available in CRM for this user.</p>
+          <p>Activation path: create or join an org workspace in Linkary, then return here to create your first draft campaign.</p>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/campaigns" className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-2 text-sm font-medium text-[var(--crm-foreground)] hover:bg-[var(--crm-bg)] no-underline">
+              Back to campaigns
+            </Link>
+            <a href="/" className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-2 text-sm font-medium text-[var(--crm-foreground)] hover:bg-[var(--crm-bg)] no-underline">
+              Open Linkary
+            </a>
+          </div>
         </div>
       ) : (
         <form action={createCampaignDraftAction} className="crm-surface-card p-5 space-y-4">
@@ -71,7 +80,7 @@ export default async function NewCampaignPage({
             >
               {list.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {(w.name ?? w.slug ?? w.id.slice(0, 8) + "…") + ` (${w.type})`}
+                  {(w.name ?? w.slug ?? w.id.slice(0, 8) + "â€¦") + ` (${w.type})`}
                 </option>
               ))}
             </select>
@@ -165,4 +174,5 @@ export default async function NewCampaignPage({
     </div>
   );
 }
+
 

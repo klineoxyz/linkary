@@ -133,6 +133,12 @@ export default function NextBestActionSuite({
       href: "/app/analytics",
     },
     {
+      done: false,
+      label: isCompany ? "Review Marketplace opportunities" : "Explore active opportunities",
+      hint: isCompany ? "Track creator programs and campaign opportunities." : "Browse jobs, sprints, and creator programs.",
+      href: "/app/market",
+    },
+    {
       done: !!slug,
       label: "Preview your public page",
       hint: "What visitors see — honest snapshot only.",
@@ -250,9 +256,9 @@ export default function NextBestActionSuite({
                 </ul>
                 {personalVsOrg}
                 <p className="text-[11px] text-muted-foreground mt-3 pt-2 border-t border-border/50">
-                  <strong className="text-foreground">Map:</strong> <a href="/app/profile" className="text-primary hover:underline">Profile</a> (private workspace) ·{" "}
-                  <a href="/app/profile/edit" className="text-primary hover:underline">Profile edit</a> (what goes public) ·{" "}
-                  <code className="text-[10px] bg-muted px-1 rounded">/{slug || "username"}</code> (visitor view) ·{" "}
+                  <strong className="text-foreground">Map:</strong> <a href="/app/profile" className="text-primary hover:underline">Profile</a> (private workspace) Â·{" "}
+                  <a href="/app/profile/edit" className="text-primary hover:underline">Profile edit</a> (what goes public) Â·{" "}
+                  <code className="text-[10px] bg-muted px-1 rounded">/{slug || "username"}</code> (visitor view) Â·{" "}
                   <a href="/app/analytics" className="text-primary hover:underline">Analytics</a> (your metrics, app-only)
                 </p>
               </div>
@@ -271,3 +277,4 @@ export default function NextBestActionSuite({
     </div>
   );
 }
+

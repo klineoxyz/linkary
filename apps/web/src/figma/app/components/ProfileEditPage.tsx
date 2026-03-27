@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -196,7 +196,7 @@ function PartnerProgramsEditor({
       </div>
       <p className="text-xs text-zinc-500">Shown on your public page under Partners &amp; programs.</p>
       {partnersLoading ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <p className="text-sm text-zinc-500">Loadingâ€¦</p>
       ) : (
         <>
           <ul className="space-y-2">
@@ -222,8 +222,8 @@ function PartnerProgramsEditor({
                 {p.target_profile_id && <span className="shrink-0 rounded border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600">Linked</span>}
                 {p.is_featured && <span className="shrink-0 rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-xs text-primary">Featured</span>}
                 <div className="flex items-center gap-1 shrink-0">
-                  <button type="button" onClick={() => move(p, "up")} disabled={idx === 0} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↑</button>
-                  <button type="button" onClick={() => move(p, "down")} disabled={idx === list.length - 1} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↓</button>
+                  <button type="button" onClick={() => move(p, "up")} disabled={idx === 0} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">â†‘</button>
+                  <button type="button" onClick={() => move(p, "down")} disabled={idx === list.length - 1} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">â†“</button>
                   <button type="button" onClick={() => onOpenModal(tab, p)} className="text-xs text-primary hover:underline">Edit</button>
                   <button type="button" onClick={() => remove(p.id)} className="text-xs text-red-600 hover:underline">Delete</button>
                 </div>
@@ -290,7 +290,7 @@ function LinksEditor({
       </div>
       <p className="text-xs text-muted-foreground">Shown on linkary.xyz/you. Only links marked public are visible.</p>
       {linksLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loadingâ€¦</p>
       ) : (
         <>
           <ul className="space-y-2">
@@ -307,8 +307,8 @@ function LinksEditor({
                 </div>
                 {!link.is_public && <span className="shrink-0 text-xs text-muted-foreground">Hidden</span>}
                 <div className="flex items-center gap-1 shrink-0">
-                  <button type="button" onClick={() => move(link, "up")} disabled={idx === 0} className="text-muted-foreground hover:text-foreground text-xs px-1 disabled:opacity-50">↑</button>
-                  <button type="button" onClick={() => move(link, "down")} disabled={idx === links.length - 1} className="text-muted-foreground hover:text-foreground text-xs px-1 disabled:opacity-50">↓</button>
+                  <button type="button" onClick={() => move(link, "up")} disabled={idx === 0} className="text-muted-foreground hover:text-foreground text-xs px-1 disabled:opacity-50">â†‘</button>
+                  <button type="button" onClick={() => move(link, "down")} disabled={idx === links.length - 1} className="text-muted-foreground hover:text-foreground text-xs px-1 disabled:opacity-50">â†“</button>
                   <button type="button" onClick={() => onOpenEditModal(link)} className="text-xs text-primary hover:underline">Edit</button>
                   <button type="button" onClick={() => remove(link.id)} className="text-xs text-destructive hover:underline">Delete</button>
                 </div>
@@ -345,7 +345,7 @@ function LinkModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl shadow-lg max-w-md w-full p-4 space-y-3 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h3 className="font-semibold text-foreground">{edit ? "Edit link" : "Add link"}</h3>
-        <input type="text" placeholder="Title (1–60 chars)" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" maxLength={60} />
+        <input type="text" placeholder="Title (1â€“60 chars)" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" maxLength={60} />
         <input type="url" placeholder="URL (https:// or http://)" value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" />
         <input type="text" placeholder="Icon URL (optional, max 32 chars)" value={form.icon} onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value.slice(0, 32) }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" maxLength={32} />
         <label className="flex items-center gap-2">
@@ -355,7 +355,7 @@ function LinkModal({
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-border text-foreground bg-background">Cancel</button>
           <button type="button" disabled={!canSubmit || saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
-            {saving ? "Saving…" : edit ? "Update" : "Add"}
+            {saving ? "Savingâ€¦" : edit ? "Update" : "Add"}
           </button>
         </div>
       </div>
@@ -412,7 +412,7 @@ function SkillsEditor({
       </div>
       <p className="text-xs text-muted-foreground">Shown on your public profile. Only items marked public are visible.</p>
       {skillsLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loadingâ€¦</p>
       ) : (
         <>
           <div className="flex flex-wrap gap-2">
@@ -421,8 +421,8 @@ function SkillsEditor({
                 <span className="font-medium text-foreground">{skill.name}</span>
                 {skill.level != null && <span className="text-muted-foreground text-xs">({skill.level}/5)</span>}
                 {!skill.is_public && <span className="text-xs text-muted-foreground">Hidden</span>}
-                <button type="button" onClick={() => move(skill, "up")} disabled={idx === 0} className="text-muted-foreground hover:text-foreground text-xs px-0.5 disabled:opacity-50">↑</button>
-                <button type="button" onClick={() => move(skill, "down")} disabled={idx === sorted.length - 1} className="text-muted-foreground hover:text-foreground text-xs px-0.5 disabled:opacity-50">↓</button>
+                <button type="button" onClick={() => move(skill, "up")} disabled={idx === 0} className="text-muted-foreground hover:text-foreground text-xs px-0.5 disabled:opacity-50">â†‘</button>
+                <button type="button" onClick={() => move(skill, "down")} disabled={idx === sorted.length - 1} className="text-muted-foreground hover:text-foreground text-xs px-0.5 disabled:opacity-50">â†“</button>
                 <button type="button" onClick={() => onOpenEditModal(skill)} className="text-xs text-primary hover:underline">Edit</button>
                 <button type="button" onClick={() => remove(skill.id)} className="text-xs text-destructive hover:underline">Delete</button>
               </span>
@@ -457,7 +457,7 @@ function SkillModal({
         <h3 className="font-semibold text-foreground">{edit ? "Edit skill" : "Add skill"}</h3>
         <input type="text" placeholder="Name (max 40 chars)" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value.slice(0, 40) }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground" maxLength={40} />
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Level (optional, 1–5)</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Level (optional, 1â€“5)</label>
           <select value={form.level ?? ""} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground">
             <option value="">None</option>
             {[1, 2, 3, 4, 5].map((n) => (
@@ -471,7 +471,7 @@ function SkillModal({
         </label>
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-border text-foreground bg-background">Cancel</button>
-          <button type="button" disabled={!canSubmit || saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">{saving ? "Saving…" : edit ? "Update" : "Add"}</button>
+          <button type="button" disabled={!canSubmit || saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">{saving ? "Savingâ€¦" : edit ? "Update" : "Add"}</button>
         </div>
       </div>
     </div>
@@ -525,7 +525,7 @@ function AchievementsEditor({
       </div>
       <p className="text-xs text-muted-foreground">Shown on your public profile. Only items marked public are visible.</p>
       {achievementsLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loadingâ€¦</p>
       ) : (
         <>
           <ul className="space-y-2">
@@ -538,8 +538,8 @@ function AchievementsEditor({
                   {!a.is_public && <span className="text-xs text-muted-foreground">Hidden</span>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button type="button" onClick={() => move(a, "up")} disabled={idx === 0} className="text-muted-foreground hover:text-foreground text-xs px-1 disabled:opacity-50">↑</button>
-                  <button type="button" onClick={() => move(a, "down")} disabled={idx === sorted.length - 1} className="text-muted-foreground hover:text-foreground text-xs px-1 disabled:opacity-50">↓</button>
+                  <button type="button" onClick={() => move(a, "up")} disabled={idx === 0} className="text-muted-foreground hover:text-foreground text-xs px-1 disabled:opacity-50">â†‘</button>
+                  <button type="button" onClick={() => move(a, "down")} disabled={idx === sorted.length - 1} className="text-muted-foreground hover:text-foreground text-xs px-1 disabled:opacity-50">â†“</button>
                   <button type="button" onClick={() => onOpenEditModal(a)} className="text-xs text-primary hover:underline">Edit</button>
                   <button type="button" onClick={() => remove(a.id)} className="text-xs text-destructive hover:underline">Delete</button>
                 </div>
@@ -582,7 +582,7 @@ function AchievementModal({
         </label>
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-border text-foreground bg-background">Cancel</button>
-          <button type="button" disabled={!canSubmit || saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">{saving ? "Saving…" : edit ? "Update" : "Add"}</button>
+          <button type="button" disabled={!canSubmit || saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">{saving ? "Savingâ€¦" : edit ? "Update" : "Add"}</button>
         </div>
       </div>
     </div>
@@ -669,8 +669,8 @@ function RelationsEditor({
               </div>
               {!r.is_public && <span className="shrink-0 text-xs text-zinc-500">Hidden</span>}
               <div className="flex items-center gap-1 shrink-0">
-                <button type="button" onClick={() => move(r, "up")} disabled={idx === 0} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↑</button>
-                <button type="button" onClick={() => move(r, "down")} disabled={idx === list.length - 1} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↓</button>
+                <button type="button" onClick={() => move(r, "up")} disabled={idx === 0} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">â†‘</button>
+                <button type="button" onClick={() => move(r, "down")} disabled={idx === list.length - 1} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">â†“</button>
                 <button type="button" onClick={() => onOpenEditModal(r)} className="text-xs text-primary hover:underline">Edit</button>
                 <button type="button" onClick={() => remove(r.id)} className="text-xs text-red-600 hover:underline">Delete</button>
               </div>
@@ -687,7 +687,7 @@ function RelationsEditor({
       <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
         <label className="block text-sm font-medium text-zinc-700">Relations</label>
         <p className="text-xs text-zinc-500 mb-3">Ambassador of / Affiliate of (projects or companies).</p>
-        {relationsLoading ? <p className="text-sm text-zinc-500">Loading…</p> : (
+        {relationsLoading ? <p className="text-sm text-zinc-500">Loadingâ€¦</p> : (
           <>
             {renderList("ambassador", "Ambassador of")}
             {renderList("affiliate", "Affiliate of")}
@@ -701,7 +701,7 @@ function RelationsEditor({
       <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
         <label className="block text-sm font-medium text-zinc-700">Relations</label>
         <p className="text-xs text-zinc-500 mb-3">Ambassadors, affiliates, ecosystem projects, subsidiaries.</p>
-        {relationsLoading ? <p className="text-sm text-zinc-500">Loading…</p> : (
+        {relationsLoading ? <p className="text-sm text-zinc-500">Loadingâ€¦</p> : (
           <>
             {renderList("ambassador", "Ambassadors")}
             {renderList("affiliate", "Affiliates")}
@@ -739,7 +739,7 @@ function RelationsEditor({
             </ul>
           </div>
         )}
-        {relationsLoading ? <p className="text-sm text-zinc-500">Loading…</p> : (
+        {relationsLoading ? <p className="text-sm text-zinc-500">Loadingâ€¦</p> : (
           <>
             {renderList("ambassador", "Ambassadors")}
             {renderList("affiliate", "Affiliates")}
@@ -790,12 +790,12 @@ function RelationModal({
           <>
             <input
               type="text"
-              placeholder="Search profiles (username, name…)"
+              placeholder="Search profiles (username, nameâ€¦)"
               value={searchQuery}
               onChange={(e) => onSearch(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900"
             />
-            {searchLoading && <p className="text-xs text-zinc-500">Searching…</p>}
+            {searchLoading && <p className="text-xs text-zinc-500">Searchingâ€¦</p>}
             {searchResults.length > 0 && (
               <ul className="max-h-40 overflow-y-auto space-y-1 border border-zinc-200 rounded-lg p-2">
                 {searchResults.filter((p) => p.username).map((p) => (
@@ -830,7 +830,7 @@ function RelationModal({
             onClick={onSubmit}
             className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50"
           >
-            {saving ? "Saving…" : edit ? "Update" : "Add"}
+            {saving ? "Savingâ€¦" : edit ? "Update" : "Add"}
           </button>
         </div>
       </div>
@@ -895,7 +895,7 @@ function TeamEditor({
       </div>
       <p className="text-xs text-zinc-500">Shown on your public company profile. Only members marked public are visible.</p>
       {teamLoading ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <p className="text-sm text-zinc-500">Loadingâ€¦</p>
       ) : (
         <>
           <ul className="space-y-2">
@@ -912,8 +912,8 @@ function TeamEditor({
                 </div>
                 {!m.is_public && <span className="shrink-0 text-xs text-zinc-500">Hidden</span>}
                 <div className="flex items-center gap-1 shrink-0">
-                  <button type="button" onClick={() => move(m, "up")} disabled={idx === 0} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↑</button>
-                  <button type="button" onClick={() => move(m, "down")} disabled={idx === team.length - 1} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">↓</button>
+                  <button type="button" onClick={() => move(m, "up")} disabled={idx === 0} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">â†‘</button>
+                  <button type="button" onClick={() => move(m, "down")} disabled={idx === team.length - 1} className="text-zinc-500 hover:text-zinc-700 text-xs px-1 disabled:opacity-50">â†“</button>
                   <button type="button" onClick={() => onOpenEditModal(m)} className="text-xs text-primary hover:underline">Edit</button>
                   <button type="button" onClick={() => remove(m.id)} className="text-xs text-red-600 hover:underline">Delete</button>
                 </div>
@@ -961,7 +961,7 @@ function TeamMemberModal({
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
           <button type="button" disabled={!form.name.trim() || saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50">
-            {saving ? "Saving…" : edit ? "Update" : "Add"}
+            {saving ? "Savingâ€¦" : edit ? "Update" : "Add"}
           </button>
         </div>
       </div>
@@ -1020,7 +1020,7 @@ function GigsEditor({
       </div>
       <p className="text-xs text-muted-foreground">Public opportunities. Only project/company profiles can create gigs.</p>
       {gigsLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loadingâ€¦</p>
       ) : gigs.length === 0 ? (
         <p className="text-sm text-muted-foreground">No gigs yet. Create one to accept applications.</p>
       ) : (
@@ -1233,12 +1233,12 @@ function PartnerModal({
           <label className="block text-sm font-medium text-zinc-700 mb-1">Search project by name or X handle</label>
           <input
             type="text"
-            placeholder="Type name or @handle…"
+            placeholder="Type name or @handleâ€¦"
             value={partnerSearchQuery}
             onChange={(e) => setPartnerSearchQuery(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900"
           />
-          {partnerSearchLoading && <p className="text-xs text-zinc-500 mt-1">Searching…</p>}
+          {partnerSearchLoading && <p className="text-xs text-zinc-500 mt-1">Searchingâ€¦</p>}
           {partnerSearchResults.length > 0 && (
             <ul className="mt-2 border border-zinc-200 rounded-lg divide-y divide-zinc-100 max-h-40 overflow-y-auto">
               {partnerSearchResults.map((p) => (
@@ -1256,10 +1256,10 @@ function PartnerModal({
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <span className="font-medium truncate block">{p.display_name || p.username || "—"}</span>
+                      <span className="font-medium truncate block">{p.display_name || p.username || "â€”"}</span>
                       <span className="text-xs text-zinc-500">
                         {p.username ? `@${p.username}` : ""}
-                        {p.twitter_username ? (p.username ? ` · @${p.twitter_username}` : `@${p.twitter_username}`) : ""}
+                        {p.twitter_username ? (p.username ? ` Â· @${p.twitter_username}` : `@${p.twitter_username}`) : ""}
                       </span>
                     </div>
                   </button>
@@ -1292,7 +1292,7 @@ function PartnerModal({
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
           <button type="button" disabled={!form.name.trim() || saving} onClick={() => onSubmit({ name: form.name.trim(), websiteUrl: form.websiteUrl.trim() || null, logoUrl: null, description: form.description.trim() || null, sinceDate: form.sinceDate.trim() || null, isFeatured: form.isFeatured })} className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50">
-            {saving ? "Saving…" : edit ? "Update" : "Add"}
+            {saving ? "Savingâ€¦" : edit ? "Update" : "Add"}
           </button>
         </div>
       </div>
@@ -1329,7 +1329,7 @@ function CaseStudyModal({
           <label className="block text-sm font-medium text-zinc-700 mb-1">Proof URL</label>
           <input
             type="url"
-            placeholder="https://… link to evidence (article, tweet, etc.)"
+            placeholder="https://â€¦ link to evidence (article, tweet, etc.)"
             value={form.proofUrl}
             onChange={(e) => setForm((f) => ({ ...f, proofUrl: e.target.value }))}
             className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-zinc-900"
@@ -1357,7 +1357,7 @@ function CaseStudyModal({
         </label>
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-700">Cancel</button>
-          <button type="button" disabled={saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50">{saving ? "Saving…" : edit ? "Update" : "Add"}</button>
+          <button type="button" disabled={saving} onClick={onSubmit} className="px-3 py-1.5 rounded-lg bg-primary text-white disabled:opacity-50">{saving ? "Savingâ€¦" : edit ? "Update" : "Add"}</button>
         </div>
       </div>
     </div>
@@ -1986,7 +1986,7 @@ export default function ProfileEditPage({
         onClick={() => setRoute({ name: "profile" })}
         className="text-sm text-zinc-500 hover:text-zinc-700 mb-6"
       >
-        ← Back to profile
+        â† Back to profile
       </button>
       <h1 className="text-2xl font-bold text-zinc-900 mb-2">Public 1-Pager</h1>
       <p className="text-zinc-600 text-sm mb-6">Private editor. Control what appears on your public page (linkary.xyz/{me.username || "you"}). Changes here are the single source of truth: they appear on your public URL and on your logged-in profile (Overview and Public preview) after you save.</p>
@@ -2086,7 +2086,7 @@ export default function ProfileEditPage({
             className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
           >
             {LOCATION_OPTIONS.map((opt) => (
-              <option key={opt || "empty"} value={opt}>{opt || "Select…"}</option>
+              <option key={opt || "empty"} value={opt}>{opt || "Selectâ€¦"}</option>
             ))}
           </select>
         </div>
@@ -2225,7 +2225,7 @@ export default function ProfileEditPage({
                 >
                   <option value="">None</option>
                   {myReviews.map((r) => (
-                    <option key={r.id} value={r.id}>{r.title || `${r.rating}★ · ${r.created_at.slice(0, 10)}`}</option>
+                    <option key={r.id} value={r.id}>{r.title || `${r.rating}â˜… Â· ${r.created_at.slice(0, 10)}`}</option>
                   ))}
                 </select>
                 <button type="button" onClick={() => setFeaturedReviewId(null)} className="px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-600 text-sm hover:bg-zinc-50">Clear</button>
@@ -2269,8 +2269,8 @@ export default function ProfileEditPage({
               };
               return (
                 <li key={key} className="flex items-center gap-2 py-1.5">
-                  <button type="button" onClick={moveUp} className="px-2 py-1 rounded border border-zinc-300 bg-white text-zinc-600 text-xs disabled:opacity-50" disabled={i === 0} title="Move up">↑</button>
-                  <button type="button" onClick={moveDown} className="px-2 py-1 rounded border border-zinc-300 bg-white text-zinc-600 text-xs disabled:opacity-50" disabled={i === layoutOrder.length - 1} title="Move down">↓</button>
+                  <button type="button" onClick={moveUp} className="px-2 py-1 rounded border border-zinc-300 bg-white text-zinc-600 text-xs disabled:opacity-50" disabled={i === 0} title="Move up">â†‘</button>
+                  <button type="button" onClick={moveDown} className="px-2 py-1 rounded border border-zinc-300 bg-white text-zinc-600 text-xs disabled:opacity-50" disabled={i === layoutOrder.length - 1} title="Move down">â†“</button>
                   <label className="flex items-center gap-2 flex-1 cursor-pointer">
                     <input type="checkbox" checked={!hidden} onChange={() => setLayoutHidden((h) => ({ ...h, [key]: !h[key] }))} className="rounded border-zinc-300" />
                     <span className={`text-sm capitalize ${hidden ? "text-zinc-400" : "text-zinc-700"}`}>{label}</span>
@@ -2422,7 +2422,7 @@ export default function ProfileEditPage({
                 }}
               />
               <label htmlFor="cv-replace-input" className={`text-sm text-primary cursor-pointer hover:underline ${cvUploading ? "opacity-50 pointer-events-none" : ""}`}>
-                {cvUploading ? "Uploading…" : "Replace"}
+                {cvUploading ? "Uploadingâ€¦" : "Replace"}
               </label>
               <button
                 type="button"
@@ -2444,7 +2444,7 @@ export default function ProfileEditPage({
                 }}
                 className="text-sm text-red-600 hover:underline disabled:opacity-50"
               >
-                {cvDeleting ? "Deleting…" : "Delete"}
+                {cvDeleting ? "Deletingâ€¦" : "Delete"}
               </button>
             </div>
           ) : (
@@ -2498,7 +2498,7 @@ export default function ProfileEditPage({
                 }}
               />
               <label htmlFor="cv-upload-input" className="inline-block px-3 py-1.5 rounded-lg border border-zinc-300 bg-white text-zinc-700 text-sm font-medium cursor-pointer hover:bg-zinc-50">
-                {cvUploading ? "Uploading…" : "Upload PDF"}
+                {cvUploading ? "Uploadingâ€¦" : "Upload PDF"}
               </label>
             </>
           )}
@@ -2536,7 +2536,7 @@ export default function ProfileEditPage({
                 type="url"
                 value={headerMediaUrl}
                 onChange={(e) => setHeaderMediaUrl(e.target.value)}
-                placeholder="https://www.youtube.com/embed/… or https://player.vimeo.com/…"
+                placeholder="https://www.youtube.com/embed/â€¦ or https://player.vimeo.com/â€¦"
                 className="w-full px-3 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900"
               />
               <p className="text-xs text-zinc-500 mt-1">This is an embed link, not an uploaded file.</p>
@@ -2645,7 +2645,7 @@ export default function ProfileEditPage({
               </a>
             </div>
           )}
-          <p className="text-xs text-zinc-500 mt-1">Public updates can take up to 60 seconds for others. While logged in, you see instant preview.</p>
+          <p className="text-xs text-zinc-500 mt-1">Public updates can take up to 60 seconds for others. While logged in, you see instant preview. Next step after save: open Analytics to verify sync/freshness.</p>
           {!me?.username && !me?.twitter_username && (
             <p className="text-xs text-amber-700">Set a username or connect X to get a public URL.</p>
           )}
@@ -2654,13 +2654,13 @@ export default function ProfileEditPage({
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Roles</label>
           {loading ? (
-            <p className="text-sm text-zinc-500">Loading…</p>
+            <p className="text-sm text-zinc-500">Loadingâ€¦</p>
           ) : (
             <ProfessionSelect
               selectedProfessions={professions}
               onChange={setProfessions}
               allowCreate={true}
-              placeholder="Search or add…"
+              placeholder="Search or addâ€¦"
             />
           )}
         </div>
@@ -2822,7 +2822,7 @@ export default function ProfileEditPage({
             disabled={saving}
             className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Savingâ€¦" : "Save"}
           </button>
           <button
             type="button"
@@ -2951,7 +2951,7 @@ export default function ProfileEditPage({
                 }}
                 className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"
               >
-                {gigSaving ? "Saving…" : gigModal.edit ? "Update" : "Create"}
+                {gigSaving ? "Savingâ€¦" : gigModal.edit ? "Update" : "Create"}
               </button>
             </div>
           </div>
@@ -2969,7 +2969,7 @@ export default function ProfileEditPage({
               </div>
             )}
             {applicationsLoading ? (
-              <p className="text-sm text-muted-foreground">Loading…</p>
+              <p className="text-sm text-muted-foreground">Loadingâ€¦</p>
             ) : applicationsList.length === 0 ? (
               <p className="text-sm text-muted-foreground">No applications yet.</p>
             ) : (
@@ -3373,3 +3373,4 @@ export default function ProfileEditPage({
     </div>
   );
 }
+

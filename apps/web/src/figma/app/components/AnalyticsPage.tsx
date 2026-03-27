@@ -33,13 +33,13 @@ import {
 import { PRICING_PATH, upgradeCtaLine } from "@/lib/planPackageUi";
 
 function formatIslandValue(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(n)) return "—";
+  if (n == null || !Number.isFinite(n)) return "â€”";
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
   return n.toLocaleString();
 }
 
-/** Avoid runtime throws when API returns ok:true but an incomplete payload (crashes entire page → ClientErrorBoundary). */
+/** Avoid runtime throws when API returns ok:true but an incomplete payload (crashes entire page â†’ ClientErrorBoundary). */
 function extractAnalyticsPayload(res: ApiResponse | undefined): ApiSuccess["data"] | null {
   if (!res || res.ok !== true || !res.data || typeof res.data !== "object") return null;
   const d = res.data;
@@ -324,7 +324,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const activeDaysCadence = cadencePoints.filter((p) => (p.posts ?? 0) > 0).length;
   const noPostsEngagement = activeDaysEngagement === 0;
   const noPostsCadence = activeDaysCadence === 0;
-  /** Daily series already has one bar per day in the window; show it whenever any day has posts (avoid blocking 7d on “3 posting days”). */
+  /** Daily series already has one bar per day in the window; show it whenever any day has posts (avoid blocking 7d on â€œ3 posting daysâ€). */
   const insufficientEngagement = false;
   const insufficientCadence = false;
   const followerInsufficient = false;
@@ -353,6 +353,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     () => getOwnerEmptyKpiMessage(hasXHandle, dataState, lastSyncAt),
     [hasXHandle, dataState, lastSyncAt]
   );
+  const showActivationEmptyState = payload && payload.kpis?.posts_total === 0 && payload.kpis?.followers_latest == null;
 
   const [analyticsReadyBanner, setAnalyticsReadyBanner] = useState(false);
   useEffect(() => {
@@ -441,7 +442,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             role="status"
           >
             <span className="text-emerald-950">
-              <strong>Analytics are loaded.</strong> Numbers here are from stored snapshots — refresh occasionally to update.
+              <strong>Analytics are loaded.</strong> Numbers here are from stored snapshots â€” refresh occasionally to update.
             </span>
             <button type="button" onClick={dismissAnalyticsReady} className="text-xs font-medium text-emerald-800 shrink-0 self-start sm:self-center hover:underline">
               Got it
@@ -461,7 +462,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             .
           </div>
         )}
-        {/* Platform tabs — X active; YouTube / TikTok / Facebook coming soon */}
+        {/* Platform tabs â€” X active; YouTube / TikTok / Facebook coming soon */}
         <div className="border-b border-border overflow-x-auto -mx-3 px-3 min-[390px]:mx-0 min-[390px]:px-0" role="tablist" aria-label="Analytics platform">
           <div className="flex gap-0 min-w-min">
             {PLATFORM_TABS.map((tab) => {
@@ -509,16 +510,32 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         ) : (
           <>
         {/* Same layout for all profiles; empty state when no X handle or no synced data */}
-        {payload && payload.kpis?.posts_total === 0 && payload.kpis?.followers_latest == null && (
-          <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-4 text-center space-y-2">
-            <p className="text-sm text-muted-foreground">{emptyKpi.body}</p>
-            {emptyKpi.showIntegrationsCta && (
-              <a
-                href={PATH_INTEGRATIONS}
-                className="inline-flex items-center justify-center text-xs font-medium text-primary hover:underline underline-offset-2"
-              >
-                Open Integrations
+        {showActivationEmptyState && (
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-4 space-y-3">
+            <p className="text-sm text-muted-foreground text-center">{emptyKpi.body}</p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <a href="/app/settings/integrations" className="rounded-lg border border-border bg-card px-3 py-2 no-underline hover:border-primary/35">
+                <p className="text-xs font-semibold text-foreground">1) Connect X</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Add your account in Integrations.</p>
               </a>
+              <a href="/app/analytics" className="rounded-lg border border-border bg-card px-3 py-2 no-underline hover:border-primary/35">
+                <p className="text-xs font-semibold text-foreground">2) Request refresh</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Use refresh here after first sync.</p>
+              </a>
+              <a href="/app/market" className="rounded-lg border border-border bg-card px-3 py-2 no-underline hover:border-primary/35">
+                <p className="text-xs font-semibold text-foreground">3) Explore opportunities</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Open Marketplace while analytics backfills.</p>
+              </a>
+            </div>
+            {emptyKpi.showIntegrationsCta && (
+              <div className="text-center">
+                <a
+                  href={PATH_INTEGRATIONS}
+                  className="inline-flex items-center justify-center text-xs font-medium text-primary hover:underline underline-offset-2"
+                >
+                  Open Integrations
+                </a>
+              </div>
             )}
           </div>
         )}
@@ -541,7 +558,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               <h1 className="text-base font-semibold text-foreground tracking-tight">X analytics</h1>
               {payload && freshnessLine ? (
                 <span className="text-xs text-muted-foreground block sm:inline w-full sm:w-auto" aria-live="polite">
-                  · {freshnessLine}
+                  Â· {freshnessLine}
                 </span>
               ) : null}
             </div>
@@ -557,7 +574,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                     {ownerState === "queued_or_building"
                       ? OWNER_REFRESH_BUTTON_QUEUED
                       : refreshSubmitting
-                        ? "Requesting…"
+                        ? "Requestingâ€¦"
                         : OWNER_REFRESH_BUTTON_IDLE}
                   </button>
                   <a
@@ -601,7 +618,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             {ownerBanner.text}
           </div>
         )}
-        {/* Stats islands — same style as Overview page */}
+        {/* Stats islands â€” same style as Overview page */}
         {kpiTilesLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -623,7 +640,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   <Users className="h-4 w-4 text-white stroke-[1.75]" />
                 </div>
               </div>
-              <h2 className="text-4xl font-bold text-white mb-1">{payload ? (payload.kpis.followers_latest != null ? formatIslandValue(payload.kpis.followers_latest) : "—") : "—"}</h2>
+              <h2 className="text-4xl font-bold text-white mb-1">{payload ? (payload.kpis.followers_latest != null ? formatIslandValue(payload.kpis.followers_latest) : "â€”") : "â€”"}</h2>
               <span className="text-xs flex items-center gap-1 text-white">{payload?.kpis.followers_latest != null && payload.kpis.followers_latest > 0 ? "Latest in window" : "Beta"}</span>
             </div>
           </KpiIslandOuter>
@@ -642,7 +659,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               <h2 className="text-4xl font-bold text-white mb-1">
                 {payload?.kpis?.posts_total != null && Number.isFinite(Number(payload.kpis.posts_total))
                   ? Number(payload.kpis.posts_total).toLocaleString()
-                  : "—"}
+                  : "â€”"}
               </h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.posts_total ?? 0) > 0 ? "In window" : "Beta"}</span>
             </div>
@@ -659,7 +676,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   <Eye className="h-4 w-4 text-white stroke-[1.75]" />
                 </div>
               </div>
-              <h2 className="text-4xl font-bold text-white mb-1">{payload ? formatIslandValue(payload.kpis.impressions_total) : "—"}</h2>
+              <h2 className="text-4xl font-bold text-white mb-1">{payload ? formatIslandValue(payload.kpis.impressions_total) : "â€”"}</h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.impressions_total ?? 0) > 0 ? "Total in window" : "Beta"}</span>
             </div>
           </KpiIslandOuter>
@@ -678,14 +695,14 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               <h2 className="text-4xl font-bold text-white mb-1">
                 {payload && (payload.kpis?.posts_total ?? 0) > 0 && Number.isFinite(Number(payload.kpis?.engagement_pct_avg))
                   ? `${Number(payload.kpis.engagement_pct_avg).toFixed(2)}%`
-                  : "—"}
+                  : "â€”"}
               </h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.posts_total ?? 0) > 0 ? "Avg in window" : "Beta"}</span>
             </div>
           </KpiIslandOuter>
         </div>
 
-        {/* Second row — same island style as first: 4 islands in 1 row */}
+        {/* Second row â€” same island style as first: 4 islands in 1 row */}
         {payload ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiIslandOuter
@@ -846,8 +863,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               <p>follower_data_coverage_days: {payload.follower_data_coverage_days} / window_days: {payload.window_days}</p>
               {(() => {
                 const vals = payload.chart_points.engagement_rate.map((p) => p.engagement_pct).filter(Number.isFinite);
-                const minEr = vals.length ? Math.min(...vals).toFixed(2) : "—";
-                const maxEr = vals.length ? Math.max(...vals).toFixed(2) : "—";
+                const minEr = vals.length ? Math.min(...vals).toFixed(2) : "â€”";
+                const maxEr = vals.length ? Math.max(...vals).toFixed(2) : "â€”";
                 return <p>engagement_pct min: {minEr}%, max: {maxEr}%</p>;
               })()}
               <p>First 5 engagement points: {JSON.stringify(payload.chart_points.engagement_rate.slice(0, 5))}</p>
@@ -861,3 +878,5 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
     </div>
   );
 }
+
+

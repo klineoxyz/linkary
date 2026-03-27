@@ -45,13 +45,18 @@ export default async function CampaignsPage({
           <p className="text-sm font-medium text-[var(--crm-foreground)] mb-1">
             No org workspace in CRM
           </p>
-          <p className="text-sm text-[var(--crm-muted)] mb-6 max-w-sm mx-auto">
-            Campaigns appear here when your Linkary org has a workspace linked in CRM. If you run campaigns from an org, your org admin can link it from the org workspace on Linkary. Use Tasks below for your personal task board.
+          <p className="text-sm text-[var(--crm-muted)] mb-4 max-w-sm mx-auto">
+            Campaigns appear here when your Linkary org has a workspace linked in CRM. Ask an org admin to open Linkary org workspace setup first, then return here to launch your first campaign.
           </p>
-          <Link href="/tasks" className="crm-btn-primary no-underline">
-            <ListTodo className="h-4 w-4" />
-            Go to Tasks
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Link href="/tasks" className="crm-btn-primary no-underline">
+              <ListTodo className="h-4 w-4" />
+              Go to Tasks
+            </Link>
+            <Link href="/campaigns/new" className="rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-4 py-2 text-sm font-medium text-[var(--crm-foreground)] hover:bg-[var(--crm-bg)] no-underline">
+              Create campaign draft
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -100,7 +105,7 @@ export default async function CampaignsPage({
       {campaigns.length === 0 ? (
         <div className="crm-surface-card p-8 text-center text-[var(--crm-muted)] text-sm leading-relaxed max-w-lg">
           {filter === "all"
-            ? "No campaigns yet. Create one here to get started."
+            ? "No campaigns yet. Start with a draft, add participants, then review dashboard and case-study after launch."
             : `No ${filter} campaigns yet.`}
         </div>
       ) : (
@@ -136,15 +141,15 @@ export default async function CampaignsPage({
                   <td className="p-3 text-[var(--crm-muted)]">
                     {c.starts_at || c.ends_at
                       ? [
-                          c.starts_at ? new Date(c.starts_at).toLocaleDateString() : "—",
-                          c.ends_at ? new Date(c.ends_at).toLocaleDateString() : "—",
-                        ].join(" → ")
-                      : "—"}
+                          c.starts_at ? new Date(c.starts_at).toLocaleDateString() : "â€”",
+                          c.ends_at ? new Date(c.ends_at).toLocaleDateString() : "â€”",
+                        ].join(" â†’ ")
+                      : "â€”"}
                   </td>
                   <td className="p-3 text-right">
                     {c.budget != null
                       ? `${c.currency ?? "USD"} ${Number(c.budget).toLocaleString()}`
-                      : "—"}
+                      : "â€”"}
                   </td>
                   <td className="p-3 text-right">{c.participant_count}</td>
                   <td className="p-3 text-right">{c.submission_count}</td>
@@ -158,3 +163,4 @@ export default async function CampaignsPage({
     </div>
   );
 }
+

@@ -508,7 +508,7 @@ const demo = {
         id: "spr-3",
         title: "Community Growth Sprint",
         org: "Web3 Gaming",
-        budget: "��2,000",
+        budget: "ï¿½ï¿½2,000",
         duration: "14 days",
         tags: ["Community", "Discord", "Engagement"],
         minEthos: 200,
@@ -993,7 +993,7 @@ function ActingAsContextSwitcher({
                 }}
               >
                 <span className="font-medium text-zinc-900 dark:text-zinc-100">My profile</span>
-                <span className="block text-xs text-zinc-500">Personal workspace · gigs, deals, analytics</span>
+                <span className="block text-xs text-zinc-500">Personal workspace Â· gigs, deals, analytics</span>
               </button>
             </li>
             {memberships.map((o) => (
@@ -1009,7 +1009,7 @@ function ActingAsContextSwitcher({
                   }}
                 >
                   <span className="font-medium text-zinc-900 dark:text-zinc-100">{o.name}</span>
-                  <span className="block text-xs text-zinc-500">Org workspace · jobs, team, KOL lists</span>
+                  <span className="block text-xs text-zinc-500">Org workspace Â· jobs, team, KOL lists</span>
                 </button>
               </li>
             ))}
@@ -2554,7 +2554,7 @@ function MarketplacePage({ setRoute, route }) {
           {programsLoading ? (
             <p className="text-sm text-zinc-500">Loading…</p>
           ) : (campaignsFiltered.length === 0 && programsFiltered.length === 0) ? (
-            <p className="text-zinc-600">No open creator programs or campaigns yet.</p>
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm space-y-2"><p className="font-medium text-zinc-900">No open creator programs yet</p><p className="text-zinc-600">You can still prepare by completing your public profile, then check active programs here again.</p><div className="flex flex-wrap gap-2"><a href="/app/profile/edit" className="inline-flex items-center rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white hover:opacity-90">Complete profile</a><a href="/app/analytics" className="inline-flex items-center rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">Check analytics readiness</a></div></div>
           ) : (
             <div className="space-y-3">
               {campaignsLoading ? <p className="text-sm text-zinc-500">Loading campaign sync…</p> : null}
@@ -2566,7 +2566,7 @@ function MarketplacePage({ setRoute, route }) {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-zinc-900 dark:text-zinc-100">{c.title}</p>
                     <p className="text-xs text-zinc-500 mt-0.5">
-                      {c.org?.name ?? "—"} · CRM Campaign · {c.participant_count ?? 0} participants
+                      {c.org?.name ?? "—"} Â· CRM Campaign Â· {c.participant_count ?? 0} participants
                     </p>
                     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white px-3 py-2">
@@ -2625,7 +2625,7 @@ function MarketplacePage({ setRoute, route }) {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-zinc-900 dark:text-zinc-100">{p.title}</p>
                     <p className="text-xs text-zinc-500 mt-0.5">
-                      {p.org?.name ?? "—"} · {p.program_type ? `${p.program_type} · ` : ""}
+                      {p.org?.name ?? "—"} Â· {p.program_type ? `${p.program_type} Â· ` : ""}
                       {p.invites_count} in pipeline
                     </p>
                     {p.description?.trim() ? (
@@ -2656,7 +2656,7 @@ function MarketplacePage({ setRoute, route }) {
         </Card>
       ) : (jobs.length === 0 && sprints.length === 0) ? (
         <Card className="p-8 text-center">
-          <p className="text-zinc-600">No jobs or sprints yet. Check back later or create one from your org dashboard.</p>
+          <div className="space-y-2"><p className="text-zinc-700 font-medium">No jobs or sprints yet</p><p className="text-zinc-600">If you are a creator, keep your profile and analytics ready, then revisit this marketplace tab. If you run an org, create opportunities from your org dashboard.</p><div className="flex flex-wrap items-center justify-center gap-2"><a href="/app/profile/edit" className="inline-flex items-center rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">Edit profile</a><a href="/app/analytics" className="inline-flex items-center rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">Analytics</a></div></div>
         </Card>
       ) : (
       <div className="grid gap-6 lg:grid-cols-2">
@@ -2686,7 +2686,7 @@ function MarketplacePage({ setRoute, route }) {
                         )}
                         <JobStatusBadge status={j.status} />
                       </div>
-                      <p className="text-xs text-white/80">{(j.org?.name ?? j.org)} · {j.budget ?? ""} · {j.type ?? "job"}</p>
+                      <p className="text-xs text-white/80">{(j.org?.name ?? j.org)} Â· {j.budget ?? ""} Â· {j.type ?? "job"}</p>
                       <p className="mt-2 text-xs text-white/70">{j.applicants != null ? j.applicants + " applicants" : ""}</p>
                       {roleBody ? (
                         <div className="mt-3 border-t border-white/20 pt-2">
@@ -2769,7 +2769,7 @@ function MarketplacePage({ setRoute, route }) {
                         )}
                         <JobStatusBadge status={s.status} />
                       </div>
-                      <p className="text-xs text-white/80">{(s.org?.name ?? s.org)} · {s.budget ?? ""} · {s.duration ?? ""}</p>
+                      <p className="text-xs text-white/80">{(s.org?.name ?? s.org)} Â· {s.budget ?? ""} Â· {s.duration ?? ""}</p>
                       <p className="mt-2 text-xs text-white/70">{s.applicants != null ? s.applicants + " applicants" : ""}</p>
                       {sprintBody ? (
                         <div className="mt-3 border-t border-white/20 pt-2">
@@ -2823,7 +2823,7 @@ function MarketplacePage({ setRoute, route }) {
               {browseProgram.title}
             </h3>
             <p className="text-sm text-zinc-500 mt-1">
-              {browseProgram.org?.name ?? "Organization"} · {browseProgram.program_type ?? "program"} · {browseProgram.invites_count}{" "}
+              {browseProgram.org?.name ?? "Organization"} Â· {browseProgram.program_type ?? "program"} Â· {browseProgram.invites_count}{" "}
               creator(s) in org pipeline
             </p>
             <div className="mt-4 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
@@ -2864,7 +2864,7 @@ function MarketplacePage({ setRoute, route }) {
           >
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{browseCampaign.title}</h3>
             <p className="text-sm text-zinc-500 mt-1">
-              {browseCampaign.org?.name ?? "Organization"} · {browseCampaign.participant_count ?? 0} participants · {browseCampaign.accepts_new_users ? "Join open" : "Join closed"}
+              {browseCampaign.org?.name ?? "Organization"} Â· {browseCampaign.participant_count ?? 0} participants Â· {browseCampaign.accepts_new_users ? "Join open" : "Join closed"}
             </p>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               <div className="rounded-lg border border-zinc-200 px-3 py-2">Starts: <strong>{formatDate(browseCampaign.starts_at)}</strong></div>
@@ -3205,7 +3205,7 @@ function MessagesPage({ setRoute, initialConversationId }) {
                   <div className="rounded-lg border border-border bg-card bg-accent backdrop-blur-xl p-3">
                     <p className="text-sm" style={{ color: '#000000' }}>{m.body}</p>
                   </div>
-                  <span className="text-xs" style={{ color: '#666666' }}>{m.sender_type}{" · "}{new Date(m.created_at).toLocaleString()}</span>
+                  <span className="text-xs" style={{ color: '#666666' }}>{m.sender_type}{" Â· "}{new Date(m.created_at).toLocaleString()}</span>
                 </div>
               </div>
             ))}
@@ -3679,7 +3679,7 @@ function WorkRequestsPage({ setRoute, route, me }) {
                         {person?.username && <p className="text-xs text-primary truncate">@{person.username}</p>}
                         <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{messagePreview(r.message)}</p>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0 text-xs text-muted-foreground mt-1">
-                          {isInbox && (r.category || r.budget_text) && <span>{[r.category, r.budget_text].filter(Boolean).join(" · ")}</span>}
+                          {isInbox && (r.category || r.budget_text) && <span>{[r.category, r.budget_text].filter(Boolean).join(" Â· ")}</span>}
                           <span>{formatTime(r.created_at)}</span>
                         </div>
                       </div>
@@ -3799,7 +3799,7 @@ function WorkRequestsPage({ setRoute, route, me }) {
               <div className="prose prose-sm max-w-none">
                 <p className="text-sm text-foreground whitespace-pre-wrap">{selected.message}</p>
                 <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0 text-xs text-muted-foreground">
-                  {(selected.category || selected.budget_text) && <span>{[selected.category, selected.budget_text].filter(Boolean).join(" · ")}</span>}
+                  {(selected.category || selected.budget_text) && <span>{[selected.category, selected.budget_text].filter(Boolean).join(" Â· ")}</span>}
                   <span>{formatTime(selected.created_at)}</span>
                 </div>
               </div>
@@ -4132,6 +4132,14 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
 
   const publicSlug = (me?.username || me?.twitter_username || xHandle || "").replace(/^@/, "").toLowerCase().trim();
   const hasPublicSlug = publicSlug.length > 0;
+  const hasDisplayName = !!(me?.display_name && String(me.display_name).trim());
+  const hasBio = !!(me?.bio && String(me.bio).trim());
+  const hasXOnProfile = !!(me?.twitter_username && String(me.twitter_username).trim());
+  const activationSteps = [
+    { id: "profile", done: hasDisplayName && hasBio, label: "Complete your public profile", hint: "Add name, bio, and links in the advanced editor.", href: "/app/profile/edit" },
+    { id: "public", done: hasPublicSlug, label: "Set your public URL", hint: "Use a username (or connected X handle) to unlock public preview.", href: "/app/profile/edit#basics" },
+    { id: "x", done: hasXOnProfile, label: "Connect X for analytics", hint: "Analytics appears after sync and refresh on your analytics page.", href: "/app/settings/integrations" },
+  ] as const;
 
   useEffect(() => {
     if (!setRoute) return;
@@ -4312,6 +4320,18 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
             <a href={`${getCrmAppUrl()}/tasks`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">CRM</a> (deliverables), not on this page.</li>
         </ul>
       </div>
+      <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-foreground -mt-2">
+        <p className="font-semibold">Profile activation</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Complete these to unlock public profile and analytics clarity.</p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+          {activationSteps.map((step) => (
+            <a key={step.id} href={step.href} className="rounded-lg border border-border bg-card px-3 py-2 hover:border-primary/40 no-underline">
+              <p className="text-xs font-semibold text-foreground">{step.done ? "Done" : "Next"} · {step.label}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{step.hint}</p>
+            </a>
+          ))}
+        </div>
+      </div>
       <div className="mb-4 flex flex-wrap gap-2 border-b border-border pb-2 overflow-x-auto">
         <button
           type="button"
@@ -4417,7 +4437,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
                   <span className="text-lg font-semibold text-foreground truncate">{u.name}</span>
                   {u.verified && <BadgeCheck className="h-5 w-5 text-primary stroke-[1.75]" />}
                 </div>
-                <p className="text-sm font-medium text-foreground truncate">@{u.handle} · {u.location}</p>
+                <p className="text-sm font-medium text-foreground truncate">@{u.handle} Â· {u.location}</p>
               </div>
             </div>
 
@@ -4554,7 +4574,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
                         <p className="font-semibold text-foreground pr-16">{(work as { title?: string | null }).title || "Case study"}</p>
                         {(work as { metrics?: Record<string, unknown> }).metrics && Object.keys((work as { metrics?: Record<string, unknown> }).metrics || {}).length > 0 && (
                           <div className="mt-2 text-xs text-muted-foreground">
-                            {Object.entries((work as { metrics?: Record<string, unknown> }).metrics || {}).slice(0, 2).map(([k, v]) => `${k}: ${String(v)}`).join(" · ")}
+                            {Object.entries((work as { metrics?: Record<string, unknown> }).metrics || {}).slice(0, 2).map(([k, v]) => `${k}: ${String(v)}`).join(" Â· ")}
                           </div>
                         )}
                         {isMyProfile && (
@@ -4734,7 +4754,7 @@ function ProfilePage({ setRoute, me, route, getAuthHeaders, refreshMe, refreshPr
               <div>
                 <h3 className="font-semibold text-foreground">Reviews</h3>
                 <p className="mt-1 text-sm font-medium text-foreground">
-                  Received: {u.reviews.count} · Given: {u.reviews?.given ?? 0}
+                  Received: {u.reviews.count} Â· Given: {u.reviews?.given ?? 0}
                 </p>
               </div>
               <Button variant="outline" size="sm" className="text-foreground" onClick={() => setRoute({ name: "overview" })}>Leave Review</Button>
@@ -5815,3 +5835,6 @@ export default function LinkaryApp({ initialRoute }: { initialRoute?: string } =
     </Suspense>
   );
 }
+
+
+

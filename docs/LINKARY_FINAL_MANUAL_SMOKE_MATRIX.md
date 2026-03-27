@@ -1,6 +1,14 @@
 # Linkary — final manual smoke matrix
 
-**Environment:** record your base URLs here before you start (e.g. Web `https://linkary.xyz`, CRM `https://crm.linkary.xyz`).
+## SMOKE TEST CONTEXT
+
+- **Tester:** `________________`
+- **Browser:** `________________` (name + version, e.g. Chrome 134)
+- **Device:** `________________` (e.g. Windows desktop, macOS laptop)
+- **Environment:** `________________` (e.g. Production — Web `https://linkary.xyz`, CRM `https://crm.linkary.xyz`)
+- **Date:** `________________`
+
+**Note:** After changing **public visibility** toggles on `/app/profile/edit`, **hard refresh** the public `/{username}` page (and re-inspect the related network response, e.g. `GET /api/public/profile?username=…`) before marking **Pass/Fail**. Cached HTML or API responses can look “stale” until refresh.
 
 **Pre-flight:** confirm `NEXT_PUBLIC_COOKIE_DOMAIN` matches your apex (e.g. `.linkary.xyz`) on **both** web and CRM deployments if you expect shared session.
 
@@ -69,6 +77,8 @@ Pick one **published public slug** for toggle tests: `@________________`
 
 **Test campaign:** use a real `campaign_id` in your org workspace: `________________`
 
+**CRM outsider expectation:** A user who is **not** a member of the campaign’s workspace must **not** see **campaign title**, **metrics**, **submissions**, **participant data**, or **any org-private campaign information** (UI, HTML source, or XHR/API responses). Expect **404**, empty list, or equivalent **no-access** behavior — never partial leaks.
+
 | Actor | Route | Expected | Actual | Pass/Fail | Notes |
 |-------|-------|----------|--------|-----------|-------|
 | **Org admin** | `/campaigns` | Sees org campaigns for workspaces they belong to | | | |
@@ -79,7 +89,7 @@ Pick one **published public slug** for toggle tests: `@________________`
 | **Org member** | `/campaigns/[id]` | Access if RLS allows member on that workspace | | | |
 | **Org member** | `/campaigns/[id]/report` | Same | | | |
 | **Org member** | `/campaigns/[id]/case-study` | Same | | | |
-| **Outsider** | `/campaigns/[id]` (direct URL) | 404 or no data — **must not** leak other org’s campaign | | | |
+| **Outsider** | `/campaigns/[id]` (direct URL) | No access; **no** title / metrics / participants / submissions / org-private data | | | |
 | **Outsider** | `/campaigns/[id]/report` | Same | | | |
 | **Outsider** | `/campaigns/[id]/case-study` | Same | | | |
 
@@ -127,6 +137,20 @@ Pick one **published public slug** for toggle tests: `@________________`
 **Go / No-go:**  
 - [ ] **GO** — all blockers cleared; matrix complete for target environment  
 - [ ] **NO-GO** — blockers remain: `________________`
+
+---
+
+## ISSUE LOG FORMAT
+
+Use one block per issue found during this matrix:
+
+- **Severity:** `Blocker` / `High` / `Medium` / `Low`
+- **Actor:** `________________`
+- **Route:** `________________`
+- **Expected:** `________________`
+- **Actual:** `________________`
+- **Owner:** `________________`
+- **Fix required before launch:** `Yes` / `No`
 
 **Sign-off**
 

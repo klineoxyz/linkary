@@ -118,6 +118,26 @@ export default async function OpsActivationFunnelPage({
             <li>X connected but analytics not opened: <strong>{insights.stalls.creators_x_connected_not_analytics_opened.toLocaleString()}</strong></li>
             <li>Analytics opened but marketplace not reached: <strong>{insights.stalls.creators_analytics_opened_not_marketplace_opened.toLocaleString()}</strong></li>
             <li>Campaign created but not launched: <strong>{insights.stalls.org_campaign_created_not_launched.toLocaleString()}</strong></li>
+            <li>Campaign launched but not finalized: <strong>{insights.stalls.org_campaign_launched_not_finalized.toLocaleString()}</strong></li>
+          </ul>
+        </section>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <section className="crm-surface-card p-4">
+          <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">Terminal views (org)</h3>
+          <ul className="space-y-1 text-sm text-[var(--crm-foreground)]">
+            <li>Report opened users: <strong>{insights.lifecycle.org_report_opened_users.toLocaleString()}</strong></li>
+            <li>Case study opened users: <strong>{insights.lifecycle.org_case_study_opened_users.toLocaleString()}</strong></li>
+            <li>Report or case study users: <strong>{insights.lifecycle.org_report_or_case_study_users.toLocaleString()}</strong></li>
+          </ul>
+        </section>
+        <section className="crm-surface-card p-4">
+          <h3 className="text-sm font-semibold text-[var(--crm-foreground)] mb-2">Launch → finalize</h3>
+          <ul className="space-y-1 text-sm text-[var(--crm-foreground)]">
+            <li>Launched users: <strong>{insights.lifecycle.org_launched_users.toLocaleString()}</strong></li>
+            <li>Finalized users: <strong>{insights.lifecycle.org_finalized_users.toLocaleString()}</strong></li>
+            <li>Conversion: <strong>{insights.lifecycle.org_launched_to_finalized_pct.toFixed(1)}%</strong></li>
           </ul>
         </section>
       </div>

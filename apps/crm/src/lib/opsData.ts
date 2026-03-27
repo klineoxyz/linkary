@@ -1074,6 +1074,15 @@ export type ActivationFunnelInsights = {
     creators_x_connected_not_analytics_opened: number;
     creators_analytics_opened_not_marketplace_opened: number;
     org_campaign_created_not_launched: number;
+    org_campaign_launched_not_finalized: number;
+  };
+  lifecycle: {
+    org_report_opened_users: number;
+    org_case_study_opened_users: number;
+    org_report_or_case_study_users: number;
+    org_launched_users: number;
+    org_finalized_users: number;
+    org_launched_to_finalized_pct: number;
   };
 };
 
@@ -1234,6 +1243,9 @@ export async function fetchActivationFunnelInsights(
   const creatorMarket = creator.userSets.get("marketplace_opened") ?? new Set<string>();
   const orgCreated = org.userSets.get("campaign_created") ?? new Set<string>();
   const orgLaunched = org.userSets.get("campaign_launched") ?? new Set<string>();
+  const orgFinalized = org.userSets.get("campaign_finalized") ?? new Set<string>();
+  const orgReportOpened = org.userSets.get("report_opened") ?? new Set<string>();
+  const orgCaseStudyOpened = org.userSets.get("case_study_opened") ?? new Set<string>();
 
   let creatorsSignedInNotProfileCompleted = 0;
   for (const uid of creatorSignedIn) if (!creatorProfileCompleted.has(uid)) creatorsSignedInNotProfileCompleted += 1;
@@ -1245,6 +1257,9 @@ export async function fetchActivationFunnelInsights(
   for (const uid of creatorAnalytics) if (!creatorMarket.has(uid)) creatorsAnalyticsOpenedNotMarketplaceOpened += 1;
   let orgCampaignCreatedNotLaunched = 0;
   for (const uid of orgCreated) if (!orgLaunched.has(uid)) orgCampaignCreatedNotLaunched += 1;
+  let orgCampaignLaunchedNotFinalized = 0;
+  for (const uid of orgLaunched) if (!orgFinalized.has(uid)) orgCampaignLaunchedNotFinalized += 1;
+  const orgReportOrCaseStudy = new Set<string>([...orgReportOpened, ...orgCaseStudyOpened]);
 
   const [creatorPlanBreakdown, orgPlanBreakdown] = await Promise.all([
     fetchPlanBreakdown(service, sinceIso, "analytics_opened", "creator"),
@@ -1274,6 +1289,15 @@ export async function fetchActivationFunnelInsights(
       creators_x_connected_not_analytics_opened: creatorsXConnectedNotAnalyticsOpened,
       creators_analytics_opened_not_marketplace_opened: creatorsAnalyticsOpenedNotMarketplaceOpened,
       org_campaign_created_not_launched: orgCampaignCreatedNotLaunched,
+      org_campaign_launched_not_finalized: orgCampaignLaunchedNotFinalized,
+    },
+    lifecycle: {
+      org_report_opened_users: orgReportOpened.size,
+      org_case_study_opened_users: orgCaseStudyOpened.size,
+      org_report_or_case_study_users: orgReportOrCaseStudy.size,
+      org_launched_users: orgLaunched.size,
+      org_finalized_users: orgFinalized.size,
+      org_launched_to_finalized_pct: percent(orgFinalized.size, orgLaunched.size),
     },
   };
 }

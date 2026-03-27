@@ -26,7 +26,9 @@ export function FollowerGrowthChart({
   refreshDisabled,
 }: FollowerGrowthChartProps) {
   const { min, max, hasAnyData } = useMemo(() => {
-    const numeric = points.map((p) => p.follower_delta).filter((v): v is number => v != null && Number.isFinite(v));
+    const numeric = points
+      .map((p) => (p.follower_delta == null ? null : Number(p.follower_delta)))
+      .filter((v): v is number => v != null && Number.isFinite(v));
     if (numeric.length === 0) return { min: 0, max: 1, hasAnyData: false };
     const minVal = Math.min(0, ...numeric);
     const maxVal = Math.max(0, ...numeric);
@@ -78,6 +80,8 @@ export function FollowerGrowthChart({
   const CHART_H = 180;
   const barAreaHeight = CHART_H - 28;
   const minBarHeightPct = (4 / barAreaHeight) * 100;
+  const denseWindow = points.length > 14;
+  const barTrackMinWidthPx = denseWindow ? points.length * 10 : undefined;
 
   return (
     <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel} lowVariance={lowVariance}>
@@ -90,13 +94,19 @@ export function FollowerGrowthChart({
             style={{ bottom: `calc(${zeroPct}% + 1.25rem)` }}
           />
         )}
-        {/* items-stretch + per-column flex-col so bar height % resolves against a definite column height */}
-        <div className="flex items-stretch gap-px pl-0 w-full" style={{ height: barAreaHeight }}>
+        <div
+          className={`pl-0 w-full ${denseWindow ? "overflow-x-auto overflow-y-hidden" : ""}`}
+          style={{ height: barAreaHeight }}
+        >
+          <div
+            className="flex h-full items-stretch gap-px pl-0 w-full"
+            style={barTrackMinWidthPx ? { minWidth: barTrackMinWidthPx } : undefined}
+          >
           {points.map((p, i) => {
-            const val = p.follower_delta;
-            const hasData = val !== null && val !== undefined && Number.isFinite(val);
-            const heightPct = hasData ? Math.max(minBarHeightPct, (((val as number) - min) / range) * 100) : 0;
-            const isNegative = hasData && (val as number) < 0;
+            const val = p.follower_delta == null ? null : Number(p.follower_delta);
+            const hasData = val !== null && Number.isFinite(val);
+            const heightPct = hasData ? Math.max(minBarHeightPct, ((val - min) / range) * 100) : 0;
+            const isNegative = hasData && val < 0;
 
             return (
               <div
@@ -104,14 +114,14 @@ export function FollowerGrowthChart({
                 className="flex min-h-0 min-w-0 flex-1 flex-col justify-end"
                 title={
                   hasData
-                    ? `${p.date}: ${(val as number) >= 0 ? "+" : ""}${(val as number).toLocaleString()}`
+                    ? `${p.date}: ${val >= 0 ? "+" : ""}${val.toLocaleString()}`
                     : `${p.date}: No snapshot`
                 }
               >
                 {hasData ? (
                   <div
-                    className={`w-full rounded-t border-t transition-all ${
-                      isNegative ? "bg-amber-500/70 border-amber-500/50" : "bg-primary/80 border-primary/50"
+                    className={`w-full rounded-t border-t transition-all shadow-sm ${
+                      isNegative ? "bg-amber-500 border-amber-600/50" : "bg-primary border-primary/60"
                     }`}
                     style={{ height: `${heightPct}%`, minHeight: 4 }}
                   />
@@ -119,6 +129,7 @@ export function FollowerGrowthChart({
               </div>
             );
           })}
+          </div>
         </div>
       </div>
       <div className="flex justify-between text-[10px] text-muted-foreground mt-2 px-0.5 tabular-nums">

@@ -63,7 +63,7 @@ const modalContent: Record<
       "Task-board submissions as proof of work",
       "Does not auto-upgrade every member’s personal pack",
     ],
-    price: "$39",
+    price: "$99",
     period: "/month",
     discount: null,
     cta: "View StartUP Pack",

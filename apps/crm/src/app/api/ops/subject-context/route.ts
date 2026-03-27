@@ -32,9 +32,21 @@ export async function GET(request: NextRequest) {
     fetchActiveEntitlementsForSubject(gate.service, st, id),
   ]);
 
-  const effectivePlanKey = subscription
+  const baseEffectivePlanKey = subscription
     ? planKeyFromSubscriptionRow(subscription as Parameters<typeof planKeyFromSubscriptionRow>[0])
-    : null;
+    : "free";
+
+  const activeCompGrant = entitlements.some((e) => e.kind === "comp_grant");
+  const activeDiscountMetadata = entitlements.some((e) => e.kind === "discount_metadata");
+  const latestPlanOverride = entitlements
+    .filter((e) => e.kind === "plan_override")
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+  const overridePlanKeyRaw =
+    latestPlanOverride && typeof latestPlanOverride.payload_json === "object" && latestPlanOverride.payload_json !== null
+      ? (latestPlanOverride.payload_json as { plan_key?: unknown }).plan_key
+      : null;
+  const overridePlanKey = typeof overridePlanKeyRaw === "string" ? overridePlanKeyRaw : null;
+  const effectivePlanKey = overridePlanKey ?? baseEffectivePlanKey;
 
   return NextResponse.json({
     ok: true as const,
@@ -43,6 +55,10 @@ export async function GET(request: NextRequest) {
       subject_id: id,
       subscription,
       effectivePlanKey,
+      baseEffectivePlanKey,
+      activePlanOverride: overridePlanKey,
+      activeCompGrant,
+      activeDiscountMetadata,
       entitlements,
     },
   });

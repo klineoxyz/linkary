@@ -38,7 +38,7 @@ export default function LockedFeatureModal({
     },
     startup: {
       name: "StartUP Pack",
-      price: "$39/mo org (illustrative)",
+      price: "$99/mo org (illustrative)",
       color: "amber",
       icon: Star,
       features: ["CRM workspace", "Campaigns & task-board delivery", "External X profile search (quota)"],

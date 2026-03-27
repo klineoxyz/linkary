@@ -37,6 +37,10 @@ type SubjectContext = {
     current_period_end: string | null;
   } | null;
   effectivePlanKey: string | null;
+  baseEffectivePlanKey: string | null;
+  activePlanOverride: string | null;
+  activeCompGrant: boolean;
+  activeDiscountMetadata: boolean;
   entitlements: ContextEntitlement[];
 };
 
@@ -422,14 +426,26 @@ export function OpsActionsWizard({ role }: Props) {
                       <li>
                         Effective plan: <strong>{ctx.effectivePlanKey ?? "free"}</strong>
                       </li>
+                      <li>Base effective plan (subscription): {ctx.baseEffectivePlanKey ?? "free"}</li>
+                      <li>Active plan override: {ctx.activePlanOverride ?? "none"}</li>
                       <li>current_period_end: {ctx.subscription.current_period_end ?? "—"}</li>
                     </ul>
                   ) : (
-                    <p className="text-xs text-[var(--crm-muted)]">No active subscription row for this owner.</p>
+                    <ul className="text-xs space-y-0.5 text-[var(--crm-foreground)]">
+                      <li>No active subscription row for this owner.</li>
+                      <li>
+                        Effective plan: <strong>{ctx.effectivePlanKey ?? "free"}</strong>
+                      </li>
+                      <li>Active plan override: {ctx.activePlanOverride ?? "none"}</li>
+                    </ul>
                   )}
                 </div>
                 <div className="rounded-[var(--crm-radius)] border border-[var(--crm-border)] p-3 bg-[var(--crm-background)]">
                   <p className="text-[10px] uppercase text-[var(--crm-muted)] mb-1">Active ops entitlements</p>
+                  <p className="text-[10px] text-[var(--crm-muted)] mb-2">
+                    Comp: {ctx.activeCompGrant ? "yes" : "no"} · Discount metadata:{" "}
+                    {ctx.activeDiscountMetadata ? "yes" : "no"}
+                  </p>
                   {ctx.entitlements.length === 0 ? (
                     <p className="text-xs text-[var(--crm-muted)]">None (non-revoked, future expiry).</p>
                   ) : (

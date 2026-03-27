@@ -16,6 +16,7 @@ import { ok, fail } from "@/lib/api-response";
 import { shapeCrossUserAnalyticsResponse } from "@/lib/crossUserAnalyticsAllowlist";
 import { resolveEffectivePlanKeyForProfile } from "@/lib/subscriptionPlan";
 import { planAllowsCrossUserAnalytics } from "@/lib/planKey";
+import { profileHasCompScope } from "@/lib/opsEntitlementsMerge";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -59,7 +60,8 @@ export async function GET(
     const serviceSupabase = createServiceSupabase();
 
     const viewerPlan = await resolveEffectivePlanKeyForProfile(serviceSupabase, userId);
-    if (!planAllowsCrossUserAnalytics(viewerPlan)) {
+    const viewerHasCompAnalytics = await profileHasCompScope(serviceSupabase, userId, "analytics_full");
+    if (!planAllowsCrossUserAnalytics(viewerPlan) && !viewerHasCompAnalytics) {
       return fail("ANALYTICS_VIEW_NOT_ELIGIBLE", "Analytics view not available on your plan", 403);
     }
 

@@ -77,7 +77,7 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
     {
       id: "startup",
       name: "StartUP Pack",
-      price: billingPeriod === "monthly" ? 39 : 374.4,
+      price: billingPeriod === "monthly" ? 99 : 950.4,
       period: billingPeriod === "monthly" ? "/month" : "/year",
       description: "Org subscription — CRM, campaigns, team delivery",
       features: [
@@ -120,7 +120,7 @@ export default function PricingPageRefined({ setRoute, userId = null }: { setRou
     { key: "free", title: "Free", priceLine: "$0" },
     { key: "nano", title: "NaNo Pack", priceLine: "$9" },
     { key: "kol", title: "KOL Pack", priceLine: "$29" },
-    { key: "startup", title: "StartUP Pack", priceLine: "$39" },
+    { key: "startup", title: "StartUP Pack", priceLine: "$99" },
     { key: "unicorn", title: "UniCorn Pack", priceLine: "$199" },
     { key: "custom", title: "Custom", priceLine: "Contact sales" },
   ];

@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { CROSS_USER_ANALYTICS_FORBIDDEN } from "@/lib/crossUserAnalyticsAllowlist";
+import { profileHasCompScope } from "@/lib/opsEntitlementsMerge";
 
 const USER_ID = "auth-user-123";
 const OTHER_PROFILE_ID = "profile-other-456";
@@ -14,6 +15,8 @@ const mockState = {
   authUser: { id: USER_ID, email: "u@test.com" } as { id: string; email: string } | null,
   sessionUser: null as { id: string; email: string } | null,
   eligible: true,
+  /** When true, viewer bypasses plan gate via ops comp scope `analytics_full`. */
+  compAnalyticsFull: false,
   rateLimitAllowed: true,
   rateLimitResetAt: "2025-01-01T12:00:00Z",
   profileViewData: { id: OTHER_PROFILE_ID, username: "other", display_name: "Other", avatar_url: null } as Record<string, unknown> | null,
@@ -64,11 +67,29 @@ vi.mock("@/lib/x-analytics-server", () => ({
       in: () => aggChain,
       order: () => Promise.resolve({ data: mockState.aggregateData ?? [] }),
     };
+    /** Supports profileHasCompScope / platform_ops_entitlements queries (awaitable builder). */
+    const emptyRowsBuilder = () => {
+      const result = { data: [] as unknown[] };
+      const self: Record<string, unknown> = {
+        select: () => self,
+        eq: () => self,
+        ilike: () => self,
+        in: () => self,
+        is: () => self,
+        gt: () => self,
+        order: () => self,
+        limit: () => self,
+        maybeSingle: () => Promise.resolve({ data: null }),
+        then: (onFulfilled: (v: typeof result) => unknown, onRejected?: (e: unknown) => unknown) =>
+          Promise.resolve(result).then(onFulfilled, onRejected),
+      };
+      return self;
+    };
     return {
       from: (table: string) => {
         if (table === "public_profile_view") return chain(mockState.profileViewData);
         if (table === "x_window_aggregates") return aggChain;
-        return chain(null);
+        return emptyRowsBuilder();
       },
     };
   }),
@@ -90,6 +111,10 @@ vi.mock("@/lib/rate-limit", () => ({
   ),
 }));
 
+vi.mock("@/lib/opsEntitlementsMerge", () => ({
+  profileHasCompScope: vi.fn(),
+}));
+
 function nextRequest(url: string, headers: Record<string, string> = {}) {
   return new NextRequest(url, { headers });
 }
@@ -99,7 +124,11 @@ describe("GET /api/me/analytics/profile/[username]", () => {
     mockState.authUser = { id: USER_ID, email: "u@test.com" };
     mockState.sessionUser = null;
     mockState.eligible = true;
+    mockState.compAnalyticsFull = false;
     mockState.rateLimitAllowed = true;
+    vi.mocked(profileHasCompScope).mockImplementation(async (_service: unknown, _userId: string, scope: string) => {
+      return scope === "analytics_full" ? mockState.compAnalyticsFull : false;
+    });
     mockState.profileViewData = {
       id: OTHER_PROFILE_ID,
       username: "other",
@@ -127,6 +156,7 @@ describe("GET /api/me/analytics/profile/[username]", () => {
 
   it("returns 403 when not eligible", async () => {
     mockState.eligible = false;
+    mockState.compAnalyticsFull = false;
     const { GET } = await import("./route");
     const req = nextRequest("http://localhost/api/me/analytics/profile/other", {
       Authorization: "Bearer fake-token",
@@ -212,5 +242,19 @@ describe("GET /api/me/analytics/profile/[username]", () => {
     expect(json.ok).toBe(true);
     expect(json.profile).toBeDefined();
     expect(json.analytics).toBe(null);
+  });
+
+  it("returns 200 when plan is free but comp grant includes analytics_full", async () => {
+    mockState.eligible = false;
+    mockState.compAnalyticsFull = true;
+    const { GET } = await import("./route");
+    const req = nextRequest("http://localhost/api/me/analytics/profile/other", {
+      Authorization: "Bearer fake-token",
+    });
+    const res = await GET(req, { params: Promise.resolve({ username: "other" }) });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.profile?.username).toBe("other");
   });
 });

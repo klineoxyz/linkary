@@ -6,6 +6,7 @@ import { resolveCrmAccess } from "@/lib/access";
 import { ensureOrgWorkspacesForUser } from "@/lib/orgWorkspaceBootstrap";
 import { fetchCampaignsForUser } from "@/lib/campaigns";
 import { ListTodo } from "lucide-react";
+import { recordProductEvent } from "@/lib/productTelemetry";
 
 type StatusFilter = "all" | "draft" | "active" | "paused" | "completed" | "cancelled";
 
@@ -21,6 +22,8 @@ export default async function CampaignsPage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user?.id) redirect("/login");
+
+  void recordProductEvent(supabase, user.id, "campaign_list_opened", "crm");
 
   let access = await resolveCrmAccess(supabase, user.id);
 

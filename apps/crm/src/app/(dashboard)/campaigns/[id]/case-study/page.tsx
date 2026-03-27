@@ -10,6 +10,7 @@ import { parseSubmissionMetricsExtended } from "@/lib/reportAggregates";
 import { CampaignAttributionNote } from "@/components/CampaignAttributionNote";
 import { PrintCaseStudyButton } from "./PrintCaseStudyButton";
 import { GrowthTrajectoryChart } from "../report/GrowthTrajectoryChart";
+import { recordProductEvent } from "@/lib/productTelemetry";
 
 type ProfileRow = {
   id: string;
@@ -151,6 +152,7 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
   if (!user?.id) notFound();
 
   const { id } = await params;
+  void recordProductEvent(supabase, user.id, "case_study_opened", "crm", { campaign_id: id });
   const data = await getCampaignReportData(supabase, id);
   if (!data) notFound();
 

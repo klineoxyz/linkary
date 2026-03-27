@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createCampaignDraft } from "@/lib/campaigns";
 import { revalidatePath } from "next/cache";
+import { recordProductEvent } from "@/lib/productTelemetry";
 
 function parseOptionalNumber(raw: FormDataEntryValue | null): number | null {
   if (raw == null) return null;
@@ -44,6 +45,11 @@ export async function createCampaignDraftAction(formData: FormData): Promise<voi
     currency,
   });
   if ("error" in out) redirect(`/campaigns/new?error=${encodeURIComponent(out.error)}`);
+
+  void recordProductEvent(supabase, user.id, "campaign_created", "crm", {
+    campaign_id: out.id,
+    workspace_id,
+  });
 
   revalidatePath("/campaigns");
   redirect(`/campaigns/${out.id}`);

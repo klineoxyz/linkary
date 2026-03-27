@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { SetupRequired } from "@/components/SetupRequired";
 import { createCampaignDraftAction } from "./actions";
+import { recordProductEvent } from "@/lib/productTelemetry";
 
 const ORG_WORKSPACE_TYPES = ["org", "project", "brand", "agency"] as const;
 
@@ -18,6 +19,7 @@ export default async function NewCampaignPage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user?.id) redirect("/login");
+  void recordProductEvent(supabase, user.id, "campaign_create_opened", "crm");
 
   const { data: workspaces } = await supabase
     .from("crm_workspaces")

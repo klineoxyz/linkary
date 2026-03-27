@@ -4,6 +4,7 @@ import { mapOpsRpcError } from "@/lib/opsRpcError";
 import type { OpsEntitlementKind } from "@/lib/opsWritePermissions";
 import { canRevokeEntitlement } from "@/lib/opsWritePermissions";
 import { isUuid, parseRequiredReason } from "@/lib/opsWritesValidation";
+import { recordProductEvent } from "@/lib/productTelemetry";
 
 const KINDS = new Set<string>(["comp_grant", "discount_metadata", "plan_override"]);
 
@@ -69,6 +70,12 @@ export async function POST(request: Request) {
 
   const out = data as { entitlement_id?: string; revoked_at?: string } | null;
   const revoked_at = typeof out?.revoked_at === "string" ? out.revoked_at : new Date().toISOString();
+
+  void recordProductEvent(gate.service, gate.userId, "ops_action_used", "crm", {
+    action_kind: "revoke_entitlement",
+    entitlement_id: entitlementId,
+    entitlement_kind: kind,
+  });
 
   return NextResponse.json({
     ok: true as const,

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -16,6 +16,7 @@ import type { Profession } from "@/lib/professions";
 import type { Profile } from "@/lib/profiles";
 import { PRESET_DEFAULT_ORDER, PRESET_DEFAULT_HIDDEN, SECTION_KEYS, type PresetName } from "@/lib/publicLayoutPresets";
 import { listOrgsForUser } from "@/lib/orgs";
+import { trackProductEventClient } from "@/lib/productTelemetry";
 
 type HeaderMediaType = "NONE" | "IMAGE" | "VIDEO";
 
@@ -1447,6 +1448,9 @@ export default function ProfileEditPage({
   const [relationSearchLoading, setRelationSearchLoading] = useState(false);
   const [selectedRelationTarget, setSelectedRelationTarget] = useState<{ id: string; username: string; display_name: string | null; avatar_url: string | null; profile_type: string } | null>(null);
   const [heroMode, setHeroMode] = useState<"none" | "image" | "video">("none");
+  useEffect(() => {
+    trackProductEventClient("profile_viewed", { surface: "profile_edit" });
+  }, []);
   const [myGigs, setMyGigs] = useState<GigRow[]>([]);
   const [gigsLoading, setGigsLoading] = useState(false);
   const [gigModal, setGigModal] = useState<{ open: true; edit?: GigRow } | { open: false }>({ open: false });
@@ -1960,6 +1964,14 @@ export default function ProfileEditPage({
     }
     setToast("Saved");
     setTimeout(() => setToast(null), 3000);
+    trackProductEventClient("profile_published_or_saved");
+    const profileLooksComplete =
+      !!displayName.trim() &&
+      !!bio.trim() &&
+      (!!website.trim() || !!xUrl.trim() || !!linkedinUrl.trim() || !!youtubeUrl.trim());
+    if (profileLooksComplete) {
+      trackProductEventClient("profile_completed");
+    }
     onSaved?.();
     setRoute({ name: "profile" });
   };

@@ -8,6 +8,7 @@ import {
   parseRequiredReason,
   parseSubject,
 } from "@/lib/opsWritesValidation";
+import { recordProductEvent } from "@/lib/productTelemetry";
 
 export async function POST(request: Request) {
   const gate = await requireOpsApiAccess();
@@ -70,6 +71,12 @@ export async function POST(request: Request) {
   if (!entitlement_id) {
     return NextResponse.json({ ok: false as const, code: "RPC_FAILED", message: "Missing entitlement_id in RPC result" }, { status: 500 });
   }
+
+  void recordProductEvent(gate.service, gate.userId, "ops_action_used", "crm", {
+    action_kind: "discount_metadata",
+    subject_type: subject.subject_type,
+    subject_id: subject.subject_id,
+  });
 
   return NextResponse.json({
     ok: true as const,

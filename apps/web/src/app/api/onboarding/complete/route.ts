@@ -72,6 +72,12 @@ export async function POST(request: NextRequest) {
     p_reason: "profile_complete",
   });
   await supabase.rpc("record_invitee_active");
+  await supabase.from("product_events").insert({
+    source_app: "web",
+    event_name: "profile_completed",
+    user_id: user.id,
+    properties: { via: "onboarding_complete" },
+  });
 
   return NextResponse.json({ ok: true });
 }

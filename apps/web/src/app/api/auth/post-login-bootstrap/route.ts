@@ -62,6 +62,12 @@ export async function POST(request: Request) {
   const xIdentity = identities.find((i) => isXProvider(i.provider)) as Record<string, unknown> | undefined;
 
   if (!xIdentity) {
+    await supabase.from("product_events").insert({
+      source_app: "web",
+      event_name: "auth_signed_in",
+      user_id: user.id,
+      properties: { via: "post_login_bootstrap", has_x_identity: false },
+    });
     const { data: statusRow } = await supabase
       .from("profiles")
       .select("account_type, onboarding_completed_at")
@@ -156,6 +162,21 @@ export async function POST(request: Request) {
   const oca = (statusRow as { onboarding_completed_at?: string | null } | null)?.onboarding_completed_at;
   const needsOnboarding =
     !at || (at !== "individual" && at !== "company") || !oca;
+
+  await supabase.from("product_events").insert([
+    {
+      source_app: "web",
+      event_name: "auth_signed_in",
+      user_id: user.id,
+      properties: { via: "post_login_bootstrap", has_x_identity: true },
+    },
+    {
+      source_app: "web",
+      event_name: "x_connect_completed",
+      user_id: user.id,
+      properties: { via: "post_login_bootstrap", provider: "x" },
+    },
+  ]);
 
   return NextResponse.json({ ok: true, userId: user.id, username: handle, needsOnboarding });
 }

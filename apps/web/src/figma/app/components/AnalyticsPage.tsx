@@ -31,6 +31,7 @@ import {
   type AnalyticsXContractData,
 } from "@/lib/analyticsContractUi";
 import { PRICING_PATH, upgradeCtaLine } from "@/lib/planPackageUi";
+import { trackProductEventClient } from "@/lib/productTelemetry";
 
 function formatIslandValue(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "â€”";
@@ -264,7 +265,12 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const [refreshSubmitting, setRefreshSubmitting] = useState(false);
   const [refreshFeedback, setRefreshFeedback] = useState<string | null>(null);
 
+  useEffect(() => {
+    trackProductEventClient("analytics_opened");
+  }, []);
+
   const requestAnalyticsRefresh = useCallback(async () => {
+    trackProductEventClient("analytics_refresh_requested");
     setRefreshFeedback(null);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return;

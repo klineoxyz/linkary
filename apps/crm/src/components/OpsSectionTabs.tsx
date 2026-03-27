@@ -15,6 +15,7 @@ function sectionForPath(pathname: string, role: OpsRole): { title: string; tabs:
         { href: "/ops/overview/summary", label: "Summary" },
         { href: "/ops/overview/health", label: "Ops health" },
         { href: "/ops/overview/launch-diagnostics", label: "Launch diagnostics" },
+        { href: "/ops/overview/activation-funnel", label: "Activation funnel" },
         { href: "/ops/overview/quick-links", label: "Quick links" },
       ],
     };

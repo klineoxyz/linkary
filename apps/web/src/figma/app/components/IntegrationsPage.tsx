@@ -8,6 +8,7 @@ import { getMySocialAccountX } from "@/lib/socialAccounts";
 import { syncProfileFromX } from "@/lib/x-sync";
 import type { Profile } from "@/lib/profiles";
 import { PATH_ANALYTICS } from "@/lib/analytics-owner-state-presentation";
+import { trackProductEventClient } from "@/lib/productTelemetry";
 
 type RoutePayload = { name: string };
 interface IntegrationsPageProps {
@@ -148,6 +149,7 @@ export default function IntegrationsPage({ setRoute, userId }: IntegrationsPageP
   }, [userId]);
 
   const handleConnectX = async () => {
+    trackProductEventClient("x_connect_started");
     setError(null);
     setConnecting(true);
     try {

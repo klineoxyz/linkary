@@ -14,6 +14,7 @@ import type { TopContributorWithContribution } from "@/lib/report";
 import { parseSubmissionMetricsExtended } from "@/lib/reportAggregates";
 import { RecomputeContributionButton } from "../RecomputeContributionButton";
 import { GrowthTrajectoryChart } from "./GrowthTrajectoryChart";
+import { recordProductEvent } from "@/lib/productTelemetry";
 
 function fmtNum(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
@@ -313,6 +314,7 @@ export default async function CampaignReportPage({
   if (!user?.id) notFound();
 
   const { id } = await params;
+  void recordProductEvent(supabase, user.id, "report_opened", "crm", { campaign_id: id });
   const data = await getCampaignReportData(supabase, id);
   if (!data) notFound();
 

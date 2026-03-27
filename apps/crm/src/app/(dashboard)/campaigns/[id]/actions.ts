@@ -28,6 +28,7 @@ import {
   getTwitterApiKeyFromEnv,
   parseXHandleInput,
 } from "@/lib/xUserPreview";
+import { recordProductEvent } from "@/lib/productTelemetry";
 
 const REVIEW_STATUSES = ["approved", "rejected", "needs_revision"] as const;
 const FOLLOW_VERIFICATION_STATUSES = ["pending", "verified", "waived"] as const;
@@ -736,6 +737,8 @@ export async function finalizeCampaignAction(campaignId: string): Promise<{ erro
     weighted: true,
     statuses: ["approved"],
   });
+
+  void recordProductEvent(supabase, user.id, "campaign_launched", "crm", { campaign_id: campaignId });
 
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath(`/campaigns/${campaignId}/report`);

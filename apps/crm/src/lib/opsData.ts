@@ -1017,3 +1017,51 @@ export async function fetchOpsPlanDistribution(service: SupabaseClient): Promise
 
   return [...map.values()].sort((a, b) => b.subscription_rows - a.subscription_rows);
 }
+
+export type ActivationFunnelStep =
+  | "auth_signed_in"
+  | "profile_completed"
+  | "x_connect_completed"
+  | "analytics_opened"
+  | "marketplace_opened"
+  | "campaign_created";
+
+export type ActivationFunnelCount = {
+  event_name: ActivationFunnelStep;
+  users: number;
+  events: number;
+};
+
+const ACTIVATION_STEPS: ActivationFunnelStep[] = [
+  "auth_signed_in",
+  "profile_completed",
+  "x_connect_completed",
+  "analytics_opened",
+  "marketplace_opened",
+  "campaign_created",
+];
+
+export async function fetchActivationFunnelCounts(
+  service: SupabaseClient,
+  sinceIso: string
+): Promise<ActivationFunnelCount[]> {
+  const out: ActivationFunnelCount[] = [];
+  for (const step of ACTIVATION_STEPS) {
+    const [{ count: events }, { data: rows }] = await Promise.all([
+      service
+        .from("product_events")
+        .select("*", { count: "exact", head: true })
+        .eq("event_name", step)
+        .gte("created_at", sinceIso),
+      service
+        .from("product_events")
+        .select("user_id")
+        .eq("event_name", step)
+        .gte("created_at", sinceIso)
+        .limit(100000),
+    ]);
+    const users = new Set((rows ?? []).map((r) => (r as { user_id?: string }).user_id).filter(Boolean)).size;
+    out.push({ event_name: step, users, events: events ?? 0 });
+  }
+  return out;
+}

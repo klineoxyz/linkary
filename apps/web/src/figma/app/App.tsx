@@ -232,6 +232,7 @@ import { buildAnalyticsProfilePath, parseAnalyticsProfilePath } from "@/lib/appR
 import { GigDealsPanel } from "@/components/profile-work/GigDealsPanel";
 import { MyApplicationsPanel } from "@/components/profile-work/MyApplicationsPanel";
 import { getCrmAppUrl } from "@/lib/crmPublicUrl";
+import { trackProductEventClient } from "@/lib/productTelemetry";
 
 /**
  * Linkary - Web3 Reputation + Opportunity + Review + Case Study Infrastructure
@@ -4872,6 +4873,16 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
         : prev
     );
   }, [pathname, searchParams]);
+
+  useEffect(() => {
+    if (route.name === "profile") {
+      trackProductEventClient("profile_viewed");
+      return;
+    }
+    if (route.name === "market") {
+      trackProductEventClient("marketplace_opened");
+    }
+  }, [route.name]);
 
   // userProfile route must never render UserProfilePage (mock/demo data risk). Redirect to canonical public URL.
   useEffect(() => {

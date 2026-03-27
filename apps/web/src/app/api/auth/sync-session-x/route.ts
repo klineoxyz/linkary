@@ -111,6 +111,12 @@ export async function POST(request: Request) {
     },
     { onConflict: "user_id,provider" }
   );
+  await supabase.from("product_events").insert({
+    source_app: "web",
+    event_name: "x_connect_completed",
+    user_id: user.id,
+    properties: { via: "sync_session_x" },
+  });
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SERVICE_ROLE_KEY;
   if (serviceKey && normalizedHandle) {

@@ -1024,44 +1024,256 @@ export type ActivationFunnelStep =
   | "x_connect_completed"
   | "analytics_opened"
   | "marketplace_opened"
-  | "campaign_created";
+  | "campaign_list_opened"
+  | "campaign_create_opened"
+  | "campaign_created"
+  | "campaign_launched"
+  | "campaign_finalized"
+  | "report_opened"
+  | "case_study_opened";
 
-export type ActivationFunnelCount = {
-  event_name: ActivationFunnelStep;
+export type ActivationFunnelRow = {
+  step: ActivationFunnelStep;
   users: number;
   events: number;
+  conversion_from_prev_pct: number | null;
 };
 
-const ACTIVATION_STEPS: ActivationFunnelStep[] = [
+export type ActivationDropoff = {
+  from_step: ActivationFunnelStep;
+  to_step: ActivationFunnelStep;
+  users_dropped: number;
+  dropoff_pct: number;
+};
+
+export type ActivationPlanBreakdown = {
+  effective_plan: string;
+  users: number;
+};
+
+export type ActivationFunnelInsights = {
+  creator: {
+    rows: ActivationFunnelRow[];
+    biggest_dropoff: ActivationDropoff | null;
+  };
+  org: {
+    rows: ActivationFunnelRow[];
+    biggest_dropoff: ActivationDropoff | null;
+  };
+  x_connection_split: {
+    creators_signed_in_x_connected: number;
+    creators_signed_in_x_not_connected: number;
+  };
+  plan_breakdowns: {
+    creator_analytics_opened: ActivationPlanBreakdown[];
+    org_campaign_created: ActivationPlanBreakdown[];
+  };
+  stalls: {
+    creators_signed_in_not_profile_completed: number;
+    creators_profile_completed_not_x_connected: number;
+    creators_x_connected_not_analytics_opened: number;
+    creators_analytics_opened_not_marketplace_opened: number;
+    org_campaign_created_not_launched: number;
+  };
+};
+
+const CREATOR_FUNNEL_STEPS: ActivationFunnelStep[] = [
   "auth_signed_in",
   "profile_completed",
   "x_connect_completed",
   "analytics_opened",
   "marketplace_opened",
-  "campaign_created",
 ];
 
-export async function fetchActivationFunnelCounts(
+const ORG_FUNNEL_STEPS: ActivationFunnelStep[] = [
+  "auth_signed_in",
+  "campaign_list_opened",
+  "campaign_create_opened",
+  "campaign_created",
+  "campaign_launched",
+  "report_opened",
+];
+
+function percent(part: number, whole: number): number {
+  if (!Number.isFinite(part) || !Number.isFinite(whole) || whole <= 0) return 0;
+  return Math.round((part / whole) * 1000) / 10;
+}
+
+async function fetchDistinctUserIdsForEvent(
   service: SupabaseClient,
-  sinceIso: string
-): Promise<ActivationFunnelCount[]> {
-  const out: ActivationFunnelCount[] = [];
-  for (const step of ACTIVATION_STEPS) {
-    const [{ count: events }, { data: rows }] = await Promise.all([
-      service
-        .from("product_events")
-        .select("*", { count: "exact", head: true })
-        .eq("event_name", step)
-        .gte("created_at", sinceIso),
-      service
-        .from("product_events")
-        .select("user_id")
-        .eq("event_name", step)
-        .gte("created_at", sinceIso)
-        .limit(100000),
-    ]);
-    const users = new Set((rows ?? []).map((r) => (r as { user_id?: string }).user_id).filter(Boolean)).size;
-    out.push({ event_name: step, users, events: events ?? 0 });
+  sinceIso: string,
+  event: ActivationFunnelStep,
+  filters?: { user_type?: "creator" | "org"; x_connected?: boolean }
+): Promise<Set<string>> {
+  let q = service
+    .from("product_events")
+    .select("user_id")
+    .eq("event_name", event)
+    .gte("created_at", sinceIso)
+    .limit(100000);
+  if (filters?.user_type) q = q.eq("user_type", filters.user_type);
+  if (typeof filters?.x_connected === "boolean") q = q.eq("x_connected", filters.x_connected);
+  const { data } = await q;
+  const out = new Set<string>();
+  for (const row of data ?? []) {
+    const id = (row as { user_id?: string }).user_id;
+    if (id) out.add(id);
   }
   return out;
+}
+
+async function fetchEventCount(
+  service: SupabaseClient,
+  sinceIso: string,
+  event: ActivationFunnelStep,
+  filters?: { user_type?: "creator" | "org" }
+): Promise<number> {
+  let q = service
+    .from("product_events")
+    .select("*", { count: "exact", head: true })
+    .eq("event_name", event)
+    .gte("created_at", sinceIso);
+  if (filters?.user_type) q = q.eq("user_type", filters.user_type);
+  const { count } = await q;
+  return count ?? 0;
+}
+
+async function fetchPlanBreakdown(
+  service: SupabaseClient,
+  sinceIso: string,
+  event: ActivationFunnelStep,
+  userType: "creator" | "org"
+): Promise<ActivationPlanBreakdown[]> {
+  const { data } = await service
+    .from("product_events")
+    .select("effective_plan, user_id")
+    .eq("event_name", event)
+    .eq("user_type", userType)
+    .gte("created_at", sinceIso)
+    .limit(100000);
+  const byPlan = new Map<string, Set<string>>();
+  for (const row of data ?? []) {
+    const plan = ((row as { effective_plan?: string | null }).effective_plan ?? "free").toLowerCase();
+    const userId = (row as { user_id?: string }).user_id;
+    if (!userId) continue;
+    const bucket = byPlan.get(plan) ?? new Set<string>();
+    bucket.add(userId);
+    byPlan.set(plan, bucket);
+  }
+  return [...byPlan.entries()]
+    .map(([effective_plan, ids]) => ({ effective_plan, users: ids.size }))
+    .sort((a, b) => b.users - a.users);
+}
+
+async function buildFunnelRows(
+  service: SupabaseClient,
+  sinceIso: string,
+  steps: ActivationFunnelStep[],
+  userType: "creator" | "org"
+): Promise<{ rows: ActivationFunnelRow[]; userSets: Map<ActivationFunnelStep, Set<string>>; biggest: ActivationDropoff | null }> {
+  const userSets = new Map<ActivationFunnelStep, Set<string>>();
+  for (const step of steps) {
+    userSets.set(step, await fetchDistinctUserIdsForEvent(service, sinceIso, step, { user_type: userType }));
+  }
+
+  const rows: ActivationFunnelRow[] = [];
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    const prev = i > 0 ? steps[i - 1] : null;
+    const users = userSets.get(step)?.size ?? 0;
+    const events = await fetchEventCount(service, sinceIso, step, { user_type: userType });
+    const prevUsers = prev ? userSets.get(prev)?.size ?? 0 : 0;
+    rows.push({
+      step,
+      users,
+      events,
+      conversion_from_prev_pct: prev ? percent(users, prevUsers) : null,
+    });
+  }
+
+  let biggest: ActivationDropoff | null = null;
+  for (let i = 1; i < steps.length; i++) {
+    const from = steps[i - 1];
+    const to = steps[i];
+    const fromUsers = userSets.get(from) ?? new Set<string>();
+    const toUsers = userSets.get(to) ?? new Set<string>();
+    let dropped = 0;
+    for (const uid of fromUsers) {
+      if (!toUsers.has(uid)) dropped += 1;
+    }
+    const dropPct = percent(dropped, fromUsers.size);
+    if (!biggest || dropped > biggest.users_dropped) {
+      biggest = {
+        from_step: from,
+        to_step: to,
+        users_dropped: dropped,
+        dropoff_pct: dropPct,
+      };
+    }
+  }
+
+  return { rows, userSets, biggest };
+}
+
+export async function fetchActivationFunnelInsights(
+  service: SupabaseClient,
+  sinceIso: string
+): Promise<ActivationFunnelInsights> {
+  const creator = await buildFunnelRows(service, sinceIso, CREATOR_FUNNEL_STEPS, "creator");
+  const org = await buildFunnelRows(service, sinceIso, ORG_FUNNEL_STEPS, "org");
+
+  const [creatorSignedInWithX, creatorSignedInWithoutX] = await Promise.all([
+    fetchDistinctUserIdsForEvent(service, sinceIso, "auth_signed_in", { user_type: "creator", x_connected: true }),
+    fetchDistinctUserIdsForEvent(service, sinceIso, "auth_signed_in", { user_type: "creator", x_connected: false }),
+  ]);
+
+  const creatorSignedIn = creator.userSets.get("auth_signed_in") ?? new Set<string>();
+  const creatorProfileCompleted = creator.userSets.get("profile_completed") ?? new Set<string>();
+  const creatorXConnected = creator.userSets.get("x_connect_completed") ?? new Set<string>();
+  const creatorAnalytics = creator.userSets.get("analytics_opened") ?? new Set<string>();
+  const creatorMarket = creator.userSets.get("marketplace_opened") ?? new Set<string>();
+  const orgCreated = org.userSets.get("campaign_created") ?? new Set<string>();
+  const orgLaunched = org.userSets.get("campaign_launched") ?? new Set<string>();
+
+  let creatorsSignedInNotProfileCompleted = 0;
+  for (const uid of creatorSignedIn) if (!creatorProfileCompleted.has(uid)) creatorsSignedInNotProfileCompleted += 1;
+  let creatorsProfileCompletedNotXConnected = 0;
+  for (const uid of creatorProfileCompleted) if (!creatorXConnected.has(uid)) creatorsProfileCompletedNotXConnected += 1;
+  let creatorsXConnectedNotAnalyticsOpened = 0;
+  for (const uid of creatorXConnected) if (!creatorAnalytics.has(uid)) creatorsXConnectedNotAnalyticsOpened += 1;
+  let creatorsAnalyticsOpenedNotMarketplaceOpened = 0;
+  for (const uid of creatorAnalytics) if (!creatorMarket.has(uid)) creatorsAnalyticsOpenedNotMarketplaceOpened += 1;
+  let orgCampaignCreatedNotLaunched = 0;
+  for (const uid of orgCreated) if (!orgLaunched.has(uid)) orgCampaignCreatedNotLaunched += 1;
+
+  const [creatorPlanBreakdown, orgPlanBreakdown] = await Promise.all([
+    fetchPlanBreakdown(service, sinceIso, "analytics_opened", "creator"),
+    fetchPlanBreakdown(service, sinceIso, "campaign_created", "org"),
+  ]);
+
+  return {
+    creator: {
+      rows: creator.rows,
+      biggest_dropoff: creator.biggest,
+    },
+    org: {
+      rows: org.rows,
+      biggest_dropoff: org.biggest,
+    },
+    x_connection_split: {
+      creators_signed_in_x_connected: creatorSignedInWithX.size,
+      creators_signed_in_x_not_connected: creatorSignedInWithoutX.size,
+    },
+    plan_breakdowns: {
+      creator_analytics_opened: creatorPlanBreakdown,
+      org_campaign_created: orgPlanBreakdown,
+    },
+    stalls: {
+      creators_signed_in_not_profile_completed: creatorsSignedInNotProfileCompleted,
+      creators_profile_completed_not_x_connected: creatorsProfileCompletedNotXConnected,
+      creators_x_connected_not_analytics_opened: creatorsXConnectedNotAnalyticsOpened,
+      creators_analytics_opened_not_marketplace_opened: creatorsAnalyticsOpenedNotMarketplaceOpened,
+      org_campaign_created_not_launched: orgCampaignCreatedNotLaunched,
+    },
+  };
 }

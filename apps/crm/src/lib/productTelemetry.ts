@@ -16,6 +16,7 @@ export type ProductEventName =
   | "campaign_created"
   | "campaign_create_opened"
   | "campaign_launched"
+  | "campaign_finalized"
   | "report_opened"
   | "case_study_opened"
   | "ops_action_used";

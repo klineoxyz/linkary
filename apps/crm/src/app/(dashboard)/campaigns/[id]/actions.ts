@@ -738,7 +738,7 @@ export async function finalizeCampaignAction(campaignId: string): Promise<{ erro
     statuses: ["approved"],
   });
 
-  void recordProductEvent(supabase, user.id, "campaign_launched", "crm", { campaign_id: campaignId });
+  void recordProductEvent(supabase, user.id, "campaign_finalized", "crm", { campaign_id: campaignId });
 
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath(`/campaigns/${campaignId}/report`);
@@ -773,6 +773,7 @@ export async function updateCampaignStatusAction(
   const out = await setCampaignStatus(supabase, campaignId, nextStatus);
   if (out.error) return out;
   if (nextStatus === "active" && campaign.status !== "active") {
+    void recordProductEvent(supabase, user.id, "campaign_launched", "crm", { campaign_id: campaignId });
     // Best-effort baseline for promoted handles at launch time.
     await seedBaselineSnapshotsOnLaunch(supabase, campaign);
   }

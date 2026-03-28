@@ -20,22 +20,17 @@ function xTickIndices(n: number): number[] {
   return [...new Set(out)].sort((a, b) => a - b);
 }
 
-function normalizeSeries(values: number[]): number[] {
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min;
-  if (span <= 0) return values.map(() => 0.5);
-  return values.map((v) => (v - min) / span);
+/** Compact tick labels for large cumulative counts */
+function fmtAxis(n: number): string {
+  if (!Number.isFinite(n)) return "—";
+  const v = Math.round(n);
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(v) >= 10_000) return `${(v / 1_000).toFixed(1)}k`;
+  return v.toLocaleString();
 }
 
-function normalizeNullable(values: (number | null)[]): (number | null)[] {
-  const finite = values.filter((v): v is number => v != null && Number.isFinite(v));
-  if (finite.length === 0) return values.map(() => null);
-  const min = Math.min(...finite);
-  const max = Math.max(...finite);
-  const span = max - min;
-  if (span <= 0) return values.map((v) => (v != null ? 0.5 : null));
-  return values.map((v) => (v == null || !Number.isFinite(v) ? null : (v - min) / span));
+function spanSafe(min: number, max: number): number {
+  return Math.max(max - min, 1);
 }
 
 export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoint[] }) {
@@ -47,12 +42,13 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
 
   const w = 720;
   const h = 292;
-  const padL = 44;
-  const padR = 12;
+  const padL = 56;
+  const padR = 56;
   const padT = 18;
   const padB = 56;
   const innerW = w - padL - padR;
   const innerH = h - padT - padB;
+  const rightSpineX = w - padR + 4;
 
   const onSvgMove = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
@@ -86,7 +82,6 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
 
   const n = series.length;
   const xAt = (i: number) => padL + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW);
-  const yAt = (t: number) => padT + innerH - t * innerH;
 
   const eng = series.map((p) => p.cumulative_engagements);
   const views = series.map((p) => p.cumulative_views);
@@ -96,32 +91,65 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
     ? series.map((p) => p.mindshare_score)
     : series.map((p) => p.cumulative_posts);
 
-  const engN = normalizeSeries(eng);
-  const viewN = normalizeSeries(views);
-  const thirdN = hasMindshare ? normalizeNullable(thirdVals) : normalizeSeries(thirdVals as number[]);
+  const engMin = Math.min(...eng);
+  const engMax = Math.max(...eng);
+  const spanEng = spanSafe(engMin, engMax);
+  const yEng = (v: number) => padT + innerH - ((v - engMin) / spanEng) * innerH;
 
-  function pathLine(ty: number[]): string {
-    if (n === 0) return "";
+  const vMin = Math.min(...views);
+  const vMax = Math.max(...views);
+  const spanV = spanSafe(vMin, vMax);
+  const yView = (v: number) => padT + innerH - ((v - vMin) / spanV) * innerH;
+
+  let yThird: (v: number) => number;
+  let thirdMin: number;
+  let thirdMax: number;
+  if (hasMindshare) {
+    const finite = thirdVals.filter((x): x is number => x != null && Number.isFinite(x));
+    thirdMin = finite.length ? Math.min(...finite) : 0;
+    thirdMax = finite.length ? Math.max(...finite) : 1;
+    const spanT = spanSafe(thirdMin, thirdMax);
+    yThird = (v: number) => padT + innerH - ((v - thirdMin) / spanT) * innerH;
+  } else {
+    const posts = thirdVals as number[];
+    thirdMin = Math.min(...posts);
+    thirdMax = Math.max(...posts);
+    const spanP = spanSafe(thirdMin, thirdMax);
+    yThird = (v: number) => padT + innerH - ((v - thirdMin) / spanP) * innerH;
+  }
+
+  function pathEngAbs(): string {
     let d = "";
     for (let i = 0; i < n; i++) {
       const x = xAt(i);
-      const y = yAt(ty[i]);
+      const y = yEng(eng[i]);
       d += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
     }
     return d;
   }
 
-  function pathLineNullable(ty: (number | null)[]): string {
+  function pathViewAbs(): string {
+    let d = "";
+    for (let i = 0; i < n; i++) {
+      const x = xAt(i);
+      const y = yView(views[i]);
+      d += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+    }
+    return d;
+  }
+
+  function pathThirdAbs(): string {
     let d = "";
     let pen = false;
     for (let i = 0; i < n; i++) {
-      const t = ty[i];
-      if (t == null) {
+      const raw = thirdVals[i];
+      if (raw == null || !Number.isFinite(Number(raw))) {
         pen = false;
         continue;
       }
+      const v = Number(raw);
       const x = xAt(i);
-      const y = yAt(t);
+      const y = yThird(v);
       if (!pen) {
         d += `M ${x} ${y}`;
         pen = true;
@@ -132,9 +160,9 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
     return d;
   }
 
-  const pathEng = pathLine(engN);
-  const pathView = pathLine(viewN);
-  const pathThird = hasMindshare ? pathLineNullable(thirdN as (number | null)[]) : pathLine(thirdN as number[]);
+  const pathEng = pathEngAbs();
+  const pathView = pathViewAbs();
+  const pathThird = pathThirdAbs();
 
   const baseY = padT + innerH;
   const lastX = xAt(n - 1);
@@ -156,14 +184,15 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
   const axisStroke = "var(--crm-border)";
   const tickStroke = "var(--crm-border)";
   const labelFill = "var(--crm-muted)";
-  const yPctLabels: { t: number; text: string }[] = [
-    { t: 1, text: "100%" },
-    { t: 0.5, text: "50%" },
-    { t: 0, text: "0%" },
-  ];
+
+  /** Horizontal grid + left ticks: tied to engagement scale */
+  const engTickVals = [engMax, engMin + spanEng / 2, engMin];
+
+  const viewTickVals = [vMax, vMin + spanV / 2, vMin];
 
   const hi = hoverI != null ? series[hoverI] : null;
   const hiX = hoverI != null ? xAt(hoverI) : null;
+  const hiEngY = hoverI != null ? yEng(eng[hoverI]) : null;
 
   return (
     <div ref={wrapRef} className="relative rounded-2xl border-2 border-[color-mix(in_srgb,var(--crm-primary)_28%,var(--crm-border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_8%,var(--crm-card))_0%,color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))_100%)] p-5 shadow-md">
@@ -171,7 +200,8 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
         <div>
           <p className="font-semibold text-[var(--crm-foreground)]">Cumulative growth trajectory</p>
           <p className="text-xs text-[var(--crm-muted)] mt-0.5">
-            Layer 1 — running totals of views and engagements per ingested day; third line is mindshare when populated, otherwise cumulative posts. Hover for absolute values.
+            Layer 1 — left axis: cumulative engagements; right axis: cumulative views; green line uses its own scale ({thirdLabel}
+            ). Hover for exact values.
           </p>
         </div>
         {engBadge ? (
@@ -185,7 +215,7 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
           viewBox={`0 0 ${w} ${h}`}
           className="h-[min(20rem,52vw)] w-full min-h-[220px] cursor-crosshair"
           role="img"
-          aria-label="Normalized cumulative trajectory chart with day and percent axes"
+          aria-label="Cumulative trajectory: engagements and views on absolute scales"
           onMouseMove={onSvgMove}
           onMouseLeave={() => {
             setHoverI(null);
@@ -199,11 +229,11 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
             </linearGradient>
           </defs>
           <rect x="0" y="0" width={w} height={h} fill="transparent" />
-          {[0, 0.5, 1].map((t) => {
-            const y = yAt(t);
+          {engTickVals.map((ev) => {
+            const y = yEng(ev);
             return (
               <line
-                key={t}
+                key={`grid-${ev}`}
                 x1={padL}
                 x2={w - padR}
                 y1={y}
@@ -258,40 +288,72 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
               opacity={0.85}
             />
           ) : null}
-          {hoverI != null ? (
-            <circle cx={xAt(hoverI)} cy={yAt(engN[hoverI])} r={5} fill="#2563eb" stroke="var(--crm-card)" strokeWidth={2} />
+          {hoverI != null && hiEngY != null ? (
+            <circle cx={xAt(hoverI)} cy={hiEngY} r={5} fill="#2563eb" stroke="var(--crm-card)" strokeWidth={2} />
           ) : null}
           <line x1={padL} y1={padT} x2={padL} y2={baseY} stroke={axisStroke} strokeWidth={1.35} />
-          {yPctLabels.map(({ t, text }) => {
-            const y = yAt(t);
+          {engTickVals.map((ev) => {
+            const y = yEng(ev);
             return (
-              <g key={text}>
+              <g key={`yle-${ev}`}>
                 <line x1={padL - 5} y1={y} x2={padL} y2={y} stroke={tickStroke} strokeWidth={1.1} />
                 <text
                   x={padL - 8}
                   y={y}
                   textAnchor="end"
                   dominantBaseline="middle"
-                  fontSize={10}
+                  fontSize={9}
                   fill={labelFill}
                   style={{ fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif" }}
                 >
-                  {text}
+                  {fmtAxis(ev)}
                 </text>
               </g>
             );
           })}
           <text
-            x={10}
+            x={12}
             y={padT + innerH / 2}
             textAnchor="middle"
             dominantBaseline="middle"
-            fontSize={9}
+            fontSize={8}
             fill={labelFill}
-            transform={`rotate(-90, 10, ${padT + innerH / 2})`}
+            transform={`rotate(-90, 12, ${padT + innerH / 2})`}
             style={{ fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif" }}
           >
-            Normalized
+            Engagements
+          </text>
+          <line x1={rightSpineX} y1={padT} x2={rightSpineX} y2={baseY} stroke={axisStroke} strokeWidth={1.35} />
+          {viewTickVals.map((vv) => {
+            const y = yView(vv);
+            return (
+              <g key={`yr-${vv}`}>
+                <line x1={rightSpineX} y1={y} x2={rightSpineX + 5} y2={y} stroke={tickStroke} strokeWidth={1.1} />
+                <text
+                  x={rightSpineX + 8}
+                  y={y}
+                  textAnchor="start"
+                  dominantBaseline="middle"
+                  fontSize={9}
+                  fill={labelFill}
+                  style={{ fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif" }}
+                >
+                  {fmtAxis(vv)}
+                </text>
+              </g>
+            );
+          })}
+          <text
+            x={w - 10}
+            y={padT + innerH / 2}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize={8}
+            fill={labelFill}
+            transform={`rotate(90, ${w - 10}, ${padT + innerH / 2})`}
+            style={{ fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif" }}
+          >
+            Views
           </text>
           <line x1={padL} y1={baseY} x2={w - padR} y2={baseY} stroke={axisStroke} strokeWidth={1.35} />
           {xTicks.map((i) => {
@@ -354,29 +416,27 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-[var(--crm-muted)]">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-4 rounded-sm bg-[#2563eb]" aria-hidden />
-          Cumulative engagements
+          Cumulative engagements (left scale)
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-4 rounded-sm bg-[#fb923c]" aria-hidden />
-          Cumulative views
+          Cumulative views (right scale)
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-4 rounded-sm bg-[#34d399]" aria-hidden />
-          {thirdLabel}
+          {thirdLabel} (own min–max)
         </span>
       </div>
       <p className="mt-2 text-[10px] leading-relaxed text-[var(--crm-muted)]">
-        <strong className="text-[var(--crm-foreground)]">Y-axis</strong> shows 0–100% of each series&apos;s own min–max range (shape comparison);{" "}
-        <strong className="text-[var(--crm-foreground)]">X-axis</strong> is ingested calendar day. Tooltip shows absolute cumulative totals.{" "}
-        {!hasMindshare ? (
+        <strong className="text-[var(--crm-foreground)]">Left Y-axis</strong> is cumulative engagements (absolute).{" "}
+        <strong className="text-[var(--crm-foreground)]">Right Y-axis</strong> is cumulative views (absolute). The green line uses its own
+        vertical range so it stays visible next to much larger view counts. {!hasMindshare ? (
           <>
-            <strong className="text-[var(--crm-foreground)]">Mindshare</strong> appears as the third line when{" "}
-            <code className="text-[9px] bg-[var(--crm-bg)] px-1 rounded">mindshare_score</code> is ingested on daily rows.
+            <strong className="text-[var(--crm-foreground)]">Mindshare</strong> replaces posts when{" "}
+            <code className="text-[9px] bg-[var(--crm-bg)] px-1 rounded">mindshare_score</code> is ingested.
           </>
         ) : (
-          <>
-            Third line uses only days with a non-null mindshare value; gaps mean no index for that day.
-          </>
+          <>Dashed green segments skip days without a mindshare value.</>
         )}
       </p>
     </div>

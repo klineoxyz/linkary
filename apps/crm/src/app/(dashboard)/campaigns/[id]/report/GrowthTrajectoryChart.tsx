@@ -401,15 +401,18 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
             <p className="text-[var(--crm-muted)]">
               <span className="text-[#fb923c] font-medium">Views</span> {hi.cumulative_views.toLocaleString()} cumulative
             </p>
-            <p className="text-[var(--crm-muted)]">
-              <span className="text-[#34d399] font-medium">Posts</span> {hi.cumulative_posts.toLocaleString()} cumulative
-            </p>
             {hasMindshare ? (
               <p className="text-[var(--crm-muted)]">
-                <span className="font-medium text-[var(--crm-foreground)]">Mindshare</span>{" "}
-                {hi.mindshare_score != null ? hi.mindshare_score.toLocaleString() : "—"}
+                <span className="text-[#34d399] font-medium">Mindshare</span>{" "}
+                {hi.mindshare_score != null && Number.isFinite(hi.mindshare_score)
+                  ? hi.mindshare_score.toLocaleString()
+                  : "—"}
               </p>
-            ) : null}
+            ) : (
+              <p className="text-[var(--crm-muted)]">
+                <span className="text-[#34d399] font-medium">Posts</span> {hi.cumulative_posts.toLocaleString()} cumulative
+              </p>
+            )}
           </div>
         ) : null}
       </div>

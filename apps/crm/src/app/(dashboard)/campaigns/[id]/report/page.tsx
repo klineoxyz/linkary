@@ -803,15 +803,16 @@ export default async function CampaignReportPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {participant_submission_rollups.map((r) => (
+                  {participant_submission_rollups.map((r, rowIndex) => (
                     <tr key={r.participant_profile_id} className="border-b border-[var(--crm-border)] last:border-0">
-                      <td className="p-3">
+                      <td className="p-3 text-[var(--crm-muted)] tabular-nums w-10 align-top">{rowIndex + 1}</td>
+                      <td className="p-3 align-top">
                         <ParticipantCell
                           avatarUrl={topContributorById.get(r.participant_profile_id)?.avatar_url}
                           label={toParticipantLabel(topContributorById.get(r.participant_profile_id), r.participant_profile_id)}
                         />
                       </td>
-                      <td className="p-3 text-[var(--crm-muted)] text-xs capitalize">
+                      <td className="p-3 text-[var(--crm-muted)] text-xs capitalize align-top">
                         {r.participant_invitation_status ?? "—"}
                       </td>
                       <td className="p-3 text-right tabular-nums">{r.submissions_total}</td>

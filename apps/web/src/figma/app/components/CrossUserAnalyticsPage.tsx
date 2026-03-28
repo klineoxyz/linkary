@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BarChart2, ExternalLink, Lock, AlertCircle, Users } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -72,6 +72,18 @@ type Status = "idle" | "loading" | "success" | "locked" | "unauthorized" | "rate
 
 type WindowParam = "7d" | "30d" | "90d";
 
+function normalizeCrossUserWindow(raw: string | null | undefined): WindowParam | null {
+  const w = (raw ?? "").toLowerCase();
+  if (w === "7d" || w === "30d" || w === "90d") return w;
+  return null;
+}
+
+function windowParamToDaysCross(w: WindowParam): number {
+  if (w === "7d") return 7;
+  if (w === "90d") return 90;
+  return 30;
+}
+
 export default function CrossUserAnalyticsPage({
   username: usernameProp,
   setRoute,
@@ -80,13 +92,36 @@ export default function CrossUserAnalyticsPage({
   setRoute?: (r: { name: string }) => void;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const username = (usernameProp ?? "").trim().replace(/^@/, "");
   const [status, setStatus] = useState<Status>("loading");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [windowPayloadRaw, setWindowPayloadRaw] = useState<unknown>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [rateLimitResetAt, setRateLimitResetAt] = useState<string | null>(null);
-  const [windowParam, setWindowParam] = useState<WindowParam>("30d");
+  const [windowParam, setWindowParamState] = useState<WindowParam>(() => {
+    if (typeof window === "undefined") return "30d";
+    return normalizeCrossUserWindow(new URLSearchParams(window.location.search).get("window")) ?? "30d";
+  });
+
+  useEffect(() => {
+    const fromUrl = normalizeCrossUserWindow(searchParams?.get("window"));
+    if (fromUrl) setWindowParamState(fromUrl);
+  }, [searchParams]);
+
+  const commitCrossUserWindow = useCallback(
+    (w: WindowParam) => {
+      setWindowParamState(w);
+      const path =
+        pathname ??
+        (username ? `/app/analytics/profile/${encodeURIComponent(username)}` : "/app/analytics");
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("window", w);
+      router.replace(`${path}?${params.toString()}`, { scroll: false });
+    },
+    [pathname, router, searchParams, username]
+  );
 
   const fetchData = useCallback(async () => {
     if (!username) {
@@ -151,8 +186,14 @@ export default function CrossUserAnalyticsPage({
   const followerEarliestDate = payload?.follower_earliest_snapshot_date ?? null;
   const activeDaysEngagement = engagementPoints.filter((p) => (p.posts ?? 0) > 0).length;
   const activeDaysCadence = cadencePoints.filter((p) => (p.posts ?? 0) > 0).length;
-  const noPostsEngagement = activeDaysEngagement === 0;
-  const noPostsCadence = activeDaysCadence === 0;
+  const postsTotalInWindow = payload?.kpis?.posts_total ?? 0;
+  const noPostsInWindow =
+    !Number.isFinite(Number(postsTotalInWindow)) || Number(postsTotalInWindow) === 0;
+  const noPostsEngagement = noPostsInWindow;
+  const noPostsCadence = noPostsInWindow;
+  const expectedWindowDays = windowParamToDaysCross(windowParam);
+  const windowPayloadStale =
+    payload != null && Number(payload.window_days) !== expectedWindowDays;
   const insufficientEngagement = false;
   const insufficientCadence = false;
   const followerInsufficient = false;
@@ -396,7 +437,7 @@ export default function CrossUserAnalyticsPage({
                   <button
                     key={w}
                     type="button"
-                    onClick={() => setWindowParam(w)}
+                    onClick={() => commitCrossUserWindow(w)}
                     className={`px-3 py-1.5 rounded-md text-xs font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
                       windowParam === w ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                     }`}
@@ -421,6 +462,14 @@ export default function CrossUserAnalyticsPage({
             >
               <ExternalLink className="h-4 w-4" /> View public profile
             </button>
+          </div>
+        ) : windowPayloadStale ? (
+          <div className="space-y-4 sm:space-y-6" data-page="analytics">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ChartSkeleton title="Engagement Rate" />
+              <ChartSkeleton title="Posting Cadence" />
+            </div>
+            <ChartSkeleton title="Follower Growth" />
           </div>
         ) : (
           <div data-page="analytics" className="space-y-4 sm:space-y-6">

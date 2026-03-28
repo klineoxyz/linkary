@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
 import { Users, BarChart2, Eye, TrendingUp, Heart, ThumbsUp, MessageCircle } from "lucide-react";
@@ -186,6 +186,18 @@ async function fetchOwnerAnalyticsStatus(): Promise<OwnerAnalyticsInitStatus | n
 
 type WindowParam = "7d" | "30d" | "90d";
 
+function normalizeAnalyticsWindowParam(raw: string | null | undefined): WindowParam | null {
+  const w = (raw ?? "").toLowerCase();
+  if (w === "7d" || w === "30d" || w === "90d") return w;
+  return null;
+}
+
+function windowParamToDays(w: WindowParam): number {
+  if (w === "7d") return 7;
+  if (w === "90d") return 90;
+  return 30;
+}
+
 type PlatformTab = "x" | "youtube" | "tiktok" | "facebook";
 
 const PLATFORM_TABS: { id: PlatformTab; label: string; available: boolean }[] = [
@@ -243,9 +255,33 @@ function PlatformIcon({ platform, active }: { platform: PlatformTab; active: boo
 
 export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name: string }) => void }) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
   const showDebug = searchParams?.get("debug") === "1";
   const [platform, setPlatform] = useState<PlatformTab>("x");
-  const [windowParam, setWindowParam] = useState<WindowParam>("30d");
+  const [windowParam, setWindowParamState] = useState<WindowParam>(() => {
+    if (typeof window === "undefined") return "30d";
+    return normalizeAnalyticsWindowParam(new URLSearchParams(window.location.search).get("window")) ?? "30d";
+  });
+
+  /** React to ?window= from back/forward or external navigation (must not depend on windowParam — avoids loops). */
+  useEffect(() => {
+    const fromUrl = normalizeAnalyticsWindowParam(searchParams?.get("window"));
+    if (fromUrl) setWindowParamState(fromUrl);
+  }, [searchParams]);
+
+  const commitAnalyticsWindow = useCallback(
+    (w: WindowParam) => {
+      setWindowParamState(w);
+      const path = pathname ?? "/app/analytics";
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("window", w);
+      const qs = params.toString();
+      router.replace(qs ? `${path}?${qs}` : path, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
   const key = swrKeyAnalyticsX(windowParam, showDebug);
 
   const { data: res, isLoading, mutate: mutateAnalytics } = useSWR<ApiResponse>(key, analyticsFetcher, {
@@ -303,8 +339,12 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const payload = extractAnalyticsPayload(res);
   const analyticsEntitlement = effectiveAnalyticsEntitlement(payload as AnalyticsXContractData | null);
   const chartsLockedBasic = analyticsEntitlement === "basic";
+  const expectedWindowDays = windowParamToDays(windowParam);
+  /** SWR key can lag one tick; never mix KPIs/charts from a different window than the selected tab. */
+  const windowPayloadStale =
+    payload != null && Number(payload.window_days) !== expectedWindowDays;
   /** Avoid flashing "0" KPI tiles while SWR has no payload yet (initial load / key change). */
-  const kpiTilesLoading = platform === "x" && (isLoading || !payload);
+  const kpiTilesLoading = platform === "x" && (isLoading || !payload || windowPayloadStale);
   const analyticsPayloadMalformed =
     platform === "x" &&
     !isLoading &&
@@ -328,8 +368,11 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const followerEarliestDate = payload?.follower_earliest_snapshot_date ?? null;
   const activeDaysEngagement = engagementPoints.filter((p) => (p.posts ?? 0) > 0).length;
   const activeDaysCadence = cadencePoints.filter((p) => (p.posts ?? 0) > 0).length;
-  const noPostsEngagement = activeDaysEngagement === 0;
-  const noPostsCadence = activeDaysCadence === 0;
+  const postsTotalInWindow = payload?.kpis?.posts_total ?? 0;
+  /** Same rule as Posts KPI — avoids empty charts disagreeing with in-window post count. */
+  const noPostsInWindow = !Number.isFinite(Number(postsTotalInWindow)) || Number(postsTotalInWindow) === 0;
+  const noPostsEngagement = noPostsInWindow;
+  const noPostsCadence = noPostsInWindow;
   /** Daily series already has one bar per day in the window; show it whenever any day has posts (avoid blocking 7d on â€œ3 posting daysâ€). */
   const insufficientEngagement = false;
   const insufficientCadence = false;
@@ -604,7 +647,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   <button
                     key={w}
                     type="button"
-                    onClick={() => setWindowParam(w)}
+                    onClick={() => commitAnalyticsWindow(w)}
                     className={`px-3 py-1.5 rounded-md text-xs font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
                       windowParam === w ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                     }`}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Shield, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Shield } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -10,8 +10,11 @@ import { supabase } from "@/lib/supabase";
  */
 export default function InviteRequiredView({
   onSuccess,
+  onBack,
 }: {
   onSuccess: () => void;
+  /** Return to welcome / sign-in (e.g. sign out). */
+  onBack?: () => void | Promise<void>;
 }) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,6 +62,16 @@ export default function InviteRequiredView({
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-lg">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={() => void Promise.resolve(onBack())}
+            className="mb-5 -mt-1 flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-md"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+            Back
+          </button>
+        ) : null}
         <div className="flex items-center gap-3 mb-6">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Shield className="h-6 w-6 text-primary" />

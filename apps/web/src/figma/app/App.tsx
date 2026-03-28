@@ -5196,6 +5196,7 @@ function LinkaryAppInner({ initialRoute: initialRouteProp }: { initialRoute?: st
           setAccessAllowed(true);
           refreshMe();
         }}
+        onBack={handleSignOut}
       />
     );
   }

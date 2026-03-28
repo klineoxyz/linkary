@@ -1,6 +1,8 @@
+"use client";
+
+import { useCallback, useId, useRef, useState } from "react";
 import type { GrowthTrajectoryPoint } from "@/lib/report";
 
-/** Short date for axis ticks (date-only ISO safe). */
 function shortDayLabel(isoDay: string): string {
   const s = isoDay.trim();
   const d = /\d{4}-\d{2}-\d{2}/.test(s) ? new Date(`${s}T12:00:00.000Z`) : new Date(s);
@@ -37,6 +39,12 @@ function normalizeNullable(values: (number | null)[]): (number | null)[] {
 }
 
 export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoint[] }) {
+  const uid = useId().replace(/:/g, "");
+  const gradId = `growthTrajEngFill-${uid}`;
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [hoverI, setHoverI] = useState<number | null>(null);
+  const [tipPos, setTipPos] = useState<{ x: number; y: number } | null>(null);
+
   const w = 720;
   const h = 292;
   const padL = 44;
@@ -45,6 +53,27 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
   const padB = 56;
   const innerW = w - padL - padR;
   const innerH = h - padT - padB;
+
+  const onSvgMove = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      if (series.length === 0) return;
+      const svg = e.currentTarget;
+      const rect = svg.getBoundingClientRect();
+      const xSvg = ((e.clientX - rect.left) / rect.width) * w;
+      if (xSvg < padL || xSvg > w - padR) {
+        setHoverI(null);
+        setTipPos(null);
+        return;
+      }
+      const n = series.length;
+      const t = (xSvg - padL) / innerW;
+      const i = Math.min(n - 1, Math.max(0, Math.round(t * (n <= 1 ? 0 : n - 1))));
+      setHoverI(i);
+      const br = wrapRef.current?.getBoundingClientRect();
+      if (br) setTipPos({ x: e.clientX - br.left, y: e.clientY - br.top });
+    },
+    [series.length, innerW, padL, padR, w]
+  );
 
   if (series.length === 0) {
     return (
@@ -110,8 +139,7 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
   const baseY = padT + innerH;
   const lastX = xAt(n - 1);
   const firstX = xAt(0);
-  const areaEng =
-    pathEng.length > 0 ? `${pathEng} L ${lastX} ${baseY} L ${firstX} ${baseY} Z` : "";
+  const areaEng = pathEng.length > 0 ? `${pathEng} L ${lastX} ${baseY} L ${firstX} ${baseY} Z` : "";
 
   const firstDay = series[0].day;
   const lastDay = series[n - 1].day;
@@ -134,13 +162,16 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
     { t: 0, text: "0%" },
   ];
 
+  const hi = hoverI != null ? series[hoverI] : null;
+  const hiX = hoverI != null ? xAt(hoverI) : null;
+
   return (
-    <div className="rounded-2xl border-2 border-[color-mix(in_srgb,var(--crm-primary)_28%,var(--crm-border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_8%,var(--crm-card))_0%,color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))_100%)] p-5 shadow-md">
+    <div ref={wrapRef} className="relative rounded-2xl border-2 border-[color-mix(in_srgb,var(--crm-primary)_28%,var(--crm-border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--crm-primary)_8%,var(--crm-card))_0%,color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))_100%)] p-5 shadow-md">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="font-semibold text-[var(--crm-foreground)]">Cumulative growth trajectory</p>
           <p className="text-xs text-[var(--crm-muted)] mt-0.5">
-            Layer 1 — running totals of views and engagements per ingested day; third line is mindshare when populated, otherwise cumulative posts.
+            Layer 1 — running totals of views and engagements per ingested day; third line is mindshare when populated, otherwise cumulative posts. Hover for absolute values.
           </p>
         </div>
         {engBadge ? (
@@ -152,12 +183,17 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
       <div className="mt-4 rounded-xl border border-[color-mix(in_srgb,var(--crm-border)_70%,transparent)] bg-[var(--crm-bg)] p-3">
         <svg
           viewBox={`0 0 ${w} ${h}`}
-          className="h-[min(20rem,52vw)] w-full min-h-[220px]"
+          className="h-[min(20rem,52vw)] w-full min-h-[220px] cursor-crosshair"
           role="img"
           aria-label="Normalized cumulative trajectory chart with day and percent axes"
+          onMouseMove={onSvgMove}
+          onMouseLeave={() => {
+            setHoverI(null);
+            setTipPos(null);
+          }}
         >
           <defs>
-            <linearGradient id="growthTrajEngFill" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.35" />
               <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.03" />
             </linearGradient>
@@ -178,7 +214,7 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
               />
             );
           })}
-          {areaEng ? <path d={areaEng} fill="url(#growthTrajEngFill)" /> : null}
+          {areaEng ? <path d={areaEng} fill={`url(#${gradId})`} /> : null}
           {pathView ? (
             <path
               d={pathView}
@@ -210,15 +246,22 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
               strokeLinecap="round"
             />
           ) : null}
-          {/* Y axis spine + ticks + labels (normalized scale) */}
-          <line
-            x1={padL}
-            y1={padT}
-            x2={padL}
-            y2={baseY}
-            stroke={axisStroke}
-            strokeWidth={1.35}
-          />
+          {hiX != null && hoverI != null ? (
+            <line
+              x1={hiX}
+              x2={hiX}
+              y1={padT}
+              y2={baseY}
+              stroke="var(--crm-primary)"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              opacity={0.85}
+            />
+          ) : null}
+          {hoverI != null ? (
+            <circle cx={xAt(hoverI)} cy={yAt(engN[hoverI])} r={5} fill="#2563eb" stroke="var(--crm-card)" strokeWidth={2} />
+          ) : null}
+          <line x1={padL} y1={padT} x2={padL} y2={baseY} stroke={axisStroke} strokeWidth={1.35} />
           {yPctLabels.map(({ t, text }) => {
             const y = yAt(t);
             return (
@@ -250,15 +293,7 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
           >
             Normalized
           </text>
-          {/* X axis spine + ticks + labels (ingested days) */}
-          <line
-            x1={padL}
-            y1={baseY}
-            x2={w - padR}
-            y2={baseY}
-            stroke={axisStroke}
-            strokeWidth={1.35}
-          />
+          <line x1={padL} y1={baseY} x2={w - padR} y2={baseY} stroke={axisStroke} strokeWidth={1.35} />
           {xTicks.map((i) => {
             const x = xAt(i);
             const lbl = shortDayLabel(series[i].day);
@@ -289,6 +324,32 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
             Ingested calendar day
           </text>
         </svg>
+        {hi && tipPos ? (
+          <div
+            className="pointer-events-none absolute z-10 max-w-[17rem] rounded-lg border border-[var(--crm-border)] bg-[var(--crm-card)] px-3 py-2 text-[11px] shadow-lg"
+            style={{
+              left: Math.min(Math.max(tipPos.x + 12, 8), (wrapRef.current?.offsetWidth ?? 400) - 280),
+              top: Math.max(tipPos.y - 8, 8),
+            }}
+          >
+            <p className="font-semibold text-[var(--crm-foreground)]">{hi.day}</p>
+            <p className="mt-1 text-[var(--crm-muted)]">
+              <span className="text-[#2563eb] font-medium">Eng.</span> {hi.cumulative_engagements.toLocaleString()} cumulative
+            </p>
+            <p className="text-[var(--crm-muted)]">
+              <span className="text-[#fb923c] font-medium">Views</span> {hi.cumulative_views.toLocaleString()} cumulative
+            </p>
+            <p className="text-[var(--crm-muted)]">
+              <span className="text-[#34d399] font-medium">Posts</span> {hi.cumulative_posts.toLocaleString()} cumulative
+            </p>
+            {hasMindshare ? (
+              <p className="text-[var(--crm-muted)]">
+                <span className="font-medium text-[var(--crm-foreground)]">Mindshare</span>{" "}
+                {hi.mindshare_score != null ? hi.mindshare_score.toLocaleString() : "—"}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-[var(--crm-muted)]">
         <span className="inline-flex items-center gap-1.5">
@@ -306,7 +367,7 @@ export function GrowthTrajectoryChart({ series }: { series: GrowthTrajectoryPoin
       </div>
       <p className="mt-2 text-[10px] leading-relaxed text-[var(--crm-muted)]">
         <strong className="text-[var(--crm-foreground)]">Y-axis</strong> shows 0–100% of each series&apos;s own min–max range (shape comparison);{" "}
-        <strong className="text-[var(--crm-foreground)]">X-axis</strong> is ingested calendar day. Use KPI cards and tables for absolute totals.{" "}
+        <strong className="text-[var(--crm-foreground)]">X-axis</strong> is ingested calendar day. Tooltip shows absolute cumulative totals.{" "}
         {!hasMindshare ? (
           <>
             <strong className="text-[var(--crm-foreground)]">Mindshare</strong> appears as the third line when{" "}

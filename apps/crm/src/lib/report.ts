@@ -14,7 +14,14 @@ import {
   type CampaignSubmissionRow,
   type TopContributor,
 } from "@/lib/campaigns";
-import { getAccountGrowth, getEndSnapshotStatus, type AccountGrowth, type EndSnapshotStatus } from "@/lib/snapshots";
+import {
+  getAccountGrowth,
+  getEndSnapshotStatus,
+  getLatestCampaignAccountSnapshot,
+  type AccountGrowth,
+  type EndSnapshotStatus,
+  type LatestSnapshotPrefill,
+} from "@/lib/snapshots";
 import type { ContributionRow } from "@/lib/contribution";
 import { aggregateTaskContributionByParticipant, computeContribution } from "@/lib/contribution";
 import {
@@ -111,6 +118,8 @@ export type CampaignReportData = {
   participant_contribution_reconciliation: ParticipantContributionReconciliation;
   /** Label map for CSV/export display. */
   profile_labels: Record<string, string>;
+  /** Most recent snapshot row for prefill on Record snapshot form. */
+  latest_snapshot_prefill: LatestSnapshotPrefill | null;
 };
 
 /**
@@ -127,29 +136,40 @@ export async function getCampaignReportData(
   await reconcileCampaignContributionFromSubmissions(supabase, campaignId);
 
   const promotedHandles = campaign.promoted_social_handles ?? [];
-  const [kpis, submissions, topAllSubs, topApprovedSubs, dailyRows, contributionRows, contributors, accountGrowth, endSnapshotStatus] =
-    await Promise.all([
-      getCampaignKpis(supabase, campaignId, {
-        budget: campaign.budget,
-        currency: campaign.currency,
-      }),
-      getCampaignSubmissions(supabase, campaignId),
-      getCampaignTopContributors(supabase, campaignId),
-      getCampaignTopContributorsByApprovedSubmissions(supabase, campaignId),
-      supabase
-        .from("crm_campaign_metrics_daily")
-        .select("day, total_views, total_engagements, total_posts, mindshare_score")
-        .eq("campaign_id", campaignId)
-        .order("day", { ascending: true }),
-      /** Operator report always includes done + approved tasks so finalized campaigns still show real progress. */
-      computeContribution(supabase, campaignId, {
-        weighted: true,
-        statuses: ["approved", "done"],
-      }),
-      getCampaignContributors(supabase, campaignId),
-      getAccountGrowth(supabase, campaignId),
-      getEndSnapshotStatus(supabase, campaignId, promotedHandles),
-    ]);
+  const [
+    kpis,
+    submissions,
+    topAllSubs,
+    topApprovedSubs,
+    dailyRows,
+    contributionRows,
+    contributors,
+    accountGrowth,
+    endSnapshotStatus,
+    latest_snapshot_prefill,
+  ] = await Promise.all([
+    getCampaignKpis(supabase, campaignId, {
+      budget: campaign.budget,
+      currency: campaign.currency,
+    }),
+    getCampaignSubmissions(supabase, campaignId),
+    getCampaignTopContributors(supabase, campaignId),
+    getCampaignTopContributorsByApprovedSubmissions(supabase, campaignId),
+    supabase
+      .from("crm_campaign_metrics_daily")
+      .select("day, total_views, total_engagements, total_posts, mindshare_score")
+      .eq("campaign_id", campaignId)
+      .order("day", { ascending: true }),
+    /** Operator report always includes done + approved tasks so finalized campaigns still show real progress. */
+    computeContribution(supabase, campaignId, {
+      weighted: true,
+      statuses: ["approved", "done"],
+    }),
+    getCampaignContributors(supabase, campaignId),
+    getAccountGrowth(supabase, campaignId),
+    getEndSnapshotStatus(supabase, campaignId, promotedHandles),
+    getLatestCampaignAccountSnapshot(supabase, campaignId),
+  ]);
 
   const taskContributionByProfile = aggregateTaskContributionByParticipant(contributionRows);
   const contributionByProfile = taskContributionByProfile;
@@ -325,6 +345,7 @@ export async function getCampaignReportData(
     end_snapshot_status: endSnapshotStatus,
     participant_contribution_reconciliation,
     profile_labels,
+    latest_snapshot_prefill,
   };
 }
 

@@ -14,6 +14,8 @@ import type { TopContributorWithContribution } from "@/lib/report";
 import { parseSubmissionMetricsExtended } from "@/lib/reportAggregates";
 import { RecomputeContributionButton } from "../RecomputeContributionButton";
 import { GrowthTrajectoryChart } from "./GrowthTrajectoryChart";
+import { InteractiveMiniBars } from "./InteractiveMiniBars";
+import { InteractiveCompositionBar } from "./InteractiveCompositionBar";
 import { recordProductEvent } from "@/lib/productTelemetry";
 
 function fmtNum(n: number | null | undefined): string {
@@ -148,103 +150,6 @@ function groupByWeek(series: ChartPoint[]): { week: string; views: number; engag
   return [...m.values()].sort((a, b) => (a.week < b.week ? -1 : 1));
 }
 
-function MiniBars({
-  title,
-  subtitle,
-  points,
-  valueKey,
-  color,
-  emphasize = false,
-}: {
-  title: string;
-  subtitle?: string;
-  points: { key: string; views: number; engagements: number; posts: number }[];
-  valueKey: "views" | "engagements" | "posts";
-  color: string;
-  emphasize?: boolean;
-}) {
-  const data = points.slice(-16);
-  const max = Math.max(1, ...data.map((d) => d[valueKey]));
-  const w = 720;
-  const h = emphasize ? 190 : 160;
-  const padX = 16;
-  const padY = emphasize ? 16 : 14;
-  const innerW = w - padX * 2;
-  const innerH = h - padY * 2;
-  const step = innerW / Math.max(1, data.length);
-  const bw = Math.max(6, Math.floor(step) - 6);
-  const wrap = emphasize
-    ? "rounded-3xl border-2 border-[color-mix(in_srgb,var(--crm-primary)_32%,var(--crm-border))] bg-[color-mix(in_srgb,var(--crm-primary)_7%,var(--crm-card))] p-5 shadow-md ring-1 ring-[color-mix(in_srgb,var(--crm-primary)_12%,transparent)]"
-    : "rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))] p-5 shadow-sm";
-  return (
-    <div className={wrap}>
-      <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between">
-        <p className={`font-semibold text-[var(--crm-foreground)] ${emphasize ? "text-base" : "text-sm"}`}>{title}</p>
-        {subtitle ? <p className="text-xs text-[var(--crm-muted)]">{subtitle}</p> : null}
-      </div>
-      <div className="mt-4 rounded-xl bg-[var(--crm-bg)] p-3">
-        <svg viewBox={`0 0 ${w} ${h}`} className={emphasize ? "h-44 w-full" : "h-36 w-full"}>
-          <rect x="0" y="0" width={w} height={h} fill="transparent" />
-          {data.map((d, i) => {
-            const v = d[valueKey];
-            const bh = Math.max(2, Math.round((v / max) * innerH));
-            const x = padX + i * step + (step - bw) / 2;
-            const y = h - padY - bh;
-            return (
-              <rect key={`${d.key}-${valueKey}`} x={x} y={y} width={bw} height={bh} rx={3} fill={color}>
-                <title>{`${d.key}: ${v.toLocaleString()}`}</title>
-              </rect>
-            );
-          })}
-        </svg>
-      </div>
-    </div>
-  );
-}
-
-function CompositionBar({
-  title,
-  parts,
-}: {
-  title: string;
-  parts: { key: string; label: string; value: number; color: string }[];
-}) {
-  const total = parts.reduce((s, p) => s + p.value, 0);
-  if (total <= 0) {
-    return (
-      <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
-        <p className="text-sm font-semibold text-[var(--crm-foreground)]">{title}</p>
-        <p className="mt-2 text-sm text-[var(--crm-muted)]">No supported engagement breakdown available.</p>
-      </div>
-    );
-  }
-  return (
-    <div className="rounded-2xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-5 shadow-sm">
-      <p className="text-sm font-semibold text-[var(--crm-foreground)]">{title}</p>
-      <div className="mt-4 overflow-hidden rounded-full bg-[var(--crm-bg)] h-4 flex">
-        {parts.map((p) => (
-          <div
-            key={p.key}
-            style={{ width: `${(p.value / total) * 100}%`, backgroundColor: p.color }}
-            title={`${p.label}: ${p.value.toLocaleString()}`}
-          />
-        ))}
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--crm-muted)] sm:grid-cols-4">
-        {parts.map((p) => (
-          <div key={`${p.key}-legend`} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--crm-bg)] px-2 py-1.5">
-            <span className="inline-flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: p.color }} />
-              <span className="text-[var(--crm-foreground)]">{p.label}</span>
-            </span>
-            <span className="tabular-nums">{((p.value / total) * 100).toFixed(0)}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function LeaderboardTable({
   rows,
   valueHeader,
@@ -351,10 +256,16 @@ export default async function CampaignReportPage({
     finalized_at,
     end_snapshot_status,
     participant_contribution_reconciliation: rec,
+    latest_snapshot_prefill,
   } = data;
 
   const { promotedCount, endSnapshotCount, hasAllEndSnapshots } = end_snapshot_status;
   const growthPartial = finalized_at && promotedCount > 0 && !hasAllEndSnapshots;
+  const promotedTargetsN = promoted_social_handles.length;
+  const endSnapWithLikes = account_growth.filter((g) => g.end.likes != null).length;
+  const endSnapWithReplies = account_growth.filter((g) => g.end.replies != null).length;
+  const endSnapWithQuotes = account_growth.filter((g) => g.end.quotes != null).length;
+  const endSnapWithReposts = account_growth.filter((g) => g.end.reposts != null).length;
 
   const topContributorIds = Array.from(
     new Set([
@@ -568,30 +479,76 @@ export default async function CampaignReportPage({
             <p className="mt-1 text-xl font-bold tabular-nums text-[var(--crm-foreground)]">
               {likes != null ? likes.toLocaleString() : "—"}
             </p>
-            <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">From operator end snapshot(s)</p>
+            <p className="text-[10px] text-[var(--crm-muted)] mt-0.5 leading-snug">
+              Σ across promoted target accounts with this field on their <strong className="text-[var(--crm-foreground)]">end</strong> snapshot (
+              {endSnapWithLikes}/{promotedTargetsN || "—"} accounts). Not participant proof totals.
+            </p>
           </div>
           <div className="rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))] p-4 shadow-sm">
             <p className="text-[11px] font-semibold text-[var(--crm-muted)] uppercase tracking-wide">Replies (end snapshots)</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-[var(--crm-foreground)]">
               {replies != null ? replies.toLocaleString() : "—"}
             </p>
-            <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">From operator end snapshot(s)</p>
+            <p className="text-[10px] text-[var(--crm-muted)] mt-0.5 leading-snug">
+              Σ end snapshot replies ({endSnapWithReplies}/{promotedTargetsN || "—"} promoted accounts).
+            </p>
           </div>
           <div className="rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))] p-4 shadow-sm">
             <p className="text-[11px] font-semibold text-[var(--crm-muted)] uppercase tracking-wide">Quotes (end snapshots)</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-[var(--crm-foreground)]">
               {quotes != null ? quotes.toLocaleString() : "—"}
             </p>
-            <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">From operator end snapshot(s)</p>
+            <p className="text-[10px] text-[var(--crm-muted)] mt-0.5 leading-snug">
+              Σ end snapshot quotes ({endSnapWithQuotes}/{promotedTargetsN || "—"} promoted accounts).
+            </p>
           </div>
           <div className="rounded-2xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_94%,var(--crm-bg))] p-4 shadow-sm">
             <p className="text-[11px] font-semibold text-[var(--crm-muted)] uppercase tracking-wide">Reposts (end snapshots)</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-[var(--crm-foreground)]">
               {reposts != null ? reposts.toLocaleString() : "—"}
             </p>
-            <p className="text-[10px] text-[var(--crm-muted)] mt-0.5">From operator end snapshot(s)</p>
+            <p className="text-[10px] text-[var(--crm-muted)] mt-0.5 leading-snug">
+              Σ end snapshot reposts ({endSnapWithReposts}/{promotedTargetsN || "—"} promoted accounts).
+            </p>
           </div>
         </div>
+        {account_growth.length > 0 ? (
+          <details className="mt-4 rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-3 text-sm">
+            <summary className="cursor-pointer font-medium text-[var(--crm-foreground)]">
+              Per promoted account — end snapshot engagement fields
+            </summary>
+            <p className="mt-2 text-xs text-[var(--crm-muted)]">
+              Each row is the operator-recorded <strong className="text-[var(--crm-foreground)]">end</strong> snapshot for that target handle. Empty cells
+              mean that field was not entered for that account.
+            </p>
+            <div className="mt-2 overflow-x-auto">
+              <table className="w-full text-xs min-w-[32rem]">
+                <thead>
+                  <tr className="border-b border-[var(--crm-border)] text-left text-[var(--crm-muted)]">
+                    <th className="py-2 pr-2 font-medium">Account</th>
+                    <th className="py-2 pr-2 text-right font-medium">Likes</th>
+                    <th className="py-2 pr-2 text-right font-medium">Replies</th>
+                    <th className="py-2 pr-2 text-right font-medium">Quotes</th>
+                    <th className="py-2 text-right font-medium">Reposts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {account_growth.map((g) => (
+                    <tr key={`${g.platform}:${g.handle}`} className="border-b border-[var(--crm-border)] last:border-0">
+                      <td className="py-2 pr-2 font-medium text-[var(--crm-foreground)]">
+                        {g.platform}: {g.handle}
+                      </td>
+                      <td className="py-2 pr-2 text-right tabular-nums">{g.end.likes != null ? g.end.likes.toLocaleString() : "—"}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums">{g.end.replies != null ? g.end.replies.toLocaleString() : "—"}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums">{g.end.quotes != null ? g.end.quotes.toLocaleString() : "—"}</td>
+                      <td className="py-2 text-right tabular-nums">{g.end.reposts != null ? g.end.reposts.toLocaleString() : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        ) : null}
 
         {target_daily_summary.has_daily && (
           <div className="mt-6 rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] overflow-hidden">
@@ -645,23 +602,23 @@ export default async function CampaignReportPage({
           <GrowthTrajectoryChart series={growth_trajectory} />
         </div>
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          <MiniBars
+          <InteractiveMiniBars
             title="Views / impressions over time"
-            subtitle={chart_series.length ? "Daily (last 16 points)" : "No daily rows yet"}
+            subtitle={chart_series.length ? "Daily (last 16 points) — hover bars" : "No daily rows yet"}
             points={(chart_series as ChartPoint[]).map((d) => ({ key: d.day, views: d.views, engagements: d.engagements, posts: d.posts }))}
             valueKey="views"
             color="#fb923c"
           />
-          <MiniBars
+          <InteractiveMiniBars
             title="Engagements over time"
-            subtitle={chart_series.length ? "Daily (last 16 points)" : "No daily rows yet"}
+            subtitle={chart_series.length ? "Daily (last 16 points) — hover bars" : "No daily rows yet"}
             points={(chart_series as ChartPoint[]).map((d) => ({ key: d.day, views: d.views, engagements: d.engagements, posts: d.posts }))}
             valueKey="engagements"
             color="#60a5fa"
           />
-          <MiniBars
+          <InteractiveMiniBars
             title="Posts over time"
-            subtitle={chart_series.length ? "Daily (last 16 points)" : "No daily rows yet"}
+            subtitle={chart_series.length ? "Daily (last 16 points) — hover bars" : "No daily rows yet"}
             points={(chart_series as ChartPoint[]).map((d) => ({ key: d.day, views: d.views, engagements: d.engagements, posts: d.posts }))}
             valueKey="posts"
             color="#34d399"
@@ -669,20 +626,20 @@ export default async function CampaignReportPage({
         </div>
         <div className="mt-7 space-y-5">
           <div className="grid gap-5 xl:grid-cols-2">
-            <MiniBars
+            <InteractiveMiniBars
               emphasize
               title="Engagement per week"
-              subtitle={weeklyBars.length ? "Weekly totals (Layer 1 timeline)" : "No daily rows yet"}
+              subtitle={weeklyBars.length ? "Weekly totals (Layer 1 timeline) — hover bars" : "No daily rows yet"}
               points={weeklyBars.map((w) => ({ key: w.key, views: w.views, engagements: w.engagements, posts: w.posts }))}
               valueKey="engagements"
               color="#fb923c"
             />
-            <MiniBars
+            <InteractiveMiniBars
               emphasize
               title="Engagement per participant"
               subtitle={
                 perParticipantBars.length
-                  ? "Σ snapshot engagements from proofs (top 12, Layer 2)"
+                  ? "Σ snapshot engagements from proofs (top 12, Layer 2) — hover bars"
                   : "No participant rollup data yet"
               }
               points={perParticipantBars}
@@ -692,7 +649,7 @@ export default async function CampaignReportPage({
           </div>
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--crm-muted)]">Engagement mix</p>
-            <CompositionBar title={compositionLabel} parts={compositionParts} />
+            <InteractiveCompositionBar title={compositionLabel} parts={compositionParts} />
           </div>
         </div>
 
@@ -706,6 +663,7 @@ export default async function CampaignReportPage({
           <RecordSnapshotForm
             campaignId={id}
             hasHandles={promoted_social_handles.length > 0}
+            latestSnapshot={latest_snapshot_prefill}
           />
           {account_growth.length === 0 ? (
             <div className="rounded-xl border border-[var(--crm-border)] bg-[var(--crm-card)] p-6 text-center text-sm text-[var(--crm-muted)]">

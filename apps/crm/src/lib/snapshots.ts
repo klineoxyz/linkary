@@ -150,6 +150,45 @@ export type EndSnapshotStatus = {
   hasAllEndSnapshots: boolean;
 };
 
+/** Most recent promoted-account snapshot row (any type) — used to prefill the record form. */
+export type LatestSnapshotPrefill = {
+  snapshot_type: SnapshotType | null;
+  snapshot_at: string | null;
+  followers: number | null;
+  views: number | null;
+  likes: number | null;
+  replies: number | null;
+  quotes: number | null;
+  reposts: number | null;
+  engagement_total: number | null;
+};
+
+export async function getLatestCampaignAccountSnapshot(
+  supabase: SupabaseClient,
+  campaignId: string
+): Promise<LatestSnapshotPrefill | null> {
+  const { data } = await supabase
+    .from("crm_campaign_account_snapshots")
+    .select("snapshot_type, snapshot_at, metrics, created_at")
+    .eq("campaign_id", campaignId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  const m = (data.metrics ?? {}) as SnapshotMetrics;
+  return {
+    snapshot_type: (data.snapshot_type as SnapshotType) ?? null,
+    snapshot_at: data.snapshot_at ?? null,
+    followers: m.followers ?? null,
+    views: m.views ?? null,
+    likes: m.likes ?? null,
+    replies: m.replies ?? null,
+    quotes: m.quotes ?? null,
+    reposts: m.reposts ?? null,
+    engagement_total: m.engagement_total ?? null,
+  };
+}
+
 /**
  * For a campaign and its promoted handles, how many have an end snapshot.
  * Used to warn before finalize and to show report completeness.

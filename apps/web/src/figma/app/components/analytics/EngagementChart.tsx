@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { PATH_INTEGRATIONS } from "@/lib/analytics-owner-state-presentation";
 import { ChartCard } from "./ChartCard";
 import { EmptyState } from "./EmptyState";
 
@@ -53,7 +54,7 @@ export function EngagementChart({
   }, [points]);
 
   const coverage = coverageDays != null && windowDays != null ? `${coverageDays}/${windowDays}d` : undefined;
-  const integrationsHref = "/settings/integrations";
+  const integrationsHref = PATH_INTEGRATIONS;
 
   if (noPostsInPeriod) {
     return (

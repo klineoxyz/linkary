@@ -851,7 +851,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
           <>
             <p className="text-xs text-muted-foreground -mt-1 mb-2 max-w-3xl">
               The <span className="tabular-nums">7d</span> / <span className="tabular-nums">30d</span> /{" "}
-              <span className="tabular-nums">90d</span> control applies to every chart below. Each day is one bucket; series are built from{" "}
+              <span className="tabular-nums">90d</span> control applies to every chart below. Each day is one UTC calendar bucket; axis labels are{" "}
+              <span className="font-medium text-foreground/90">window start–end inclusive</span>. Series are built from{" "}
               <code className="text-[10px] bg-muted px-1 rounded">x_tweets</code> (engagement &amp; cadence) and{" "}
               <code className="text-[10px] bg-muted px-1 rounded">x_daily_snapshots</code> (followers), written by sync and backfill jobs.
             </p>

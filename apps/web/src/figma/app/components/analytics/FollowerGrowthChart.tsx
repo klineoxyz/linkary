@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { PATH_INTEGRATIONS } from "@/lib/analytics-owner-state-presentation";
 import { ChartCard } from "./ChartCard";
 import { EmptyState } from "./EmptyState";
 
@@ -39,7 +40,7 @@ export function FollowerGrowthChart({
   const coverage = coverageDays != null && windowDays != null ? `${coverageDays}/${windowDays}d` : undefined;
   const lowVariance = hasAnyData && range > 0 && range <= 2;
 
-  const integrationsHref = "/settings/integrations";
+  const integrationsHref = PATH_INTEGRATIONS;
 
   if (insufficientData) {
     const hasAnyFollowerDays = (coverageDays ?? 0) > 0 || !!earliestDate;

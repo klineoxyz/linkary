@@ -22,11 +22,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(site),
   title: { default: "Linkary", template: "%s · Linkary" },
   description: "Link-in-bio, verified gigs, and reputation for Web3 creators and projects.",
-  icons: {
-    /** Canonical PNG marks (provided assets; do not replace with generated art). */
-    icon: [{ url: "/icons/linkary-icon.png", type: "image/png", sizes: "any" }],
-    apple: [{ url: "/icons/linkary-icon-small.png", type: "image/png" }],
-  },
+  // Favicon: src/app/icon.png + apple-icon.png (same PNG as /icons/linkary-icon.png).
   openGraph: {
     type: "website",
     siteName: "Linkary",

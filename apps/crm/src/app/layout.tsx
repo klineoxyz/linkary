@@ -15,10 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Linkary CRM",
   description: "Campaign operations and task workspace",
-  icons: {
-    icon: [{ url: "/icons/linkary-icon.png", type: "image/png", sizes: "any" }],
-    apple: [{ url: "/icons/linkary-icon-small.png", type: "image/png" }],
-  },
+  // Favicon: src/app/icon.png + apple-icon.png (same PNG as /icons/linkary-icon.png).
   robots: { index: false, follow: false },
 };
 

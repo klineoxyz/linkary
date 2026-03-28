@@ -12,10 +12,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const site = (process.env.NEXT_PUBLIC_APP_URL ?? "https://crm.linkary.xyz").replace(/\/$/, "");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(site),
   title: "Linkary CRM",
   description: "Campaign operations and task workspace",
-  // Favicon: src/app/icon.png + apple-icon.png (same PNG as /icons/linkary-icon.png).
+  icons: {
+    icon: [{ url: "/icons/linkary-icon.png", type: "image/png", sizes: "any" }],
+    apple: [{ url: "/icons/linkary-icon-small.png", type: "image/png" }],
+  },
   robots: { index: false, follow: false },
 };
 

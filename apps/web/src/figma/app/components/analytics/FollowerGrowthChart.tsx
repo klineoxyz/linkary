@@ -2,8 +2,10 @@
 
 import React, { useMemo } from "react";
 import { PATH_INTEGRATIONS } from "@/lib/analytics-owner-state-presentation";
+import { AnalyticsRichChartCard } from "./AnalyticsRichChartCard";
 import { ChartCard } from "./ChartCard";
 import { EmptyState } from "./EmptyState";
+import { buildFollowerRichHeader, type WindowMeta } from "./richHeaderFromPayload";
 
 export interface FollowerGrowthChartProps {
   points: Array<{ date: string; follower_delta: number | null }>;
@@ -14,7 +16,12 @@ export interface FollowerGrowthChartProps {
   bucketLabel?: "Daily" | "Weekly";
   onRefresh?: () => void;
   refreshDisabled?: boolean;
+  useRichShell?: boolean;
+  windowMeta?: WindowMeta;
 }
+
+const VIEW_W = 420;
+const VIEW_H = 188;
 
 export function FollowerGrowthChart({
   points,
@@ -25,118 +32,223 @@ export function FollowerGrowthChart({
   bucketLabel,
   onRefresh,
   refreshDisabled,
+  useRichShell,
+  windowMeta,
 }: FollowerGrowthChartProps) {
-  const { min, max, hasAnyData } = useMemo(() => {
-    const numeric = points
-      .map((p) => (p.follower_delta == null ? null : Number(p.follower_delta)))
-      .filter((v): v is number => v != null && Number.isFinite(v));
-    if (numeric.length === 0) return { min: 0, max: 1, hasAnyData: false };
-    const minVal = Math.min(0, ...numeric);
-    const maxVal = Math.max(0, ...numeric);
-    return { min: minVal, max: maxVal === minVal ? minVal + 1 : maxVal, hasAnyData: true };
+  const { hasAnyData, series } = useMemo(() => {
+    let cum = 0;
+    const seriesPts = points.map((p) => {
+      const d = p.follower_delta == null ? null : Number(p.follower_delta);
+      if (d != null && Number.isFinite(d)) cum += d;
+      return { date: p.date, cum, hasSnap: d != null && Number.isFinite(d) };
+    });
+    const hasSnap = points.some(
+      (p) => p.follower_delta != null && Number.isFinite(Number(p.follower_delta))
+    );
+    return { hasAnyData: hasSnap, series: seriesPts };
   }, [points]);
 
-  const range = max - min || 1;
-  const coverage = coverageDays != null && windowDays != null ? `${coverageDays}/${windowDays}d` : undefined;
-  const lowVariance = hasAnyData && range > 0 && range <= 2;
-
+  const coverage =
+    coverageDays != null && windowDays != null ? `${coverageDays}/${windowDays}d` : undefined;
   const integrationsHref = PATH_INTEGRATIONS;
+  const useRich = !!(useRichShell && windowMeta);
+
+  const covDays = coverageDays ?? 0;
+
+  const richHeader = useMemo(() => {
+    if (!useRich || !windowMeta) return null;
+    if (insufficientData) {
+      return buildFollowerRichHeader({
+        window: windowMeta,
+        coverageDays: covDays,
+        points,
+        earliestDate,
+        mode: "insufficient",
+        insufficientHasPartial: covDays > 0 || !!earliestDate,
+      });
+    }
+    if (!hasAnyData || points.length === 0) {
+      return buildFollowerRichHeader({
+        window: windowMeta,
+        coverageDays: covDays,
+        points,
+        earliestDate,
+        mode: "empty",
+      });
+    }
+    return buildFollowerRichHeader({
+      window: windowMeta,
+      coverageDays: covDays,
+      points,
+      earliestDate,
+      mode: "ok",
+    });
+  }, [useRich, windowMeta, insufficientData, hasAnyData, points, covDays, earliestDate]);
+
+  const wrap = (inner: React.ReactNode) => {
+    if (useRich && richHeader) {
+      return (
+        <AnalyticsRichChartCard {...richHeader} lowVarianceNote={richHeader.lowVarianceNote}>
+          {inner}
+        </AnalyticsRichChartCard>
+      );
+    }
+    return (
+      <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel}>
+        {inner}
+      </ChartCard>
+    );
+  };
 
   if (insufficientData) {
-    const hasAnyFollowerDays = (coverageDays ?? 0) > 0 || !!earliestDate;
+    const hasAnyFollowerDays = covDays > 0 || !!earliestDate;
     const message = hasAnyFollowerDays
       ? earliestDate
         ? "Follower history starts on " + earliestDate + "."
         : "Follower history is starting to populate."
       : "No follower history yet.";
-    return (
-      <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel}>
-        <EmptyState
-          message={message}
-          secondary={hasAnyFollowerDays ? "Need a few more days of follower tracking to show a trend." : "Connect X and check back tomorrow."}
-          coverage={earliestDate ? `First: ${earliestDate}` : coverage}
-          onRefresh={onRefresh}
-          refreshDisabled={refreshDisabled}
-          integrationsHref={integrationsHref}
-        />
-      </ChartCard>
+    return wrap(
+      <EmptyState
+        message={message}
+        secondary={
+          hasAnyFollowerDays
+            ? "More daily snapshots will tighten this trend line."
+            : "Connect X and check back tomorrow."
+        }
+        coverage={earliestDate ? `First: ${earliestDate}` : coverage}
+        onRefresh={onRefresh}
+        refreshDisabled={refreshDisabled}
+        integrationsHref={integrationsHref}
+      />
     );
   }
 
   if (!hasAnyData || points.length === 0) {
-    return (
-      <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel}>
-        <EmptyState
-          message="No follower data in this period."
-          secondary="Connect X in Integrations to sync."
-          onRefresh={onRefresh}
-          refreshDisabled={refreshDisabled}
-          integrationsHref={integrationsHref}
-        />
-      </ChartCard>
+    return wrap(
+      <EmptyState
+        message="No follower data in this period."
+        secondary="Connect X in Integrations to sync."
+        onRefresh={onRefresh}
+        refreshDisabled={refreshDisabled}
+        integrationsHref={integrationsHref}
+      />
     );
   }
 
-  const zeroPct = min < 0 && max > 0 ? ((0 - min) / range) * 100 : min >= 0 ? 0 : 100;
-  const CHART_H = 180;
-  const barAreaHeight = CHART_H - 28;
-  const minBarHeightPct = (4 / barAreaHeight) * 100;
-  const denseWindow = points.length > 14;
-  const barTrackMinWidthPx = denseWindow ? points.length * 10 : undefined;
+  const cums = series.map((s) => s.cum);
+  let minY = cums.length ? Math.min(0, ...cums) : 0;
+  let maxY = cums.length ? Math.max(0, ...cums) : 1;
+  if (minY === maxY) {
+    minY -= 1;
+    maxY += 1;
+  }
 
-  return (
-    <ChartCard title="Follower Growth" coverage={coverage} bucketLabel={bucketLabel} lowVariance={lowVariance}>
-      <div className="relative border-l border-b border-border pl-6 pb-5 pt-1 w-full" style={{ height: CHART_H }}>
-        <div className="absolute left-0 top-1 text-[10px] text-muted-foreground tabular-nums">{max}</div>
-        <div className="absolute left-0 bottom-5 text-[10px] text-muted-foreground tabular-nums">0</div>
-        {min < 0 && max > 0 && (
-          <div
-            className="absolute left-0 right-0 border-t border-dashed border-border/70 z-0"
-            style={{ bottom: `calc(${zeroPct}% + 1.25rem)` }}
-          />
+  const n = series.length;
+  const span = maxY - minY || 1;
+  const padY = Math.max(Math.abs(span) * 0.12, 1);
+  const y0 = minY - padY;
+  const y1 = maxY + padY;
+  const leftG = 36;
+  const rightG = 10;
+  const topG = 14;
+  const bottomG = 26;
+  const iw = VIEW_W - leftG - rightG;
+  const ih = VIEW_H - topG - bottomG;
+  const toX = (i: number) => leftG + (n <= 1 ? iw / 2 : (i / Math.max(n - 1, 1)) * iw);
+  const toY = (cum: number) => topG + ih - ((cum - y0) / (y1 - y0)) * ih;
+
+  const linePath = series
+    .map((s, i) => `${i === 0 ? "M" : "L"} ${toX(i).toFixed(2)} ${toY(s.cum).toFixed(2)}`)
+    .join(" ");
+  const lastX = toX(n - 1);
+  const firstX = toX(0);
+  const baseY = topG + ih;
+  const areaPath = `${linePath} L ${lastX.toFixed(2)} ${baseY} L ${firstX.toFixed(2)} ${baseY} Z`;
+
+  const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const gradId = `followerAreaGrad-${uid}`;
+
+  const chart = (
+    <div className="rounded-lg border border-border/50 bg-background/80 px-2 py-2 shadow-inner">
+      <svg
+        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+        className="w-full h-auto max-h-[220px]"
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label="Follower growth cumulative change"
+      >
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.03" />
+          </linearGradient>
+        </defs>
+        {[0, 0.25, 0.5, 0.75, 1].map((t) => {
+          const gy = topG + ih * t;
+          return (
+            <line
+              key={t}
+              x1={leftG}
+              y1={gy}
+              x2={VIEW_W - rightG}
+              y2={gy}
+              stroke="currentColor"
+              strokeOpacity={0.06}
+              strokeWidth={1}
+            />
+          );
+        })}
+        <path d={areaPath} fill={`url(#${gradId})`} />
+        <path
+          d={linePath}
+          fill="none"
+          stroke="var(--primary)"
+          strokeWidth={2.25}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {series.map((s, i) =>
+          s.hasSnap ? (
+            <circle
+              key={`${s.date}-${i}`}
+              cx={toX(i)}
+              cy={toY(s.cum)}
+              r={2.25}
+              fill="var(--primary)"
+              stroke="var(--card)"
+              strokeWidth={1.5}
+            />
+          ) : null
         )}
-        <div
-          className={`pl-0 w-full ${denseWindow ? "overflow-x-auto overflow-y-hidden" : ""}`}
-          style={{ height: barAreaHeight }}
+        <text x={leftG - 4} y={topG + 8} textAnchor="end" className="fill-muted-foreground text-[9px] font-medium tabular-nums">
+          {Math.round(y1)}
+        </text>
+        <text x={leftG - 4} y={baseY - 2} textAnchor="end" className="fill-muted-foreground text-[9px] font-medium tabular-nums">
+          {Math.round(y0)}
+        </text>
+        <text
+          x={firstX}
+          y={VIEW_H - 6}
+          textAnchor="start"
+          className="fill-muted-foreground text-[9px] font-medium tabular-nums"
         >
-          <div
-            className="flex h-full items-stretch gap-px pl-0 w-full"
-            style={barTrackMinWidthPx ? { minWidth: barTrackMinWidthPx } : undefined}
-          >
-          {points.map((p, i) => {
-            const val = p.follower_delta == null ? null : Number(p.follower_delta);
-            const hasData = val !== null && Number.isFinite(val);
-            const heightPct = hasData ? Math.max(minBarHeightPct, ((val - min) / range) * 100) : 0;
-            const isNegative = hasData && val < 0;
-
-            return (
-              <div
-                key={`${p.date}-${i}`}
-                className="flex min-h-0 min-w-0 flex-1 flex-col justify-end"
-                title={
-                  hasData
-                    ? `${p.date}: ${val >= 0 ? "+" : ""}${val.toLocaleString()}`
-                    : `${p.date}: No snapshot`
-                }
-              >
-                {hasData ? (
-                  <div
-                    className={`w-full rounded-t border-t transition-all shadow-sm ${
-                      isNegative ? "bg-amber-500 border-amber-600/50" : "bg-primary border-primary/60"
-                    }`}
-                    style={{ height: `${heightPct}%`, minHeight: 4 }}
-                  />
-                ) : null}
-              </div>
-            );
-          })}
-          </div>
-        </div>
-      </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground mt-2 px-0.5 tabular-nums">
-        <span>{points[0]?.date ?? ""}</span>
-        <span>{points[points.length - 1]?.date ?? ""}</span>
-      </div>
-    </ChartCard>
+          {points[0]?.date ?? ""}
+        </text>
+        <text
+          x={lastX}
+          y={VIEW_H - 6}
+          textAnchor="end"
+          className="fill-muted-foreground text-[9px] font-medium tabular-nums"
+        >
+          {points[points.length - 1]?.date ?? ""}
+        </text>
+      </svg>
+      <p className="mt-2 text-[11px] text-muted-foreground leading-snug">
+        Cumulative line from daily follower deltas; <span className="font-medium text-foreground/85">flat segments</span> mean no
+        snapshot that day. Orange dots mark days with data.
+      </p>
+    </div>
   );
+
+  return wrap(chart);
 }

@@ -17,6 +17,7 @@ import {
   EngagementChart,
   PostingCadenceChart,
   ChartSkeleton,
+  AnalyticsWindowControl,
 } from "@/figma/app/components/analytics";
 
 type Profile = { username: string; display_name: string | null; avatar_url: string | null };
@@ -432,23 +433,21 @@ export default function CrossUserAnalyticsPage({
                   My analytics
                 </button>
               )}
-              <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5" role="group" aria-label="Time window">
-                {(["7d", "30d", "90d"] as const).map((w) => (
-                  <button
-                    key={w}
-                    type="button"
-                    onClick={() => commitCrossUserWindow(w)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
-                      windowParam === w ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {w}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         </header>
+
+        <div className="rounded-2xl border border-border/90 bg-gradient-to-br from-card via-card to-muted/20 p-4 md:p-5 shadow-[0_8px_30px_-18px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.04]">
+          <AnalyticsWindowControl
+            value={windowParam}
+            onChange={commitCrossUserWindow}
+            subtitle={
+              payload && !windowPayloadStale
+                ? `${payload.window_start} → ${payload.window_end} · UTC · ${payload.window_days}-day window`
+                : undefined
+            }
+          />
+        </div>
 
         {!payload ? (
           <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
@@ -474,11 +473,9 @@ export default function CrossUserAnalyticsPage({
         ) : (
           <div data-page="analytics" className="space-y-4 sm:space-y-6">
             <p className="text-xs text-muted-foreground -mt-1 mb-2 max-w-3xl">
-              The <span className="tabular-nums">7d</span> / <span className="tabular-nums">30d</span> /{" "}
-              <span className="tabular-nums">90d</span> control applies to every chart below. Each day is one UTC calendar bucket; axis labels are{" "}
-              <span className="font-medium text-foreground/90">window start–end inclusive</span>. Series are built from{" "}
-              <code className="text-[10px] bg-muted px-1 rounded">x_tweets</code> (engagement &amp; cadence) and{" "}
-              <code className="text-[10px] bg-muted px-1 rounded">x_daily_snapshots</code> (followers), written by sync and backfill jobs.
+              Daily UTC buckets from stored{" "}
+              <code className="text-[10px] bg-muted px-1 rounded">x_tweets</code> and{" "}
+              <code className="text-[10px] bg-muted px-1 rounded">x_daily_snapshots</code>. Cards compare to the prior period of the same length where available.
             </p>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <EngagementChart
@@ -489,6 +486,22 @@ export default function CrossUserAnalyticsPage({
                 noPostsInPeriod={noPostsEngagement}
                 insufficientForTrend={insufficientEngagement}
                 bucketLabel="Daily"
+                useRichShell={!windowPayloadStale}
+                windowMeta={
+                  !windowPayloadStale
+                    ? {
+                        start: payload.window_start,
+                        end: payload.window_end,
+                        days: payload.window_days,
+                      }
+                    : undefined
+                }
+                kpisForRich={{
+                  engagement_pct_avg: payload.kpis.engagement_pct_avg,
+                  posts_total: payload.kpis.posts_total,
+                  prior_engagements_total: payload.kpis.prior_engagements_total,
+                  prior_potential_reach: payload.kpis.prior_potential_reach,
+                }}
               />
               <PostingCadenceChart
                 points={cadencePoints}
@@ -498,6 +511,17 @@ export default function CrossUserAnalyticsPage({
                 noPostsInPeriod={noPostsCadence}
                 insufficientForTrend={insufficientCadence}
                 bucketLabel="Daily"
+                useRichShell={!windowPayloadStale}
+                windowMeta={
+                  !windowPayloadStale
+                    ? {
+                        start: payload.window_start,
+                        end: payload.window_end,
+                        days: payload.window_days,
+                      }
+                    : undefined
+                }
+                priorPostsTotal={payload.kpis.prior_posts_total ?? 0}
               />
             </div>
             <FollowerGrowthChart
@@ -507,6 +531,16 @@ export default function CrossUserAnalyticsPage({
               earliestDate={followerEarliestDate}
               insufficientData={followerInsufficient}
               bucketLabel="Daily"
+              useRichShell={!windowPayloadStale}
+              windowMeta={
+                !windowPayloadStale
+                  ? {
+                      start: payload.window_start,
+                      end: payload.window_end,
+                      days: payload.window_days,
+                    }
+                  : undefined
+              }
             />
             <p className="text-xs text-muted-foreground">
               Only approved analytics are shown. No private data, pricing, or contact info.

@@ -2,6 +2,8 @@ export { AnalyticsHeader } from "./AnalyticsHeader";
 export { KpiCard, type KpiCardProps } from "./KpiCard";
 export { KpiGrid, type KpiGridProps } from "./KpiGrid";
 export { ChartCard, type ChartCardProps } from "./ChartCard";
+export { AnalyticsRichChartCard, type AnalyticsRichChartCardProps } from "./AnalyticsRichChartCard";
+export { AnalyticsWindowControl, type AnalyticsWindowKey } from "./AnalyticsWindowControl";
 export { FollowerGrowthChart } from "./FollowerGrowthChart";
 export { EngagementChart } from "./EngagementChart";
 export { PostingCadenceChart } from "./PostingCadenceChart";

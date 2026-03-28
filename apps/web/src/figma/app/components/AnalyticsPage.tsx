@@ -21,6 +21,7 @@ import {
   EngagementChart,
   PostingCadenceChart,
   ChartSkeleton,
+  AnalyticsWindowControl,
 } from "@/figma/app/components/analytics";
 import { SWR_DEDUP_MS } from "@/lib/swrAuthFetcher";
 import { formatTryAgainAfter, rateLimitFullMessage } from "@/lib/rateLimitUx";
@@ -642,20 +643,6 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   Connect X
                 </a>
               )}
-              <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5" role="group" aria-label="Time window">
-                {(["7d", "30d", "90d"] as const).map((w) => (
-                  <button
-                    key={w}
-                    type="button"
-                    onClick={() => commitAnalyticsWindow(w)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
-                      windowParam === w ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {w === "7d" ? "7d" : w === "30d" ? "30d" : "90d"}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
           {refreshFeedback && (
@@ -850,11 +837,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
         ) : payload ? (
           <>
             <p className="text-xs text-muted-foreground -mt-1 mb-2 max-w-3xl">
-              The <span className="tabular-nums">7d</span> / <span className="tabular-nums">30d</span> /{" "}
-              <span className="tabular-nums">90d</span> control applies to every chart below. Each day is one UTC calendar bucket; axis labels are{" "}
-              <span className="font-medium text-foreground/90">window start–end inclusive</span>. Series are built from{" "}
-              <code className="text-[10px] bg-muted px-1 rounded">x_tweets</code> (engagement &amp; cadence) and{" "}
-              <code className="text-[10px] bg-muted px-1 rounded">x_daily_snapshots</code> (followers), written by sync and backfill jobs.
+              Daily buckets are UTC. Engagement and cadence use stored{" "}
+              <code className="text-[10px] bg-muted px-1 rounded">x_tweets</code>; follower line uses{" "}
+              <code className="text-[10px] bg-muted px-1 rounded">x_daily_snapshots</code>. Compare each card to the prior period of the same length.
             </p>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <EngagementChart
@@ -865,6 +850,22 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                 noPostsInPeriod={noPostsEngagement}
                 insufficientForTrend={insufficientEngagement}
                 bucketLabel="Daily"
+                useRichShell={!!payload && !windowPayloadStale}
+                windowMeta={
+                  payload && !windowPayloadStale
+                    ? {
+                        start: payload.window_start,
+                        end: payload.window_end,
+                        days: payload.window_days,
+                      }
+                    : undefined
+                }
+                kpisForRich={{
+                  engagement_pct_avg: payload.kpis.engagement_pct_avg,
+                  posts_total: payload.kpis.posts_total,
+                  prior_engagements_total: payload.kpis.prior_engagements_total,
+                  prior_potential_reach: payload.kpis.prior_potential_reach,
+                }}
               />
               <PostingCadenceChart
                 points={cadencePoints}
@@ -874,6 +875,17 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                 noPostsInPeriod={noPostsCadence}
                 insufficientForTrend={insufficientCadence}
                 bucketLabel="Daily"
+                useRichShell={!!payload && !windowPayloadStale}
+                windowMeta={
+                  payload && !windowPayloadStale
+                    ? {
+                        start: payload.window_start,
+                        end: payload.window_end,
+                        days: payload.window_days,
+                      }
+                    : undefined
+                }
+                priorPostsTotal={payload.kpis.prior_posts_total ?? 0}
               />
             </div>
             <FollowerGrowthChart
@@ -883,6 +895,16 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               earliestDate={followerEarliestDate}
               insufficientData={followerInsufficient}
               bucketLabel="Daily"
+              useRichShell={!!payload && !windowPayloadStale}
+              windowMeta={
+                payload && !windowPayloadStale
+                  ? {
+                      start: payload.window_start,
+                      end: payload.window_end,
+                      days: payload.window_days,
+                    }
+                  : undefined
+              }
             />
           </>
         ) : null}

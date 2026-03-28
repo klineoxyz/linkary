@@ -93,8 +93,8 @@ export function AnalyticsRichChartCard({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-2">
-          <div className="min-w-0">
+        <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
+          <div className="min-w-0 flex-1 basis-[12rem]">
             <p className="text-[11px] font-medium text-muted-foreground">{primaryLabel}</p>
             <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1 gap-y-0">
               <span className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight text-foreground">
@@ -108,15 +108,17 @@ export function AnalyticsRichChartCard({
             </p>
           </div>
           {showPriorDelta && deltaVsPriorPct != null && Number.isFinite(deltaVsPriorPct) ? (
-            <div className={`text-sm font-semibold tabular-nums ${deltaColor}`}>
-              <span>
+            <div className={`w-full sm:w-auto sm:max-w-[min(100%,20rem)] text-sm font-semibold tabular-nums leading-snug ${deltaColor}`}>
+              <span className="whitespace-nowrap">
                 {deltaVsPriorPct > 0 ? "+" : ""}
                 {deltaVsPriorPct.toFixed(1)}%
               </span>
-              <span className="ml-1.5 text-xs font-normal text-muted-foreground">vs prior same length</span>
+              <span className="mt-0.5 block sm:inline sm:mt-0 sm:ml-1.5 text-xs font-normal text-muted-foreground">
+                vs prior same length
+              </span>
             </div>
           ) : showPriorDelta ? (
-            <div className="text-xs text-muted-foreground">No prior window to compare</div>
+            <div className="w-full sm:w-auto text-xs text-muted-foreground">No prior window to compare</div>
           ) : null}
         </div>
 

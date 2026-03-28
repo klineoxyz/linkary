@@ -444,7 +444,9 @@ export default function CrossUserAnalyticsPage({
             subtitle={
               payload && !windowPayloadStale
                 ? `${payload.window_start} → ${payload.window_end} · UTC · ${payload.window_days}-day window`
-                : undefined
+                : windowPayloadStale
+                  ? "Updating charts for this window…"
+                  : undefined
             }
           />
         </div>

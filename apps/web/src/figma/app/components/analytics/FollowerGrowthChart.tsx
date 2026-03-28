@@ -169,10 +169,10 @@ export function FollowerGrowthChart({
   const gradId = `followerAreaGrad-${uid}`;
 
   const chart = (
-    <div className="rounded-lg border border-border/50 bg-background/80 px-2 py-2 shadow-inner">
+    <div className="rounded-lg border border-border/50 bg-background/80 px-2 py-2 shadow-inner min-h-[200px] flex flex-col justify-center">
       <svg
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-        className="w-full h-auto max-h-[220px]"
+        className="w-full h-auto min-h-[160px] max-h-[220px] text-muted-foreground"
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label="Follower growth cumulative change"
@@ -220,26 +220,16 @@ export function FollowerGrowthChart({
             />
           ) : null
         )}
-        <text x={leftG - 4} y={topG + 8} textAnchor="end" className="fill-muted-foreground text-[9px] font-medium tabular-nums">
+        <text x={leftG - 4} y={topG + 8} textAnchor="end" fill="currentColor" className="text-[9px] font-medium tabular-nums">
           {Math.round(y1)}
         </text>
-        <text x={leftG - 4} y={baseY - 2} textAnchor="end" className="fill-muted-foreground text-[9px] font-medium tabular-nums">
+        <text x={leftG - 4} y={baseY - 2} textAnchor="end" fill="currentColor" className="text-[9px] font-medium tabular-nums">
           {Math.round(y0)}
         </text>
-        <text
-          x={firstX}
-          y={VIEW_H - 6}
-          textAnchor="start"
-          className="fill-muted-foreground text-[9px] font-medium tabular-nums"
-        >
+        <text x={firstX} y={VIEW_H - 6} textAnchor="start" fill="currentColor" className="text-[9px] font-medium tabular-nums">
           {points[0]?.date ?? ""}
         </text>
-        <text
-          x={lastX}
-          y={VIEW_H - 6}
-          textAnchor="end"
-          className="fill-muted-foreground text-[9px] font-medium tabular-nums"
-        >
+        <text x={lastX} y={VIEW_H - 6} textAnchor="end" fill="currentColor" className="text-[9px] font-medium tabular-nums">
           {points[points.length - 1]?.date ?? ""}
         </text>
       </svg>

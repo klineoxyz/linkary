@@ -8,10 +8,11 @@ Place your logo files here.
 
 ## Icons (for favicon, app icons, nav)
 
-- `icons/linkary-favicon.svg` - **Browser tab favicon** — orange bar mark only (same gradient as `logo-primary.svg` / `linkary-logo.png`).
-- `icons/icon.svg` - black (light backgrounds)
-- `icons/icon-white.svg` - white (dark backgrounds)
-- `icons/icon-color.svg` - cyan/purple accent (legacy; not the primary linkary.xyz mark)
+- `icons/linkary-icon.png` — **Primary mark** (browser tab + /app sidebar). Official PNG; do not swap for generated SVGs.
+- `icons/linkary-icon-small.png` — **Apple touch / compact** companion PNG (same design, provided asset).
+- `icons/icon-color.svg` — legacy multi-color bars (not used for favicon).
+- `icons/linkary-favicon.svg` — orange bars only (`logo-primary` gradient); optional contexts only.
+- `icons/icon.svg` / `icon-white.svg` — monochrome marks for light/dark UI.
 
 ## Other full logos (icon + wordmark)
 

@@ -83,7 +83,7 @@ import { SWR_KEY_ME_STATS } from "@/lib/swrCacheKeys";
 import { AnimatePresence, motion } from "motion/react";
 // Linkary brand assets - icons in public/icons/, full logos in public/logos/
 const linkaryIconWhite = "/icons/icon-white.svg";
-const linkaryIconColor = "/icons/icon-color.svg";
+const linkaryIconColor = "/icons/linkary-icon.png";
 import {
   BadgeCheck,
   Bell,
@@ -1123,7 +1123,7 @@ function Sidebar({
           className="flex items-center gap-2 text-sidebar-foreground"
           aria-label="Linkary Home"
         >
-          <img src="/icons/linkary-favicon.svg" alt="Linkary" className="h-5 w-auto lg:h-6" />
+          <img src="/icons/linkary-icon.png" alt="Linkary" className="h-5 w-auto lg:h-6" />
         </Link>
 
         <button className="lg:hidden p-1" onClick={() => setMobileOpen((v) => !v)} aria-label="Close menu">

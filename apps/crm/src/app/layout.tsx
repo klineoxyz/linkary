@@ -15,10 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Linkary CRM",
   description: "Campaign operations and task workspace",
-  /** Orange bar mark from `logos/logo-primary.svg` — same as linkary.xyz favicon. */
   icons: {
-    icon: [{ url: "/icons/linkary-favicon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icons/linkary-favicon.svg", type: "image/svg+xml" }],
+    icon: [{ url: "/icons/linkary-icon.png", type: "image/png", sizes: "any" }],
+    apple: [{ url: "/icons/linkary-icon-small.png", type: "image/png" }],
   },
   robots: { index: false, follow: false },
 };

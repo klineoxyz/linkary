@@ -187,7 +187,7 @@ export default function UnifiedProfileLayout({
         <header className="sticky top-0 z-50 bg-white border-b border-neutral-200 shadow-sm">
           <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2 text-xl font-bold text-primary">
-              <img src="/icons/linkary-favicon.svg" alt="" className="h-6 w-auto" aria-hidden />
+              <img src="/icons/linkary-icon.png" alt="" className="h-6 w-auto" aria-hidden />
               Linkary
             </div>
             <div className="text-sm text-neutral-600">linkary.xyz/{data.slug}</div>

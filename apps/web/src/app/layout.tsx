@@ -23,8 +23,9 @@ export const metadata: Metadata = {
   title: { default: "Linkary", template: "%s · Linkary" },
   description: "Link-in-bio, verified gigs, and reputation for Web3 creators and projects.",
   icons: {
-    icon: [{ url: "/icons/linkary-favicon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icons/linkary-favicon.svg", type: "image/svg+xml" }],
+    /** Canonical PNG marks (provided assets; do not replace with generated art). */
+    icon: [{ url: "/icons/linkary-icon.png", type: "image/png", sizes: "any" }],
+    apple: [{ url: "/icons/linkary-icon-small.png", type: "image/png" }],
   },
   openGraph: {
     type: "website",

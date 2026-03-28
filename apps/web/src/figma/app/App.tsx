@@ -1123,7 +1123,7 @@ function Sidebar({
           className="flex items-center gap-2 text-sidebar-foreground"
           aria-label="Linkary Home"
         >
-          <img src="/icons/linkary-icon.png" alt="Linkary" className="h-5 w-auto lg:h-6" />
+          <img src="/icons/linkary-favicon.svg" alt="Linkary" className="h-5 w-auto lg:h-6" />
         </Link>
 
         <button className="lg:hidden p-1" onClick={() => setMobileOpen((v) => !v)} aria-label="Close menu">

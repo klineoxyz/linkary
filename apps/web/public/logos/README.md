@@ -8,9 +8,10 @@ Place your logo files here.
 
 ## Icons (for favicon, app icons, nav)
 
+- `icons/linkary-favicon.svg` - **Browser tab favicon** — orange bar mark only (same gradient as `logo-primary.svg` / `linkary-logo.png`).
 - `icons/icon.svg` - black (light backgrounds)
 - `icons/icon-white.svg` - white (dark backgrounds)
-- `icons/icon-color.svg` - gradient (accent)
+- `icons/icon-color.svg` - cyan/purple accent (legacy; not the primary linkary.xyz mark)
 
 ## Other full logos (icon + wordmark)
 

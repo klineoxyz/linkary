@@ -211,21 +211,16 @@ export function EngagementChart({
 
   const barAreaHeight = CHART_H - 32;
   const minBarHeightPct = (4 / barAreaHeight) * 100;
-  const denseWindow = points.length > 14;
-  const barTrackMinWidthPx = denseWindow ? points.length * 10 : undefined;
 
   const chart = (
-    <div className="rounded-lg border border-border/50 bg-background/80 px-2 py-2 shadow-inner/5">
-      <div className="relative border-l border-b border-border/70 pl-7 pb-6 pt-2 w-full" style={{ height: CHART_H }}>
+    <div className="rounded-lg border border-border/50 bg-background/80 px-2 py-2 shadow-inner/5 min-w-0 max-w-full overflow-hidden">
+      <div className="relative border-l border-b border-border/70 pl-7 pb-6 pt-2 w-full min-w-0" style={{ height: CHART_H }}>
         <div className="absolute left-1 top-2 text-[10px] font-medium text-muted-foreground tabular-nums">
           {scaleMax.toFixed(1)}%
         </div>
         <div className="absolute left-1 bottom-6 text-[10px] font-medium text-muted-foreground tabular-nums">0</div>
-        <div className={`pl-0 w-full ${denseWindow ? "overflow-x-auto overflow-y-hidden" : ""}`} style={{ height: barAreaHeight }}>
-          <div
-            className="flex h-full items-stretch gap-px pl-0 w-full"
-            style={barTrackMinWidthPx ? { minWidth: barTrackMinWidthPx } : undefined}
-          >
+        <div className="pl-0 w-full min-w-0" style={{ height: barAreaHeight }}>
+          <div className="flex h-full min-w-0 w-full items-stretch gap-px">
             {points.map((p, i) => {
               const val = Number(p.engagement_pct);
               const heightPct =

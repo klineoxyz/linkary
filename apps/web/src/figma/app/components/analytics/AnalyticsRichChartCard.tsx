@@ -66,7 +66,7 @@ export function AnalyticsRichChartCard({
 
   return (
     <div
-      className="rounded-2xl border border-border/90 bg-card shadow-[0_1px_0_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04] overflow-hidden"
+      className="rounded-2xl border border-border/90 bg-card shadow-[0_1px_0_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04] overflow-hidden min-w-0 max-w-full"
       data-page="analytics"
     >
       <div className="border-b border-border/60 bg-gradient-to-b from-muted/40 to-transparent px-4 pt-4 pb-3 md:px-5 md:pt-5">
@@ -130,7 +130,7 @@ export function AnalyticsRichChartCard({
         ) : null}
       </div>
 
-      <div className="px-4 py-4 md:px-5 md:py-5 bg-muted/[0.15]">{children}</div>
+      <div className="px-4 py-4 md:px-5 md:py-5 bg-muted/[0.15] min-w-0 overflow-x-hidden">{children}</div>
     </div>
   );
 }

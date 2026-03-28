@@ -169,10 +169,10 @@ export function FollowerGrowthChart({
   const gradId = `followerAreaGrad-${uid}`;
 
   const chart = (
-    <div className="rounded-lg border border-border/50 bg-background/80 px-2 py-2 shadow-inner min-h-[200px] flex flex-col justify-center">
+    <div className="rounded-lg border border-border/50 bg-background/80 px-2 py-2 shadow-inner min-h-[200px] min-w-0 max-w-full overflow-hidden flex flex-col justify-center">
       <svg
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-        className="w-full h-auto min-h-[160px] max-h-[220px] text-muted-foreground"
+        className="w-full max-w-full h-auto min-h-[160px] max-h-[220px] text-muted-foreground"
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label="Follower growth cumulative change"

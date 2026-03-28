@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BarChart2, ExternalLink, Lock, AlertCircle, Users } from "lucide-react";
@@ -106,10 +106,22 @@ export default function CrossUserAnalyticsPage({
     return normalizeCrossUserWindow(new URLSearchParams(window.location.search).get("window")) ?? "30d";
   });
 
+  /** Latest requested profile + window; drop async responses that no longer match (avoids showing User A charts under User B). */
+  const fetchTargetRef = useRef({ username, windowParam });
+  fetchTargetRef.current = { username, windowParam };
+
   useEffect(() => {
     const fromUrl = normalizeCrossUserWindow(searchParams?.get("window"));
     if (fromUrl) setWindowParamState(fromUrl);
   }, [searchParams]);
+
+  useEffect(() => {
+    setStatus("loading");
+    setProfile(null);
+    setWindowPayloadRaw(null);
+    setErrorMessage(null);
+    setRateLimitResetAt(null);
+  }, [username]);
 
   const commitCrossUserWindow = useCallback(
     (w: WindowParam) => {
@@ -136,6 +148,8 @@ export default function CrossUserAnalyticsPage({
       setStatus("unauthorized");
       return;
     }
+    const requestedUsername = username;
+    const requestedWindow = windowParam;
     const base = typeof window !== "undefined" ? window.location.origin : "";
     setStatus("loading");
     setErrorMessage(null);
@@ -145,6 +159,11 @@ export default function CrossUserAnalyticsPage({
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const json = await res.json().catch(() => ({}));
+
+    const stillCurrent =
+      fetchTargetRef.current.username === requestedUsername &&
+      fetchTargetRef.current.windowParam === requestedWindow;
+    if (!stillCurrent) return;
 
     if (res.status === 401) {
       setStatus("unauthorized");
@@ -166,6 +185,12 @@ export default function CrossUserAnalyticsPage({
     if (!res.ok) {
       setStatus("error");
       setErrorMessage(json?.message ?? "Something went wrong");
+      return;
+    }
+    if (
+      fetchTargetRef.current.username !== requestedUsername ||
+      fetchTargetRef.current.windowParam !== requestedWindow
+    ) {
       return;
     }
     setStatus("success");
@@ -354,7 +379,7 @@ export default function CrossUserAnalyticsPage({
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
             <ChartSkeleton title="Engagement Rate" />
             <ChartSkeleton title="Posting Cadence" />
           </div>
@@ -466,7 +491,7 @@ export default function CrossUserAnalyticsPage({
           </div>
         ) : windowPayloadStale ? (
           <div className="space-y-4 sm:space-y-6" data-page="analytics">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
               <ChartSkeleton title="Engagement Rate" />
               <ChartSkeleton title="Posting Cadence" />
             </div>
@@ -478,8 +503,13 @@ export default function CrossUserAnalyticsPage({
               Daily UTC buckets from stored{" "}
               <code className="text-[10px] bg-muted px-1 rounded">x_tweets</code> and{" "}
               <code className="text-[10px] bg-muted px-1 rounded">x_daily_snapshots</code>. Cards compare to the prior period of the same length where available.
+              {profile?.username ? (
+                <span className="block mt-1 text-[11px] font-medium text-foreground/80">
+                  {`Showing @${profile.username}'s stored metrics for this window.`}
+                </span>
+              ) : null}
             </p>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div key={`cross-user-charts-${username}-${windowDays}`} className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
               <EngagementChart
                 points={engagementPoints}
                 coverageDays={activeDaysEngagement}
@@ -527,6 +557,7 @@ export default function CrossUserAnalyticsPage({
               />
             </div>
             <FollowerGrowthChart
+              key={`cross-user-follower-${username}-${windowDays}`}
               points={followerPoints}
               coverageDays={followerCoverageDays}
               windowDays={windowDays}

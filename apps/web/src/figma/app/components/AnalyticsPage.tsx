@@ -845,7 +845,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
 
         {kpiTilesLoading ? (
           <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
               <ChartSkeleton title="Engagement Rate" />
               <ChartSkeleton title="Posting Cadence" />
             </div>
@@ -858,7 +858,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               <code className="text-[10px] bg-muted px-1 rounded">x_tweets</code>; follower line uses{" "}
               <code className="text-[10px] bg-muted px-1 rounded">x_daily_snapshots</code>. Compare each card to the prior period of the same length.
             </p>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
               <EngagementChart
                 points={engagementPoints}
                 coverageDays={activeDaysEngagement}

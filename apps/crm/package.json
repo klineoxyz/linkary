@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "seed:qa:multi-user-contribution": "tsx scripts/seedMultiUserContributionQa.ts",
     "dev": "next dev --port 3002",
     "prebuild": "pnpm --filter @linkary/plan-key run build",
@@ -20,6 +22,7 @@
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "tsx": "^4.19.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

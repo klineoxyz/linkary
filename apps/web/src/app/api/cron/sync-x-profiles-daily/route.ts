@@ -12,7 +12,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Daily cron: sync profile snapshot (followers etc.) for is_indexed profiles. Protected by CRON_SECRET. Priority profile IDs in header X-Priority-Profile-Ids (comma-separated) are always included first. */
+/**
+ * Daily cron: sync profile snapshot (followers etc.) for X-linked profiles.
+ * Eligible: `is_indexed` (discovery/cron pool) OR `twitter_connected_at` set (OAuth-linked owners who are not indexed).
+ * Without daily upserts, `x_daily_snapshots.followers` only accumulates one day at a time (backfill does not invent historical follower levels).
+ * Protected by CRON_SECRET. Priority profile IDs in header X-Priority-Profile-Ids (comma-separated) are always included first.
+ */
 export async function POST(request: NextRequest) {
   const secret =
     request.headers.get("x-cron-secret") ??
@@ -51,8 +56,8 @@ export async function POST(request: NextRequest) {
   const { data: profiles, error: listError } = await supabase
     .from("profiles")
     .select("id, twitter_username, followers_total, x_last_profile_sync_at")
-    .eq("is_indexed", true)
     .not("twitter_username", "is", null)
+    .or("is_indexed.eq.true,twitter_connected_at.not.is.null")
     // Stale/never-synced first so follower daily history is captured consistently.
     .order("x_last_profile_sync_at", { ascending: true, nullsFirst: true })
     .limit(BATCH_SIZE);

@@ -1,8 +1,8 @@
 /**
  * Daily cron: sync X profile info (followers, avatar, bio, display_name) + insert snapshot.
- * Eligible: is_indexed, twitter_connected_at not null, twitter_username not null,
- * and (x_last_profile_sync_at is null or older than 24h).
- * Loads .env from repo root and apps/web/.env.local so local runs pick up API/Supabase vars.
+ * Eligible: twitter_username set AND (is_indexed OR twitter_connected_at set), and
+ * (x_last_profile_sync_at is null or older than 24h). Indexed-only gating previously skipped OAuth owners who were not indexed,
+ * so follower snapshots never accumulated. Loads .env from repo root and apps/web/.env.local so local runs pick up API/Supabase vars.
  */
 import { config } from "dotenv";
 import { fileURLToPath } from "url";
@@ -48,23 +48,27 @@ async function main() {
     list = priorityList;
   }
 
+  const FETCH_CAP = Math.min(2000, BATCH_SIZE * 4);
   const { data: profiles, error: listError } = await supabase
     .from("profiles")
-    .select("id, twitter_username")
-    .eq("is_indexed", true)
+    .select("id, twitter_username, x_last_profile_sync_at")
     .not("twitter_username", "is", null)
-    .or(`x_last_profile_sync_at.is.null,x_last_profile_sync_at.lt.${past24}`)
-    .order("id")
-    .limit(BATCH_SIZE);
+    .or("is_indexed.eq.true,twitter_connected_at.not.is.null")
+    .order("x_last_profile_sync_at", { ascending: true, nullsFirst: true })
+    .limit(FETCH_CAP);
 
   if (listError) {
     console.error("Failed to list profiles:", listError.message);
     process.exit(1);
   }
 
-  const batchList = (profiles ?? []).filter(
-    (p: { twitter_username: string | null }) => p.twitter_username && String(p.twitter_username).trim()
+  const eligibleStale = (profiles ?? []).filter(
+    (p: { twitter_username: string | null; x_last_profile_sync_at?: string | null }) =>
+      p.twitter_username &&
+      String(p.twitter_username).trim() &&
+      (!p.x_last_profile_sync_at || p.x_last_profile_sync_at < past24)
   );
+  const batchList = eligibleStale.slice(0, BATCH_SIZE);
   const seen = new Set<string>(list.map((p) => p.id));
   for (const p of batchList) {
     if (!seen.has(p.id)) {

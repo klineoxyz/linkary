@@ -242,6 +242,7 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
           .print-tight { margin-top: 0 !important; padding-top: 0 !important; }
           table { font-size: 10.5px !important; }
           th, td { padding: 10px 8px !important; }
+          .proof-table th, .proof-table td { padding: 5px 4px !important; vertical-align: top !important; }
           section { box-shadow: none !important; margin-bottom: 14px !important; }
           aside, nav, header, [role="navigation"] { display: none !important; }
           #crm-app-shell { display: block !important; }
@@ -256,10 +257,17 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
           body { background: #fff !important; }
           .proof-url { word-break: break-all !important; white-space: normal !important; }
           .proof-table { table-layout: fixed !important; width: 100% !important; min-width: 0 !important; }
+          .case-study-table-wrap { overflow: visible !important; max-width: 100% !important; }
+          .case-study-print-svg-host svg {
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: 260px !important;
+          }
           a { text-decoration: none !important; color: inherit !important; }
           .avoid-break { break-inside: avoid !important; page-break-inside: avoid !important; }
           .print-h2 { font-size: 17px !important; letter-spacing: -0.02em !important; }
-          .print-hero { padding: 20px !important; }
+          .print-hero { padding: 20px !important; overflow: visible !important; }
           .print-kpis { gap: 12px !important; }
         }
         @page { margin: 14mm; }
@@ -333,9 +341,9 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
         </div>
       </section>
 
-      <section className="print-break rounded-3xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))] p-6 shadow-sm avoid-break">
+      <section className="print-break rounded-3xl border border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-card)_92%,var(--crm-bg))] p-6 shadow-sm">
         <h2 className="print-h2 mb-4 text-2xl font-semibold tracking-tight text-[var(--crm-foreground)]">Performance charts</h2>
-        <div className="mb-5">
+        <div className="case-study-print-svg-host mb-5">
           <GrowthTrajectoryChart series={growth_trajectory} />
         </div>
         <div className="grid gap-4 lg:grid-cols-3">
@@ -371,14 +379,14 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
         )}
       </section>
 
-      <section className="print-break rounded-3xl border border-[color-mix(in_srgb,var(--crm-primary)_20%,var(--crm-border))] bg-[color-mix(in_srgb,var(--crm-card)_90%,var(--crm-bg))] p-6 sm:p-7 shadow-md avoid-break">
+      <section className="print-break rounded-3xl border border-[color-mix(in_srgb,var(--crm-primary)_20%,var(--crm-border))] bg-[color-mix(in_srgb,var(--crm-card)_90%,var(--crm-bg))] p-6 sm:p-7 shadow-md">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--crm-primary)]">Layer 2 · Creators</p>
         <h2 className="print-h2 mt-1 mb-2 text-2xl font-bold tracking-tight text-[var(--crm-foreground)]">Participant contribution</h2>
         <p className="mb-5 max-w-3xl text-sm leading-relaxed text-[var(--crm-muted)]">
           Proof share and task share headline CRM contribution; post metrics sum <code className="rounded bg-[var(--crm-bg)] px-1 text-[11px]">metrics_snapshot</code> when present.
         </p>
-        <div className="overflow-x-auto rounded-2xl border-2 border-[color-mix(in_srgb,var(--crm-primary)_22%,var(--crm-border))] bg-[var(--crm-card)] shadow-sm">
-          <table className="w-full min-w-[1200px] text-sm">
+        <div className="case-study-table-wrap overflow-x-auto rounded-2xl border-2 border-[color-mix(in_srgb,var(--crm-primary)_22%,var(--crm-border))] bg-[var(--crm-card)] shadow-sm">
+          <table className="proof-table w-full min-w-[1200px] text-sm">
             <thead>
               <tr className="border-b-2 border-[color-mix(in_srgb,var(--crm-primary)_28%,var(--crm-border))] bg-[color-mix(in_srgb,var(--crm-primary)_9%,var(--crm-bg))] text-[11px] font-semibold uppercase tracking-wide text-[var(--crm-muted)]">
                 <th className="p-3 text-left w-12">#</th>
@@ -503,7 +511,7 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
         <p className="mb-5 max-w-3xl text-sm leading-relaxed text-[var(--crm-muted)]">
           Each row is a proof URL. Metrics appear when stored on the submission — nothing is estimated in this table.
         </p>
-        <div className="overflow-x-auto rounded-2xl border-2 border-[var(--crm-border)] bg-[var(--crm-card)] shadow-sm">
+        <div className="case-study-table-wrap overflow-x-auto rounded-2xl border-2 border-[var(--crm-border)] bg-[var(--crm-card)] shadow-sm">
           <table className="proof-table w-full min-w-[900px] text-sm">
             <thead>
               <tr className="border-b-2 border-[var(--crm-border)] bg-[color-mix(in_srgb,var(--crm-primary)_8%,var(--crm-bg))] text-[11px] font-semibold uppercase tracking-wide text-[var(--crm-muted)]">

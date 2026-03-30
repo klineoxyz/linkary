@@ -35,13 +35,13 @@ import { PRICING_PATH } from "@/lib/planPackageUi";
 import { trackProductEventClient } from "@/lib/productTelemetry";
 
 function formatIslandValue(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(n)) return "—";
+  if (n == null || !Number.isFinite(n)) return "\u2014";
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
   return n.toLocaleString();
 }
 
-/** Avoid runtime throws when API returns ok:true but an incomplete payload (crashes entire page â†’ ClientErrorBoundary). */
+/** Avoid runtime throws when API returns ok:true but an incomplete payload (crashes entire page -> ClientErrorBoundary). */
 function extractAnalyticsPayload(res: ApiResponse | undefined): ApiSuccess["data"] | null {
   if (!res || res.ok !== true || !res.data || typeof res.data !== "object") return null;
   const d = res.data;
@@ -511,7 +511,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
             role="status"
           >
             <span className="text-emerald-950">
-              <strong>Analytics are loaded.</strong> Numbers here are from stored snapshots â€” refresh occasionally to update.
+              <strong>Analytics are loaded.</strong> Numbers here are from stored snapshots{"\u2014"} refresh occasionally
+              to update.
             </span>
             <button type="button" onClick={dismissAnalyticsReady} className="text-xs font-medium text-emerald-800 shrink-0 self-start sm:self-center hover:underline">
               Got it
@@ -712,7 +713,13 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   <Users className="h-4 w-4 text-white stroke-[1.75]" />
                 </div>
               </div>
-              <h2 className="text-4xl font-bold text-white mb-1">{payload ? (payload.kpis.followers_latest != null ? formatIslandValue(payload.kpis.followers_latest) : "â€”") : "â€”"}</h2>
+              <h2 className="text-4xl font-bold text-white mb-1">
+                {payload
+                  ? payload.kpis.followers_latest != null
+                    ? formatIslandValue(payload.kpis.followers_latest)
+                    : "\u2014"
+                  : "\u2014"}
+              </h2>
               <span className="text-xs flex items-center gap-1 text-white">{payload?.kpis.followers_latest != null && payload.kpis.followers_latest > 0 ? "Latest in window" : "Beta"}</span>
             </div>
           </KpiIslandOuter>
@@ -731,7 +738,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               <h2 className="text-4xl font-bold text-white mb-1">
                 {payload?.kpis?.posts_total != null && Number.isFinite(Number(payload.kpis.posts_total))
                   ? Number(payload.kpis.posts_total).toLocaleString()
-                  : "â€”"}
+                  : "\u2014"}
               </h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.posts_total ?? 0) > 0 ? "In window" : "Beta"}</span>
             </div>
@@ -748,7 +755,9 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
                   <Eye className="h-4 w-4 text-white stroke-[1.75]" />
                 </div>
               </div>
-              <h2 className="text-4xl font-bold text-white mb-1">{payload ? formatIslandValue(payload.kpis.impressions_total) : "—"}</h2>
+              <h2 className="text-4xl font-bold text-white mb-1">
+                {payload ? formatIslandValue(payload.kpis.impressions_total) : "\u2014"}
+              </h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.impressions_total ?? 0) > 0 ? "Total in window" : "Beta"}</span>
             </div>
           </KpiIslandOuter>
@@ -767,7 +776,7 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               <h2 className="text-4xl font-bold text-white mb-1">
                 {payload && (payload.kpis?.posts_total ?? 0) > 0 && Number.isFinite(Number(payload.kpis?.engagement_pct_avg))
                   ? `${Number(payload.kpis.engagement_pct_avg).toFixed(2)}%`
-                  : "â€”"}
+                  : "\u2014"}
               </h2>
               <span className="text-xs flex items-center gap-1 text-white">{(payload?.kpis.posts_total ?? 0) > 0 ? "Avg in window" : "Beta"}</span>
             </div>
@@ -957,8 +966,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               <p>follower_data_coverage_days: {payload.follower_data_coverage_days} / window_days: {payload.window_days}</p>
               {(() => {
                 const vals = payload.chart_points.engagement_rate.map((p) => p.engagement_pct).filter(Number.isFinite);
-                const minEr = vals.length ? Math.min(...vals).toFixed(2) : "—";
-                const maxEr = vals.length ? Math.max(...vals).toFixed(2) : "—";
+                const minEr = vals.length ? Math.min(...vals).toFixed(2) : "\u2014";
+                const maxEr = vals.length ? Math.max(...vals).toFixed(2) : "\u2014";
                 return <p>engagement_pct min: {minEr}%, max: {maxEr}%</p>;
               })()}
               <p>First 5 engagement points: {JSON.stringify(payload.chart_points.engagement_rate.slice(0, 5))}</p>

@@ -69,3 +69,27 @@ export function formatSignedInt(n: number): string {
   if (n < 0) return `−${fmt}`;
   return "0";
 }
+
+/** Plain-language net trend for follower card insight (matches sum of daily snapshot deltas = chart end value). */
+export function followerWindowNarrative(
+  net: number,
+  coverageDays: number,
+  windowDays: number
+): string {
+  const conf = coverageConfidenceLabel(coverageDays, windowDays);
+  const thin = windowDays >= 7 && coverageDays < Math.max(3, Math.round(windowDays * 0.15));
+  const rounded = Math.round(net);
+  let core: string;
+  if (rounded > 0) {
+    core = `Net gain of ${rounded.toLocaleString()} followers (sum of daily changes between stored snapshot totals).`;
+  } else if (rounded < 0) {
+    core = `Net loss of ${Math.abs(rounded).toLocaleString()} followers (sum of daily changes between stored snapshot totals).`;
+  } else {
+    core =
+      "Net ~0 between captured snapshot days — totals barely moved, or snapshots are too sparse to reveal day-to-day change.";
+  }
+  const tail = thin
+    ? `${conf} Treat direction as indicative until more snapshot days fill in.`
+    : `${conf} The chart’s cumulative line ends at this net.`;
+  return `${core} ${tail}`;
+}

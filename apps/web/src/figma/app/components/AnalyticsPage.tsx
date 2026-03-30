@@ -377,7 +377,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   /** Daily series already has one bar per day in the window; show it whenever any day has posts (avoid blocking 7d on "3 posting days"). */
   const insufficientEngagement = false;
   const insufficientCadence = false;
-  const followerInsufficient = false;
+  /** One snapshot day cannot define net gain/loss vs the window; avoids a flat chart that looks like "0 change". */
+  const followerInsufficient = followerCoverageDays > 0 && followerCoverageDays < 2 && windowDays > 1;
 
   const freshness = payload?.freshness;
   const hasXHandle = ownerStatus?.has_x_handle ?? freshness?.has_x_handle ?? true;

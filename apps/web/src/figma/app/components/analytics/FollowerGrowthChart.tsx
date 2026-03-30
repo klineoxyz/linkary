@@ -20,8 +20,9 @@ export interface FollowerGrowthChartProps {
   windowMeta?: WindowMeta;
 }
 
-const VIEW_W = 420;
-const VIEW_H = 188;
+/** Wide viewBox so preserveAspectRatio meet fills card width (narrow viewBox caused letterboxed “island”). */
+const VIEW_W = 1000;
+const VIEW_H = 248;
 
 export function FollowerGrowthChart({
   points,
@@ -35,7 +36,7 @@ export function FollowerGrowthChart({
   useRichShell,
   windowMeta,
 }: FollowerGrowthChartProps) {
-  const { hasAnyData, series } = useMemo(() => {
+  const { hasAnyData, series, snapDayCount } = useMemo(() => {
     let cum = 0;
     const seriesPts = points.map((p) => {
       const d = p.follower_delta == null ? null : Number(p.follower_delta);
@@ -45,7 +46,8 @@ export function FollowerGrowthChart({
     const hasSnap = points.some(
       (p) => p.follower_delta != null && Number.isFinite(Number(p.follower_delta))
     );
-    return { hasAnyData: hasSnap, series: seriesPts };
+    const snapDayCount = seriesPts.filter((s) => s.hasSnap).length;
+    return { hasAnyData: hasSnap, series: seriesPts, snapDayCount };
   }, [points]);
 
   const coverage =
@@ -103,9 +105,11 @@ export function FollowerGrowthChart({
   if (insufficientData) {
     const hasAnyFollowerDays = covDays > 0 || !!earliestDate;
     const message = hasAnyFollowerDays
-      ? earliestDate
-        ? "Follower history starts on " + earliestDate + "."
-        : "Follower history is starting to populate."
+      ? covDays === 1 && (windowDays ?? 0) > 1
+        ? "Need another snapshot day to show follower gain or loss."
+        : earliestDate
+          ? "Follower history starts on " + earliestDate + "."
+          : "Follower history is starting to populate."
       : "No follower history yet.";
     return wrap(
       <EmptyState
@@ -149,19 +153,20 @@ export function FollowerGrowthChart({
   let minY = cums.length ? Math.min(0, ...cums) : 0;
   let maxY = cums.length ? Math.max(0, ...cums) : 1;
   if (minY === maxY) {
-    minY -= 1;
-    maxY += 1;
+    const pad = minY === 0 ? 2 : Math.max(1, Math.abs(minY) * 0.08);
+    minY -= pad;
+    maxY += pad;
   }
 
   const n = series.length;
   const span = maxY - minY || 1;
-  const padY = Math.max(Math.abs(span) * 0.12, 1);
+  const padY = Math.max(Math.abs(span) * 0.14, 1.5);
   const y0 = minY - padY;
   const y1 = maxY + padY;
-  const leftG = 36;
-  const rightG = 10;
-  const topG = 14;
-  const bottomG = 26;
+  const leftG = 48;
+  const rightG = 16;
+  const topG = 16;
+  const bottomG = 34;
   const iw = VIEW_W - leftG - rightG;
   const ih = VIEW_H - topG - bottomG;
   const toX = (i: number) => leftG + (n <= 1 ? iw / 2 : (i / Math.max(n - 1, 1)) * iw);
@@ -177,75 +182,116 @@ export function FollowerGrowthChart({
 
   const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const gradId = `followerAreaGrad-${uid}`;
+  const yMid = (y0 + y1) / 2;
+  const strokeW = snapDayCount <= 4 ? 3 : 2.5;
+  const dotR = snapDayCount <= 4 ? 4 : 3;
 
   const chart = (
-    <div className="rounded-lg border border-border/50 bg-background/80 px-2 py-2 shadow-inner min-h-[200px] min-w-0 max-w-full overflow-hidden flex flex-col justify-center">
-      <svg
-        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-        className="w-full max-w-full h-auto min-h-[160px] max-h-[220px] text-muted-foreground"
-        preserveAspectRatio="xMidYMid meet"
-        role="img"
-        aria-label="Follower growth cumulative change"
-      >
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.03" />
-          </linearGradient>
-        </defs>
-        {[0, 0.25, 0.5, 0.75, 1].map((t) => {
-          const gy = topG + ih * t;
-          return (
-            <line
-              key={t}
-              x1={leftG}
-              y1={gy}
-              x2={VIEW_W - rightG}
-              y2={gy}
-              stroke="currentColor"
-              strokeOpacity={0.06}
-              strokeWidth={1}
-            />
-          );
-        })}
-        <path d={areaPath} fill={`url(#${gradId})`} />
-        <path
-          d={linePath}
-          fill="none"
-          stroke="var(--primary)"
-          strokeWidth={2.25}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        {series.map((s, i) =>
-          s.hasSnap ? (
-            <circle
-              key={`${s.date}-${i}`}
-              cx={toX(i)}
-              cy={toY(s.cum)}
-              r={2.25}
-              fill="var(--primary)"
-              stroke="var(--card)"
-              strokeWidth={1.5}
-            />
-          ) : null
-        )}
-        <text x={leftG - 4} y={topG + 8} textAnchor="end" fill="currentColor" className="text-[9px] font-medium tabular-nums">
-          {Math.round(y1)}
-        </text>
-        <text x={leftG - 4} y={baseY - 2} textAnchor="end" fill="currentColor" className="text-[9px] font-medium tabular-nums">
-          {Math.round(y0)}
-        </text>
-        <text x={firstX} y={VIEW_H - 6} textAnchor="start" fill="currentColor" className="text-[9px] font-medium tabular-nums">
-          {points[0]?.date ?? ""}
-        </text>
-        <text x={lastX} y={VIEW_H - 6} textAnchor="end" fill="currentColor" className="text-[9px] font-medium tabular-nums">
-          {points[points.length - 1]?.date ?? ""}
-        </text>
-      </svg>
-      <p className="mt-2 text-[11px] text-muted-foreground leading-snug">
-        Cumulative line from daily follower deltas; <span className="font-medium text-foreground/85">flat segments</span> mean no
-        snapshot that day. Orange dots mark days with data.
+    <div className="rounded-lg border border-border/50 bg-background/80 px-1 sm:px-2 py-2 shadow-inner w-full min-w-0 overflow-hidden flex flex-col justify-center">
+      <div className="w-full min-w-0 aspect-[1000/248] min-h-[176px] max-h-[min(320px,52vw)]">
+        <svg
+          viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+          className="w-full h-full block text-muted-foreground"
+          preserveAspectRatio="xMidYMid meet"
+          role="img"
+          aria-label="Follower growth: cumulative net from daily snapshot deltas in this window"
+        >
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.03" />
+            </linearGradient>
+          </defs>
+          {[0, 0.25, 0.5, 0.75, 1].map((t) => {
+            const gy = topG + ih * t;
+            return (
+              <line
+                key={t}
+                x1={leftG}
+                y1={gy}
+                x2={VIEW_W - rightG}
+                y2={gy}
+                stroke="currentColor"
+                strokeOpacity={0.06}
+                strokeWidth={1}
+              />
+            );
+          })}
+          <path d={areaPath} fill={`url(#${gradId})`} />
+          <path
+            d={linePath}
+            fill="none"
+            stroke="var(--primary)"
+            strokeWidth={strokeW}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+          {series.map((s, i) =>
+            s.hasSnap ? (
+              <circle
+                key={`${s.date}-${i}`}
+                cx={toX(i)}
+                cy={toY(s.cum)}
+                r={dotR}
+                fill="var(--primary)"
+                stroke="var(--card)"
+                strokeWidth={1.5}
+              />
+            ) : null
+          )}
+          <text
+            x={leftG - 6}
+            y={topG + 6}
+            textAnchor="end"
+            fill="currentColor"
+            className="text-[10px] font-semibold tabular-nums"
+          >
+            {Math.round(y1)}
+          </text>
+          <text
+            x={leftG - 6}
+            y={topG + ih / 2}
+            dominantBaseline="middle"
+            textAnchor="end"
+            fill="currentColor"
+            className="text-[9px] font-medium tabular-nums opacity-80"
+          >
+            {Math.round(yMid)}
+          </text>
+          <text
+            x={leftG - 6}
+            y={baseY - 2}
+            textAnchor="end"
+            fill="currentColor"
+            className="text-[10px] font-semibold tabular-nums"
+          >
+            {Math.round(y0)}
+          </text>
+          <text
+            x={firstX}
+            y={VIEW_H - 8}
+            textAnchor="start"
+            fill="currentColor"
+            className="text-[10px] font-semibold tabular-nums"
+          >
+            {points[0]?.date ?? ""}
+          </text>
+          <text
+            x={lastX}
+            y={VIEW_H - 8}
+            textAnchor="end"
+            fill="currentColor"
+            className="text-[10px] font-semibold tabular-nums"
+          >
+            {points[points.length - 1]?.date ?? ""}
+          </text>
+        </svg>
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground leading-snug px-0.5">
+        <span className="font-medium text-foreground/90">How to read this:</span> the line is{" "}
+        <span className="text-foreground/85">cumulative net followers</span> from daily changes between stored snapshot totals (UTC).
+        The first day with data anchors at 0 when there is no earlier snapshot. Flat segments are days without a new total; dots are
+        days with a snapshot. This matches the header net when coverage is solid.
       </p>
     </div>
   );

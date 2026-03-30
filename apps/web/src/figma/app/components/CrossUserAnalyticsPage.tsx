@@ -235,7 +235,7 @@ export default function CrossUserAnalyticsPage({
     payload != null && Number(payload.window_days) !== expectedWindowDays;
   const insufficientEngagement = false;
   const insufficientCadence = false;
-  const followerInsufficient = false;
+  const followerInsufficient = followerCoverageDays > 0 && followerCoverageDays < 2 && windowDays > 1;
 
   const freshness = payload?.freshness;
   const hasXHandle = freshness?.has_x_handle ?? true;

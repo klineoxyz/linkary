@@ -6,6 +6,7 @@ import {
   coverageConfidenceLabel,
   engagementSignal,
   followerSignal,
+  followerWindowNarrative,
   formatSignedInt,
   netFollowerDeltaFromSeries,
   pctChangeVsPrior,
@@ -116,9 +117,11 @@ export function buildFollowerRichHeader(p: FollowerRichParams): Omit<AnalyticsRi
       coverageBadge: cov,
       bucketHint: "Daily buckets",
       insight: p.insufficientHasPartial
-        ? p.earliestDate
-          ? `History starts ${p.earliestDate}. More daily snapshots will sharpen this curve.`
-          : "Snapshots are still sparse — check back after more daily syncs."
+        ? p.coverageDays === 1 && p.window.days > 1
+          ? "Only one UTC day in this window has a stored follower total. Sync X from Integrations so at least two days can be compared — then net gain/loss is meaningful."
+          : p.earliestDate
+            ? `History starts ${p.earliestDate}. More daily snapshots will sharpen this curve.`
+            : "Snapshots are still sparse — check back after more daily syncs."
         : "Connect X and allow daily follower snapshots to populate this view.",
       lowVarianceNote: false,
     };
@@ -143,25 +146,21 @@ export function buildFollowerRichHeader(p: FollowerRichParams): Omit<AnalyticsRi
 
   const net = netFollowerDeltaFromSeries(p.points);
   const signal = followerSignal(net, p.coverageDays, p.window.days);
-  const conf = coverageConfidenceLabel(p.coverageDays, p.window.days);
 
   return {
     title: "Follower Growth",
     windowRangeLabel: baseRange,
-    primaryLabel: "Net change (window)",
+    primaryLabel: "Net followers (snapshot deltas)",
     primaryValue: formatSignedInt(net),
-    primarySuffix: " followers",
+    primarySuffix: undefined,
     deltaVsPriorPct: null,
     showPriorDelta: false,
     signal,
     coverageBadge: cov,
-    bucketHint: "Daily buckets",
-    insight:
-      p.coverageDays < p.window.days * 0.5
-        ? `${conf}. Missing days flatten the line — trend is directional.`
-        : p.earliestDate
-          ? `${conf}. First snapshot in range: ${p.earliestDate}.`
-          : `${conf}. Line is cumulative from daily follower deltas in snapshots.`,
+    bucketHint: "Daily UTC buckets",
+    insight: p.earliestDate
+      ? `${followerWindowNarrative(net, p.coverageDays, p.window.days)} First day with data: ${p.earliestDate}.`
+      : followerWindowNarrative(net, p.coverageDays, p.window.days),
     lowVarianceNote: false,
   };
 }

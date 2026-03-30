@@ -19,7 +19,13 @@ const mockState = {
   compAnalyticsFull: false,
   rateLimitAllowed: true,
   rateLimitResetAt: "2025-01-01T12:00:00Z",
-  profileViewData: { id: OTHER_PROFILE_ID, username: "other", display_name: "Other", avatar_url: null } as Record<string, unknown> | null,
+  profileViewData: {
+    id: OTHER_PROFILE_ID,
+    username: "other",
+    display_name: "Other",
+    avatar_url: null,
+    analytics_visibility: "public",
+  } as Record<string, unknown> | null,
   /** x_window_aggregates rows (route reads these; one per window_days). Empty = null analytics. */
   aggregateData: [
     { window_days: 7, as_of: "2025-01-01", posts_count: 2, avg_likes_per_post: 4, avg_replies_per_post: 0.5, avg_engagement_rate: 2, reach_avg: 50 },
@@ -76,10 +82,16 @@ vi.mock("@/lib/x-analytics-server", () => ({
         ilike: () => self,
         in: () => self,
         is: () => self,
+        not: () => self,
         gt: () => self,
+        gte: () => self,
+        lt: () => self,
+        lte: () => self,
         order: () => self,
+        range: () => self,
         limit: () => self,
         maybeSingle: () => Promise.resolve({ data: null }),
+        single: () => Promise.resolve({ data: null, error: null }),
         then: (onFulfilled: (v: typeof result) => unknown, onRejected?: (e: unknown) => unknown) =>
           Promise.resolve(result).then(onFulfilled, onRejected),
       };
@@ -134,6 +146,7 @@ describe("GET /api/me/analytics/profile/[username]", () => {
       username: "other",
       display_name: "Other",
       avatar_url: null,
+      analytics_visibility: "public",
     };
     mockState.aggregateData = [
       { window_days: 7, as_of: "2025-01-01", posts_count: 2, avg_likes_per_post: 4, avg_replies_per_post: 0.5, avg_engagement_rate: 2, reach_avg: 50 },
@@ -168,6 +181,25 @@ describe("GET /api/me/analytics/profile/[username]", () => {
     expect(json.code).toBe("ANALYTICS_VIEW_NOT_ELIGIBLE");
   });
 
+  it("returns 403 when target analytics_visibility is private", async () => {
+    mockState.profileViewData = {
+      id: OTHER_PROFILE_ID,
+      username: "other",
+      display_name: "Other",
+      avatar_url: null,
+      analytics_visibility: "private",
+    };
+    const { GET } = await import("./route");
+    const req = nextRequest("http://localhost/api/me/analytics/profile/other", {
+      Authorization: "Bearer fake-token",
+    });
+    const res = await GET(req, { params: Promise.resolve({ username: "other" }) });
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.ok).toBe(false);
+    expect(json.code).toBe("ANALYTICS_NOT_PUBLIC");
+  });
+
   it("returns 404 when profile not found", async () => {
     mockState.profileViewData = null;
     const { GET } = await import("./route");
@@ -182,7 +214,13 @@ describe("GET /api/me/analytics/profile/[username]", () => {
   });
 
   it("returns 400 USE_OWN_ANALYTICS when viewing self", async () => {
-    mockState.profileViewData = { id: USER_ID, username: "me", display_name: "Me", avatar_url: null };
+    mockState.profileViewData = {
+      id: USER_ID,
+      username: "me",
+      display_name: "Me",
+      avatar_url: null,
+      analytics_visibility: "public",
+    };
     const { GET } = await import("./route");
     const req = nextRequest("http://localhost/api/me/analytics/profile/me", {
       Authorization: "Bearer fake-token",

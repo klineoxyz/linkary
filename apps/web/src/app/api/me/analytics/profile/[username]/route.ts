@@ -79,13 +79,23 @@ export async function GET(
 
     const { data: profileRow } = await serviceSupabase
       .from("public_profile_view")
-      .select("id, username, display_name, avatar_url")
+      .select("id, username, display_name, avatar_url, analytics_visibility")
       .ilike("username", username)
       .maybeSingle();
 
     if (!profileRow) return fail("NOT_FOUND", "Profile not found", 404);
 
     const profileId = (profileRow as { id: string }).id;
+    const analyticsVisibility = String(
+      (profileRow as { analytics_visibility?: string | null }).analytics_visibility ?? "public"
+    ).toLowerCase();
+    if (analyticsVisibility === "private") {
+      return fail(
+        "ANALYTICS_NOT_PUBLIC",
+        "This creator has not made analytics public.",
+        403
+      );
+    }
     if (profileId === userId) {
       return fail("USE_OWN_ANALYTICS", "Use /api/analytics/x for your own analytics", 400);
     }

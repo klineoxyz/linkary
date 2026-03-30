@@ -222,7 +222,11 @@ export async function buildXAnalyticsWindowPayloadForProfile(
     }
 
     if (prevLevel == null || !Number.isFinite(prevLevel)) {
-      follower_growth.push({ date, follower_delta: null });
+      // No level before this day inside the window (and no pre-window baseline row):
+      // anchor the series here with delta 0 so later snapshot days produce real deltas.
+      // Without this, every day stays null and the chart falsely reads "no follower data"
+      // even when x_daily_snapshots rows exist (typical after mid-window backfill).
+      follower_growth.push({ date, follower_delta: 0 });
       prevLevel = snap;
       continue;
     }

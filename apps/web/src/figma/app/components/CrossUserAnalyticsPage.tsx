@@ -69,7 +69,16 @@ function extractWindowAnalyticsPayload(w: unknown): WindowAnalyticsPayload | nul
   return d as WindowAnalyticsPayload;
 }
 
-type Status = "idle" | "loading" | "success" | "locked" | "unauthorized" | "rate_limited" | "not_found" | "error";
+type Status =
+  | "idle"
+  | "loading"
+  | "success"
+  | "locked"
+  | "analytics_private"
+  | "unauthorized"
+  | "rate_limited"
+  | "not_found"
+  | "error";
 
 type WindowParam = "7d" | "30d" | "90d";
 
@@ -167,6 +176,10 @@ export default function CrossUserAnalyticsPage({
 
     if (res.status === 401) {
       setStatus("unauthorized");
+      return;
+    }
+    if (res.status === 403 && json?.code === "ANALYTICS_NOT_PUBLIC") {
+      setStatus("analytics_private");
       return;
     }
     if (res.status === 403 && (json?.code === "ANALYTICS_VIEW_NOT_ELIGIBLE" || json?.code === "DISCOVERY_NOT_ELIGIBLE")) {
@@ -271,6 +284,38 @@ export default function CrossUserAnalyticsPage({
               Sign in
             </button>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "analytics_private") {
+    return (
+      <div className="max-w-2xl mx-auto p-6" data-page="cross-user-analytics">
+        <div className="rounded-xl border border-border bg-card p-8 text-center">
+          <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h2 className="text-lg font-medium text-foreground">Analytics not public</h2>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+            This creator has not made X analytics public on their Linkary profile.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={goToPublicProfile}
+              className="inline-flex items-center justify-center rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium text-foreground"
+            >
+              View public profile
+            </button>
+            {setRoute && (
+              <button
+                type="button"
+                onClick={() => setRoute({ name: "analytics" })}
+                className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+              >
+                Back to Analytics
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );

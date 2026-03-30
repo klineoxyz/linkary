@@ -124,10 +124,20 @@ export function FollowerGrowthChart({
   }
 
   if (!hasAnyData || points.length === 0) {
+    const hasCoverage = covDays > 0 || !!earliestDate;
     return wrap(
       <EmptyState
-        message="No follower data in this period."
-        secondary="Connect X in Integrations to sync."
+        message={
+          hasCoverage
+            ? "Follower snapshots are too sparse to chart growth in this window."
+            : "No follower data in this period."
+        }
+        secondary={
+          hasCoverage
+            ? `Coverage ${coverage ?? "partial"} · Engagement uses stored tweets; follower trend needs more daily follower snapshots from your X sync (Integrations).`
+            : "Connect X in Integrations to sync."
+        }
+        coverage={earliestDate ? `First: ${earliestDate}` : coverage}
         onRefresh={onRefresh}
         refreshDisabled={refreshDisabled}
         integrationsHref={integrationsHref}

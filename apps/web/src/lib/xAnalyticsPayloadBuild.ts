@@ -45,12 +45,26 @@ async function fetchXTweetsForAnalytics(
   return { data: out, error: null };
 }
 
+export type FollowerNetEndpointSource =
+  | "in_window_last_snapshot"
+  | "post_window_snapshot"
+  | "profile_followers_total";
+
 export type XAnalyticsWindowPayload = {
   window_days: number;
   window_start: string;
   window_end: string;
   follower_data_coverage_days: number;
   follower_earliest_snapshot_date: string | null;
+  /** Latest daily snapshot strictly before window_start (stored x_daily_snapshots), if any. */
+  follower_baseline_day: string | null;
+  follower_has_pre_window_baseline: boolean;
+  /** False when stored data cannot yet support a meaningful window net (e.g. one in-window snap and no baseline in a long window). */
+  follower_window_net_ready: boolean;
+  /** Where the end follower level came from for net + chart (stored data only). */
+  follower_net_endpoint_source: FollowerNetEndpointSource | null;
+  /** When source is post_window_snapshot, the UTC day of that row. */
+  follower_net_endpoint_snapshot_day: string | null;
   chart_points: {
     engagement_rate: Array<{
       date: string;
@@ -113,7 +127,7 @@ export async function buildXAnalyticsWindowPayloadForProfile(
   const tweetsFrom = new Date(priorStartUTC);
   const tweetsFromStr = tweetsFrom.toISOString();
 
-  const [dailySnapshotsRes, baselineSnapshotRes, profileRes] = await Promise.all([
+  const [dailySnapshotsRes, baselineSnapshotRes, postWindowSnapshotRes, profileRes] = await Promise.all([
     supabase
       .from("x_daily_snapshots")
       .select("day, followers")
@@ -130,6 +144,16 @@ export async function buildXAnalyticsWindowPayloadForProfile(
       .lt("day", windowStartStr)
       .not("followers", "is", null)
       .order("day", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("x_daily_snapshots")
+      .select("day, followers")
+      .eq("owner_type", "profile")
+      .eq("owner_id", profileId)
+      .gt("day", window_end)
+      .not("followers", "is", null)
+      .order("day", { ascending: true })
       .limit(1)
       .maybeSingle(),
     supabase
@@ -201,10 +225,30 @@ export async function buildXAnalyticsWindowPayloadForProfile(
     .map((r) => ({ day: r.day, followers: Number(r.followers) as number }))
     .sort((a, b) => a.day.localeCompare(b.day));
 
+  const profileRow = profileRes.data as {
+    twitter_username?: string | null;
+    x_last_profile_sync_at?: string | null;
+    followers_total?: number | null;
+  } | null;
+
   const baselineRow = baselineSnapshotRes.data as { day?: string; followers?: number | null } | null;
   const baselineFollowers =
     baselineRow?.followers != null && Number.isFinite(Number(baselineRow.followers))
       ? Number(baselineRow.followers)
+      : null;
+  const follower_baseline_day =
+    baselineRow?.day != null && typeof baselineRow.day === "string" ? baselineRow.day : null;
+  const follower_has_pre_window_baseline = baselineFollowers != null;
+
+  const postWindowRow = postWindowSnapshotRes.data as SnapshotRow | null;
+  const postWindowFollowers =
+    postWindowRow?.followers != null && Number.isFinite(Number(postWindowRow.followers))
+      ? Number(postWindowRow.followers)
+      : null;
+
+  const profileFollowersTotal =
+    profileRow?.followers_total != null && Number.isFinite(Number(profileRow.followers_total))
+      ? Number(profileRow.followers_total)
       : null;
 
   const followersByDay = new Map<string, number>();
@@ -212,10 +256,31 @@ export async function buildXAnalyticsWindowPayloadForProfile(
     followersByDay.set(s.day, s.followers);
   }
 
+  /** When there are zero in-window daily rows but a pre-window baseline exists, close the window using stored post-window snapshot or profile total (no live X fetch). */
+  let syntheticClosingLevel: number | null = null;
+  let follower_net_endpoint_snapshot_day: string | null = null;
+  let follower_net_endpoint_source: FollowerNetEndpointSource | null = null;
+  if (followerSnapshots.length === 0 && follower_has_pre_window_baseline) {
+    if (postWindowFollowers != null) {
+      syntheticClosingLevel = postWindowFollowers;
+      follower_net_endpoint_snapshot_day =
+        postWindowRow?.day != null && typeof postWindowRow.day === "string" ? postWindowRow.day : null;
+      follower_net_endpoint_source = "post_window_snapshot";
+    } else if (profileFollowersTotal != null) {
+      syntheticClosingLevel = profileFollowersTotal;
+      follower_net_endpoint_source = "profile_followers_total";
+    }
+  } else if (followerSnapshots.length > 0) {
+    follower_net_endpoint_source = "in_window_last_snapshot";
+  }
+
   const follower_growth: Array<{ date: string; follower_delta: number | null }> = [];
   let prevLevel: number | null = baselineFollowers;
   for (const date of fullWindowDates) {
-    const snap = followersByDay.get(date);
+    let snap = followersByDay.get(date);
+    if (snap == null && date === window_end && syntheticClosingLevel != null) {
+      snap = syntheticClosingLevel;
+    }
     if (snap == null || !Number.isFinite(snap)) {
       follower_growth.push({ date, follower_delta: null });
       continue;
@@ -224,8 +289,6 @@ export async function buildXAnalyticsWindowPayloadForProfile(
     if (prevLevel == null || !Number.isFinite(prevLevel)) {
       // No level before this day inside the window (and no pre-window baseline row):
       // anchor the series here with delta 0 so later snapshot days produce real deltas.
-      // Without this, every day stays null and the chart falsely reads "no follower data"
-      // even when x_daily_snapshots rows exist (typical after mid-window backfill).
       follower_growth.push({ date, follower_delta: 0 });
       prevLevel = snap;
       continue;
@@ -237,6 +300,13 @@ export async function buildXAnalyticsWindowPayloadForProfile(
 
   const follower_data_coverage_days = followerSnapshots.length;
   const follower_earliest_snapshot_date = followerSnapshots.length > 0 ? followerSnapshots[0].day : null;
+
+  const nSnaps = followerSnapshots.length;
+  const follower_window_net_ready =
+    nSnaps >= 2 ||
+    (nSnaps >= 1 && follower_has_pre_window_baseline) ||
+    (nSnaps === 1 && !follower_has_pre_window_baseline && windowDays <= 1) ||
+    (nSnaps === 0 && follower_has_pre_window_baseline && syntheticClosingLevel != null);
 
   const tweetsInWindow = tweets.filter((t) => {
     const d = (t.tweeted_at ?? "").slice(0, 10);
@@ -264,7 +334,7 @@ export async function buildXAnalyticsWindowPayloadForProfile(
   const avg_likes_per_post = posts_total > 0 ? total_likes / posts_total : 0;
   const avg_replies_per_post = posts_total > 0 ? total_replies / posts_total : 0;
   const followers_latest =
-    followerSnapshots.length > 0 ? followerSnapshots[followerSnapshots.length - 1].followers : null;
+    nSnaps > 0 ? followerSnapshots[followerSnapshots.length - 1].followers : syntheticClosingLevel;
   const potential_reach = impressions_total;
 
   const prior_posts = tweetsInPriorWindow.length;
@@ -306,10 +376,12 @@ export async function buildXAnalyticsWindowPayloadForProfile(
     prior_avg_replies_per_post: prior_posts > 0 ? prior_replies / prior_posts : 0,
   };
 
-  const profileRow = profileRes.data as { twitter_username?: string | null; x_last_profile_sync_at?: string | null } | null;
   const hasXHandle = !!(profileRow?.twitter_username ?? "").trim().replace(/^@/, "");
   const lastSyncAt = profileRow?.x_last_profile_sync_at ?? null;
-  const hasAnyData = follower_data_coverage_days > 0 || posts_total > 0;
+  const hasAnyData =
+    follower_data_coverage_days > 0 ||
+    posts_total > 0 ||
+    (follower_has_pre_window_baseline && syntheticClosingLevel != null);
   const dataState: "none" | "partial" | "full" =
     !hasAnyData ? "none" : follower_data_coverage_days >= 7 && posts_total > 0 ? "full" : "partial";
 
@@ -319,6 +391,11 @@ export async function buildXAnalyticsWindowPayloadForProfile(
     window_end: window_end,
     follower_data_coverage_days,
     follower_earliest_snapshot_date,
+    follower_baseline_day,
+    follower_has_pre_window_baseline,
+    follower_window_net_ready,
+    follower_net_endpoint_source,
+    follower_net_endpoint_snapshot_day,
     chart_points,
     kpis,
     freshness: {

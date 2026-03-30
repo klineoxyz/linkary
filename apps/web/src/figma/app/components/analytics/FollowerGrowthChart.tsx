@@ -6,12 +6,17 @@ import { AnalyticsRichChartCard } from "./AnalyticsRichChartCard";
 import { ChartCard } from "./ChartCard";
 import { EmptyState } from "./EmptyState";
 import { buildFollowerRichHeader, type WindowMeta } from "./richHeaderFromPayload";
+import type { FollowerNetEndpointSource } from "@/lib/xAnalyticsPayloadBuild";
 
 export interface FollowerGrowthChartProps {
   points: Array<{ date: string; follower_delta: number | null }>;
   coverageDays?: number;
   windowDays?: number;
   earliestDate?: string | null;
+  baselineDay?: string | null;
+  hasPreWindowBaseline?: boolean;
+  netEndpointSource?: FollowerNetEndpointSource | null;
+  netEndpointSnapshotDay?: string | null;
   insufficientData: boolean;
   bucketLabel?: "Daily" | "Weekly";
   onRefresh?: () => void;
@@ -29,6 +34,10 @@ export function FollowerGrowthChart({
   coverageDays,
   windowDays,
   earliestDate,
+  baselineDay,
+  hasPreWindowBaseline = false,
+  netEndpointSource,
+  netEndpointSnapshotDay,
   insufficientData,
   bucketLabel,
   onRefresh,
@@ -105,19 +114,19 @@ export function FollowerGrowthChart({
   if (insufficientData) {
     const hasAnyFollowerDays = covDays > 0 || !!earliestDate;
     const message = hasAnyFollowerDays
-      ? covDays === 1 && (windowDays ?? 0) > 1
-        ? "Need another snapshot day to show follower gain or loss."
+      ? covDays === 1 && (windowDays ?? 0) > 1 && !hasPreWindowBaseline
+        ? "Not enough stored follower history to define net change for this full window."
         : earliestDate
-          ? "Follower history starts on " + earliestDate + "."
-          : "Follower history is starting to populate."
-      : "No follower history yet.";
+          ? "Follower snapshot coverage starts " + earliestDate + " — still thin for this range."
+          : "Follower snapshot coverage in Linkary is still limited for this window."
+      : "No stored follower totals for this window yet.";
     return wrap(
       <EmptyState
         message={message}
         secondary={
           hasAnyFollowerDays
-            ? "More daily snapshots will tighten this trend line."
-            : "Connect X and check back tomorrow."
+            ? "As daily totals accumulate in our tables, this view will firm up on its own."
+            : "Once this account has stored daily follower snapshots in Linkary, growth will appear here."
         }
         coverage={earliestDate ? `First: ${earliestDate}` : coverage}
         onRefresh={onRefresh}
@@ -133,13 +142,13 @@ export function FollowerGrowthChart({
       <EmptyState
         message={
           hasCoverage
-            ? "Follower snapshots are too sparse to chart growth in this window."
-            : "No follower data in this period."
+            ? "Stored follower snapshots are too sparse to draw a trend in this window."
+            : "No chartable follower deltas in this period."
         }
         secondary={
           hasCoverage
-            ? `Coverage ${coverage ?? "partial"} · Engagement uses stored tweets; follower trend needs more daily follower snapshots from your X sync (Integrations).`
-            : "Connect X in Integrations to sync."
+            ? `Coverage ${coverage ?? "partial"} · Tweet-based metrics may still load from stored posts; follower line needs more daily totals in our database for this range.`
+            : "No daily follower totals in our tables for this UTC window yet."
         }
         coverage={earliestDate ? `First: ${earliestDate}` : coverage}
         onRefresh={onRefresh}
@@ -290,8 +299,11 @@ export function FollowerGrowthChart({
       <p className="mt-2 text-[11px] text-muted-foreground leading-snug px-0.5">
         <span className="font-medium text-foreground/90">How to read this:</span> the line is{" "}
         <span className="text-foreground/85">cumulative net followers</span> from daily changes between stored snapshot totals (UTC).
-        The first day with data anchors at 0 when there is no earlier snapshot. Flat segments are days without a new total; dots are
-        days with a snapshot. This matches the header net when coverage is solid.
+        {hasPreWindowBaseline && baselineDay
+          ? ` The start level comes from the stored snapshot on ${baselineDay}.`
+          : " When there is no earlier daily snapshot in our data, the first day with totals anchors at 0."}{" "}
+        Flat segments are days without a new total; dots are days with a snapshot. The header net matches the line when the same
+        start/end levels are used.
       </p>
     </div>
   );

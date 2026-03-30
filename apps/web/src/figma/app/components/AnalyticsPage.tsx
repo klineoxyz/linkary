@@ -58,6 +58,15 @@ type ApiSuccess = {
     window_end: string;
     follower_data_coverage_days: number;
     follower_earliest_snapshot_date?: string | null;
+    follower_baseline_day?: string | null;
+    follower_has_pre_window_baseline?: boolean;
+    follower_window_net_ready?: boolean;
+    follower_net_endpoint_source?:
+      | "in_window_last_snapshot"
+      | "post_window_snapshot"
+      | "profile_followers_total"
+      | null;
+    follower_net_endpoint_snapshot_day?: string | null;
     chart_points: {
       engagement_rate: Array<{
         date: string;
@@ -367,6 +376,8 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   const windowDays = payload?.window_days ?? 30;
   const followerCoverageDays = payload?.follower_data_coverage_days ?? 0;
   const followerEarliestDate = payload?.follower_earliest_snapshot_date ?? null;
+  const followerBaselineDay = payload?.follower_baseline_day ?? null;
+  const followerHasPreWindowBaseline = payload?.follower_has_pre_window_baseline === true;
   const activeDaysEngagement = engagementPoints.filter((p) => (p.posts ?? 0) > 0).length;
   const activeDaysCadence = cadencePoints.filter((p) => (p.posts ?? 0) > 0).length;
   const postsTotalInWindow = payload?.kpis?.posts_total ?? 0;
@@ -377,8 +388,15 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
   /** Daily series already has one bar per day in the window; show it whenever any day has posts (avoid blocking 7d on "3 posting days"). */
   const insufficientEngagement = false;
   const insufficientCadence = false;
-  /** One snapshot day cannot define net gain/loss vs the window; avoids a flat chart that looks like "0 change". */
-  const followerInsufficient = followerCoverageDays > 0 && followerCoverageDays < 2 && windowDays > 1;
+  /** Server decides when stored baselines + snapshots support a meaningful window net (not raw in-window row count alone). */
+  const followerNetReady = payload?.follower_window_net_ready;
+  const followerInsufficient =
+    followerNetReady === false ||
+    (followerNetReady === undefined &&
+      followerCoverageDays > 0 &&
+      followerCoverageDays < 2 &&
+      windowDays > 1 &&
+      !followerHasPreWindowBaseline);
 
   const freshness = payload?.freshness;
   const hasXHandle = ownerStatus?.has_x_handle ?? freshness?.has_x_handle ?? true;
@@ -911,6 +929,10 @@ export default function AnalyticsPage({ setRoute }: { setRoute?: (route: { name:
               coverageDays={followerCoverageDays}
               windowDays={windowDays}
               earliestDate={followerEarliestDate}
+              baselineDay={followerBaselineDay}
+              hasPreWindowBaseline={followerHasPreWindowBaseline}
+              netEndpointSource={payload?.follower_net_endpoint_source ?? null}
+              netEndpointSnapshotDay={payload?.follower_net_endpoint_snapshot_day ?? null}
               insufficientData={followerInsufficient}
               bucketLabel="Daily"
               useRichShell={!!payload && !windowPayloadStale}

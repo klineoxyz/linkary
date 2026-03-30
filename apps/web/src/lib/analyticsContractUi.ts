@@ -8,8 +8,17 @@ export type AnalyticsXContractData = {
   window_days: number;
   window_start: string;
   window_end: string;
-  /** Count of window days where follower_growth has a finite delta (matches chart; includes forward-fill from profile/baseline). */
+  /** In-window rows in x_daily_snapshots with follower totals (not counting synthetic window-end close). */
   follower_data_coverage_days: number;
+  follower_baseline_day?: string | null;
+  follower_has_pre_window_baseline?: boolean;
+  follower_window_net_ready?: boolean;
+  follower_net_endpoint_source?:
+    | "in_window_last_snapshot"
+    | "post_window_snapshot"
+    | "profile_followers_total"
+    | null;
+  follower_net_endpoint_snapshot_day?: string | null;
   chart_points: {
     engagement_rate: Array<{
       date: string;

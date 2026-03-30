@@ -2,6 +2,7 @@
  * Builds rich analytics card headers from existing window KPIs only (no new fetches).
  */
 import type { AnalyticsRichChartCardProps } from "./AnalyticsRichChartCard";
+import type { FollowerNetEndpointSource } from "@/lib/xAnalyticsPayloadBuild";
 import {
   coverageConfidenceLabel,
   engagementSignal,
@@ -13,6 +14,19 @@ import {
   postingSignal,
   priorEngagementRatePct,
 } from "@/lib/analyticsChartMetrics";
+
+function followerEndpointInsightAppend(
+  src: FollowerNetEndpointSource | null | undefined,
+  snapshotDay: string | null | undefined
+): string {
+  if (src === "post_window_snapshot" && snapshotDay) {
+    return ` End level uses the stored daily snapshot on ${snapshotDay} (first reading after this UTC window).`;
+  }
+  if (src === "profile_followers_total") {
+    return " End level uses your stored profile follower total (from the last X profile sync in our data), because this window has no daily follower rows in our tables.";
+  }
+  return "";
+}
 
 export type WindowMeta = { start: string; end: string; days: number };
 
@@ -96,6 +110,10 @@ export type FollowerRichParams = {
   coverageDays: number;
   points: ReadonlyArray<{ follower_delta: number | null }>;
   earliestDate?: string | null;
+  baselineDay?: string | null;
+  hasPreWindowBaseline?: boolean;
+  netEndpointSource?: FollowerNetEndpointSource | null;
+  netEndpointSnapshotDay?: string | null;
   mode: "ok" | "insufficient" | "empty";
   insufficientHasPartial?: boolean;
 };
@@ -117,12 +135,12 @@ export function buildFollowerRichHeader(p: FollowerRichParams): Omit<AnalyticsRi
       coverageBadge: cov,
       bucketHint: "Daily buckets",
       insight: p.insufficientHasPartial
-        ? p.coverageDays === 1 && p.window.days > 1
-          ? "Only one UTC day in this window has a stored follower total. Sync X from Integrations so at least two days can be compared — then net gain/loss is meaningful."
+        ? p.coverageDays === 1 && p.window.days > 1 && !p.hasPreWindowBaseline
+          ? "Only one day in this UTC window has a stored follower total, and there is no earlier daily snapshot in Linkary to use as a start level — we do not infer net change for the full window from that alone."
           : p.earliestDate
-            ? `History starts ${p.earliestDate}. More daily snapshots will sharpen this curve.`
-            : "Snapshots are still sparse — check back after more daily syncs."
-        : "Connect X and allow daily follower snapshots to populate this view.",
+            ? `Earliest snapshot shown here starts ${p.earliestDate}. Stored follower coverage for this window is still limited.`
+            : "Stored follower history for this window is still limited."
+        : "No stored daily follower totals in Linkary for this window yet.",
       lowVarianceNote: false,
     };
   }
@@ -139,7 +157,8 @@ export function buildFollowerRichHeader(p: FollowerRichParams): Omit<AnalyticsRi
       signal: "watch",
       coverageBadge: cov,
       bucketHint: "Daily buckets",
-      insight: "No follower rows in this window yet — sync from Integrations when X is connected.",
+      insight:
+        "No stored daily follower totals in this UTC window. Tweet-based charts may still show if posts were synced.",
       lowVarianceNote: false,
     };
   }
@@ -158,9 +177,16 @@ export function buildFollowerRichHeader(p: FollowerRichParams): Omit<AnalyticsRi
     signal,
     coverageBadge: cov,
     bucketHint: "Daily UTC buckets",
-    insight: p.earliestDate
-      ? `${followerWindowNarrative(net, p.coverageDays, p.window.days)} First day with data: ${p.earliestDate}.`
-      : followerWindowNarrative(net, p.coverageDays, p.window.days),
+    insight: (() => {
+      const base = p.earliestDate
+        ? `${followerWindowNarrative(net, p.coverageDays, p.window.days)} First in-window snapshot day: ${p.earliestDate}.`
+        : followerWindowNarrative(net, p.coverageDays, p.window.days);
+      const anchor =
+        p.baselineDay && p.hasPreWindowBaseline
+          ? ` Start-of-window level comes from the stored snapshot on ${p.baselineDay}.`
+          : "";
+      return `${base}${anchor}${followerEndpointInsightAppend(p.netEndpointSource, p.netEndpointSnapshotDay)}`;
+    })(),
     lowVarianceNote: false,
   };
 }

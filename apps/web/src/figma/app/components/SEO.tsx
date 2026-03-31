@@ -19,7 +19,8 @@ interface SEOProps {
 
 const DEFAULT_SEO = {
   title: "Linkary - Verifiable Reputation for Web3 Work",
-  description: "Profiles, proof, and analytics in one place. Build verifiable reputation with ETHOS, Wallchain XScore, and counterparty verification.",
+  description:
+    "Profiles, proof, and analytics in one place. Build verifiable reputation with ETHOS and counterparty verification.",
   ogImage: "/og-image.png",
   twitterHandle: "@linkary",
 };

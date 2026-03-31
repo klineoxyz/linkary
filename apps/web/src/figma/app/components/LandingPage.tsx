@@ -252,7 +252,7 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
               <p className="text-sm text-gray-500 mb-8 flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1">
                   <Shield className="w-4 h-4 text-primary stroke-[1.75]" />
-                  Powered by ETHOS + Wallchain XScore
+                  Powered by ETHOS
                 </span>
                 <span className="text-gray-400">•</span>
                 <span className="inline-flex items-center gap-1">
@@ -434,10 +434,6 @@ export default function LandingPage({ setRoute }: LandingPageProps) {
             <div className="flex items-center gap-2">
               <Shield className="w-6 h-6 text-primary stroke-[1.75]" />
               <span className="text-sm font-semibold text-gray-700">ETHOS Score</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Zap className="w-6 h-6 text-primary stroke-[1.75]" />
-              <span className="text-sm font-semibold text-gray-700">Wallchain XScore</span>
             </div>
             <div className="flex items-center gap-2">
               <BadgeCheck className="w-6 h-6 text-primary stroke-[1.75]" />

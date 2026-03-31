@@ -257,7 +257,14 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
           body { background: #fff !important; }
           .proof-url { word-break: break-all !important; white-space: normal !important; }
           .proof-table { table-layout: fixed !important; width: 100% !important; min-width: 0 !important; }
-          .case-study-table-wrap { overflow: visible !important; max-width: 100% !important; }
+          .proof-table th { white-space: normal !important; }
+          .proof-table td { word-break: break-word !important; }
+          .case-study-table-wrap {
+            overflow: visible !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            display: block !important;
+          }
           .case-study-print-svg-host svg {
             width: 100% !important;
             height: auto !important;
